@@ -6,6 +6,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Breaking changes within the 0.x line are called out explicitly.
 
+## [0.2.6] — 2026-05-19
+
+### Fixed
+
+- **依赖冲突**：`langchain-google-genai` 移至可选依赖组 `[google]`，
+  消除与 mootdx 的 httpx 版本冲突。`pip install -e .` 开箱即用，
+  需要 Google Gemini 时 `pip install -e ".[google]"`。
+- **WebUI 模型写死 minimax**：侧边栏新增 LLM 供应商和模型选择器，
+  支持 9 个供应商（MiniMax/DeepSeek/Qwen/GLM/OpenAI/Anthropic/Google/xAI/Ollama），
+  默认仍为 MiniMax 但用户可自由切换。
+- **阶段分析内容消失**：进度面板现在展示所有已完成阶段的报告（按时间倒序），
+  不再只显示最新的一个。最新阶段自动展开，历史阶段可点击展开。
+
+### Changed
+
+- `.env.example` 补充 `MINIMAX_API_KEY=` 条目
+- README 快速开始增加 Google 可选依赖安装说明
+- README Web UI 功能列表更新
+
 ## [0.2.5] — 2026-05-17
 
 ### Breaking Changes

@@ -149,6 +149,9 @@
 git clone https://github.com/simonlin1212/tradingagents-astock.git
 cd tradingagents-astock
 pip install -e .
+
+# 如需使用 Google Gemini 模型（可选）：
+pip install -e ".[google]"
 ```
 
 ### 2. 配置 LLM
@@ -232,7 +235,7 @@ tradingagents --help     # 查看所有选项
 
 ## Web UI
 
-内置 Streamlit 可视化界面，输入股票代码即可一键分析，适合不写代码的用户。
+内置 Streamlit 可视化界面，支持在侧边栏选择 LLM 供应商和模型，输入股票代码即可一键分析，适合不写代码的用户。
 
 ### 启动
 
@@ -248,8 +251,9 @@ streamlit run web/app.py
 
 ### 功能
 
+- **模型自选**：侧边栏支持 9 个 LLM 供应商切换（MiniMax/DeepSeek/Qwen/GLM/OpenAI/Anthropic/Google/xAI/Ollama）
 - **一键分析**：输入 6 位 A 股代码 + 日期，点击「开始分析」
-- **实时进度**：12 阶段 pipeline 实时显示（7 分析师 → 质量门控 → 辩论 → 风控 → 决策）
+- **实时进度**：12 阶段 pipeline 实时显示（7 分析师 → 质量门控 → 辩论 → 风控 → 决策），所有已完成阶段的报告均可展开查看
 - **完整报告**：信号卡片（Buy/Hold/Sell）、7 份分析师报告、多空辩论、风控评估
 - **PDF 导出**：一键下载完整 PDF 分析报告
 - **历史记录**：自动保存并展示所有历史分析

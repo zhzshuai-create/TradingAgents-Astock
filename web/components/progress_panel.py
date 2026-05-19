@@ -96,14 +96,19 @@ def render_progress(tracker: ProgressTracker) -> None:
     if tracker.error:
         st.error(f"错误: {tracker.error}")
 
-    last_report = ""
-    last_name = ""
-    for stage in reversed(PIPELINE_STAGES):
-        if stage["id"] in tracker.stage_reports:
-            last_report = tracker.stage_reports[stage["id"]]
-            last_name = stage["name"]
-            break
+    completed_reports = [
+        (stage["name"], stage["icon"], tracker.stage_reports[stage["id"]])
+        for stage in PIPELINE_STAGES
+        if stage["id"] in tracker.stage_reports
+    ]
 
-    if last_report:
-        with st.expander(f"最新完成: {last_name}", expanded=False):
-            st.markdown(last_report[:3000])
+    if completed_reports:
+        st.markdown(
+            '<div style="margin:0.5rem 0 0.3rem; font-size:0.85rem; color:#888;">'
+            f"REPORTS ({len(completed_reports)})</div>",
+            unsafe_allow_html=True,
+        )
+        for name, icon, report in reversed(completed_reports):
+            is_latest = (name == completed_reports[-1][0])
+            with st.expander(f"{icon} {name}", expanded=is_latest):
+                st.markdown(report[:3000])
