@@ -16,6 +16,8 @@ import pandas as pd
 from dotenv import load_dotenv
 from collections import Counter
 
+import altair as alt
+
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
@@ -365,6 +367,46 @@ def _render_analysis_mode() -> None:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# Chart helpers
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def _price_chart(series: pd.Series, y_label: str = "价格(元)") -> alt.Chart:
+    """Line chart with y‑axis anchored tightly to price range so oscillations are visible."""
+    y_min = float(series.min())
+    y_max = float(series.max())
+    padding = max((y_max - y_min) * 0.1, 0.05)  # 10% headroom, min 0.05
+    chart_df = series.reset_index()
+    chart_df.columns = ["x", "y"]
+    return (
+        alt.Chart(chart_df)
+        .mark_line(color="#ff5a1f")
+        .encode(
+            x=alt.X("x:T", title="", axis=alt.Axis(format="%m/%d")),
+            y=alt.Y("y:Q", title=y_label,
+                    scale=alt.Scale(domain=[y_min - padding, y_max + padding])),
+        )
+        .properties(width='container')
+        .interactive()
+    )
+
+
+def _vol_chart(series: pd.Series) -> alt.Chart:
+    """Volume bar chart."""
+    chart_df = series.reset_index()
+    chart_df.columns = ["x", "y"]
+    return (
+        alt.Chart(chart_df)
+        .mark_bar(color="#ddd", opacity=0.6)
+        .encode(
+            x=alt.X("x:T", title="", axis=alt.Axis(format="%m/%d")),
+            y=alt.Y("y:Q", title="成交量(手)", axis=alt.Axis(format="~s")),
+        )
+        .properties(width='container')
+        .interactive()
+    )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # Data Dashboard Mode
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -484,9 +526,9 @@ def _render_data_mode() -> None:
                     if kline_period == "单日详情":
                         minute_df = get_minute_data(code)
                         if not minute_df.empty:
-                            st.line_chart(minute_df["price"], y_label="价格(元)", width='stretch')
+                            st.altair_chart(_price_chart(minute_df["price"], "价格(元)"), use_container_width=True)
+                            st.altair_chart(_vol_chart(minute_df["vol"]), use_container_width=True)
                             st.caption(f"共 {len(minute_df)} 个1分钟数据点")
-                            st.bar_chart(minute_df["vol"], y_label="成交量(手)", width='stretch')
                         else:
                             st.info("暂无日内分钟数据（可能为非交易日）")
                         # Key stats from daily quote
@@ -504,8 +546,10 @@ def _render_data_mode() -> None:
                     elif kline_period == "5日":
                         if not klines.empty:
                             k5 = klines.tail(5).copy()
-                            st.line_chart(k5.set_index("datetime")["close"], y_label="收盘价(元)", width='stretch')
-                            st.bar_chart(k5.set_index("datetime")["vol"], y_label="成交量(手)", width='stretch')
+                            close_s = k5.set_index("datetime")["close"]
+                            vol_s = k5.set_index("datetime")["vol"]
+                            st.altair_chart(_price_chart(close_s), use_container_width=True)
+                            st.altair_chart(_vol_chart(vol_s), use_container_width=True)
                             closes5 = k5["close"]
                             chg5 = (closes5.iloc[-1] / closes5.iloc[0] - 1) * 100 if len(closes5) >= 2 else 0
                             chg5_color = "#e03131" if chg5 > 0 else "#2f9e44"
@@ -516,12 +560,14 @@ def _render_data_mode() -> None:
                     # ── 30日 ──────────────────────────────────────
                     elif kline_period == "30日":
                         if not klines.empty:
-                            recent_k = klines.tail(30).copy()
-                            st.line_chart(recent_k.set_index("datetime")["close"], y_label="收盘价(元)", width='stretch')
-                            st.bar_chart(recent_k.set_index("datetime")["vol"], y_label="成交量(手)", width='stretch')
-                            closes = recent_k["close"]
+                            k30 = klines.tail(30).copy()
+                            close_s = k30.set_index("datetime")["close"]
+                            vol_s = k30.set_index("datetime")["vol"]
+                            st.altair_chart(_price_chart(close_s), use_container_width=True)
+                            st.altair_chart(_vol_chart(vol_s), use_container_width=True)
+                            closes = k30["close"]
                             chg = (closes.iloc[-1] / closes.iloc[0] - 1) * 100
-                            avg_vol = recent_k["vol"].mean()
+                            avg_vol = k30["vol"].mean()
                             chg_color = "#e03131" if chg > 0 else "#2f9e44"
                             st.markdown(f'30日涨幅: <span style="color:{chg_color};font-weight:700">{chg:+.2f}%</span>  |  日均成交量: {avg_vol/10000:.1f}万手', unsafe_allow_html=True)
                         else:
@@ -532,7 +578,8 @@ def _render_data_mode() -> None:
                         with st.spinner("加载全部历史K线..."):
                             all_k = get_kline_data(code, days=5000)
                         if not all_k.empty:
-                            st.line_chart(all_k.set_index("datetime")["close"], y_label="收盘价(元)", width='stretch')
+                            close_s = all_k.set_index("datetime")["close"]
+                            st.altair_chart(_price_chart(close_s), use_container_width=True)
                             closes_all = all_k["close"]
                             chg_all = (closes_all.iloc[-1] / closes_all.iloc[0] - 1) * 100 if len(closes_all) >= 2 else 0
                             chga_color = "#e03131" if chg_all > 0 else "#2f9e44"
@@ -637,8 +684,10 @@ def _render_data_mode() -> None:
                     kt3 = get_kline_data(code)
                 if not kt3.empty:
                     recent = kt3.tail(30)
-                    st.line_chart(recent.set_index("datetime")["close"], y_label="收盘价(元)", width='stretch')
-                    st.bar_chart(recent.set_index("datetime")["vol"], y_label="成交量(手)", width='stretch')
+                    close_s = recent.set_index("datetime")["close"]
+                    vol_s = recent.set_index("datetime")["vol"]
+                    st.altair_chart(_price_chart(close_s), use_container_width=True)
+                    st.altair_chart(_vol_chart(vol_s), use_container_width=True)
                     st.caption(f"近30日涨幅: {(recent['close'].iloc[-1] / recent['close'].iloc[0] - 1)*100:+.2f}%")
                 else:
                     st.caption("暂无K线数据")
