@@ -95,6 +95,11 @@ def ths_eps_forecast(code: str) -> pd.DataFrame:
 # ── 信号层 ────────────────────────────────────────────────
 
 def ths_hot_reason(date_str: str | None = None) -> pd.DataFrame:
+    """Return today's strong stocks with real price-change data.
+
+    The 10jqka API returns only ticker-level metadata (id, name, code, reason).
+    We enrich it with live quotes from Tencent to provide accurate 涨幅% etc.
+    """
     from datetime import date
     if date_str is None:
         date_str = date.today().strftime("%Y-%m-%d")
@@ -109,15 +114,34 @@ def ths_hot_reason(date_str: str | None = None) -> pd.DataFrame:
         if data.get("errocode", 0) != 0:
             return pd.DataFrame()
         rows = data.get("data") or []
+        if not rows:
+            return pd.DataFrame()
+
+        # Build base DataFrame from API fields
         df = pd.DataFrame(rows)
-        if df.empty:
-            return df
-        rename_map = {
-            "code": "代码", "name": "名称", "reason": "题材归因",
-            "close": "收盘价", "zhangdie": "涨跌额", "zhangfu": "涨幅%",
-            "huanshou": "换手率%", "chengjiaoe": "成交额", "market": "市场",
-        }
-        df = df.rename(columns={k: v for k, v in rename_map.items() if k in df.columns})
+        df = df.rename(columns={
+            "code": "代码", "name": "名称", "reason": "题材归因", "market": "市场",
+        })
+        # Ensure required columns exist
+        for col in ["代码", "名称", "题材归因"]:
+            if col not in df.columns:
+                df[col] = ""
+
+        # Enrich with live quotes in one batch call
+        codes = [normalize_code(str(c)) for c in df["代码"].tolist() if pd.notna(c)]
+        quotes = tencent_quote(codes) if codes else {}
+
+        enrich = {"涨幅%": [], "涨跌额": [], "收盘价": [], "换手率%": []}
+        for _, row in df.iterrows():
+            c = normalize_code(str(row.get("代码", "")))
+            q = quotes.get(c, {})
+            enrich["涨幅%"].append(q.get("change_pct", 0))
+            enrich["涨跌额"].append(q.get("change_amt", 0))
+            enrich["收盘价"].append(q.get("price", 0))
+            enrich["换手率%"].append(q.get("turnover_pct", 0))
+
+        for k, v in enrich.items():
+            df[k] = v
         return df
     except Exception:
         return pd.DataFrame()
