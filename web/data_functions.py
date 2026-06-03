@@ -238,14 +238,25 @@ def get_kline_data(code: str, days: int = 60) -> pd.DataFrame:
         return pd.DataFrame()
 
 def get_minute_data(code: str, date_str: str | None = None) -> pd.DataFrame:
-    """Fetch intraday 1‑minute OHLCV data for *date_str* (default: latest trading day)."""
+    """Fetch intraday 1‑minute data for *date_str*.
+
+    Uses mootdx ``minutes()`` (historical minute data) which works at any time.
+    If *date_str* is None, fetches the most recent trading day's data.
+    """
     try:
         client = _tdx_client()
         if date_str is None:
-            # Use latest available day by passing None to minute()
-            df = client.minute(symbol=code)
+            # Try today first, then fall back to yesterday
+            from datetime import date, timedelta
+            today = date.today().strftime("%Y%m%d")
+            df = client.minutes(symbol=code, date=today)
+            if df is None or df.empty:
+                yesterday = (date.today() - timedelta(days=1)).strftime("%Y%m%d")
+                df = client.minutes(symbol=code, date=yesterday)
         else:
-            df = client.minute(symbol=code, date=date_str)
+            # Convert "YYYY-MM-DD" -> "YYYYMMDD"
+            clean_date = date_str.replace("-", "")
+            df = client.minutes(symbol=code, date=clean_date)
         if df is None or df.empty:
             return pd.DataFrame()
         return df
