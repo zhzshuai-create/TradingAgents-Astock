@@ -503,7 +503,7 @@ def _render_data_mode() -> None:
             if cnt:
                 top_tags = cnt.most_common(8)
                 tag_html = " ".join([f'<span class="tag" style="font-size:0.85rem;margin:3px;">{t}({n})</span>' for t, n in top_tags])
-                st.markdown(f"**题材热度 TOP 8:** {tag_html}")
+                st.markdown(f"**题材热度 TOP 8:** {tag_html}", unsafe_allow_html=True)
             st.caption(f"共 {len(df_hot)} 只强势股")
             for _, row in df_hot.iterrows():
                 pct_val = row.get("涨幅%", 0)
