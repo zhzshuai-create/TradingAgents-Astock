@@ -388,6 +388,11 @@ def _render_data_mode() -> None:
                 klines = get_kline_data(code)
                 news = eastmoney_stock_news(code, 8)
 
+            # Back-to-overview button
+            if st.button("← 返回市场总览", key="clear_stock", use_container_width=False):
+                st.session_state.pop("data_code", None)
+                st.rerun()
+
             if code not in quote:
                 st.error(f"未找到 {code} 的行情数据")
             else:
@@ -504,12 +509,28 @@ def _render_data_mode() -> None:
                 top_tags = cnt.most_common(8)
                 tag_html = " ".join([f'<span class="tag" style="font-size:0.85rem;margin:3px;">{t}({n})</span>' for t, n in top_tags])
                 st.markdown(f"**题材热度 TOP 8:** {tag_html}", unsafe_allow_html=True)
-            st.caption(f"共 {len(df_hot)} 只强势股")
+            st.caption(f"共 {len(df_hot)} 只强势股  |  点击 📊 查看股票详情")
             for _, row in df_hot.iterrows():
+                code = str(row.get("代码", ""))
+                name = str(row.get("名称", ""))
                 pct_val = row.get("涨幅%", 0)
                 pct_color = "#e03131" if pct_val >= 0 else "#2f9e44"
                 reason_text = str(row.get(reason_col, "")) if reason_col in row.index else ""
-                st.markdown(f'<div class="stock-card"><span class="code">{row.get("代码", "-")}</span><span class="name">{row.get("名称", "-")}</span><span class="pct" style="color:{pct_color}">{pct_val:+.2f}%</span><span class="reason">{reason_text}</span></div>', unsafe_allow_html=True)
+
+                c_cols = st.columns([1, 2, 1.5, 5, 1.2])
+                with c_cols[0]:
+                    st.markdown(f'<div style="padding-top:0.4rem;font-weight:700;color:#1a1a1a;">{code}</div>', unsafe_allow_html=True)
+                with c_cols[1]:
+                    st.markdown(f'<div style="padding-top:0.4rem;color:#555;">{name}</div>', unsafe_allow_html=True)
+                with c_cols[2]:
+                    st.markdown(f'<div style="padding-top:0.4rem;font-weight:700;color:{pct_color};">{pct_val:+.2f}%</div>', unsafe_allow_html=True)
+                with c_cols[3]:
+                    st.markdown(f'<div style="padding-top:0.4rem;color:#888;font-size:0.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{reason_text}</div>', unsafe_allow_html=True)
+                with c_cols[4]:
+                    if st.button("📊 查看", key=f"hot_{code}", use_container_width=True):
+                        st.session_state["data_code"] = normalize_code(code)
+                        st.toast(f"已选择 {name}({code})，切换到「📈 个股估值」标签页查看详情", icon="📊")
+                        st.rerun()
 
     # ── Tab 3: 资金流向 ──
     with tabs[2]:
