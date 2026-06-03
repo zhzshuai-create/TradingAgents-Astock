@@ -237,6 +237,21 @@ def get_kline_data(code: str, days: int = 60) -> pd.DataFrame:
     except Exception:
         return pd.DataFrame()
 
+def get_minute_data(code: str, date_str: str | None = None) -> pd.DataFrame:
+    """Fetch intraday 1‑minute OHLCV data for *date_str* (default: latest trading day)."""
+    try:
+        client = _tdx_client()
+        if date_str is None:
+            # Use latest available day by passing None to minute()
+            df = client.minute(symbol=code)
+        else:
+            df = client.minute(symbol=code, date=date_str)
+        if df is None or df.empty:
+            return pd.DataFrame()
+        return df
+    except Exception:
+        return pd.DataFrame()
+
 def eastmoney_fund_flow_minute(code: str) -> list[dict]:
     secid = f"1.{code}" if code.startswith("6") else f"0.{code}"
     url = "https://push2.eastmoney.com/api/qt/stock/fflow/kline/get"

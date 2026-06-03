@@ -31,7 +31,7 @@ from web.runner import run_analysis_in_thread  # noqa: E402
 from web.data_functions import (  # noqa: E402
     normalize_code, tencent_quote, ths_eps_forecast,
     ths_hot_reason, baidu_concept_blocks, hsgt_realtime,
-    load_northbound_history, get_kline_data, industry_comparison,
+    load_northbound_history, get_kline_data, get_minute_data, industry_comparison,
     cls_telegraph, eastmoney_stock_news,
     forward_pe, calc_peg, pe_digestion,
 )
@@ -473,18 +473,72 @@ def _render_data_mode() -> None:
                         reg_names = [b["name"] for b in blocks["region"][:3]]
                         st.markdown("**地域:** " + ", ".join(reg_names))
 
-                    st.markdown("#### 近 30 日 K 线走势")
-                    if not klines.empty:
-                        recent_k = klines.tail(30).copy()
-                        st.line_chart(recent_k.set_index("datetime")["close"], y_label="收盘价(元)", width='stretch')
-                        st.bar_chart(recent_k.set_index("datetime")["vol"], y_label="成交量(手)", width='stretch')
-                        closes = recent_k["close"]
-                        chg = (closes.iloc[-1] / closes.iloc[0] - 1) * 100
-                        avg_vol = recent_k["vol"].mean()
-                        chg_color = "#e03131" if chg > 0 else "#2f9e44"
-                        st.markdown(f"**近30日涨幅:** <span style='color:{chg_color};font-weight:700'>{chg:+.2f}%</span> | **日均成交量:** {avg_vol/10000:.1f}万手", unsafe_allow_html=True)
+                    st.markdown("#### K 线走势")
+                    kline_period = st.radio(
+                        "周期", ["单日详情", "5日", "30日", "全部历史"],
+                        horizontal=True, key=f"kperiod_{code}",
+                        index=2,  # default to 30-day
+                    )
+
+                    # ── 单日详情 ──────────────────────────────────
+                    if kline_period == "单日详情":
+                        minute_df = get_minute_data(code)
+                        if not minute_df.empty:
+                            st.line_chart(minute_df["price"], y_label="价格(元)", width='stretch')
+                            st.caption(f"共 {len(minute_df)} 个1分钟数据点")
+                            st.bar_chart(minute_df["vol"], y_label="成交量(手)", width='stretch')
+                        else:
+                            st.info("暂无日内分钟数据（可能为非交易日）")
+                        # Key stats from daily quote
+                        mc1, mc2, mc3, mc4 = st.columns(4)
+                        with mc1:
+                            st.metric("今开", f"{q['open']:.2f}")
+                        with mc2:
+                            st.metric("最高", f"{q['high']:.2f}")
+                        with mc3:
+                            st.metric("最低", f"{q['low']:.2f}")
+                        with mc4:
+                            st.metric("昨收", f"{q['last_close']:.2f}")
+
+                    # ── 5日 ───────────────────────────────────────
+                    elif kline_period == "5日":
+                        if not klines.empty:
+                            k5 = klines.tail(5).copy()
+                            st.line_chart(k5.set_index("datetime")["close"], y_label="收盘价(元)", width='stretch')
+                            st.bar_chart(k5.set_index("datetime")["vol"], y_label="成交量(手)", width='stretch')
+                            closes5 = k5["close"]
+                            chg5 = (closes5.iloc[-1] / closes5.iloc[0] - 1) * 100 if len(closes5) >= 2 else 0
+                            chg5_color = "#e03131" if chg5 > 0 else "#2f9e44"
+                            st.markdown(f'5日变动: <span style="color:{chg5_color};font-weight:700">{chg5:+.2f}%</span>', unsafe_allow_html=True)
+                        else:
+                            st.caption("暂无数据")
+
+                    # ── 30日 ──────────────────────────────────────
+                    elif kline_period == "30日":
+                        if not klines.empty:
+                            recent_k = klines.tail(30).copy()
+                            st.line_chart(recent_k.set_index("datetime")["close"], y_label="收盘价(元)", width='stretch')
+                            st.bar_chart(recent_k.set_index("datetime")["vol"], y_label="成交量(手)", width='stretch')
+                            closes = recent_k["close"]
+                            chg = (closes.iloc[-1] / closes.iloc[0] - 1) * 100
+                            avg_vol = recent_k["vol"].mean()
+                            chg_color = "#e03131" if chg > 0 else "#2f9e44"
+                            st.markdown(f'30日涨幅: <span style="color:{chg_color};font-weight:700">{chg:+.2f}%</span>  |  日均成交量: {avg_vol/10000:.1f}万手', unsafe_allow_html=True)
+                        else:
+                            st.caption("暂无K线数据")
+
+                    # ── 全部历史 ──────────────────────────────────
                     else:
-                        st.caption("暂无K线数据")
+                        with st.spinner("加载全部历史K线..."):
+                            all_k = get_kline_data(code, days=5000)
+                        if not all_k.empty:
+                            st.line_chart(all_k.set_index("datetime")["close"], y_label="收盘价(元)", width='stretch')
+                            closes_all = all_k["close"]
+                            chg_all = (closes_all.iloc[-1] / closes_all.iloc[0] - 1) * 100 if len(closes_all) >= 2 else 0
+                            chga_color = "#e03131" if chg_all > 0 else "#2f9e44"
+                            st.markdown(f'上市至今: <span style="color:{chga_color};font-weight:700">{chg_all:+.2f}%</span>  |  共 {len(all_k)} 个交易日', unsafe_allow_html=True)
+                        else:
+                            st.caption("暂无全部历史K线数据")
 
                 if news:
                     st.markdown("---")
