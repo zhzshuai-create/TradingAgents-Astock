@@ -96,6 +96,38 @@ def render_progress(tracker: ProgressTracker) -> None:
     if tracker.error:
         st.error(f"错误: {tracker.error}")
 
+    # ── Stall detection warning ──────────────────────────────────────────
+    stall = tracker.stall_info(threshold_seconds=120)
+    if stall:
+        stage_map = {s["id"]: s["name"] for s in PIPELINE_STAGES}
+        stuck_name = stage_map.get(stall["stalled_stage"], stall["stalled_stage"])
+        stall_min = int(stall["stall_seconds"] // 60)
+        stall_sec = int(stall["stall_seconds"] % 60)
+
+        with st.container(border=True):
+            st.markdown(f"""
+            <div style="background:#fff8e6; border:1px solid #f0c040; border-radius:10px; padding:1rem 1.2rem; margin:0.8rem 0;">
+                <div style="font-size:1rem; font-weight:700; color:#b06000; margin-bottom:0.5rem;">
+                    ⚠️ 分析疑似卡死 — 已停滞 {stall_min}分{stall_sec:02d}秒
+                </div>
+                <div style="font-size:0.85rem; color:#555; line-height:1.7;">
+                    当前阶段：<b>{stuck_name}</b> |
+                    LLM调用 {stall['llm_calls']} 次 |
+                    Token 消耗 {stall['tokens_in']:,} / {stall['tokens_out']:,}
+                </div>
+                <div style="font-size:0.82rem; color:#888; margin-top:0.6rem; line-height:1.8;">
+                    <b>可能原因：</b><br>
+                    &nbsp;&nbsp;1. LLM API 超时或限流（高峰时段常见）<br>
+                    &nbsp;&nbsp;2. 网络不稳，请求挂起<br>
+                    &nbsp;&nbsp;3. 数据源连接失败（mootdx / 东财接口）<br><br>
+                    <b>建议操作：</b><br>
+                    &nbsp;&nbsp;• 点击上方 <b>停止 + 重新开始</b> 分析<br>
+                    &nbsp;&nbsp;• 在 <code>.env</code> 中切换到 <b>MiniMax</b> 替代 DeepSeek（高峰不限流）<br>
+                    &nbsp;&nbsp;• 检查网络连接，确认能否访问 <code>api.deepseek.com</code>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
     last_report = ""
     last_name = ""
     for stage in reversed(PIPELINE_STAGES):
