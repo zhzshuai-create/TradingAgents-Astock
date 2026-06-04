@@ -85,9 +85,16 @@
 |:---:|:---:|
 | ![分析页](assets/screenshot-analysis.png) | ![看板页](assets/screenshot-dashboard.png) |
 
-| 进度追踪 | PDF 报告 |
-|:---:|:---:|
-| ![进度](assets/screenshot-progress.png) | ![PDF](assets/screenshot-pdf.png) |
+| 进度追踪 | PDF 报告 | 系统架构 |
+|:---:|:---:|:---:|
+| ![进度](assets/screenshot-progress.png) | ![PDF](assets/screenshot-pdf.png) | ![架构](assets/schema.png) |
+
+| 多智能体角色 |
+|:---:|
+| ![分析师](assets/analyst.png) |
+| ![研究员](assets/researcher.png) |
+| ![风控](assets/risk.png) |
+| ![交易员](assets/trader.png) |
 
 </details>
 
