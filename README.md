@@ -96,6 +96,10 @@
 | ![风控](assets/risk.png) |
 | ![交易员](assets/trader.png) |
 
+| K线周期切换 |
+|:---:|
+| ![K线](assets/screenshot-kline-views.png) |
+
 </details>
 
 ---
