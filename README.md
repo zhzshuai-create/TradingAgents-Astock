@@ -77,8 +77,8 @@
 
 ## 🎬 界面预览
 
-<details>
-<summary>📸 点击展开更多界面截图</summary>
+<details open>
+<summary>📸 界面截图</summary>
 <br>
 
 | AI 分析报告页 | 实时数据看板页 |
