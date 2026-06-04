@@ -13,6 +13,7 @@ Data sources:
 from typing import Annotated
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
 import os
 import logging
 import math
@@ -23,6 +24,20 @@ import pandas as pd
 from .utils import safe_ticker_component
 
 logger = logging.getLogger(__name__)
+
+
+def _fetch_with_timeout(fn, timeout=15, label=""):
+    """Run fn in a thread; returns result or None on timeout/error."""
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        future = executor.submit(fn)
+        try:
+            return future.result(timeout=timeout)
+        except FuturesTimeout:
+            logger.warning("%s timed out after %ds", label or fn.__name__, timeout)
+            return None
+        except Exception as e:
+            logger.warning("%s failed: %s", label or fn.__name__, e)
+            return None
 
 
 # ---------------------------------------------------------------------------
@@ -667,10 +682,12 @@ def get_news(
 
     try:
         if code:
-            df = ak.stock_news_em(symbol=code)
+            fn = lambda: ak.stock_news_em(symbol=code)
         else:
-            # Keyword-based news search via eastmoney
-            df = ak.stock_news_em(symbol=ticker.strip())
+            fn = lambda: ak.stock_news_em(symbol=ticker.strip())
+        df = _fetch_with_timeout(fn, timeout=15, label=f"stock_news_em({ticker})")
+        if df is None:
+            return f"News API timed out for '{ticker}'. 请检查网络连接或稍后重试。"
 
         if df is None or df.empty:
             return f"No news found for '{ticker}'"
@@ -740,24 +757,9 @@ def get_global_news(
 
     all_news: list[dict] = []
 
-    from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
-
-    def _fetch_with_timeout(fn, timeout=10, label=""):
-        """Run fn in a thread, return result or None on timeout/error."""
-        with ThreadPoolExecutor(max_workers=1) as executor:
-            future = executor.submit(fn)
-            try:
-                return future.result(timeout=timeout)
-            except FuturesTimeout:
-                logger.warning("%s fetch timed out after %ds", label or fn.__name__, timeout)
-                return None
-            except Exception as e:
-                logger.warning("%s fetch failed: %s", label or fn.__name__, e)
-                return None
-
     # Source 1: CLS wire (财联社快讯)
     try:
-        df_cls = _fetch_with_timeout(ak.stock_info_global_cls, timeout=10, label="CLS")
+        df_cls = _fetch_with_timeout(ak.stock_info_global_cls, timeout=10, label="CLS global news")
         if df_cls is not None and not df_cls.empty:
             for _, row in df_cls.head(limit).iterrows():
                 title = str(row.get("标题", row.get("title", "")))
