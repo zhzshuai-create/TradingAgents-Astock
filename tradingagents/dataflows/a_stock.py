@@ -20,10 +20,30 @@ import math
 import urllib.request
 
 import pandas as pd
+import signal
 
 from .utils import safe_ticker_component
 
 logger = logging.getLogger(__name__)
+
+# ── Patch akshare and requests to have global timeout ────────────────────
+try:
+    import requests as _requests
+    _original_get = _requests.get
+    def _get_with_timeout(*args, **kwargs):
+        if "timeout" not in kwargs:
+            kwargs["timeout"] = 15
+        return _original_get(*args, **kwargs)
+    _requests.get = _get_with_timeout
+    _original_post = _requests.post
+    def _post_with_timeout(*args, **kwargs):
+        if "timeout" not in kwargs:
+            kwargs["timeout"] = 15
+        return _original_post(*args, **kwargs)
+    _requests.post = _post_with_timeout
+    logger.info("Patched global requests.get/post with 15s default timeout")
+except Exception:
+    pass
 
 
 def _fetch_with_timeout(fn, timeout=15, label=""):
