@@ -7,8 +7,14 @@
   <b>🤖 A股多智能体投研系统 · 统一投资研究平台</b>
 </p>
 
+
+<p align="center">
+  <b>输入股票代码 → 7 位 AI 分析师自动写研报，像 Wind 一样专业，比同花顺更懂你。</b>
+</p>
+
 <p align="center">
   <a href="https://github.com/zhzshuai-create/TradingAgents-Astock/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue" alt="License"></a>
+  <a href="https://github.com/zhzshuai-create/TradingAgents-Astock/stargazers"><img src="https://img.shields.io/github/stars/zhzshuai-create/TradingAgents-Astock?style=social" alt="Stars"></a>
   <a href="#"><img src="https://img.shields.io/badge/Python-3.10+-green" alt="Python"></a>
   <a href="#"><img src="https://img.shields.io/badge/LLM-DeepSeek%20|%20MiniMax%20|%20OpenAI-blueviolet" alt="LLM"></a>
   <a href="#"><img src="https://img.shields.io/badge/Platform-Streamlit-orange" alt="Streamlit"></a>
@@ -55,6 +61,21 @@
 </td>
 </tr>
 </table>
+
+---
+
+### 📋 真实输出样例
+
+输入 `600519 贵州茅台`，系统自动产出 **中文研报级分析**，含技术面 / 基本面 / 情绪 / 多空辩论 / 风控 / 最终决策：
+
+> **[→ 查看贵州茅台完整分析报告](examples/cases/600519_贵州茅台.md)**
+>
+> • 7 位 AI 分析师并行采集，质量门控验证  
+> • 多方 vs 空方研究员辩论，三方风控博弈  
+> • 最终输出：**Hold**（2026-04-30）  
+> • 全程 13.7 分钟，约 30-50 次 LLM 调用
+
+---
 
 ### 🖥️ 统一平台：AI 分析 + 实时看板
 
