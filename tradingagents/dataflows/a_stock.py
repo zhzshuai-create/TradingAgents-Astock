@@ -740,9 +740,24 @@ def get_global_news(
 
     all_news: list[dict] = []
 
+    from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
+
+    def _fetch_with_timeout(fn, timeout=10, label=""):
+        """Run fn in a thread, return result or None on timeout/error."""
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(fn)
+            try:
+                return future.result(timeout=timeout)
+            except FuturesTimeout:
+                logger.warning("%s fetch timed out after %ds", label or fn.__name__, timeout)
+                return None
+            except Exception as e:
+                logger.warning("%s fetch failed: %s", label or fn.__name__, e)
+                return None
+
     # Source 1: CLS wire (财联社快讯)
     try:
-        df_cls = ak.stock_info_global_cls()
+        df_cls = _fetch_with_timeout(ak.stock_info_global_cls, timeout=10, label="CLS")
         if df_cls is not None and not df_cls.empty:
             for _, row in df_cls.head(limit).iterrows():
                 title = str(row.get("标题", row.get("title", "")))
@@ -761,7 +776,7 @@ def get_global_news(
 
     # Source 2: Eastmoney global (东财全球资讯)
     try:
-        df_em = ak.stock_info_global_em()
+        df_em = _fetch_with_timeout(ak.stock_info_global_em, timeout=10, label="EM")
         if df_em is not None and not df_em.empty:
             for _, row in df_em.head(limit).iterrows():
                 title = str(row.get("标题", row.get("title", "")))
