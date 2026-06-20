@@ -26,6 +26,7 @@ _PROVIDERS: list[tuple[str, str]] = [
     ("Anthropic", "anthropic"),
     ("Google Gemini", "google"),
     ("xAI Grok", "xai"),
+    ("OpenRouter（聚合·填 vendor/model 形式 ID）", "openrouter"),
     ("Ollama（本地）", "ollama"),
 ]
 

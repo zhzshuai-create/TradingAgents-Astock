@@ -23,6 +23,7 @@ import logging
 import math
 import random
 import re as _re
+import socket
 import time
 import uuid
 import urllib.request
@@ -81,24 +82,29 @@ def _build_name_code_map() -> tuple[dict[str, str], dict[str, str]]:
     if _name_to_code is not None:
         return _name_to_code, _code_to_name
 
-    from mootdx.quotes import Quotes
-
-    client = Quotes.factory(market="std")
+    client = _get_mootdx_client()
     n2c: dict[str, str] = {}
     c2n: dict[str, str] = {}
 
-    for market in (0, 1):  # 0=SZ, 1=SH
-        stocks = client.stocks(market=market)
-        if stocks is None or stocks.empty:
-            continue
-        for _, row in stocks.iterrows():
-            code = str(row["code"]).strip()
-            name = str(row["name"]).strip()
-            if not _re.match(r"^[036]\d{5}$", code):
+    try:
+        for market in (0, 1):  # 0=SZ, 1=SH
+            stocks = client.stocks(market=market)
+            if stocks is None or stocks.empty:
                 continue
-            clean_name = name.replace(" ", "").replace("　", "")
-            n2c[clean_name] = code
-            c2n[code] = clean_name
+            for _, row in stocks.iterrows():
+                code = str(row["code"]).strip()
+                name = str(row["name"]).strip()
+                if not _re.match(r"^[036]\d{5}$", code):
+                    continue
+                clean_name = name.replace(" ", "").replace("　", "")
+                n2c[clean_name] = code
+                c2n[code] = clean_name
+    except Exception as e:
+        # 网络抖动/通达信不可达时给出明确提示，而非冒泡成风马牛不相及的报错（#46/#66）
+        raise ValueError(
+            "无法通过 mootdx 解析股票名称（通达信服务暂时不可达）：%s。"
+            "请稍后重试，或直接输入 6 位股票代码。" % e
+        ) from e
 
     _name_to_code = n2c
     _code_to_name = c2n
@@ -144,15 +150,55 @@ def resolve_ticker(user_input: str) -> str:
 
 _mootdx_client = None
 
+# 实测可用的通达信备选服务器（按延迟排序，2026-06 验证）。用于规避 mootdx
+# 0.11.x 全新安装时 BESTIP.HQ 为空串导致的 `ValueError: not enough values to unpack`。
+_TDX_SERVERS = [
+    ("119.97.185.59", 7709), ("124.70.133.119", 7709), ("116.205.183.150", 7709),
+    ("123.60.73.44", 7709), ("116.205.163.254", 7709), ("121.36.225.169", 7709),
+    ("123.60.70.228", 7709), ("124.71.9.153", 7709), ("110.41.147.114", 7709),
+    ("124.71.187.122", 7709),
+]
+
+
+def _probe_tdx(ip: str, port: int, timeout: float = 2.0) -> bool:
+    """TCP 握手探测通达信服务器是否可达。"""
+    try:
+        with socket.create_connection((ip, port), timeout=timeout):
+            return True
+    except OSError:
+        return False
+
 
 def _get_mootdx_client():
-    """Lazy-init mootdx Quotes client (TCP connection, reusable)."""
-    global _mootdx_client
-    if _mootdx_client is None:
-        from mootdx.quotes import Quotes
+    """Lazy-init 健壮版 mootdx Quotes client（TCP 连接，可复用）。
 
-        _mootdx_client = Quotes.factory(market="std")
-    return _mootdx_client
+    规避 mootdx 0.11.x 全新安装的 BESTIP 空串 bug：先 TCP 探测内置服务器列表、
+    用第一个可达的显式 server 绕过 BESTIP；三级 fallback（bestip 测速 → 裸 factory →
+    明确 RuntimeError）保证 IP 老化/换网/老用户场景都能工作。
+    """
+    global _mootdx_client
+    if _mootdx_client is not None:
+        return _mootdx_client
+
+    from mootdx.quotes import Quotes
+
+    for ip, port in _TDX_SERVERS:
+        if _probe_tdx(ip, port):
+            _mootdx_client = Quotes.factory(market="std", server=(ip, port))
+            return _mootdx_client
+    try:
+        _mootdx_client = Quotes.factory(market="std", bestip=True)  # fallback 1
+        return _mootdx_client
+    except Exception:
+        pass
+    try:
+        _mootdx_client = Quotes.factory(market="std")  # fallback 2（老用户 config 已有 IP）
+        return _mootdx_client
+    except Exception as e:
+        raise RuntimeError(
+            "mootdx 通达信服务器均不可达（TCP 7709）。海外网络通常全部超时，"
+            "请走国内代理或直接使用 6 位股票代码。原始错误：%s" % e
+        ) from e
 
 
 # ---------------------------------------------------------------------------
