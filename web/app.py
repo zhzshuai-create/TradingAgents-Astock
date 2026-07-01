@@ -124,7 +124,8 @@ _LIGHT_STREAMLIT_OVERRIDES = """
 .stApp [role="tab"] { color: #555 !important; }
 .stApp [aria-selected="true"][role="tab"] { color: #e85d04 !important; }
 .stApp [data-baseweb="tag"] { background: #e8f0fe !important; color: #1a73e8 !important; }
-.stApp [data-testid="stProgress"] > div { background: #e9ecef !important; }
+.stApp [data-testid="stFormSubmitButton"] button { background: #e85d04 !important; color: #fff !important; border: none !important; }
+.stApp [data-testid="stFormSubmitButton"] button:hover { background: #d9480f !important; }
 """
 
 _DARK_VARS = """
