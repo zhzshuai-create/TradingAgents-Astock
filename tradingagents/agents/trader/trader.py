@@ -7,7 +7,7 @@ import functools
 from langchain_core.messages import AIMessage
 
 from tradingagents.agents.schemas import TraderProposal, render_trader_proposal
-from tradingagents.agents.utils.agent_utils import build_instrument_context
+from tradingagents.agents.utils.agent_utils import build_instrument_context, get_language_instruction
 from tradingagents.agents.utils.structured import (
     bind_structured,
     invoke_structured_or_freetext,
@@ -49,7 +49,8 @@ def create_trader(llm):
                     "- Minimum lot: 100 shares (main board) or 200 shares (STAR/ChiNext)\n"
                     "- Trading hours: 09:30-11:30, 13:00-15:00 Beijing time\n"
                     "Anchor your reasoning in the analysts' reports and the research plan. "
-                    "Be specific about entry price, stop loss, and position sizing."
+                    "Be specific about entry price, stop loss, and position sizing. "
+                    "（以上参数仅供技术研究参考，不构成投资建议）"
                 ),
             },
             {
@@ -62,6 +63,7 @@ def create_trader(llm):
                     f"Proposed Investment Plan:\n{investment_plan}\n\n"
                     + (f"Additional A-Stock Analyst Context:\n{astock_context}\n\n" if astock_context else "")
                     + "Leverage these insights to craft a precise transaction proposal."
+                    + get_language_instruction()
                 ),
             },
         ]

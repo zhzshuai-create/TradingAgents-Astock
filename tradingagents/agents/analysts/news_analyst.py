@@ -26,7 +26,7 @@ def create_news_analyst(llm):
             "\n- **行业轮动**：A 股板块轮动特征明显，一个行业利好政策可能带动整个板块，分析时需关注产业链上下游联动。"
             "\n- **事件驱动**：关注财报预告/业绩快报、股东大会决议、重大合同公告、机构调研记录等公司层面事件。"
             "\n\n请使用以下工具："
-            "\n- `get_news(ticker, start_date, end_date)，ticker 填股票代码`：获取公司相关的个股新闻"
+            "\n- `get_news(query, start_date, end_date)`：获取公司相关的个股新闻"
             "\n- `get_global_news(curr_date, look_back_days, limit)`：获取宏观经济和市场整体新闻"
             "\n\n撰写全面的新闻分析报告，区分利好/利空/中性消息，评估影响程度和持续时间。报告末尾附 Markdown 表格汇总关键新闻事件及其影响评级。"
             "\n\n📋 必采清单 — 以下数据点必须出现在报告中，无法获取时标注 [数据缺失: xxx]："

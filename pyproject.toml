@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tradingagents-astock"
-version = "0.2.4"
+version = "0.2.16"
 description = "A股多Agent投研框架 — 基于 TradingAgents 深度特化"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -12,17 +12,14 @@ license = {text = "Apache-2.0"}
 authors = [
     {name = "simonlin1212", email = "simonlin1212@users.noreply.github.com"},
 ]
-
 dependencies = [
     "langchain-core>=0.3.81",
     "backtrader>=1.9.78.123",
     "langchain-anthropic>=0.3.15",
     "langchain-experimental>=0.3.4",
-    "langchain-google-genai>=4.0.0",
     "langchain-openai>=0.3.23",
     "langgraph>=0.4.8",
     "langgraph-checkpoint-sqlite>=2.0.0",
-    "matplotlib>=3.8.0",
     "pandas>=2.3.0",
     "parsel>=1.10.0",
     "pytz>=2025.2",
@@ -37,20 +34,23 @@ dependencies = [
     "typing-extensions>=4.14.0",
     "yfinance>=0.2.63",
     "streamlit>=1.45.0",
-    "fpdf2>=2.8.0",
+    "fpdf2>=2.8.6",
     "python-dotenv>=1.1.0",
-    "altair>=5.0.0",
+    "mootdx>=0.10.0",
 ]
-
-[project.scripts]
-tradingagents = "cli.main:app"
-tradingagents-web = "web.launch:main"
 
 [project.urls]
 Homepage = "https://github.com/simonlin1212/tradingagents-astock"
 Repository = "https://github.com/simonlin1212/tradingagents-astock"
 Issues = "https://github.com/simonlin1212/tradingagents-astock/issues"
 Upstream = "https://github.com/TauricResearch/TradingAgents"
+
+[project.optional-dependencies]
+google = ["langchain-google-genai>=4.0.0"]
+
+[project.scripts]
+tradingagents = "cli.main:app"
+tradingagents-web = "web.launch:main"
 
 [tool.setuptools.packages.find]
 include = ["tradingagents*", "cli*", "web*"]
