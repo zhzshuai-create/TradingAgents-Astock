@@ -54,6 +54,8 @@ if "app_mode" not in st.session_state:
     st.session_state["app_mode"] = "analysis"
 if "data_code" not in st.session_state:
     st.session_state["data_code"] = ""
+if "theme" not in st.session_state:
+    st.session_state["theme"] = "light"
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # CSS
@@ -61,14 +63,12 @@ if "data_code" not in st.session_state:
 
 
 
-st.markdown("""
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   CSS Variables — Light (default) + Warm Dark
-   ═══════════════════════════════════════════════════════════════════════════ */
-:root {
+# ═══════════════════════════════════════════════════════════════════════════════
+# Dynamic CSS (theme-aware)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+_LIGHT_VARS = """
     --bg-primary: #ffffff;
     --bg-secondary: #f8f9fa;
     --bg-tertiary: #e9ecef;
@@ -89,8 +89,9 @@ st.markdown("""
     --input-border: #d0d0d0;
     --brand-text: #1a1a1a;
     --sidebar-bg: #f8f9fa;
-}
-[data-theme="dark"] {
+"""
+
+_DARK_VARS = """
     --bg-primary: #1c1816;
     --bg-secondary: #252120;
     --bg-tertiary: #2d2927;
@@ -111,11 +112,11 @@ st.markdown("""
     --input-border: #383330;
     --brand-text: #ede4dc;
     --sidebar-bg: #1c1816;
-}
+"""
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   Base
-   ═══════════════════════════════════════════════════════════════════════════ */
+_BASE_CSS = """
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
+
 #MainMenu, header[data-testid="stHeader"],
 footer, div[data-testid="stDecoration"],
 button[data-testid="stBaseButton-header"],
@@ -129,9 +130,6 @@ section[data-testid="stSidebar"] {
     background: var(--sidebar-bg); border-right: 1px solid var(--border-color);
 }
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   Components
-   ═══════════════════════════════════════════════════════════════════════════ */
 .metric-card {
     background: var(--card-bg); border-radius: 12px; padding: 1rem 0.8rem;
     box-shadow: var(--card-shadow); text-align: center;
@@ -153,21 +151,15 @@ section[data-testid="stSidebar"] {
 .tag { display: inline-block; background: var(--tag-bg); color: var(--tag-text);
        padding: 2px 8px; border-radius: 6px; font-size: 0.76rem; margin: 2px; }
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   Streamlit overrides
-   ═══════════════════════════════════════════════════════════════════════════ */
 .stMetric label { color: var(--text-secondary) !important; font-size: 0.8rem !important; }
 .stMetric [data-testid="stMetricValue"] { color: var(--accent) !important; font-weight: 700 !important; }
 .stProgress > div > div > div { background: linear-gradient(90deg, var(--accent), var(--accent-hover)) !important; }
 button[kind="primary"] {
     background: linear-gradient(135deg, var(--accent), var(--accent-hover)) !important;
     border: none !important; font-weight: 700 !important;
-    box-shadow: 0 2px 8px rgba(232,93,4,0.25) !important;
     color: #fff !important; transition: all 0.2s ease !important;
 }
-button[kind="primary"]:hover {
-    transform: translateY(-1px) !important;
-}
+button[kind="primary"]:hover { transform: translateY(-1px) !important; }
 button[kind="secondary"] {
     background: var(--card-bg) !important; border: 1px solid var(--border-color) !important;
     color: var(--text-primary) !important; transition: all 0.2s ease !important;
@@ -188,55 +180,11 @@ input[data-testid="stTextInputRootElement"] input, .stTextInput input {
 .stTextInput input:focus {
     border-color: var(--accent) !important; box-shadow: 0 0 0 1px var(--accent) !important;
 }
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   Theme toggle button
-   ═══════════════════════════════════════════════════════════════════════════ */
-.theme-toggle-row { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; }
-.theme-btn {
-    flex: 1; padding: 0.45rem 0.6rem; border-radius: 8px; border: 2px solid var(--border-color);
-    background: var(--card-bg); color: var(--text-secondary); cursor: pointer;
-    font-size: 0.85rem; font-weight: 600; text-align: center; transition: all 0.2s;
-}
-.theme-btn.active {
-    border-color: var(--accent); color: var(--accent); background: var(--accent-light);
-}
-.theme-btn:hover:not(.active) { border-color: var(--text-tertiary); }
-
 .footer-note { text-align: center; color: var(--text-tertiary); font-size: 0.75rem; padding: 1.5rem 0 0.5rem 0; }
-</style>
+"""
 
-<!-- Theme toggle JavaScript -->
-<script>
-(function() {
-    const KEY = 'tradingagents-theme';
-    let theme = localStorage.getItem(KEY) || 'light';
-    document.documentElement.setAttribute('data-theme', theme);
-
-    function syncButtons(active) {
-        document.querySelectorAll('.theme-btn').forEach(b => {
-            b.classList.toggle('active', b.dataset.theme === active);
-        });
-    }
-
-    // Watch for buttons added dynamically
-    new MutationObserver(() => {
-        syncButtons(theme);
-        document.querySelectorAll('.theme-btn').forEach(b => {
-            if (!b._bound) {
-                b._bound = true;
-                b.addEventListener('click', () => {
-                    theme = b.dataset.theme;
-                    localStorage.setItem(KEY, theme);
-                    document.documentElement.setAttribute('data-theme', theme);
-                    syncButtons(theme);
-                });
-            }
-        });
-    }).observe(document.body, { childList: true, subtree: true });
-})();
-</script>
-""", unsafe_allow_html=True)
+css_vars = _DARK_VARS if st.session_state["theme"] == "dark" else _LIGHT_VARS
+st.markdown(f"<style>:root {{{css_vars}}} {_BASE_CSS}</style>", unsafe_allow_html=True)
 
 # ── Top navigation bar (replaces sidebar) ──
 col_brand, col_nav, col_search, col_theme = st.columns([1, 1.5, 2, 0.5])
@@ -287,12 +235,15 @@ with col_search:
                 st.rerun()
 
 with col_theme:
-    st.markdown("""
-        <div class="theme-toggle-row" style="margin-top:0.3rem;">
-            <div class="theme-btn active" data-theme="light">☀️</div>
-            <div class="theme-btn" data-theme="dark">🌙</div>
-        </div>
-    """, unsafe_allow_html=True)
+    new_theme = st.radio(
+        "主题", ["☀️", "🌙"],
+        index=0 if st.session_state["theme"] == "light" else 1,
+        horizontal=True, key="theme_switcher", label_visibility="collapsed",
+    )
+    if ("🌙" in new_theme and st.session_state["theme"] == "light") or \
+       ("☀️" in new_theme and st.session_state["theme"] == "dark"):
+        st.session_state["theme"] = "dark" if "🌙" in new_theme else "light"
+        st.rerun()
 
 st.markdown("---")
 
