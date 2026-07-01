@@ -181,6 +181,23 @@ input[data-testid="stTextInputRootElement"] input, .stTextInput input {
     border-color: var(--accent) !important; box-shadow: 0 0 0 1px var(--accent) !important;
 }
 .footer-note { text-align: center; color: var(--text-tertiary); font-size: 0.75rem; padding: 1.5rem 0 0.5rem 0; }
+
+/* Streamlit native element overrides for dark mode */
+.stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6 { color: var(--text-primary) !important; }
+.stApp p, .stApp span, .stApp li, .stApp td, .stApp th { color: var(--text-primary); }
+.stApp .stMarkdown { color: var(--text-primary); }
+.stApp [data-testid="stExpander"] { background: var(--card-bg) !important; border-color: var(--border-color) !important; color: var(--text-primary) !important; }
+.stApp .stDataFrame, .stApp [data-testid="stTable"] { background: var(--card-bg); }
+.stApp [data-testid="stTable"] td { color: var(--text-primary); }
+.stApp [data-testid="stMetric"] { background: var(--card-bg); border-radius: 8px; padding: 0.5rem; }
+.stApp [data-testid="stCaptionContainer"] { color: var(--text-tertiary); }
+.stApp [data-testid="stNotification"] { background: var(--card-bg); color: var(--text-primary); }
+.stApp hr { border-color: var(--border-color); }
+.stApp .stAlert { background: var(--card-bg); color: var(--text-primary); }
+.stApp [data-testid="stSidebar"] .stMarkdown { color: var(--text-primary); }
+.stApp [data-baseweb="select"] { background: var(--input-bg); color: var(--text-primary); }
+.stApp [data-baseweb="input"] { background: var(--input-bg); color: var(--text-primary); }
+.stApp [data-baseweb="popover"] { background: var(--card-bg); }
 """
 
 css_vars = _DARK_VARS if st.session_state["theme"] == "dark" else _LIGHT_VARS
@@ -680,7 +697,7 @@ def _render_data_mode() -> None:
                 with c_cols[2]:
                     st.markdown(f'<div style="padding-top:0.4rem;font-weight:700;color:{pct_color};">{pct_val:+.2f}%</div>', unsafe_allow_html=True)
                 with c_cols[3]:
-                    st.markdown(f'<div style="padding-top:0.4rem;color:#333;font-size:0.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{reason_text}</div>', unsafe_allow_html=True)
+                    st.markdown(f'<div style="padding-top:0.4rem;color:var(--text-secondary);font-size:0.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{reason_text}</div>', unsafe_allow_html=True)
                 with c_cols[4]:
                     if st.button("📊 查看", key=f"hot_{code}", use_container_width=True):
                         st.session_state["data_code"] = normalize_code(code)
