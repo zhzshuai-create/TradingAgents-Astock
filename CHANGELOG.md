@@ -6,6 +6,252 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Breaking changes within the 0.x line are called out explicitly.
 
+## [0.2.16] — 2026-06-28
+
+本版采纳一个社区贡献的批量样例脚本 + 文档补充，无核心代码改动。
+
+### 采纳社区贡献
+- **`examples/run_cases.py` 升级（采纳 #68 @zcc2xj）**：旧版批量脚本只把 `final_trade_decision` 手写进简易 `.md`。新版复用 CLI 的 `save_report_to_disk()`，每只标的输出与 CLI **完全一致**的 `complete_report.md`（分析师 / 研究 / 交易 / 风险 / 组合五个分区子目录 + 合并报告），并落一份字段齐全的 `summary.json`（10 个顶层报告 + Bull/Bear 辩论 + 三方风险辩论历史）。解决 #68「example 脚本如何拿到 CLI 那样的 complete_report.md」。
+
+### 文档
+- **README 常见问题新增 httpx 依赖冲突说明（#70）**：澄清 **litellm / mcp 不是本项目依赖**（用户报错里这两条来自其环境的其它包）；核心安装 `pip install -e .` 默认不冲突，仅装 `[google]` 用 Gemini 时 mootdx（`httpx<0.26`）与 google-genai（`httpx>=0.28`）互斥。给出解法：mootdx 走 TCP、运行时不调 httpx（实测 0.11.7 在 httpx 0.28.1 下取数正常，可放心升 httpx）/ 分 venv / 用国内直连模型不装 `[google]`。
+- README 常见问题新增「不进 CLI 怎么批量跑、拿完整报告」条目，指向 `examples/run_cases.py`。
+
+### 测试
+- `examples/run_cases.py` py_compile 语法通过；静态核对 `save_report_to_disk(final_state, ticker, save_path)` 签名匹配、`complete_report.md` 路径返回值正确（`cli/main.py:738-739`），脚本引用的 10 个顶层 state 字段 + debate 子状态字段全部匹配 `agent_states.py` 真实定义（含 policy/hot_money/lockup 三个 A 股特化字段）。端到端运行需用户自备 LLM key。
+- httpx 解法复用 a-stock-data 同源实测：净 venv 装 mootdx 0.11.7 后 `--no-deps` 升 httpx 0.28.1，`bars()` 取日线 / 1 分钟均正常。
+
+## [0.2.15] — 2026-06-20
+
+本版合并 4 个社区 PR + 一批针对性修复，主线集中在「数据可靠性 + 模型可用性 + 全新安装体验」。
+
+### 合并社区 PR（致谢贡献者）
+- **#64（@wikinl）**：A 股日 K 数据滞后时未触发新浪补齐 → 修复（mootdx 返回非空但最新日期早于目标日时强制走新浪补最新交易日，并把 `15:00:00` 时间戳压到自然日，避免被 `Date <= cutoff` 误过滤）。直接缓解 #60「数据缺失」。
+- **#57（@zhanghang02）**：Web 支持中断续跑 + 侧边栏暂停/停止控制（LangGraph checkpoint resume）。缓解 #27「页面刷新丢数据」。
+- **#56（@zhanghang02）**：中文 PDF 字体发现 + 排版稳定性增强（`fc-match`/WQY 优先、字体环境变量覆盖、TTC 字面选择）。
+- **#55（@zhanghang02）**：报告标的统一显示为「代码 + 名称」。合并时解决与 #57 在 `web/runner.py` 的冲突（#57 的 `finalize_graph_run` 已含 `graph.ticker`/`_log_state`，仅保留归一化调用挪到落盘前）。
+
+### 修复
+- **mootdx 0.11.x 全新安装 BESTIP 空串崩溃 → 中文股票名解析失败（#46/#66 根因之一）**：`_get_mootdx_client()` 升级为健壮版——TCP 探测内置可用通达信服务器列表，用显式 `server=(ip,port)` 绕过 `BESTIP.HQ` 空串 bug，三级 fallback（bestip 测速 → 裸 factory → 明确报错）。`_build_name_code_map()` 改走该 client 并加 try/except，解析失败时给出「请重试或直接输入 6 位代码」而非冒泡成风马牛不相及的报错。实测 mootdx 0.11.7：10/10 服务器可达，`贵州茅台→600519`、`宁德时代→300750` 正常。
+- **`.env` 未优先于残留环境变量（#66）**：`web/app.py` 的 `load_dotenv` 改为 `override=True`，让 `.env` 的值优先；并注明启动后改 `.env` 需重启 Web 服务。
+- **fpdf2 版本下限过低导致 #56 在旧版崩溃**：`collection_font_number`（TTC 字面选择）是 fpdf2 **2.8.6**（2026-02-18）才引入的参数，旧约束 `fpdf2>=2.8.0` 下用户若缓存 2.8.0~2.8.5 会在中文 PDF 导出时抛 `TypeError` → 收紧为 `fpdf2>=2.8.6`，错排提示同步更新。
+
+### 新增
+- **OpenRouter 进入 Web 侧栏模型选择器（摘自 #32，缓解 #45/#62）**：`factory`/`_PROVIDER_CONFIG` 早已支持 OpenRouter，但侧栏 `_PROVIDERS` 未列 → 补上「OpenRouter（聚合）」一项，选中后填 `vendor/model` 形式的模型 ID（如 `deepseek/deepseek-chat`）即可。凭证池/profile 体系（#32 其余部分）超出「加个模型」范围，另行评估。
+
+### 文档
+- README「快速开始」明确「装完即可用、无需 Docker」（直接 `streamlit run web/app.py` 或 `tradingagents`），缓解 #46 安装说明困惑。
+
+### 测试
+- 4 个 PR 自带测试在隔离环境实测：`test_stock_display`(11)/`test_progress_pause`(4)/`test_web_history`(3)/`test_astock_sina_supplement`(2) 全通过（PDF 测试在 Python 3.9 + 旧 fpdf2 环境因版本特性跳过，真实 ≥3.10 + fpdf2≥2.8.6 环境正常）。
+- mootdx 健壮 client + 中文名解析在 mootdx 0.11.7 真实环境实测通过。
+
+## [0.2.14] — 2026-06-18
+
+### 修复
+
+- **Docker 命名卷权限崩溃（#46，感谢 @tyraanTao 等报告）**：`docker compose up` 后容器内进程以
+  `appuser` 运行，但 `docker-compose.yml` 的命名卷 `tradingagents_data` 挂到
+  `/home/appuser/.tradingagents` 时，由于镜像里没有预建该目录，Docker 把挂载点建成了
+  `root:root`，导致应用写缓存被拒：`[Errno 13] Permission denied: /home/appuser/.tradingagents/cache`。
+  Dockerfile 现在在 `USER appuser` 之后**预建** `/home/appuser/.tradingagents`（含 `cache` /
+  `logs` / `memory` 三个子目录）——Docker 对空命名卷会继承镜像挂载点目录的属主，于是卷归属 appuser，
+  容器可正常写入。
+  - 升级：`git pull` 后 `docker compose build --no-cache` 重建镜像；旧数据卷可先
+    `docker run --rm -v tradingagents_data:/d alpine chown -R 1000:1000 /d` 修正属主，
+    或 `docker volume rm tradingagents_data` 后重建。
+
+### 说明
+
+- 仅 Dockerfile 改动（预建数据目录），Python 代码 / 数据层 / Agent 逻辑零改动。
+- 同批排查的 #59（PDF `latin-1` 崩溃）与 #66（`OPENAI_API_KEY` 报错）经复现确认已分别在
+  v0.2.12 修复（`_ensure_fpdf2()` 守卫 + Markdown 兜底 / 各供应商独立 Key 提示），升级即可，无需改动。
+
+## [0.2.13] — 2026-06-04
+
+### Security
+
+- **CLI 路径穿越加固（#51，感谢 @mituxunzhi 报告并给出修复方向）**：CLI 是唯一未对 ticker 做
+  路径组件校验的入口（Web UI / `a_stock.py` / `checkpointer.py` / `stockstats_utils.py` 早已统一走
+  `safe_ticker_component`）。ticker 会被拼进 `results_dir / <ticker> / <date>` 和报告保存路径，
+  形如 `../../tmp/evil` 的输入可写到目标目录之外。三处加固：
+  - `cli/utils.py:normalize_ticker_symbol()` — 现在委托 `safe_ticker_component()` 校验（拒绝
+    `/`、`..`、`~`、`\0`、绝对路径、纯点等），并返回校验/解析后的安全值（中文名自动解析为 6 位代码）；
+  - `cli/main.py:get_ticker()` — 输入后即校验，非法则提示并**重新询问**（而非崩溃），返回安全值；
+  - `cli/main.py` 报告保存 — 保存路径先 `.resolve()`，若落在当前目录之外则**提示并要求确认**，
+    拒绝则取消保存。
+  - 实测：`../../tmp/evil`、`/etc/passwd`、`~/secret`、`a/../../b`、`\x00evil`、`.` 等 11 个穿越载荷
+    全部被拒；`SPY` / `600519` / `0700.HK` / `^GSPC` / `BRK.B` 等正常代码全部通过且保留交易所后缀。
+
+### 说明
+
+- 纯 CLI 入口安全加固，复用既有 `safe_ticker_component` 校验器，数据层 / Agent 逻辑零改动。
+
+## [0.2.12] — 2026-06-03
+
+### Fixed
+
+- **PDF 导出中文崩溃（#54）**：项目依赖 `fpdf2`，但它和早已废弃的 `pyfpdf`（1.x）**都以 `fpdf`
+  名称导入**，二者共存时谁后装谁生效。用户环境里若残留 pyfpdf，导出中文报告会在库内部抛出晦涩的
+  `UnicodeEncodeError: 'latin-1' codec can't encode`（pyfpdf 用 latin-1 编码每一页）。
+  `web/pdf_export.py` 新增 `_ensure_fpdf2()`：导出前检测 fpdf 版本，若是旧库则抛出**可操作**的中文
+  提示（`pip uninstall -y fpdf && pip install "fpdf2>=2.8.0"`），不再让 PDF 渲染到一半崩溃。
+- **Docker 内无法导出 PDF（#48）**：运行镜像基于 `python:3.12-slim`，不含任何中文字体，
+  `_find_cjk_font()` 返回 None → 抛「未找到中文字体」。Dockerfile 运行阶段新增
+  `apt-get install fonts-noto-cjk`，容器内 PDF 导出开箱即用。
+- **DeepSeek/通义/智谱等报 `OPENAI_API_KEY must be set`（#42）**：这些 OpenAI 兼容供应商各自需要
+  **专属环境变量**（DeepSeek=`DEEPSEEK_API_KEY`、通义=`DASHSCOPE_API_KEY`、智谱=`ZHIPU_API_KEY`、
+  MiniMax=`MINIMAX_API_KEY` 等），但 key 缺失时 ChatOpenAI 只会抛出令人误解的 `OPENAI_API_KEY` 错误。
+  `openai_client.py` 现在在缺 key 时**明确指出该供应商对应的环境变量名**；Web 侧边栏 help 文案也补齐了
+  每个供应商的 key 变量对照，避免用户设错。
+
+### 说明
+
+- 三项均为环境/配置类问题的健壮性修复，数据层与 Agent 逻辑无改动。PDF 修复经 fpdf2 实测生成
+  中文报告通过 + 旧库检测单测通过；#42 经 api_key 解析分支单测全用例通过。
+
+## [0.2.11] — 2026-05-30
+
+### Changed
+
+- **东财接口统一限流防封（移植自 a-stock-data v3.2）**：数据层 `a_stock.py` 里所有指向
+  `eastmoney.com` 的请求（push2 / push2his / datacenter-web / search-api / np-weblist
+  共 7 个调用点）统一收口到新的节流入口 `_em_get()`，多 Agent 投研跑批量分析时不再触发
+  临时封 IP（社区实测东财风控：每秒 >5 / 并发 ≥10 / 1 分钟 ≥200 / 5 分钟 ≥300 触发封禁，
+  多位用户反馈过）。具体：
+  - 模块级 last-call 时间戳 + 最小间隔 `EM_MIN_INTERVAL`（默认 1.0s，可用同名环境变量覆盖）
+    + 0.1~0.5s 随机抖动，串行限流，QPS ≤ 1；
+  - 复用 `requests.Session`（Keep-Alive）+ 默认 UA；各端点保留自己的 Referer/Origin header；
+  - **仅东财接口限流**——mootdx(TCP) / 腾讯 / 新浪 / 同花顺 / 财联社 / 百度 等非东财源
+    不受影响（实测不封 IP）。批量场景可设 `EM_MIN_INTERVAL=1.5~2` 进一步降速。
+
+### Tested
+
+- 实测 4 次连续 `_em_get` 请求东财 push2（600519 = 贵州茅台），HTTP 200 返回真实数据；
+  相邻调用间隔 1.47 / 1.18 / 1.42s 均 ≥1.0s，限流生效。
+- `get_industry_comparison` / `get_fund_flow` / `get_dragon_tiger_board` 三个东财公共函数
+  端到端跑通（走同一已验证的 `_em_get` 通道）；`py_compile` 通过；grep 复核：7 个 `_em_get`
+  调用点 + 0 个残留 `_req.` + 8 个非东财源（mootdx/腾讯/新浪/同花顺/财联社/百度）未被误伤。
+
+---
+
+## [0.2.10] — 2026-05-30
+
+### Added
+
+- **Web UI 支持第三方 / 代理 API 网关（#35）**：侧边栏新增「API Base URL」输入框，
+  也可在 `.env` 设 `BACKEND_URL`。方便国内用户通过中转网关访问 Claude / OpenAI 等模型
+  （API Key 仍从 `.env` 读取，如 `ANTHROPIC_API_KEY` / `OPENAI_API_KEY`）。
+  侧边栏输入优先于环境变量，留空则用所选供应商官方地址。
+
+---
+
+## [0.2.9] — 2026-05-30
+
+### Added
+
+- **Markdown 报告导出**：分析结果页新增「下载 Markdown」按钮。MD 导出零字体依赖、
+  跨平台永远可用，是 PDF 之外的稳妥兜底（#17 多位用户请求）。
+
+### Fixed
+
+- **PDF 中文字体跨平台崩溃（#22 / #30 / #31）**：原 `_FONT_CANDIDATES` 只列了
+  macOS/Linux 字体，Windows 用户找不到中文字体 → fpdf 回退 Helvetica → 渲染中文时
+  抛 `FPDFUnicodeEncodingException` / `Character "股" ... outside the range`。
+  现改为**按操作系统排序的字体候选**（Windows 微软雅黑/黑体/宋体、macOS 苹方、
+  Linux Noto/文泉驿）+ 递归扫描字体目录兜底。
+- **PDF 失败拖垮整个结果页**：`generate_pdf` 原先在结果页渲染时被 eager 调用，一旦
+  报错整页崩成 traceback，用户连分析结果都看不到。现改为 **try/except 包裹 + 懒生成**，
+  PDF 失败只禁用 PDF 按钮并提示改用 Markdown，分析报告照常显示。
+- **长串中文表格/段落渲染报错（#31）**：`multi_cell` 遇到无空格的长中文串抛
+  `Not enough horizontal space to render a single character`。已为内容 `multi_cell`
+  加 `wrapmode="CHAR"` 并复位左边距，中文按字符正确换行。
+- **缺字体时优雅降级**：系统无任何中文字体时，`generate_pdf` 抛出清晰中文报错
+  （指引安装字体或改用 Markdown），不再是深层 fpdf traceback。
+
+### Tested
+
+- Streamlit 1.50 环境用 fpdf2 2.8.4 实测：含中文标题、表格、列表、200 字无空格长串的
+  报告成功生成 7 页 PDF（目视确认中文渲染无乱码、长串正确换行）；Markdown 导出正常；
+  无字体路径正确抛 RuntimeError。
+
+---
+
+## [0.2.8] — 2026-05-30
+
+### Fixed
+
+- **Web UI 侧边栏收起后无法展开（#36）**：为录视频清爽化界面的自定义 CSS 把整个
+  顶栏 `stHeader` 和工具栏 `stToolbar` 都 `display:none` 掉了。但 Streamlit ≥1.36 的
+  「展开侧边栏」按钮 `stExpandSidebarButton` 正好嵌在工具栏内部，于是侧边栏一旦收起
+  ——无论是手动点收起箭头，还是**页面缩放 / 窄屏时 Streamlit 自动收起**——展开按钮
+  跟着被隐藏，再也调不出来，刷新、重启都没用。原先那行兜底的 `collapsedControl`
+  选择器是旧版 DOM，在 1.45+ 已不存在，等于没写。
+  修复：不再整个隐藏顶栏/工具栏，改为**保留二者、将 header 透明化、只精准隐藏
+  Deploy 按钮 / 主菜单 / 状态条 / 装饰条**，侧边栏展开按钮恢复可见可点，录屏依旧干净。
+  已用 Streamlit 1.50 + headless Chrome 在收起/展开两种状态下实测验证。
+
+---
+
+## [0.2.7] — 2026-05-19
+
+### Fixed
+
+- **百度 PAE 资金流下线**：`fundflow` + `fundsortlist` 接口已返回空，
+  `get_fund_flow()` 全部替换为东财 push2 资金流 API（分钟级 + 日级 20 天）
+- **龙虎榜机构动向**：`RPT_ORGANIZATION_BUSSINESS` 报表配置已下线，
+  改用 BUY/SELL 席位明细筛选 `OPERATEDEPT_CODE="0"`（机构专用席位）
+- **东财全球资讯**：新增必填参数 `req_trace`（UUID），否则返回 403
+
+---
+
+## [0.2.6] — 2026-05-19
+
+### Fixed
+
+- **依赖冲突**：`langchain-google-genai` 移至可选依赖组 `[google]`，
+  消除与 mootdx 的 httpx 版本冲突。`pip install -e .` 开箱即用，
+  需要 Google Gemini 时 `pip install -e ".[google]"`。
+- **WebUI 模型写死 minimax**：侧边栏新增 LLM 供应商和模型选择器，
+  支持 9 个供应商（MiniMax/DeepSeek/Qwen/GLM/OpenAI/Anthropic/Google/xAI/Ollama），
+  默认仍为 MiniMax 但用户可自由切换。
+- **阶段分析内容消失**：进度面板现在展示所有已完成阶段的报告（按时间倒序），
+  不再只显示最新的一个。最新阶段自动展开，历史阶段可点击展开。
+
+### Changed
+
+- `.env.example` 补充 `MINIMAX_API_KEY=` 条目
+- README 快速开始增加 Google 可选依赖安装说明
+- README Web UI 功能列表更新
+
+## [0.2.5] — 2026-05-17
+
+### Breaking Changes
+
+- **移除 akshare 依赖** — `akshare>=1.18.0` 从 `pyproject.toml` 中删除。
+  所有原 akshare 调用已替换为直接 HTTP API（东财 datacenter、新浪财经、
+  同花顺 10jqka、财联社 cls.cn、百度股市通）。
+
+### Changed
+
+- `tradingagents/dataflows/a_stock.py` 全面重构数据获取层：
+  - `get_stock_data()` → 新浪 JSON K线 API + push2.eastmoney 实时行情
+  - `get_stock_info()` → push2.eastmoney 个股基本信息
+  - `get_stock_news()` → 东财 np-weblist 滚动新闻（已有，无变化）
+  - `get_financial_data()` → 新浪财经财报三表 API
+  - `get_market_news()` → 财联社 cls.cn 快讯 + 东财 np-weblist
+  - `get_analyst_forecast()` → 同花顺 10jqka EPS 一致预期
+  - `get_dragon_tiger_board()` → 东财 datacenter RPT_DAILYBILLBOARD
+  - `get_restricted_release()` → 东财 datacenter RPT_LIFT_STAGE
+  - `get_industry_overview()` → push2.eastmoney 板块行情
+- 新增内部 helper：`_eastmoney_datacenter()`、`_ths_eps_forecast()`、`_sina_kline_fallback()`
+- 所有函数签名和返回格式保持不变，对上层 Agent 透明
+
+### Fixed
+
+- 彻底消除 akshare + pandas 3.0 + pyarrow 的 `ArrowInvalid` 崩溃问题
+- 消除 akshare 与 mootdx 的 httpx 版本冲突
+
 ## [0.2.4] — 2026-04-25
 
 ### Added

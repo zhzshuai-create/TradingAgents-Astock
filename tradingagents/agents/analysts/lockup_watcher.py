@@ -41,7 +41,7 @@ def create_lockup_watcher(llm):
             "\n\n请使用以下工具："
             "\n- `get_insider_transactions`：获取股东和内部人交易记录"
             "\n- `get_fundamentals`：获取公司股本结构信息"
-            "\n- `get_news(ticker, start_date, end_date)，ticker 填股票代码`：搜索解禁/减持相关新闻和公告"
+            "\n- `get_news(query, start_date, end_date)`：搜索解禁/减持相关新闻和公告"
             "\n- `get_lockup_expiry(ticker, curr_date)`：获取限售解禁日历（历史解禁记录+未来90天待解禁计划，含解禁数量/占比/影响评估）"
             "\n\n撰写详细的解禁/减持风险评估报告,给出减持压力总体评级(重大压力/中等压力/轻微压力/无明显压力),并估算潜在减持规模和时间窗口。报告末尾附 Markdown 表格列出关键解禁/减持事件、规模和影响评估。"
             "\n\n📋 必采清单 — 以下数据点必须出现在报告中，无法获取时标注 [数据缺失: xxx]："

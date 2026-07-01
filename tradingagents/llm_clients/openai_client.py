@@ -155,6 +155,15 @@ class OpenAIClient(BaseLLMClient):
                 api_key = os.environ.get(api_key_env)
                 if api_key:
                     llm_kwargs["api_key"] = api_key
+                elif "api_key" not in self.kwargs:
+                    # Without this, ChatOpenAI fails downstream with a confusing
+                    # "OPENAI_API_KEY must be set" — but deepseek/qwen/glm/minimax
+                    # each need their OWN env var. Name the exact one (#42).
+                    raise RuntimeError(
+                        f"未找到 {self.provider} 的 API Key。请在 .env 文件或环境变量中设置 "
+                        f"`{api_key_env}`（例如 `{api_key_env}=你的key`），设置后重启程序。"
+                        f"注意：{self.provider} 用的是 {api_key_env}，不是 OPENAI_API_KEY。"
+                    )
             else:
                 llm_kwargs["api_key"] = "ollama"
         elif self.base_url:

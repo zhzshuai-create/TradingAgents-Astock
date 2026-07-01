@@ -5,7 +5,7 @@ from tradingagents.dataflows.interface import route_to_vendor
 
 @tool
 def get_fundamentals(
-    ticker: Annotated[str, "ticker symbol"],
+    ticker: Annotated[str, "6-digit A-stock code (e.g. 600379). Must be numeric, NOT company name"],
     curr_date: Annotated[str, "current date you are trading at, yyyy-mm-dd"],
 ) -> str:
     """
@@ -22,7 +22,7 @@ def get_fundamentals(
 
 @tool
 def get_balance_sheet(
-    ticker: Annotated[str, "ticker symbol"],
+    ticker: Annotated[str, "6-digit A-stock code (e.g. 600379). Must be numeric, NOT company name"],
     freq: Annotated[str, "reporting frequency: annual/quarterly"] = "quarterly",
     curr_date: Annotated[str, "current date you are trading at, yyyy-mm-dd"] = None,
 ) -> str:
@@ -41,7 +41,7 @@ def get_balance_sheet(
 
 @tool
 def get_cashflow(
-    ticker: Annotated[str, "ticker symbol"],
+    ticker: Annotated[str, "6-digit A-stock code (e.g. 600379). Must be numeric, NOT company name"],
     freq: Annotated[str, "reporting frequency: annual/quarterly"] = "quarterly",
     curr_date: Annotated[str, "current date you are trading at, yyyy-mm-dd"] = None,
 ) -> str:
@@ -60,7 +60,7 @@ def get_cashflow(
 
 @tool
 def get_income_statement(
-    ticker: Annotated[str, "ticker symbol"],
+    ticker: Annotated[str, "6-digit A-stock code (e.g. 600379). Must be numeric, NOT company name"],
     freq: Annotated[str, "reporting frequency: annual/quarterly"] = "quarterly",
     curr_date: Annotated[str, "current date you are trading at, yyyy-mm-dd"] = None,
 ) -> str:

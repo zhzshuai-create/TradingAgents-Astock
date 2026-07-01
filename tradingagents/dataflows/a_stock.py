@@ -1,63 +1,39 @@
 """A-stock (China mainland) data vendor for TradingAgents.
 
-Bridges EP11's a-stock-data Skill (mootdx + Tencent Finance + akshare + 同花顺)
-into TradingAgents' plugin architecture. 12 vendor methods implemented.
+Zero third-party data dependency (no akshare). All sources are direct HTTP APIs
+or mootdx TCP.
 
 Data sources:
 - mootdx (TCP 7709): OHLCV K-lines, financial snapshots, F10 text
 - Tencent Finance (HTTP GBK): PE/PB/market cap/turnover
-- akshare (Python): news, financial statements, stock info, consensus EPS
-- 同花顺 (HTTP): hot stocks topic attribution, northbound capital flow
+- 东方财富 push2 / datacenter-web (direct HTTP): stock info, dragon-tiger, lockup
+- 新浪财经 (direct HTTP): K-line fallback, financial statements
+- 同花顺 (direct HTTP): consensus EPS, hot stocks, northbound capital flow
+- 财联社 (direct HTTP): global news wire
 """
+
+from __future__ import annotations
 
 from typing import Annotated
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
-from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
+import json as _json
 import os
 import logging
 import math
+import random
+import re as _re
+import socket
+import time
+import uuid
 import urllib.request
 
 import pandas as pd
-import signal
+import requests as _requests
 
 from .utils import safe_ticker_component
 
 logger = logging.getLogger(__name__)
-
-# ── Patch akshare and requests to have global timeout ────────────────────
-try:
-    import requests as _requests
-    _original_get = _requests.get
-    def _get_with_timeout(*args, **kwargs):
-        if "timeout" not in kwargs:
-            kwargs["timeout"] = 15
-        return _original_get(*args, **kwargs)
-    _requests.get = _get_with_timeout
-    _original_post = _requests.post
-    def _post_with_timeout(*args, **kwargs):
-        if "timeout" not in kwargs:
-            kwargs["timeout"] = 15
-        return _original_post(*args, **kwargs)
-    _requests.post = _post_with_timeout
-    logger.info("Patched global requests.get/post with 15s default timeout")
-except Exception:
-    pass
-
-
-def _fetch_with_timeout(fn, timeout=15, label=""):
-    """Run fn in a thread; returns result or None on timeout/error."""
-    with ThreadPoolExecutor(max_workers=1) as executor:
-        future = executor.submit(fn)
-        try:
-            return future.result(timeout=timeout)
-        except FuturesTimeout:
-            logger.warning("%s timed out after %ds", label or fn.__name__, timeout)
-            return None
-        except Exception as e:
-            logger.warning("%s failed: %s", label or fn.__name__, e)
-            return None
 
 
 # ---------------------------------------------------------------------------
@@ -73,24 +49,10 @@ def _get_prefix(code: str) -> str:
     return "sz"
 
 
-_name_to_code_cache = None
-
-
-def _load_name_to_code():
-    """Lazy-load A-stock name->code mapping from akshare."""
-    global _name_to_code_cache
-    if _name_to_code_cache is None:
-        import akshare as ak
-        df = ak.stock_info_a_code_name()
-        _name_to_code_cache = dict(zip(df["name"].str.strip(), df["code"].str.strip()))
-    return _name_to_code_cache
-
-
 def _normalize_ticker(symbol: str) -> str:
     """Strip exchange prefix/suffix, return pure 6-digit code.
 
     Handles: '688017', 'SH688017', '688017.SH', 'sh688017'
-    Also resolves company names like '绿的谐波' to codes.
     """
     s = symbol.strip().upper()
     # Remove .SH / .SZ / .BJ suffix
@@ -103,20 +65,83 @@ def _normalize_ticker(symbol: str) -> str:
         if s.startswith(prefix):
             s = s[len(prefix) :]
             break
+    return safe_ticker_component(s)
+
+
+# ---------------------------------------------------------------------------
+# Stock name <-> code mapping (cached)
+# ---------------------------------------------------------------------------
+
+_name_to_code: dict[str, str] | None = None
+_code_to_name: dict[str, str] | None = None
+
+
+def _build_name_code_map() -> tuple[dict[str, str], dict[str, str]]:
+    """Build name→code and code→name maps via mootdx (both SH & SZ markets)."""
+    global _name_to_code, _code_to_name
+    if _name_to_code is not None:
+        return _name_to_code, _code_to_name
+
+    client = _get_mootdx_client()
+    n2c: dict[str, str] = {}
+    c2n: dict[str, str] = {}
+
     try:
-        return safe_ticker_component(s)
-    except ValueError:
-        # Input may be a company name; try name->code lookup
-        name_map = _load_name_to_code()
-        code = name_map.get(symbol.strip())
-        if code:
-            return safe_ticker_component(code)
-        # Also try case-insensitive match against Chinese names
-        lower_map = {k.lower(): v for k, v in name_map.items()}
-        code = lower_map.get(symbol.strip().lower())
-        if code:
-            return safe_ticker_component(code)
-        raise
+        for market in (0, 1):  # 0=SZ, 1=SH
+            stocks = client.stocks(market=market)
+            if stocks is None or stocks.empty:
+                continue
+            for _, row in stocks.iterrows():
+                code = str(row["code"]).strip()
+                name = str(row["name"]).strip()
+                if not _re.match(r"^[036]\d{5}$", code):
+                    continue
+                clean_name = name.replace(" ", "").replace("　", "")
+                n2c[clean_name] = code
+                c2n[code] = clean_name
+    except Exception as e:
+        # 网络抖动/通达信不可达时给出明确提示，而非冒泡成风马牛不相及的报错（#46/#66）
+        raise ValueError(
+            "无法通过 mootdx 解析股票名称（通达信服务暂时不可达）：%s。"
+            "请稍后重试，或直接输入 6 位股票代码。" % e
+        ) from e
+
+    _name_to_code = n2c
+    _code_to_name = c2n
+    logger.info("Built stock name-code map: %d entries", len(n2c))
+    return _name_to_code, _code_to_name
+
+
+def resolve_ticker(user_input: str) -> str:
+    """Resolve user input (code or Chinese name) to a 6-digit A-stock code.
+
+    Accepts: '600379', 'SH600379', '600379.SH', '宝光股份'
+    Returns: '600379'
+    Raises: ValueError if not resolvable.
+    """
+    s = user_input.strip()
+    if not s:
+        raise ValueError("输入不能为空")
+
+    has_chinese = any("一" <= ch <= "鿿" for ch in s)
+
+    if not has_chinese:
+        return _normalize_ticker(s)
+
+    clean = s.replace(" ", "").replace("　", "")
+    n2c, _ = _build_name_code_map()
+
+    if clean in n2c:
+        return n2c[clean]
+
+    matches = {name: code for name, code in n2c.items() if clean in name}
+    if len(matches) == 1:
+        return next(iter(matches.values()))
+    if len(matches) > 1:
+        examples = ", ".join(f"{n}({c})" for n, c in list(matches.items())[:5])
+        raise ValueError(f"'{s}' 匹配到多只股票: {examples}，请输入完整名称或代码")
+
+    raise ValueError(f"找不到股票 '{s}'，请检查名称是否正确")
 
 
 # ---------------------------------------------------------------------------
@@ -125,15 +150,55 @@ def _normalize_ticker(symbol: str) -> str:
 
 _mootdx_client = None
 
+# 实测可用的通达信备选服务器（按延迟排序，2026-06 验证）。用于规避 mootdx
+# 0.11.x 全新安装时 BESTIP.HQ 为空串导致的 `ValueError: not enough values to unpack`。
+_TDX_SERVERS = [
+    ("119.97.185.59", 7709), ("124.70.133.119", 7709), ("116.205.183.150", 7709),
+    ("123.60.73.44", 7709), ("116.205.163.254", 7709), ("121.36.225.169", 7709),
+    ("123.60.70.228", 7709), ("124.71.9.153", 7709), ("110.41.147.114", 7709),
+    ("124.71.187.122", 7709),
+]
+
+
+def _probe_tdx(ip: str, port: int, timeout: float = 2.0) -> bool:
+    """TCP 握手探测通达信服务器是否可达。"""
+    try:
+        with socket.create_connection((ip, port), timeout=timeout):
+            return True
+    except OSError:
+        return False
+
 
 def _get_mootdx_client():
-    """Lazy-init mootdx Quotes client (TCP connection, reusable)."""
-    global _mootdx_client
-    if _mootdx_client is None:
-        from mootdx.quotes import Quotes
+    """Lazy-init 健壮版 mootdx Quotes client（TCP 连接，可复用）。
 
-        _mootdx_client = Quotes.factory(market="std")
-    return _mootdx_client
+    规避 mootdx 0.11.x 全新安装的 BESTIP 空串 bug：先 TCP 探测内置服务器列表、
+    用第一个可达的显式 server 绕过 BESTIP；三级 fallback（bestip 测速 → 裸 factory →
+    明确 RuntimeError）保证 IP 老化/换网/老用户场景都能工作。
+    """
+    global _mootdx_client
+    if _mootdx_client is not None:
+        return _mootdx_client
+
+    from mootdx.quotes import Quotes
+
+    for ip, port in _TDX_SERVERS:
+        if _probe_tdx(ip, port):
+            _mootdx_client = Quotes.factory(market="std", server=(ip, port))
+            return _mootdx_client
+    try:
+        _mootdx_client = Quotes.factory(market="std", bestip=True)  # fallback 1
+        return _mootdx_client
+    except Exception:
+        pass
+    try:
+        _mootdx_client = Quotes.factory(market="std")  # fallback 2（老用户 config 已有 IP）
+        return _mootdx_client
+    except Exception as e:
+        raise RuntimeError(
+            "mootdx 通达信服务器均不可达（TCP 7709）。海外网络通常全部超时，"
+            "请走国内代理或直接使用 6 位股票代码。原始错误：%s" % e
+        ) from e
 
 
 # ---------------------------------------------------------------------------
@@ -182,6 +247,214 @@ def _tencent_quote(codes: list[str]) -> dict[str, dict]:
 
 
 # ---------------------------------------------------------------------------
+# Eastmoney Datacenter unified helper (龙虎榜/解禁 etc.)
+# ---------------------------------------------------------------------------
+
+_DATACENTER_URL = "https://datacenter-web.eastmoney.com/api/data/v1/get"
+_UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+
+
+# ---------------------------------------------------------------------------
+# 东财防封：全局节流 + 会话复用 (Eastmoney anti-ban: throttle + Keep-Alive)
+# ---------------------------------------------------------------------------
+# 东财系 HTTP 接口（push2 / push2his / datacenter-web / search-api / np-weblist）
+# 有风控：每秒 >5 次 / 单 IP 并发 ≥10 / 1 分钟 ≥200 次 / 5 分钟 ≥300 次 → 临时封 IP。
+# 多 Agent 投研跑批量分析时会高频请求东财，是被封的头号元凶。所有 eastmoney.com
+# 请求一律走 _em_get()：串行限流（最小间隔 + 随机抖动）+ 复用 Keep-Alive 会话 + 默认 UA。
+# 注意：仅东财接口走此入口；mootdx(TCP) / 腾讯 / 新浪 / 同花顺 / 财联社 / 百度 等
+# 不限流（实测不封 IP 或风控极弱）。批量任务可调大 EM_MIN_INTERVAL 进一步降速。
+_EM_SESSION = _requests.Session()
+_EM_SESSION.headers.update({"User-Agent": _UA})
+# 两次东财请求最小间隔(秒)；批量多 Agent 场景可设环境变量 EM_MIN_INTERVAL=1.5~2 降速。
+_EM_MIN_INTERVAL = float(os.environ.get("EM_MIN_INTERVAL", "1.0"))
+_em_last_call = [0.0]  # 模块级上次东财请求时间戳
+
+
+def _em_get(url, params=None, headers=None, timeout=15, **kwargs):
+    """东财统一请求入口：自动节流 + 复用 session + 默认 UA。
+
+    所有 eastmoney.com 接口都应通过它请求，避免多 Agent 高频拉数据被封 IP。
+    串行限流：与上次东财请求间隔 < EM_MIN_INTERVAL 时 sleep 补足 + 0.1~0.5s 随机抖动。
+    传入的 headers 会覆盖 session 默认 UA（用于保留各端点自己的 Referer/Origin）。
+    """
+    wait = _EM_MIN_INTERVAL - (time.time() - _em_last_call[0])
+    if wait > 0:
+        time.sleep(wait + random.uniform(0.1, 0.5))
+    try:
+        return _EM_SESSION.get(
+            url, params=params, headers=headers, timeout=timeout, **kwargs
+        )
+    finally:
+        _em_last_call[0] = time.time()
+
+
+def _eastmoney_datacenter(
+    report_name: str,
+    columns: str = "ALL",
+    filter_str: str = "",
+    page_size: int = 50,
+    sort_columns: str = "",
+    sort_types: str = "-1",
+) -> list[dict]:
+    """东财数据中心统一查询 — 龙虎榜/解禁 共用."""
+    params = {
+        "reportName": report_name,
+        "columns": columns,
+        "filter": filter_str,
+        "pageNumber": "1",
+        "pageSize": str(page_size),
+        "sortColumns": sort_columns,
+        "sortTypes": sort_types,
+        "source": "WEB",
+        "client": "WEB",
+    }
+    r = _em_get(_DATACENTER_URL, params=params, timeout=15)
+    d = r.json()
+    if d.get("result") and d["result"].get("data"):
+        return d["result"]["data"]
+    return []
+
+
+# ---------------------------------------------------------------------------
+# 同花顺 EPS forecast helper (direct HTTP, no akshare)
+# ---------------------------------------------------------------------------
+
+
+def _ths_eps_forecast(code: str) -> pd.DataFrame:
+    """Fetch consensus EPS forecast from 同花顺 (direct HTTP).
+
+    Returns DataFrame with columns roughly: 年度, 预测机构数, 最小值, 均值, 最大值.
+    """
+    url = f"https://basic.10jqka.com.cn/new/{code}/worth.html"
+    headers = {
+        "User-Agent": _UA,
+        "Referer": "https://basic.10jqka.com.cn/",
+    }
+    r = _requests.get(url, headers=headers, timeout=15)
+    r.encoding = "gbk"
+    dfs = pd.read_html(r.text)
+    # Find the table containing EPS data
+    for df in dfs:
+        cols = [str(c) for c in df.columns]
+        if any("每股收益" in c or "均值" in c for c in cols):
+            return df
+    # Fallback: return first table if exists
+    return dfs[0] if dfs else pd.DataFrame()
+
+
+# ---------------------------------------------------------------------------
+# Sina K-line fallback helper (direct HTTP, no akshare)
+# ---------------------------------------------------------------------------
+
+
+def _sina_kline_fallback(code: str, start_date: str = None, end_date: str = None) -> pd.DataFrame:
+    """Fetch daily K-line from Sina HTTP API as mootdx fallback.
+
+    Returns DataFrame with columns: Date, Open, High, Low, Close, Volume.
+    """
+    prefix = "sh" if code.startswith("6") else "sz"
+    url = (
+        "http://money.finance.sina.com.cn/quotes_service/api/json_v2.php/"
+        "CN_MarketData.getKLineData"
+    )
+    params = {
+        "symbol": f"{prefix}{code}",
+        "scale": "240",  # daily
+        "ma": "no",
+        "datalen": "800",
+    }
+    r = _requests.get(url, params=params, timeout=15)
+    r.raise_for_status()
+    data = _json.loads(r.text)
+
+    if not data:
+        return pd.DataFrame()
+
+    rows = []
+    for item in data:
+        rows.append({
+            "Date": item["day"],
+            "Open": float(item["open"]),
+            "High": float(item["high"]),
+            "Low": float(item["low"]),
+            "Close": float(item["close"]),
+            "Volume": int(item["volume"]),
+        })
+
+    df = pd.DataFrame(rows)
+    df["Date"] = pd.to_datetime(df["Date"])
+
+    if start_date:
+        df = df[df["Date"] >= pd.to_datetime(start_date)]
+    if end_date:
+        df = df[df["Date"] <= pd.to_datetime(end_date)]
+
+    return df
+
+
+def _last_ohlcv_date(df: pd.DataFrame) -> pd.Timestamp | None:
+    """Return the latest OHLCV Date in a normalized dataframe."""
+    if df is None or df.empty or "Date" not in df.columns:
+        return None
+    dates = pd.to_datetime(df["Date"], errors="coerce")
+    if dates.dropna().empty:
+        return None
+    return dates.max().normalize()
+
+
+def _normalize_ohlcv_dates(df: pd.DataFrame) -> pd.DataFrame:
+    """Normalize OHLCV Date values to daily granularity."""
+    if df is None or df.empty or "Date" not in df.columns:
+        return df
+    df = df.copy()
+    df["Date"] = pd.to_datetime(df["Date"], errors="coerce").dt.normalize()
+    return df.dropna(subset=["Date"])
+
+
+def _needs_sina_supplement(df: pd.DataFrame, target_date: str | None) -> bool:
+    """True when mootdx/cache data is older than the requested cutoff date."""
+    if not target_date:
+        return False
+    last_date = _last_ohlcv_date(df)
+    if last_date is None:
+        return True
+    target = pd.to_datetime(target_date).normalize()
+    return last_date < target
+
+
+def _merge_ohlcv(primary: pd.DataFrame, supplement: pd.DataFrame) -> pd.DataFrame:
+    """Merge OHLCV frames, preferring supplement rows on duplicate dates."""
+    frames = [frame for frame in (primary, supplement) if frame is not None and not frame.empty]
+    if not frames:
+        return pd.DataFrame(columns=["Date", "Open", "High", "Low", "Close", "Volume"])
+    combined = pd.concat(frames, ignore_index=True)
+    combined = _normalize_ohlcv_dates(combined)
+    combined = combined.drop_duplicates(subset=["Date"], keep="last")
+    combined = combined.sort_values("Date").reset_index(drop=True)
+    return combined
+
+
+def _supplement_stale_ohlcv_with_sina(
+    code: str,
+    df: pd.DataFrame,
+    target_date: str | None,
+    start_date: str | None = None,
+) -> tuple[pd.DataFrame, bool]:
+    """Use Sina daily K-line to fill dates missing from mootdx/cache data."""
+    if not _needs_sina_supplement(df, target_date):
+        return df, False
+    try:
+        sina_df = _sina_kline_fallback(code, start_date, target_date)
+    except Exception as e:
+        logger.warning("sina K-line supplement failed for %s: %s", code, e)
+        return df, False
+    if sina_df.empty:
+        return df, False
+    merged = _merge_ohlcv(df, sina_df)
+    return merged, _last_ohlcv_date(merged) != _last_ohlcv_date(df)
+
+
+# ---------------------------------------------------------------------------
 # OHLCV loading with cache (mootdx -> CSV)
 # ---------------------------------------------------------------------------
 
@@ -206,32 +479,49 @@ def _load_ohlcv_astock(symbol: str, curr_date: str) -> pd.DataFrame:
         mtime = datetime.fromtimestamp(os.path.getmtime(cache_file))
         if mtime.date() == datetime.now().date():
             data = pd.read_csv(cache_file, on_bad_lines="skip", encoding="utf-8")
-            data["Date"] = pd.to_datetime(data["Date"])
+            data = _normalize_ohlcv_dates(data)
+            data, supplemented = _supplement_stale_ohlcv_with_sina(
+                code, data, curr_date, start_date=None
+            )
+            if supplemented:
+                data.to_csv(cache_file, index=False, encoding="utf-8")
             cutoff = pd.to_datetime(curr_date)
             return data[data["Date"] <= cutoff]
 
     # Fetch from mootdx — 800 daily bars (~3 years of trading days)
-    client = _get_mootdx_client()
-    df = client.bars(symbol=code, category=4, offset=800)
+    try:
+        client = _get_mootdx_client()
+        df = client.bars(symbol=code, category=4, offset=800)
 
-    if df is None or df.empty:
-        raise ValueError(f"No OHLCV data from mootdx for {code}")
+        if df is None or df.empty:
+            raise ValueError(f"No OHLCV data from mootdx for {code}")
 
-    # mootdx returns index named 'datetime' AND a column named 'datetime'
-    # (plus year/month/day/hour/minute/volume). Drop duplicates before reset.
-    df = df.drop(columns=["datetime", "year", "month", "day", "hour", "minute"], errors="ignore")
-    df = df.reset_index()  # moves index 'datetime' → column 'datetime'
-    rename_map = {
-        "datetime": "Date",
-        "open": "Open",
-        "close": "Close",
-        "high": "High",
-        "low": "Low",
-        "volume": "Volume",
-    }
-    df = df.rename(columns=rename_map)
-    df = df[["Date", "Open", "High", "Low", "Close", "Volume"]]
-    df["Date"] = pd.to_datetime(df["Date"])
+        # mootdx returns index named 'datetime' AND a column named 'datetime'
+        # (plus year/month/day/hour/minute/volume). Drop duplicates before reset.
+        df = df.drop(columns=["datetime", "year", "month", "day", "hour", "minute"], errors="ignore")
+        df = df.reset_index()  # moves index 'datetime' → column 'datetime'
+        rename_map = {
+            "datetime": "Date",
+            "open": "Open",
+            "close": "Close",
+            "high": "High",
+            "low": "Low",
+            "volume": "Volume",
+        }
+        df = df.rename(columns=rename_map)
+        df = df[["Date", "Open", "High", "Low", "Close", "Volume"]]
+        df = _normalize_ohlcv_dates(df)
+    except Exception as e:
+        logger.warning("mootdx OHLCV failed for %s: %s, trying sina HTTP fallback", code, e)
+        # Fallback: Sina direct HTTP API
+        try:
+            df = _sina_kline_fallback(code)
+            if df.empty:
+                raise ValueError(f"No OHLCV data from sina for {code}")
+        except Exception:
+            raise ValueError(f"No OHLCV data from mootdx/sina for {code}")
+
+    df, _ = _supplement_stale_ohlcv_with_sina(code, df, curr_date, start_date=None)
 
     # Cache to disk
     df.to_csv(cache_file, index=False, encoding="utf-8")
@@ -257,15 +547,13 @@ def get_stock_data(
     """Get OHLCV stock price data via mootdx."""
     code = _normalize_ticker(symbol)
 
+    data_source = "mootdx (TCP)"
     try:
         client = _get_mootdx_client()
         df = client.bars(symbol=code, category=4, offset=800)
 
         if df is None or df.empty:
-            return (
-                f"No data found for A-stock '{code}' "
-                f"between {start_date} and {end_date}"
-            )
+            raise ValueError(f"No data from mootdx for {code}")
 
         # Drop duplicate datetime column + extra columns before reset_index
         df = df.drop(
@@ -284,39 +572,51 @@ def get_stock_data(
                 "amount": "Amount",
             }
         )
-
-        # Filter by date range
-        df["Date"] = pd.to_datetime(df["Date"])
-        start_dt = pd.to_datetime(start_date)
-        end_dt = pd.to_datetime(end_date)
-        df = df[(df["Date"] >= start_dt) & (df["Date"] <= end_dt)]
-
-        if df.empty:
-            return (
-                f"No data found for A-stock '{code}' "
-                f"between {start_date} and {end_date}"
-            )
-
-        for col in ["Open", "High", "Low", "Close"]:
-            if col in df.columns:
-                df[col] = df[col].round(2)
-
-        df["Date"] = df["Date"].dt.strftime("%Y-%m-%d")
-        csv_out = df[["Date", "Open", "High", "Low", "Close", "Volume"]].to_csv(
-            index=False
-        )
-
-        header = f"# Stock data for {code} (A-stock) from {start_date} to {end_date}\n"
-        header += f"# Total records: {len(df)}\n"
-        header += "# Data source: mootdx (TCP)\n"
-        header += (
-            f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-        )
-
-        return header + csv_out
+        df = _normalize_ohlcv_dates(df)
 
     except Exception as e:
-        return f"Error retrieving A-stock data for {code}: {str(e)}"
+        logger.warning("mootdx K-line failed for %s: %s, trying sina HTTP fallback", code, e)
+        # Fallback: Sina direct HTTP API
+        try:
+            df = _sina_kline_fallback(code, start_date, end_date)
+            if df.empty:
+                return "K线数据获取失败：mootdx和新浪备用源均不可用，请检查网络连接"
+            data_source = "sina HTTP (fallback)"
+        except Exception:
+            return "K线数据获取失败：mootdx和新浪备用源均不可用，请检查网络连接"
+
+    df, supplemented = _supplement_stale_ohlcv_with_sina(code, df, end_date, start_date)
+    if supplemented:
+        data_source = f"{data_source} + sina HTTP supplement"
+
+    # Filter by date range
+    start_dt = pd.to_datetime(start_date)
+    end_dt = pd.to_datetime(end_date)
+    df = df[(df["Date"] >= start_dt) & (df["Date"] <= end_dt)]
+
+    if df.empty:
+        return (
+            f"No data found for A-stock '{code}' "
+            f"between {start_date} and {end_date}"
+        )
+
+    for col in ["Open", "High", "Low", "Close"]:
+        if col in df.columns:
+            df[col] = df[col].round(2)
+
+    df["Date"] = df["Date"].dt.strftime("%Y-%m-%d")
+    csv_out = df[["Date", "Open", "High", "Low", "Close", "Volume"]].to_csv(
+        index=False
+    )
+
+    header = f"# Stock data for {code} (A-stock) from {start_date} to {end_date}\n"
+    header += f"# Total records: {len(df)}\n"
+    header += f"# Data source: {data_source}\n"
+    header += (
+        f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+    )
+
+    return header + csv_out
 
 
 # ---- 2. get_indicators ----
@@ -405,7 +705,7 @@ def get_fundamentals(
     ticker: Annotated[str, "A-stock code"],
     curr_date: Annotated[str, "current date"] = None,
 ) -> str:
-    """Get company fundamentals from Tencent + mootdx + akshare."""
+    """Get company fundamentals from Tencent + mootdx + Eastmoney + 同花顺."""
     code = _normalize_ticker(ticker)
 
     try:
@@ -460,42 +760,60 @@ def get_fundamentals(
         except Exception as e:
             logger.warning("mootdx finance failed for %s: %s", code, e)
 
-        # --- akshare: basic stock info ---
+        # --- Eastmoney push2: basic stock info (direct HTTP) ---
         try:
-            import akshare as ak
-
-            info_df = ak.stock_individual_info_em(symbol=code)
-            if info_df is not None and not info_df.empty:
-                for _, row in info_df.iterrows():
-                    item = str(row.get("item", ""))
-                    value = str(row.get("value", ""))
-                    if item and value and value != "nan":
-                        lines.append(f"{item}: {value}")
+            market_code = 1 if code.startswith("6") else 0
+            _info_url = "https://push2.eastmoney.com/api/qt/stock/get"
+            _info_params = {
+                "fltt": "2",
+                "invt": "2",
+                "fields": "f57,f58,f84,f85,f127,f116,f117,f189,f43",
+                "secid": f"{market_code}.{code}",
+            }
+            r = _em_get(_info_url, params=_info_params, timeout=10)
+            d = r.json().get("data", {})
+            if d:
+                if d.get("f127"):
+                    lines.append(f"行业: {d['f127']}")
+                if d.get("f84"):
+                    lines.append(f"总股本: {d['f84']}")
+                if d.get("f85"):
+                    lines.append(f"流通股本: {d['f85']}")
+                if d.get("f116"):
+                    lines.append(f"总市值: {d['f116']}")
+                if d.get("f117"):
+                    lines.append(f"流通市值: {d['f117']}")
+                if d.get("f189"):
+                    lines.append(f"上市日期: {d['f189']}")
         except Exception as e:
-            logger.warning("akshare stock_individual_info_em failed for %s: %s", code, e)
+            logger.warning("eastmoney push2 stock info failed for %s: %s", code, e)
 
-        # --- akshare: consensus EPS forecast (同花顺) ---
+        # --- 同花顺 direct HTTP: consensus EPS forecast ---
         try:
-            import akshare as ak
-
-            forecast_df = ak.stock_profit_forecast_ths(
-                symbol=code, indicator="预测年报每股收益"
-            )
+            forecast_df = _ths_eps_forecast(code)
             if forecast_df is not None and not forecast_df.empty:
                 lines.append("\n--- Consensus EPS Forecast (同花顺) ---")
                 eps_by_year = {}
                 for _, row in forecast_df.iterrows():
-                    year = str(row.get("年度", ""))
-                    mean_eps = float(row.get("均值", 0))
-                    count = int(row.get("预测机构数", 0))
-                    min_eps = row.get("最小值", "N/A")
-                    max_eps = row.get("最大值", "N/A")
+                    year = str(row.iloc[0]) if len(row) > 0 else ""
+                    mean_eps_val = row.iloc[3] if len(row) > 3 else 0
+                    count_val = row.iloc[1] if len(row) > 1 else 0
+                    min_eps_val = row.iloc[2] if len(row) > 2 else "N/A"
+                    max_eps_val = row.iloc[4] if len(row) > 4 else "N/A"
+                    try:
+                        mean_eps = float(mean_eps_val)
+                    except (ValueError, TypeError):
+                        mean_eps = 0
+                    try:
+                        count = int(count_val)
+                    except (ValueError, TypeError):
+                        count = 0
                     lines.append(
                         f"FY{year}: EPS={mean_eps} "
-                        f"(range {min_eps}~{max_eps}, {count} analysts)"
+                        f"(range {min_eps_val}~{max_eps_val}, {count} analysts)"
                     )
                     if count < 3:
-                        lines.append(f"  Warning: low coverage (<3 analysts)")
+                        lines.append("  Warning: low coverage (<3 analysts)")
                     eps_by_year[year] = mean_eps
 
                 # Forward PE / PEG / PE digestion
@@ -567,17 +885,36 @@ def _sina_stock_code(code: str) -> str:
 def _get_financial_report_sina(
     code: str, report_type: str, freq: str, curr_date: str = None,
 ) -> pd.DataFrame:
-    """Shared helper: fetch financial report via akshare sina source.
+    """Shared helper: fetch financial report via Sina direct HTTP API.
 
     report_type: '资产负债表' | '利润表' | '现金流量表'
     """
-    import akshare as ak
+    _report_type_map = {
+        "资产负债表": "fzb",
+        "利润表": "lrb",
+        "现金流量表": "llb",
+    }
+    source_type = _report_type_map.get(report_type, "lrb")
 
-    sina_code = _sina_stock_code(code)
-    df = ak.stock_financial_report_sina(stock=sina_code, symbol=report_type)
+    prefix = "sh" if code.startswith("6") else "sz"
+    paper_code = f"{prefix}{code}"
+    url = "https://quotes.sina.cn/cn/api/openapi.php/CompanyFinanceService.getFinanceReport2022"
+    params = {
+        "paperCode": paper_code,
+        "source": source_type,
+        "type": "0",
+        "page": "1",
+        "num": "20",
+    }
+    r = _requests.get(url, params=params, headers={"User-Agent": _UA}, timeout=15)
+    d = r.json()
 
-    if df is None or df.empty:
+    result = d.get("result", {}).get("data", {})
+    items = result.get(source_type, [])
+    if not isinstance(items, list) or not items:
         return pd.DataFrame()
+
+    df = pd.DataFrame(items)
 
     # Filter by curr_date
     if curr_date and "报告日" in df.columns:
@@ -598,7 +935,7 @@ def get_balance_sheet(
     freq: Annotated[str, "frequency: 'annual' or 'quarterly'"] = "quarterly",
     curr_date: Annotated[str, "current date in YYYY-MM-DD format"] = None,
 ) -> str:
-    """Get balance sheet via akshare (sina source)."""
+    """Get balance sheet via Sina direct HTTP API."""
     code = _normalize_ticker(ticker)
 
     try:
@@ -610,7 +947,7 @@ def get_balance_sheet(
         csv_string = df.to_csv(index=False)
 
         header = f"# Balance Sheet for {code} (A-stock, {freq})\n"
-        header += "# Data source: akshare (sina)\n"
+        header += "# Data source: sina direct HTTP\n"
         header += (
             f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
         )
@@ -629,7 +966,7 @@ def get_cashflow(
     freq: Annotated[str, "frequency: 'annual' or 'quarterly'"] = "quarterly",
     curr_date: Annotated[str, "current date in YYYY-MM-DD format"] = None,
 ) -> str:
-    """Get cash flow statement via akshare (sina source)."""
+    """Get cash flow statement via Sina direct HTTP API."""
     code = _normalize_ticker(ticker)
 
     try:
@@ -641,7 +978,7 @@ def get_cashflow(
         csv_string = df.to_csv(index=False)
 
         header = f"# Cash Flow for {code} (A-stock, {freq})\n"
-        header += "# Data source: akshare (sina)\n"
+        header += "# Data source: sina direct HTTP\n"
         header += (
             f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
         )
@@ -660,7 +997,7 @@ def get_income_statement(
     freq: Annotated[str, "frequency: 'annual' or 'quarterly'"] = "quarterly",
     curr_date: Annotated[str, "current date in YYYY-MM-DD format"] = None,
 ) -> str:
-    """Get income statement via akshare (sina source)."""
+    """Get income statement via Sina direct HTTP API."""
     code = _normalize_ticker(ticker)
 
     try:
@@ -672,7 +1009,7 @@ def get_income_statement(
         csv_string = df.to_csv(index=False)
 
         header = f"# Income Statement for {code} (A-stock, {freq})\n"
-        header += "# Data source: akshare (sina)\n"
+        header += "# Data source: sina direct HTTP\n"
         header += (
             f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
         )
@@ -686,77 +1023,160 @@ def get_income_statement(
 # ---- 7. get_news ----
 
 
+def _fetch_news_eastmoney(code: str, page_size: int = 20) -> list[dict]:
+    """Direct East Money search API for individual stock news."""
+    url = "https://search-api-web.eastmoney.com/search/jsonp"
+    inner_param = {
+        "uid": "",
+        "keyword": code,
+        "type": ["cmsArticleWebOld"],
+        "client": "web",
+        "clientType": "web",
+        "clientVersion": "curr",
+        "param": {
+            "cmsArticleWebOld": {
+                "searchScope": "default",
+                "sort": "default",
+                "pageIndex": 1,
+                "pageSize": page_size,
+                "preTag": "",
+                "postTag": "",
+            }
+        },
+    }
+    params = {
+        "cb": "callback",
+        "param": _json.dumps(inner_param, ensure_ascii=False),
+        "_": "1",
+    }
+    headers = {
+        "Referer": "https://so.eastmoney.com/",
+        "User-Agent": (
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36"
+        ),
+    }
+
+    resp = _em_get(url, params=params, headers=headers, timeout=15)
+    resp.raise_for_status()
+    text = resp.text
+    text = text[text.index("(") + 1 : text.rindex(")")]
+    data = _json.loads(text)
+
+    articles: list[dict] = []
+    for item in data.get("result", {}).get("cmsArticleWebOld", []):
+        articles.append({
+            "title": item.get("title", ""),
+            "content": item.get("content", ""),
+            "time": item.get("date", ""),
+            "source": item.get("mediaName", "东方财富"),
+            "url": item.get("url", ""),
+        })
+    return articles
+
+
+def _fetch_news_sina(code: str, page_size: int = 20) -> list[dict]:
+    """Sina Finance stock news API (backup source)."""
+    prefix = "sh" if code.startswith(("6", "9")) else "sz"
+    url = (
+        f"https://vip.stock.finance.sina.com.cn/corp/view/"
+        f"vCB_AllNewsStock.php?symbol={prefix}{code}&Page=1"
+    )
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36"
+        ),
+        "Referer": "https://finance.sina.com.cn/",
+    }
+
+    resp = _requests.get(url, headers=headers, timeout=15)
+    resp.raise_for_status()
+    resp.encoding = "gb2312"
+    html = resp.text
+
+    articles: list[dict] = []
+    rows = _re.findall(
+        r"(\d{4}-\d{2}-\d{2})\s*(?:&nbsp;)*(\d{2}:\d{2})\s*(?:&nbsp;)*"
+        r"<a[^>]+href='([^']+)'[^>]*>([^<]+)</a>",
+        html,
+    )
+    for date_str, time_str, link, title in rows[:page_size]:
+        articles.append({
+            "title": title.strip(),
+            "content": "",
+            "time": f"{date_str} {time_str}",
+            "source": "新浪财经",
+            "url": link,
+        })
+    return articles
+
+
 def get_news(
-    ticker: Annotated[str, "A-stock code or company name"],
+    ticker: Annotated[str, "A-stock code"],
     start_date: Annotated[str, "Start date yyyy-mm-dd"],
     end_date: Annotated[str, "End date yyyy-mm-dd"],
 ) -> str:
-    """Get stock-specific news via akshare (eastmoney source)."""
-    import akshare as ak
+    """Get stock-specific news via East Money direct API (Sina as fallback)."""
+    code = _normalize_ticker(ticker)
+
+    start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+    end_dt = datetime.strptime(end_date, "%Y-%m-%d")
+
+    articles: list[dict] = []
+    source_label = ""
 
     try:
-        code = _normalize_ticker(ticker)
-    except ValueError:
-        # Not a valid stock code; treat input as company name or search keyword
-        code = None
+        articles = _fetch_news_eastmoney(code)
+        source_label = "东方财富"
+    except Exception as e:
+        logger.warning("East Money news fetch failed for %s: %s", code, e)
 
-    try:
-        if code:
-            fn = lambda: ak.stock_news_em(symbol=code)
-        else:
-            fn = lambda: ak.stock_news_em(symbol=ticker.strip())
-        df = _fetch_with_timeout(fn, timeout=15, label=f"stock_news_em({ticker})")
-        if df is None:
-            return f"News API timed out for '{ticker}'. 请检查网络连接或稍后重试。"
+    if not articles:
+        try:
+            articles = _fetch_news_sina(code)
+            source_label = "新浪财经"
+        except Exception as e:
+            logger.warning("Sina news fetch failed for %s: %s", code, e)
 
-        if df is None or df.empty:
-            return f"No news found for '{ticker}'"
+    if not articles:
+        return f"No news found for A-stock '{code}'"
 
-        start_dt = datetime.strptime(start_date, "%Y-%m-%d")
-        end_dt = datetime.strptime(end_date, "%Y-%m-%d")
+    news_str = ""
+    count = 0
+    for art in articles:
+        pub_time = art.get("time", "")
+        try:
+            pub_dt = datetime.strptime(pub_time[:10], "%Y-%m-%d")
+            if pub_dt < start_dt or pub_dt > end_dt:
+                continue
+        except (ValueError, IndexError):
+            pass
 
-        news_str = ""
-        count = 0
+        title = art["title"]
+        content = art.get("content", "")
+        source = art.get("source", source_label)
+        link = art.get("url", "")
 
-        for _, row in df.iterrows():
-            title = str(row.get("新闻标题", row.get("title", "")))
-            content = str(row.get("新闻内容", row.get("content", "")))
-            pub_time = str(row.get("发布时间", row.get("datetime", "")))
-            source = str(row.get("文章来源", row.get("source", "Unknown")))
-            link = str(row.get("新闻链接", row.get("url", "")))
+        news_str += f"### {title} (source: {source})\n"
+        if content:
+            snippet = content[:300] + "..." if len(content) > 300 else content
+            news_str += f"{snippet}\n"
+        if link and link != "nan":
+            news_str += f"Link: {link}\n"
+        news_str += "\n"
+        count += 1
 
-            # Date filter
-            try:
-                pub_dt = datetime.strptime(pub_time[:10], "%Y-%m-%d")
-                if pub_dt < start_dt or pub_dt > end_dt:
-                    continue
-            except (ValueError, IndexError):
-                pass  # Include if date can't be parsed
-
-            news_str += f"### {title} (source: {source})\n"
-            if content:
-                snippet = (
-                    content[:300] + "..." if len(content) > 300 else content
-                )
-                news_str += f"{snippet}\n"
-            if link and link != "nan":
-                news_str += f"Link: {link}\n"
-            news_str += "\n"
-            count += 1
-
-        if count == 0:
-            return (
-                f"No news found for A-stock '{code}' "
-                f"between {start_date} and {end_date}"
-            )
-
+    if count == 0:
         return (
-            f"## {code} (A-stock) News, from {start_date} to {end_date}:\n\n"
-            + news_str
+            f"No news found for A-stock '{code}' "
+            f"between {start_date} and {end_date}"
         )
 
-    except Exception as e:
-        return f"Error fetching news for A-stock {code}: {str(e)}"
+    return (
+        f"## {code} (A-stock) News, from {start_date} to {end_date}:\n\n"
+        + news_str
+    )
 
 
 # ---- 8. get_global_news ----
@@ -767,9 +1187,7 @@ def get_global_news(
     look_back_days: Annotated[int, "Days to look back"] = 7,
     limit: Annotated[int, "Max articles"] = 10,
 ) -> str:
-    """Get China/global financial news via akshare (CLS + eastmoney)."""
-    import akshare as ak
-
+    """Get China/global financial news via direct HTTP (CLS + Eastmoney)."""
     start_dt = datetime.strptime(curr_date, "%Y-%m-%d") - relativedelta(
         days=look_back_days
     )
@@ -777,41 +1195,57 @@ def get_global_news(
 
     all_news: list[dict] = []
 
-    # Source 1: CLS wire (财联社快讯)
+    # Source 1: CLS wire (财联社快讯) — direct HTTP
     try:
-        df_cls = _fetch_with_timeout(ak.stock_info_global_cls, timeout=10, label="CLS global news")
-        if df_cls is not None and not df_cls.empty:
-            for _, row in df_cls.head(limit).iterrows():
-                title = str(row.get("标题", row.get("title", "")))
-                content = str(row.get("内容", row.get("content", "")))
-                pub_time = str(row.get("发布时间", row.get("datetime", "")))
-                all_news.append(
-                    {
-                        "title": title,
-                        "content": content,
-                        "time": pub_time,
-                        "source": "CLS Wire",
-                    }
-                )
+        cls_url = "https://www.cls.cn/nodeapi/telegraphList"
+        cls_params = {"rn": str(limit), "page": "1"}
+        cls_headers = {"User-Agent": _UA, "Referer": "https://www.cls.cn/"}
+        r_cls = _requests.get(cls_url, params=cls_params, headers=cls_headers, timeout=10)
+        d_cls = r_cls.json()
+        for item in d_cls.get("data", {}).get("roll_data", []):
+            title = item.get("title", "") or item.get("brief", "")
+            content = item.get("content", "") or item.get("brief", "")
+            ctime = item.get("ctime", "")
+            # ctime is unix timestamp
+            pub_time = ""
+            if ctime:
+                try:
+                    pub_time = datetime.fromtimestamp(int(ctime)).strftime("%Y-%m-%d %H:%M")
+                except (ValueError, TypeError, OSError):
+                    pub_time = str(ctime)
+            all_news.append({
+                "title": title,
+                "content": content,
+                "time": pub_time,
+                "source": "CLS Wire",
+            })
     except Exception as e:
         logger.warning("CLS news fetch failed: %s", e)
 
-    # Source 2: Eastmoney global (东财全球资讯)
+    # Source 2: Eastmoney global (东财7x24资讯) — direct HTTP
     try:
-        df_em = _fetch_with_timeout(ak.stock_info_global_em, timeout=10, label="EM")
-        if df_em is not None and not df_em.empty:
-            for _, row in df_em.head(limit).iterrows():
-                title = str(row.get("标题", row.get("title", "")))
-                summary = str(row.get("摘要", row.get("summary", "")))
-                pub_time = str(row.get("发布时间", row.get("datetime", "")))
-                all_news.append(
-                    {
-                        "title": title,
-                        "content": summary,
-                        "time": pub_time,
-                        "source": "Eastmoney Global",
-                    }
-                )
+        em_url = "https://np-weblist.eastmoney.com/comm/web/getFastNewsList"
+        em_params = {
+            "client": "web",
+            "biz": "web_724",
+            "fastColumn": "102",
+            "sortEnd": "",
+            "pageSize": str(limit),
+            "req_trace": str(uuid.uuid4()),
+        }
+        em_headers = {"User-Agent": _UA, "Referer": "https://kuaixun.eastmoney.com/"}
+        r_em = _em_get(em_url, params=em_params, headers=em_headers, timeout=10)
+        d_em = r_em.json()
+        for item in d_em.get("data", {}).get("fastNewsList", []):
+            title = item.get("title", "")
+            summary = item.get("summary", "")[:200]
+            pub_time = item.get("showTime", "")
+            all_news.append({
+                "title": title,
+                "content": summary,
+                "time": pub_time,
+                "source": "Eastmoney Global",
+            })
     except Exception as e:
         logger.warning("Eastmoney global news fetch failed: %s", e)
 
@@ -900,37 +1334,40 @@ def get_profit_forecast(
     ticker: Annotated[str, "A-stock code"],
     curr_date: Annotated[str, "current date (unused, for interface compat)"] = None,
 ) -> str:
-    """Get consensus EPS forecasts with forward valuation (akshare → 同花顺)."""
-    import akshare as ak
-
+    """Get consensus EPS forecasts with forward valuation (同花顺 direct HTTP)."""
     code = _normalize_ticker(ticker)
 
     try:
-        df = ak.stock_profit_forecast_ths(
-            symbol=code, indicator="预测年报每股收益"
-        )
+        df = _ths_eps_forecast(code)
 
         if df is None or df.empty:
             return f"No analyst coverage found for A-stock '{code}'"
 
         lines = [
             f"# Consensus EPS Forecast for {code} (A-stock)",
-            f"# Source: 同花顺 analyst consensus",
+            f"# Source: 同花顺 analyst consensus (direct HTTP)",
             f"# Retrieved: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
             "",
         ]
 
         eps_by_year = {}
         for _, row in df.iterrows():
-            year = str(row.get("年度", ""))
-            count = int(row.get("预测机构数", 0))
-            mean_eps = float(row.get("均值", 0))
-            min_eps = row.get("最小值", "N/A")
-            max_eps = row.get("最大值", "N/A")
-            industry_avg = row.get("行业平均数", "N/A")
+            year = str(row.iloc[0]) if len(row) > 0 else ""
+            count_val = row.iloc[1] if len(row) > 1 else 0
+            mean_eps_val = row.iloc[3] if len(row) > 3 else 0
+            min_eps_val = row.iloc[2] if len(row) > 2 else "N/A"
+            max_eps_val = row.iloc[4] if len(row) > 4 else "N/A"
+            try:
+                count = int(count_val)
+            except (ValueError, TypeError):
+                count = 0
+            try:
+                mean_eps = float(mean_eps_val)
+            except (ValueError, TypeError):
+                mean_eps = 0
             lines.append(
-                f"FY{year}: EPS={mean_eps} (range {min_eps}~{max_eps}), "
-                f"analysts={count}, industry_avg={industry_avg}"
+                f"FY{year}: EPS={mean_eps} (range {min_eps_val}~{max_eps_val}), "
+                f"analysts={count}"
             )
             if count < 3:
                 lines.append("  Warning: low coverage (<3 analysts)")
@@ -1318,108 +1755,103 @@ def get_fund_flow(
         bool, "Include historical daily fund flow (last 20 days)"
     ] = True,
 ) -> str:
-    """Get individual stock fund flow from 百度股市通.
+    """Get individual stock fund flow from 东财 push2.
 
-    Realtime: minute-level main force vs retail investor flow.
-    History: daily super/large/medium/small order net inflow for 20 days.
+    Realtime: minute-level main/large/medium/small/super order net inflow.
+    History: daily net inflow for 20 trading days (push2his).
+
+    V0.2.7: replaced 百度 PAE (fundflow/fundsortlist, offline since 2026-05)
+    with 东财 push2 fund flow API.
     """
-    import requests
-
     code = _normalize_ticker(ticker)
+    secid = f"1.{code}" if code.startswith("6") else f"0.{code}"
     lines = [
         f"# Fund Flow for {code} (A-stock)",
-        f"# Source: 百度股市通 (Baidu PAE)",
+        f"# Source: 东财 push2 (Eastmoney)",
         f"# Retrieved: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
         "",
     ]
 
     try:
         # Realtime minute-level fund flow
-        url_rt = (
-            "https://finance.pae.baidu.com/vapi/v1/fundflow"
-            f"?finance_type=stock&fund_flow_type=&type=stock"
-            f"&market=ab&code={code}&belongs=stocklevelone"
-            "&finClientType=pc"
-        )
-        r = requests.get(url_rt, headers=_BAIDU_PAE_HEADERS, timeout=10)
+        url_rt = "https://push2.eastmoney.com/api/qt/stock/fflow/kline/get"
+        params_rt = {
+            "secid": secid, "klt": 1,
+            "fields1": "f1,f2,f3,f7",
+            "fields2": "f51,f52,f53,f54,f55,f56,f57",
+        }
+        r = _em_get(url_rt, params=params_rt, timeout=10)
         d = r.json()
+        klines = d.get("data", {}).get("klines", [])
 
-        if str(d.get("ResultCode", -1)) == "0":
-            content = d.get("Result", {}).get("content", {})
-            ff = content.get("fundFlowMinute", {})
-            data_str = ff.get("data", "")
-            rows = data_str.split(";") if data_str else []
-
-            if rows:
-                lines.append(
-                    "## Realtime Minute Flow "
-                    "(mainForce vs retailInvestor, 万元)"
-                )
-                for row in rows[-10:]:
-                    parts = row.split(",")
-                    if len(parts) >= 8:
-                        lines.append(
-                            f"  {parts[0]}: "
-                            f"主力={parts[2]} 散户={parts[3]} "
-                            f"超大单={parts[4]} 大单={parts[5]} "
-                            f"price={parts[8] if len(parts) > 8 else ''}"
-                        )
-
-                last_row = rows[-1].split(",")
-                if len(last_row) >= 4:
-                    main_force = float(last_row[2])
+        if klines:
+            lines.append(
+                "## Realtime Minute Flow "
+                "(主力/小单/中单/大单/超大单 净流入, 元)"
+            )
+            for line in klines[-10:]:
+                parts = line.split(",")
+                if len(parts) >= 6:
                     lines.append(
-                        f"\nClose: mainForce={last_row[2]}万 "
-                        f"retail={last_row[3]}万"
+                        f"  {parts[0]}: "
+                        f"主力={float(parts[1])/1e4:.0f}万 "
+                        f"大单={float(parts[4])/1e4:.0f}万 "
+                        f"超大单={float(parts[5])/1e4:.0f}万"
                     )
-                    if main_force > 0:
-                        lines.append(
-                            "Signal: Net main force INFLOW (bullish)"
-                        )
-                    elif main_force < 0:
-                        lines.append(
-                            "Signal: Net main force OUTFLOW (bearish)"
-                        )
-            else:
-                lines.append(
-                    "No realtime fund flow (non-trading hours or holiday)"
-                )
 
-        # Historical daily fund flow
+            last_parts = klines[-1].split(",")
+            if len(last_parts) >= 2:
+                main_net = float(last_parts[1])
+                lines.append(
+                    f"\nClose: 主力净流入={main_net/1e4:.0f}万元"
+                )
+                if main_net > 0:
+                    lines.append(
+                        "Signal: Net main force INFLOW (bullish)"
+                    )
+                elif main_net < 0:
+                    lines.append(
+                        "Signal: Net main force OUTFLOW (bearish)"
+                    )
+        else:
+            lines.append(
+                "No realtime fund flow (non-trading hours or holiday)"
+            )
+
+        # Historical daily fund flow (push2his)
         if include_history:
-            date_compact = curr_date.replace("-", "")
             url_hist = (
-                "https://finance.pae.baidu.com/vapi/v1/fundsortlist"
-                f"?code={code}&market=ab&finance_type=stock"
-                f"&tab=day&from=history&date={date_compact}"
-                "&pn=0&rn=20&finClientType=pc"
+                "https://push2his.eastmoney.com"
+                "/api/qt/stock/fflow/daykline/get"
             )
-            rh = requests.get(
-                url_hist, headers=_BAIDU_PAE_HEADERS, timeout=10
-            )
+            params_hist = {
+                "secid": secid, "lmt": 20, "klt": 101,
+                "fields1": "f1,f2,f3,f7",
+                "fields2": "f51,f52,f53,f54,f55,f56,f57",
+            }
+            rh = _em_get(url_hist, params=params_hist, timeout=10)
             dh = rh.json()
+            hist_klines = dh.get("data", {}).get("klines", [])
 
-            if dh.get("ResultCode", -1) == 0:
-                hist = dh.get("Result", {}).get("content", [])
-                if hist:
-                    lines.append(
-                        f"\n## Historical Daily Fund Flow "
-                        f"(last {len(hist)} trading days)"
-                    )
-                    lines.append(
-                        "Date | Close | Change | SuperBig | Large "
-                        "| Medium | Small | MainForce"
-                    )
-                    for row in hist:
+            if hist_klines:
+                lines.append(
+                    f"\n## Historical Daily Fund Flow "
+                    f"(last {len(hist_klines)} trading days)"
+                )
+                lines.append(
+                    "Date | 主力净流入(万) | 大单(万) "
+                    "| 中单(万) | 小单(万) | 超大单(万)"
+                )
+                for line in hist_klines:
+                    parts = line.split(",")
+                    if len(parts) >= 6:
                         lines.append(
-                            f"  {row.get('showtime', '')} "
-                            f"| {row.get('closepx', '')} "
-                            f"| {row.get('ratio', '')} "
-                            f"| super={row.get('superNetIn', '')} "
-                            f"| large={row.get('largeNetIn', '')} "
-                            f"| med={row.get('mediumNetIn', '')} "
-                            f"| small={row.get('littleNetIn', '')} "
-                            f"| main={row.get('extMainIn', '')}"
+                            f"  {parts[0]} "
+                            f"| main={float(parts[1])/1e4:.0f} "
+                            f"| large={float(parts[4])/1e4:.0f} "
+                            f"| mid={float(parts[3])/1e4:.0f} "
+                            f"| small={float(parts[2])/1e4:.0f} "
+                            f"| super={float(parts[5])/1e4:.0f}"
                         )
 
         return "\n".join(lines)
@@ -1448,71 +1880,108 @@ def get_dragon_tiger_board(
         Formatted text with LHB appearances, top buyer/seller seats,
         and institutional activity.
     """
-    import akshare as ak
-
     code = safe_ticker_component(ticker)
     end_dt = datetime.strptime(trade_date, "%Y-%m-%d")
     start_dt = end_dt - pd.Timedelta(days=look_back_days)
-    start_date = start_dt.strftime("%Y%m%d")
-    end_date = end_dt.strftime("%Y%m%d")
+    start_date_str = start_dt.strftime("%Y-%m-%d")
     lines = [f"# 龙虎榜数据 | {code} | {trade_date} (近{look_back_days}日)"]
 
+    # 1. 上榜记录 — eastmoney datacenter direct HTTP
     try:
-        df = ak.stock_lhb_detail_em(start_date=start_date, end_date=end_date)
-        stock_df = df[df["代码"] == code]
-        if stock_df.empty:
+        data = _eastmoney_datacenter(
+            "RPT_DAILYBILLBOARD_DETAILSNEW",
+            filter_str=(
+                f"(TRADE_DATE>='{start_date_str}')"
+                f"(TRADE_DATE<='{trade_date}')"
+                f"(SECURITY_CODE=\"{code}\")"
+            ),
+            page_size=50,
+            sort_columns="TRADE_DATE",
+            sort_types="-1",
+        )
+        if not data:
             lines.append(f"\n近{look_back_days}日未上龙虎榜。")
         else:
-            lines.append(f"\n## 上榜记录 ({len(stock_df)} 次)")
-            lines.append("日期 | 原因 | 净买入(万) | 成交额(万) | 换手率")
-            for _, row in stock_df.iterrows():
+            lines.append(f"\n## 上榜记录 ({len(data)} 次)")
+            lines.append("日期 | 原因 | 净买入(万) | 换手率")
+            for row in data:
+                net_buy = round((row.get("BILLBOARD_NET_AMT") or 0) / 10000, 1)
+                turnover = round(float(row.get("TURNOVERRATE") or 0), 2)
                 lines.append(
-                    f"  {row.get('上榜日', '')} | {row.get('上榜原因', '')} "
-                    f"| {row.get('龙虎榜净买额', 0):.0f} "
-                    f"| {row.get('成交额', 0):.0f} "
-                    f"| {row.get('换手率', 0):.2f}%"
+                    f"  {str(row.get('TRADE_DATE', ''))[:10]} "
+                    f"| {row.get('EXPLANATION', '')} "
+                    f"| {net_buy:.0f} "
+                    f"| {turnover:.2f}%"
                 )
     except Exception as e:
         lines.append(f"龙虎榜列表查询失败: {e}")
 
+    # 2. 最近上榜的买卖席位 — eastmoney datacenter direct HTTP
     try:
-        dates_df = ak.stock_lhb_stock_detail_date_em(symbol=code)
-        if dates_df is not None and not dates_df.empty:
-            latest_date = str(dates_df.iloc[0]["交易日"]).split(" ")[0]
+        if data:
+            latest_date = str(data[0].get("TRADE_DATE", ""))[:10]
             lines.append(f"\n## 最近上榜席位明细 ({latest_date})")
-            for flag_label in ("买入", "卖出"):
-                try:
-                    seat_df = ak.stock_lhb_stock_detail_em(
-                        symbol=code, date=latest_date, flag=flag_label
+
+            # 买入席位
+            buy_data = _eastmoney_datacenter(
+                "RPT_BILLBOARD_DAILYDETAILSBUY",
+                filter_str=f"(TRADE_DATE='{latest_date}')(SECURITY_CODE=\"{code}\")",
+                page_size=10,
+                sort_columns="BUY",
+                sort_types="-1",
+            )
+            if buy_data:
+                lines.append("\n### 买入席位 TOP5")
+                lines.append("营业部 | 买入(万) | 卖出(万) | 净额(万)")
+                for row in buy_data[:5]:
+                    buy_amt = round((row.get("BUY") or 0) / 10000, 1)
+                    sell_amt = round((row.get("SELL") or 0) / 10000, 1)
+                    net = round((row.get("NET") or 0) / 10000, 1)
+                    lines.append(
+                        f"  {row.get('OPERATEDEPT_NAME', '')} "
+                        f"| {buy_amt:.0f} | {sell_amt:.0f} | {net:.0f}"
                     )
-                    if seat_df is not None and not seat_df.empty:
-                        lines.append(f"\n### {flag_label}席位 TOP5")
-                        lines.append("营业部 | 买入(万) | 卖出(万) | 净额(万)")
-                        for _, row in seat_df.head(5).iterrows():
-                            lines.append(
-                                f"  {row.get('交易营业部名称', '')} "
-                                f"| {row.get('买入金额', 0):.0f} "
-                                f"| {row.get('卖出金额', 0):.0f} "
-                                f"| {row.get('净额', 0):.0f}"
-                            )
-                except Exception:
-                    pass
+
+            # 卖出席位
+            sell_data = _eastmoney_datacenter(
+                "RPT_BILLBOARD_DAILYDETAILSSELL",
+                filter_str=f"(TRADE_DATE='{latest_date}')(SECURITY_CODE=\"{code}\")",
+                page_size=10,
+                sort_columns="SELL",
+                sort_types="-1",
+            )
+            if sell_data:
+                lines.append("\n### 卖出席位 TOP5")
+                lines.append("营业部 | 买入(万) | 卖出(万) | 净额(万)")
+                for row in sell_data[:5]:
+                    buy_amt = round((row.get("BUY") or 0) / 10000, 1)
+                    sell_amt = round((row.get("SELL") or 0) / 10000, 1)
+                    net = round((row.get("NET") or 0) / 10000, 1)
+                    lines.append(
+                        f"  {row.get('OPERATEDEPT_NAME', '')} "
+                        f"| {buy_amt:.0f} | {sell_amt:.0f} | {net:.0f}"
+                    )
     except Exception:
         pass
 
+    # 3. 机构动向 — 从买卖席位明细筛选机构专用席位 (OPERATEDEPT_CODE="0")
     try:
-        inst_df = ak.stock_lhb_jgmmtj_em(
-            start_date=start_date, end_date=end_date
-        )
-        stock_inst = inst_df[inst_df["代码"] == code]
-        if not stock_inst.empty:
+        inst_buy = 0.0
+        inst_sell = 0.0
+        for detail, side in [(buy_data, "buy"), (sell_data, "sell")]:
+            for row in (detail or []):
+                if str(row.get("OPERATEDEPT_CODE", "")) == "0":
+                    if side == "buy":
+                        inst_buy += (row.get("BUY") or 0)
+                    else:
+                        inst_sell += (row.get("SELL") or 0)
+        if inst_buy > 0 or inst_sell > 0:
             lines.append("\n## 机构动向")
-            for _, row in stock_inst.iterrows():
-                lines.append(
-                    f"  机构买入 {row.get('买方机构数', 0)} 家 "
-                    f"| 卖出 {row.get('卖方机构数', 0)} 家 "
-                    f"| 净额 {row.get('机构买卖净额', row.get('净额', 0)):.0f} 万"
-                )
+            lines.append(
+                f"  机构买入 {inst_buy/1e4:.0f} 万 "
+                f"| 卖出 {inst_sell/1e4:.0f} 万 "
+                f"| 净额 {(inst_buy - inst_sell)/1e4:.0f} 万"
+            )
     except Exception:
         pass
 
@@ -1539,55 +2008,61 @@ def get_lockup_expiry(
         Formatted text with historical unlock records and upcoming
         expiry calendar with impact metrics.
     """
-    import akshare as ak
-
     code = safe_ticker_component(ticker)
     lines = [f"# 限售解禁日历 | {code} | {trade_date}"]
 
+    # 1. 历史解禁记录 — eastmoney datacenter direct HTTP
     try:
-        df = ak.stock_restricted_release_queue_em(symbol=code)
-        if df is not None and not df.empty:
-            lines.append(f"\n## 个股解禁记录 (共 {len(df)} 批)")
-            lines.append(
-                "解禁时间 | 类型 | 解禁数量 | 占总市值比例 | 解禁前后涨跌幅"
-            )
-            for _, row in df.head(15).iterrows():
+        history_data = _eastmoney_datacenter(
+            "RPT_LIFT_STAGE",
+            filter_str=f"(SECURITY_CODE=\"{code}\")",
+            page_size=15,
+            sort_columns="FREE_DATE",
+            sort_types="-1",
+        )
+        if history_data:
+            lines.append(f"\n## 个股解禁记录 (共 {len(history_data)} 批)")
+            lines.append("解禁时间 | 类型 | 解禁数量 | 占比")
+            for row in history_data:
                 lines.append(
-                    f"  {row.get('解禁时间', '')} "
-                    f"| {row.get('限售股类型', '')} "
-                    f"| {row.get('实际解禁数量', row.get('解禁数量', ''))} "
-                    f"| {row.get('占总市值比例', '')} "
-                    f"| {row.get('解禁前后20日涨跌幅', '')}"
+                    f"  {str(row.get('FREE_DATE', ''))[:10]} "
+                    f"| {row.get('LIMITED_STOCK_TYPE', '')} "
+                    f"| {row.get('FREE_SHARES_NUM', '')} "
+                    f"| {row.get('FREE_RATIO', '')}"
                 )
         else:
             lines.append("\n无历史解禁记录。")
     except Exception as e:
         lines.append(f"个股解禁查询失败: {e}")
 
+    # 2. 未来待解禁 — eastmoney datacenter direct HTTP
     try:
         end_dt = datetime.strptime(trade_date, "%Y-%m-%d") + pd.Timedelta(
             days=forward_days
         )
-        df = ak.stock_restricted_release_detail_em(
-            start_date=trade_date.replace("-", ""),
-            end_date=end_dt.strftime("%Y%m%d"),
+        end_str = end_dt.strftime("%Y-%m-%d")
+        upcoming_data = _eastmoney_datacenter(
+            "RPT_LIFT_STAGE",
+            filter_str=(
+                f"(SECURITY_CODE=\"{code}\")"
+                f"(FREE_DATE>='{trade_date}')"
+                f"(FREE_DATE<='{end_str}')"
+            ),
+            page_size=20,
+            sort_columns="FREE_DATE",
+            sort_types="1",
         )
-        if df is not None:
-            stock_df = df[df["股票代码"] == code]
-            if not stock_df.empty:
+        if upcoming_data:
+            lines.append(f"\n## 未来 {forward_days} 天待解禁")
+            for row in upcoming_data:
                 lines.append(
-                    f"\n## 未来 {forward_days} 天待解禁"
+                    f"  {str(row.get('FREE_DATE', ''))[:10]} "
+                    f"| {row.get('LIMITED_STOCK_TYPE', '')} "
+                    f"| 数量 {row.get('FREE_SHARES_NUM', '')} "
+                    f"| 占比 {row.get('FREE_RATIO', '')}"
                 )
-                for _, row in stock_df.iterrows():
-                    lines.append(
-                        f"  {row.get('解禁时间', '')} "
-                        f"| {row.get('限售股类型', '')} "
-                        f"| 数量 {row.get('实际解禁数量', row.get('解禁数量', ''))} "
-                        f"| 占流通 {row.get('占流通市值比例', '')} "
-                        f"| 解禁前收盘 {row.get('解禁前收盘价', '')}"
-                    )
-            else:
-                lines.append(f"\n未来 {forward_days} 天无待解禁。")
+        else:
+            lines.append(f"\n未来 {forward_days} 天无待解禁。")
     except Exception as e:
         lines.append(f"解禁日历查询失败: {e}")
 
@@ -1614,33 +2089,45 @@ def get_industry_comparison(
         Formatted text with sector performance ranking, highlighting
         the sector the target stock belongs to.
     """
-    import akshare as ak
-
     code = safe_ticker_component(ticker)
     lines = [f"# 行业横向对比 | {code} | {trade_date}"]
 
+    # 东财 push2 行业板块排名 (direct HTTP, replaces 同花顺 which has 401)
     try:
-        df = ak.stock_board_industry_summary_ths()
-        if df is not None and not df.empty:
+        url = "https://push2.eastmoney.com/api/qt/clist/get"
+        params = {
+            "pn": "1",
+            "pz": "100",
+            "po": "1",
+            "np": "1",
+            "fltt": "2",
+            "invt": "2",
+            "fs": "m:90+t:2",
+            "fields": "f2,f3,f4,f12,f13,f14,f104,f105,f128,f136,f140,f141,f207",
+        }
+        r = _em_get(url, params=params, timeout=15)
+        d = r.json()
+        items = d.get("data", {}).get("diff", [])
+
+        if items:
             lines.append(
-                f"\n## 全行业表现 (同花顺 {len(df)} 个行业)"
+                f"\n## 全行业表现 (东财 {len(items)} 个行业)"
             )
             lines.append(
-                "排名 | 行业 | 涨跌幅 | 成交额(亿) | 净流入(亿) "
-                "| 上涨 | 下跌 | 领涨股"
+                "排名 | 行业 | 涨跌幅 | 上涨 | 下跌 | 领涨股"
             )
-            for i, (_, row) in enumerate(df.iterrows()):
-                change = row.get("涨跌幅", 0)
-                turnover = row.get("总成交额", 0)
-                net_flow = row.get("净流入", 0)
+            for i, item in enumerate(items):
+                name = item.get("f14", "")
+                change_pct = item.get("f3", 0)
+                up_count = item.get("f104", 0)
+                down_count = item.get("f105", 0)
+                leader = item.get("f140", "")
                 lines.append(
-                    f"  {i+1}. {row.get('板块', '')} "
-                    f"| {change}% "
-                    f"| {turnover:.1f} "
-                    f"| {net_flow:.1f} "
-                    f"| {row.get('上涨家数', '')} "
-                    f"| {row.get('下跌家数', '')} "
-                    f"| {row.get('领涨股', '')}"
+                    f"  {i+1}. {name} "
+                    f"| {change_pct}% "
+                    f"| {up_count} "
+                    f"| {down_count} "
+                    f"| {leader}"
                 )
                 if i >= top_n * 2 - 1:
                     lines.append(f"  ... (showing top/bottom {top_n})")

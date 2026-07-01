@@ -15,7 +15,7 @@ config["deep_think_llm"] = "claude-sonnet-4-6"   # Kimi maps internally
 config["quick_think_llm"] = "claude-sonnet-4-6"
 config["backend_url"] = "https://api.kimi.com/coding/"
 
-# --- Data: A-stock vendor (mootdx + tencent + akshare) ---
+# --- Data: A-stock vendor (mootdx + tencent + eastmoney + sina) ---
 config["data_vendors"] = {
     "core_stock_apis": "a_stock",
     "technical_indicators": "a_stock",
@@ -33,7 +33,7 @@ print("TradingAgents-Astock E2E Test")
 print("Ticker: 688017")
 print("Trade date: 2026-04-30")
 print("LLM: Kimi 2.6 via Anthropic API")
-print("Data: a_stock (mootdx + tencent + akshare)")
+print("Data: a_stock (mootdx + tencent + eastmoney + sina)")
 print("=" * 60)
 
 ta = TradingAgentsGraph(debug=True, config=config)

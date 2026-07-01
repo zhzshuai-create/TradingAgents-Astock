@@ -2,220 +2,304 @@
 
 from __future__ import annotations
 
-import logging
+import os
 import re
+import subprocess
 from datetime import datetime
-from io import BytesIO
 from pathlib import Path
 from typing import Any
 
+import fpdf as _fpdf_mod
 from fpdf import FPDF
+from fpdf.enums import WrapMode
 
-logger = logging.getLogger(__name__)
+from web.stock_display import normalize_stock_mentions, stock_display_label
+
+
+# fpdf2 (maintained fork) and the abandoned pyfpdf 1.x BOTH import as `fpdf`, and
+# installing both leaves whichever was installed last on disk. pyfpdf 1.x encodes
+# every page as latin-1, so any Chinese character raises a cryptic
+# `UnicodeEncodeError: 'latin-1' codec can't encode` deep inside the library
+# (issue #54). Detect the wrong library up front and tell the user exactly how to
+# fix it, instead of letting the PDF blow up mid-render.
+_FPDF_VERSION = getattr(_fpdf_mod, "__version__", None) or getattr(_fpdf_mod, "FPDF_VERSION", "0")
+
+_PDF_FONT_ENV = "TRADINGAGENTS_PDF_FONT"
+_PDF_BOLD_FONT_ENV = "TRADINGAGENTS_PDF_BOLD_FONT"
 
 _FONT_CANDIDATES = [
-    "C:/Windows/Fonts/msyh.ttc",
-    "C:/Windows/Fonts/msyhbd.ttc",
-    "C:/Windows/Fonts/simsun.ttc",
-    "C:/Windows/Fonts/simhei.ttf",
-    "/System/Library/Fonts/PingFang.ttc",
-    "/System/Library/Fonts/STHeiti Light.ttc",
-    "/usr/share/fonts/truetype/noto/NotoSansSC-Regular.ttf",
-    "/usr/share/fonts/noto-cjk/NotoSansCJKsc-Regular.otf",
-    "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+    (
+        "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc",
+        "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc",
+    ),
+    (
+        "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",
+        "/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc",
+    ),
+    (
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc",
+    ),
+    (
+        "/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc",
+        "/usr/share/fonts/noto-cjk/NotoSansCJK-Bold.ttc",
+    ),
+    (
+        "/usr/share/fonts/noto-cjk/NotoSansCJKsc-Regular.otf",
+        "/usr/share/fonts/noto-cjk/NotoSansCJKsc-Bold.otf",
+    ),
+    (
+        "/usr/share/fonts/truetype/noto/NotoSansSC-Regular.ttf",
+        "/usr/share/fonts/truetype/noto/NotoSansSC-Bold.ttf",
+    ),
+    (
+        "/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf",
+        "/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf",
+    ),
+    (
+        "/System/Library/Fonts/PingFang.ttc",
+        "/System/Library/Fonts/PingFang.ttc",
+    ),
+    (
+        "/System/Library/Fonts/STHeiti Light.ttc",
+        "/System/Library/Fonts/STHeiti Medium.ttc",
+    ),
+    (
+        "C:/Windows/Fonts/msyh.ttc",
+        "C:/Windows/Fonts/msyhbd.ttc",
+    ),
+    (
+        "C:/Windows/Fonts/simhei.ttf",
+        "C:/Windows/Fonts/simhei.ttf",
+    ),
 ]
 
+_FONT_NAME_CANDIDATES = [
+    ("WenQuanYi Micro Hei", "Regular"),
+    ("WenQuanYi Zen Hei", "Regular"),
+    ("Noto Sans CJK SC", "Regular"),
+    ("Noto Sans CJK SC", "Bold"),
+    ("Noto Sans SC", "Regular"),
+    ("Noto Sans SC", "Bold"),
+    ("Source Han Sans SC", "Regular"),
+    ("Source Han Sans SC", "Bold"),
+]
 
-def _find_cjk_font() -> str | None:
-    for path in _FONT_CANDIDATES:
-        if Path(path).exists():
-            return path
+_FONT_FILE_PATTERNS = (
+    "wqy-microhei.ttc",
+    "wqy-zenhei.ttc",
+    "NotoSansCJK-Regular.ttc",
+    "NotoSansCJK-Bold.ttc",
+    "NotoSansCJKsc-Regular.otf",
+    "NotoSansCJKsc-Bold.otf",
+    "NotoSansSC-Regular.ttf",
+    "NotoSansSC-Bold.ttf",
+    "SourceHanSansSC-Regular.otf",
+    "SourceHanSansSC-Bold.otf",
+    "DroidSansFallbackFull.ttf",
+)
+
+_CJK_FONT_MARKERS = (
+    "NotoSansCJK",
+    "NotoSansSC",
+    "NotoSerifCJK",
+    "SourceHanSans",
+    "SourceHanSerif",
+    "wqy-",
+    "DroidSansFallback",
+    "PingFang",
+    "STHeiti",
+    "msyh",
+    "simhei",
+)
+
+_TTC_SC_FACE_INDEXES = {
+    "NotoSansCJK-Regular.ttc": 2,
+    "NotoSansCJK-Bold.ttc": 2,
+    "NotoSerifCJK-Regular.ttc": 2,
+    "NotoSerifCJK-Bold.ttc": 2,
+}
+
+_SINGLE_FACE_BOLD_FALLBACKS = {
+    "wqy-microhei.ttc",
+    "wqy-zenhei.ttc",
+    "DroidSansFallbackFull.ttf",
+}
+
+
+class PDFExportError(RuntimeError):
+    """Raised when the PDF report cannot be exported."""
+
+
+def _ensure_fpdf2() -> None:
+    try:
+        major = int(str(_FPDF_VERSION).split(".")[0])
+    except (ValueError, IndexError):
+        major = 0
+    if major < 2:
+        raise RuntimeError(
+            f"检测到旧版 fpdf (pyfpdf {_FPDF_VERSION})，它用 latin-1 编码、无法处理中文，"
+            "会导致 PDF 导出崩溃（issue #54）。请执行：\n"
+            '    pip uninstall -y fpdf && pip install "fpdf2>=2.8.0"\n'
+            "（fpdf 与 fpdf2 都以 `fpdf` 名称导入、互相冲突，必须卸载旧的 fpdf），"
+            "或改用「下载 Markdown」导出。"
+        )
+
+
+def _font_missing_message() -> str:
+    candidates = ", ".join(regular for regular, _ in _FONT_CANDIDATES[:4])
+    return (
+        "PDF 导出需要可嵌入的 Unicode 中文字体。请优先安装 fonts-wqy-microhei，"
+        f"或设置 {_PDF_FONT_ENV}=/path/to/wqy-microhei.ttc。"
+        f"已检查的常见路径包括: {candidates}"
+    )
+
+
+def _env_font_path(env_name: str) -> Path | None:
+    configured = os.getenv(env_name)
+    if not configured:
+        return None
+
+    path = Path(configured).expanduser()
+    if not path.exists():
+        raise PDFExportError(f"{env_name} 指向的字体文件不存在: {path}")
+    return path
+
+
+def _is_likely_cjk_font(path: Path) -> bool:
+    return any(marker in path.name for marker in _CJK_FONT_MARKERS)
+
+
+def _font_search_roots() -> list[Path]:
+    roots = [
+        Path("/usr/share/fonts"),
+        Path("/usr/local/share/fonts"),
+        Path("~/.local/share/fonts").expanduser(),
+        Path("~/.fonts").expanduser(),
+    ]
+    xdg_data_home = os.getenv("XDG_DATA_HOME")
+    if xdg_data_home:
+        roots.append(Path(xdg_data_home).expanduser() / "fonts")
+    return roots
+
+
+def _find_font_file(pattern: str) -> Path | None:
+    for root in _font_search_roots():
+        if not root.exists():
+            continue
+        matches = sorted(root.rglob(pattern))
+        if matches:
+            return matches[0]
     return None
 
 
-# ── Text cleaning pipeline ────────────────────────────────────────────────────
+def _font_from_fontconfig(family: str, style: str) -> Path | None:
+    try:
+        output = subprocess.check_output(
+            ["fc-match", "-f", "%{file}", f"{family}:style={style}"],
+            stderr=subprocess.DEVNULL,
+            text=True,
+            timeout=2,
+        ).strip()
+    except (OSError, subprocess.SubprocessError):
+        return None
+
+    if not output:
+        return None
+
+    path = Path(output)
+    if path.exists() and _is_likely_cjk_font(path):
+        return path
+    return None
 
 
-def _strip_thinking_tags(text: str) -> str:
-    """Remove <think>...</think> blocks from DeepSeek/LLM output."""
+def _discover_cjk_fonts() -> tuple[Path, Path] | None:
+    discovered: dict[str, Path] = {}
+
+    for pattern in _FONT_FILE_PATTERNS:
+        path = _find_font_file(pattern)
+        if path:
+            discovered[pattern] = path
+
+    regular = (
+        discovered.get("wqy-microhei.ttc")
+        or discovered.get("wqy-zenhei.ttc")
+        or discovered.get("NotoSansCJK-Regular.ttc")
+        or discovered.get("NotoSansCJKsc-Regular.otf")
+        or discovered.get("NotoSansSC-Regular.ttf")
+        or discovered.get("SourceHanSansSC-Regular.otf")
+        or discovered.get("DroidSansFallbackFull.ttf")
+    )
+    if regular and regular.name in _SINGLE_FACE_BOLD_FALLBACKS:
+        return regular, regular
+
+    bold = (
+        discovered.get("NotoSansCJK-Bold.ttc")
+        or discovered.get("NotoSansCJKsc-Bold.otf")
+        or discovered.get("NotoSansSC-Bold.ttf")
+        or discovered.get("SourceHanSansSC-Bold.otf")
+        or regular
+    )
+    if regular and bold:
+        return regular, bold
+
+    for family, style in _FONT_NAME_CANDIDATES:
+        font_path = _font_from_fontconfig(family, style)
+        if not font_path:
+            continue
+        if style == "Bold" and regular:
+            return regular, font_path
+        if style != "Bold":
+            return font_path, font_path
+
+    return None
+
+
+def _find_cjk_fonts() -> tuple[Path, Path]:
+    env_regular = _env_font_path(_PDF_FONT_ENV)
+    if env_regular:
+        return env_regular, _env_font_path(_PDF_BOLD_FONT_ENV) or env_regular
+
+    for regular_path, bold_path in _FONT_CANDIDATES:
+        regular = Path(regular_path)
+        if regular.exists():
+            bold = Path(bold_path)
+            return regular, bold if bold.exists() else regular
+
+    discovered = _discover_cjk_fonts()
+    if discovered:
+        return discovered
+
+    raise PDFExportError(_font_missing_message())
+
+
+def _collection_font_number(path: Path) -> int:
+    """Select the Simplified Chinese face from known CJK font collections."""
+    return _TTC_SC_FACE_INDEXES.get(path.name, 0)
+
+
+def _strip_think(text: str) -> str:
     return re.sub(r"<think>.*?</think>\s*", "", text, flags=re.DOTALL).strip()
 
 
-def _strip_pre_header_monologue(text: str) -> str:
-    """Remove LLM inner monologue that appears before the first Markdown header.
-
-    DeepSeek and similar models often output verbose reasoning/calculations
-    before writing the actual report (which starts with a # header).
-    """
-    header_match = re.search(r"^#+\s+", text, re.MULTILINE)
-    if header_match and header_match.start() > 50:
-        return text[header_match.start():]
-    return text
-
-
-def _remove_emojis(text: str) -> str:
-    """Strip emoji and non-renderable symbols, keep CJK/ASCII/punctuation."""
-    keep: list[str] = []
-    for ch in text:
-        cp = ord(ch)
-        # U+20D0-U+20FF: Combining Diacritical Marks for Symbols (keycap, etc.)
-        if 0x20D0 <= cp <= 0x20FF:
-            continue
-        if cp < 0x80:
-            keep.append(ch)
-        elif 0xA0 <= cp <= 0x24CF:
-            keep.append(ch)
-        elif 0x2E80 <= cp <= 0x33BF:
-            keep.append(ch)
-        elif 0x3400 <= cp <= 0x9FFF:
-            keep.append(ch)
-        elif 0xF900 <= cp <= 0xFAFF:
-            keep.append(ch)
-        elif 0xFE10 <= cp <= 0xFE4F:
-            keep.append(ch)
-        elif 0xFF00 <= cp <= 0xFFEF:
-            keep.append(ch)
-        elif 0x2000 <= cp <= 0x206F:
-            keep.append(ch)
-        elif 0x20A0 <= cp <= 0x20CF:
-            keep.append(ch)
-        elif cp in (0x2018, 0x2019, 0x201C, 0x201D, 0x2013, 0x2014):
-            keep.append(ch)
-    return "".join(keep)
-
-
-def _clean_markdown(text: str) -> str:
-    """Convert Markdown formatting to clean plain text suitable for PDF."""
-
-    # 1. Remove horizontal rules (standalone --- or ***)
-    text = re.sub(r"^\s*[-*]{3,}\s*$", "", text, flags=re.MULTILINE)
-
-    # 2. Remove blockquote markers
-    text = re.sub(r"^>\s?", "", text, flags=re.MULTILINE)
-
-    # 3. Remove bold markers: **text** -> text
+def _strip_md_inline(text: str) -> str:
+    """Remove inline markdown formatting: **bold**, *italic*, `code`, [link](url)."""
     text = re.sub(r"\*\*(.+?)\*\*", r"\1", text)
-
-    # 4. Remove italic markers: *text* -> text (but not bullet points)
-    text = re.sub(r"(?<!\*)\*(?!\s)(.+?)(?<!\s)\*(?!\*)", r"\1", text)
-
-    # 5. Remove heading markers: ### Heading -> Heading
-    text = re.sub(r"^#{1,6}\s+", "", text, flags=re.MULTILINE)
-
-    # 6. Convert markdown tables to readable lists
-    text = _flatten_tables(text)
-
-    # 7. Remove inline code markers
-    text = re.sub(r"`([^`]+)`", r"\1", text)
-
-    # 8. Clean bullet markers (keep indentation structure)
-    text = re.sub(r"^[\s]*[-*+]\s+", "  - ", text, flags=re.MULTILINE)
-
-    # 9. Replace fancy quotes and dashes with ASCII equivalents
-    text = text.replace("‘", "'").replace("’", "'")
-    text = text.replace("“", '"').replace("”", '"')
-    text = text.replace("—", "--").replace("–", "-")
-
+    text = re.sub(r"\*(.+?)\*", r"\1", text)
+    text = re.sub(r"`(.+?)`", r"\1", text)
+    text = re.sub(r"\[(.+?)\]\(.+?\)", r"\1", text)
     return text
 
 
-def _flatten_tables(text: str) -> str:
-    """Convert Markdown pipe tables into readable indented text.
-
-    A table like:
-        | Key | Value |
-        |-----|-------|
-        | PE  | 128x  |
-
-    Becomes:
-        Key: Value
-        PE: 128x
-    """
-    lines = text.split("\n")
-    result: list[str] = []
-    in_table = False
-    table_rows: list[list[str]] = []
-
-    for line in lines:
-        stripped = line.strip()
-        is_table_line = stripped.startswith("|") and stripped.endswith("|")
-        is_separator = bool(re.match(r"^\|[\s\-:|]+\|$", stripped))
-
-        if is_separator:
-            # Always skip table separators, regardless of table state
-            if not in_table:
-                result.append("")
-            continue
-        elif is_table_line:
-            if not in_table:
-                in_table = True
-                table_rows = []
-            cells = [c.strip() for c in stripped.strip("|").split("|")]
-            table_rows.append(cells)
-            continue
-        elif in_table:
-            # Non-table line after a table block – flush
-            result.append(_render_table_rows(table_rows))
-            table_rows = []
-            in_table = False
-
-        result.append(line)
-
-    if in_table and table_rows:
-        result.append(_render_table_rows(table_rows))
-
-    return "\n".join(result)
+def _compact_inline_text(text: str) -> str:
+    """Collapse table/alignment whitespace that would create wide PDF gaps."""
+    return re.sub(r"[ \t\u3000]{2,}", " ", text).strip()
 
 
-def _render_table_rows(rows: list[list[str]]) -> str:
-    """Render table rows as key-value pairs or simple indented text."""
-    if not rows:
-        return ""
-
-    out: list[str] = []
-    if len(rows[0]) == 2:
-        # Two-column table: render as "Key: Value"
-        max_key_len = max(len(r[0]) for r in rows if len(r) >= 2)
-        for row in rows:
-            if len(row) >= 2:
-                key = row[0].ljust(max_key_len)
-                out.append(f"  {key}: {row[1]}")
-            elif len(row) == 1 and row[0]:
-                out.append(f"  {row[0]}")
-    else:
-        # Multi-column: space-separated indented rows
-        for row in rows:
-            out.append("  " + "  ".join(row))
-
-    return "\n".join(out)
-
-
-def _normalize_whitespace(text: str) -> str:
-    """Collapse excessive blank lines and trim."""
-    # Collapse 3+ consecutive newlines into 2
-    text = re.sub(r"\n{3,}", "\n\n", text)
-    # Remove trailing whitespace on each line
-    text = re.sub(r"[ \t]+$", "", text, flags=re.MULTILINE)
-    # Remove leading blank lines
-    text = text.lstrip("\n")
-    return text
-
-
-def clean_for_pdf(text: str) -> str:
-    """Full cleaning pipeline: raw LLM output -> readable PDF text."""
-    if not text:
-        return ""
-    text = str(text)
-
-    text = _strip_thinking_tags(text)
-    text = _strip_pre_header_monologue(text)
-    text = _clean_markdown(text)
-    text = _remove_emojis(text)
-    text = _normalize_whitespace(text)
-    return text.strip()
-
-
-# ── PDF generation ────────────────────────────────────────────────────────────
+def _format_table_cells(cells: list[str]) -> str:
+    cleaned = [_compact_inline_text(_strip_md_inline(cell)) for cell in cells]
+    cleaned = [cell for cell in cleaned if cell]
+    return " | ".join(cleaned)
 
 
 def _signal_color(signal: str) -> tuple[int, int, int]:
@@ -225,17 +309,6 @@ def _signal_color(signal: str) -> tuple[int, int, int]:
     if "SELL" in s:
         return (239, 68, 68)
     return (251, 191, 36)
-
-
-def _signal_label(signal: str) -> str:
-    s = signal.upper()
-    if "BUY" in s:
-        return "BUY 买入"
-    if "SELL" in s:
-        return "SELL 卖出"
-    if "HOLD" in s or "UNDERWEIGHT" in s or "OVERWEIGHT" in s:
-        return f"{s} 持有/观望"
-    return s
 
 
 _REPORT_SECTIONS = [
@@ -250,29 +323,55 @@ _REPORT_SECTIONS = [
 
 
 class _ReportPDF(FPDF):
-    def __init__(self, ticker: str, trade_date: str, signal: str) -> None:
+    def __init__(
+        self,
+        ticker: str,
+        trade_date: str,
+        signal: str,
+        final_state: dict[str, Any] | None = None,
+    ) -> None:
         super().__init__()
         self.ticker = ticker
+        self.ticker_label = stock_display_label(ticker, final_state)
         self.trade_date = trade_date
         self.signal = signal
-        self._has_cjk = False
+        regular_font, bold_font = _find_cjk_fonts()
 
-        font_path = _find_cjk_font()
-        if font_path:
-            self.add_font("CJK", "", font_path, uni=True)
-            self.add_font("CJK", "B", font_path, uni=True)
-            self._has_cjk = True
+        try:
+            self.add_font(
+                "CJK",
+                "",
+                str(regular_font),
+                collection_font_number=_collection_font_number(regular_font),
+            )
+            self.add_font(
+                "CJK",
+                "B",
+                str(bold_font),
+                collection_font_number=_collection_font_number(bold_font),
+            )
+        except Exception as exc:
+            raise PDFExportError(
+                f"无法加载 PDF 中文字体: {regular_font}。"
+                f"请换一个 TTF/OTF/TTC 字体并通过 {_PDF_FONT_ENV} 指定。"
+            ) from exc
 
     def _use_font(self, style: str = "", size: int = 10) -> None:
-        if self._has_cjk:
-            self.set_font("CJK", style, size)
-        else:
-            self.set_font("Helvetica", style, size)
+        self.set_font("CJK", style, size)
+
+    def _text_block_width(self) -> float:
+        return self.w - self.l_margin - self.r_margin
+
+    def _write_multicell(self, height: float, text: str, **kwargs: Any) -> None:
+        self.set_x(self.l_margin)
+        kwargs.setdefault("align", "L")
+        kwargs.setdefault("wrapmode", WrapMode.CHAR)
+        self.multi_cell(self._text_block_width(), height, text, **kwargs)
 
     def header(self) -> None:
         self._use_font("", 8)
         self.set_text_color(150, 150, 150)
-        self.cell(0, 6, f"A股多Agent投研分析  |  {self.ticker}  |  {self.trade_date}", align="C")
+        self.cell(0, 6, f"A股多Agent投研分析  |  {self.ticker_label}  |  {self.trade_date}", align="C")
         self.ln(8)
         self.set_draw_color(60, 60, 60)
         self.line(10, self.get_y(), self.w - 10, self.get_y())
@@ -282,7 +381,11 @@ class _ReportPDF(FPDF):
         self.set_y(-15)
         self._use_font("", 8)
         self.set_text_color(120, 120, 120)
-        self.cell(0, 10, f"Page {self.page_no()}/{{nb}}", align="C")
+        self.cell(0, 5, f"Page {self.page_no()}/{{nb}}", align="C")
+        self.ln(4)
+        self._use_font("", 6)
+        self.set_text_color(160, 160, 160)
+        self.cell(0, 4, "仅供学习研究，不构成投资建议", align="C")
 
     def add_cover(self) -> None:
         self.add_page()
@@ -295,7 +398,7 @@ class _ReportPDF(FPDF):
 
         self._use_font("B", 36)
         self.set_text_color(30, 30, 30)
-        self.cell(0, 18, self.ticker, align="C")
+        self.cell(0, 18, self.ticker_label, align="C")
         self.ln(16)
 
         self._use_font("", 14)
@@ -308,94 +411,144 @@ class _ReportPDF(FPDF):
         r, g, b = _signal_color(self.signal)
         self._use_font("B", 40)
         self.set_text_color(r, g, b)
-        self.cell(0, 20, _signal_label(self.signal), align="C")
+        self.cell(0, 20, self.signal.upper(), align="C")
         self.ln(20)
 
         self._use_font("", 9)
         self.set_text_color(120, 120, 120)
-        self.multi_cell(
-            0, 5,
+        self._write_multicell(
+            5,
             "免责声明: 本报告由 AI 多 Agent 系统自动生成, 仅供学习研究与技术演示, "
             "不构成任何投资建议。投资决策请咨询持牌专业机构。"
             "使用本报告所产生的任何损失由使用者自行承担。",
             align="C",
         )
 
-    def add_chart_image(self, png_bytes: bytes, caption: str = "") -> None:
-        """Embed a PNG chart image centred on the page."""
-        if not png_bytes:
-            return
-        self.ln(4)
-        if caption:
-            self._use_font("B", 11)
-            self.set_text_color(255, 90, 31)
-            self.cell(0, 8, caption, align="C")
-            self.ln(6)
-        buf = BytesIO(png_bytes)
-        self.image(buf, x=12, w=self.w - 24)
-        self.ln(4)
-
-    def add_section(self, title: str, content: str, first: bool = False) -> None:
-        cleaned = clean_for_pdf(content)
-        if not cleaned:
-            return
-
-        if not first:
-            # Visual separator instead of forced page break
-            self.ln(4)
-            self.set_draw_color(80, 80, 80)
-            self.set_line_width(0.3)
-            y = self.get_y()
-            self.line(30, y, self.w - 30, y)
-            self.ln(6)
-
+    def add_section(self, title: str, content: str) -> None:
+        self.add_page()
         self._use_font("B", 16)
         self.set_text_color(255, 90, 31)
         self.cell(0, 10, title)
-        self.ln(10)
+        self.ln(12)
 
-        self._use_font("", 10)
-        self.set_text_color(40, 40, 40)
-        self.multi_cell(0, 5.5, cleaned)
+        cleaned = _strip_think(content)
+        self._render_markdown(cleaned)
+
+    def _render_markdown(self, text: str) -> None:
+        """Render markdown-formatted text with basic styling."""
+        lines = text.split("\n")
+        i = 0
+        while i < len(lines):
+            line = lines[i]
+            stripped = line.strip()
+
+            # Empty line → small vertical gap
+            if not stripped:
+                self.ln(3)
+                i += 1
+                continue
+
+            # Headings: ### → 11pt, ## → 13pt, # → 14pt
+            if stripped.startswith("###"):
+                self._use_font("B", 11)
+                self.set_text_color(50, 50, 50)
+                self.cell(0, 7, _compact_inline_text(stripped.lstrip("#")))
+                self.ln(8)
+                i += 1
+                continue
+            if stripped.startswith("##"):
+                self._use_font("B", 13)
+                self.set_text_color(40, 40, 40)
+                self.cell(0, 8, _compact_inline_text(stripped.lstrip("#")))
+                self.ln(9)
+                i += 1
+                continue
+            if stripped.startswith("#"):
+                self._use_font("B", 14)
+                self.set_text_color(255, 90, 31)
+                self.cell(0, 9, _compact_inline_text(stripped.lstrip("#")))
+                self.ln(10)
+                i += 1
+                continue
+
+            # Horizontal rule
+            if stripped in ("---", "***", "___"):
+                self.set_draw_color(180, 180, 180)
+                y = self.get_y() + 2
+                self.line(10, y, self.w - 10, y)
+                self.ln(6)
+                i += 1
+                continue
+
+            # Bullet points (-, *, numbered)
+            if re.match(r"^[-*]\s", stripped) or re.match(r"^\d+[.)]\s", stripped):
+                self._use_font("", 10)
+                self.set_text_color(40, 40, 40)
+                if re.match(r"^[-*]\s", stripped):
+                    bullet = "  •  "
+                    body = stripped[2:].strip()
+                else:
+                    m = re.match(r"^(\d+[.)])\s*(.*)", stripped)
+                    bullet = f"  {m.group(1)} "
+                    body = m.group(2)
+                body = _compact_inline_text(_strip_md_inline(body))
+                self._write_multicell(5.5, bullet + body)
+                i += 1
+                continue
+
+            # Table rows (|col|col|) → render compactly; fixed-width spacing
+            # creates large visual gaps in proportional PDF fonts.
+            if stripped.startswith("|") and stripped.endswith("|"):
+                # Skip separator rows like |---|---|
+                if re.match(r"^\|[-:\s|]+\|$", stripped):
+                    i += 1
+                    continue
+                self._use_font("", 9)
+                self.set_text_color(60, 60, 60)
+                cells = [c.strip() for c in stripped.strip("|").split("|")]
+                row_text = _format_table_cells(cells)
+                self._write_multicell(5, row_text)
+                i += 1
+                continue
+
+            # Regular paragraph — collect consecutive non-special lines
+            para_lines = []
+            while i < len(lines):
+                ln = lines[i].strip()
+                if not ln or ln.startswith("#") or ln.startswith("|") or re.match(r"^[-*]\s", ln) or re.match(r"^\d+[.)]\s", ln) or ln in ("---", "***", "___"):
+                    break
+                para_lines.append(ln)
+                i += 1
+
+            if para_lines:
+                self._use_font("", 10)
+                self.set_text_color(40, 40, 40)
+                para = " ".join(para_lines)
+                para = _compact_inline_text(_strip_md_inline(para))
+                self._write_multicell(5.5, para)
+                self.ln(2)
+                continue
+
+            i += 1
 
 
-def _embed_charts(pdf: _ReportPDF, ticker: str, trade_date: str) -> None:
-    """Generate and embed technical charts into the PDF."""
-    from web.chart_utils import generate_kline_chart, generate_macd_chart, generate_rsi_chart
+def _collect_sections(
+    final_state: dict[str, Any],
+    ticker: str | None = None,
+) -> list[tuple[str, str]]:
+    """Assemble the (title, content) report sections shared by PDF & Markdown.
 
-    charts: list[tuple[str, object]] = [
-        ("K线蜡烛图  |  K-line with MA", generate_kline_chart),
-        ("MACD 指标  |  MACD Indicator", generate_macd_chart),
-        ("RSI 指标  |  RSI (14)", generate_rsi_chart),
-    ]
-    for caption, fn in charts:
-        try:
-            png = fn(ticker, trade_date)
-            if png:
-                pdf.add_chart_image(png, caption)
-            else:
-                logger.info("Chart %s returned no data for %s", caption, ticker)
-        except Exception:
-            logger.warning("Chart %s failed for %s", caption, ticker, exc_info=True)
+    Keeps both export formats in sync from a single source of truth.
+    """
+    sections: list[tuple[str, str]] = []
 
-
-def generate_pdf(final_state: dict[str, Any], ticker: str, trade_date: str, signal: str) -> bytes:
-    """Generate a PDF report and return it as bytes."""
-    pdf = _ReportPDF(ticker, trade_date, signal)
-    pdf.alias_nb_pages()
-    pdf.set_auto_page_break(auto=True, margin=20)
-
-    pdf.add_cover()
-
-    first = True
     for key, title in _REPORT_SECTIONS:
         content = final_state.get(key, "")
         if content:
-            pdf.add_section(title, str(content), first=first)
-            first = False
-        # Inject charts after market analysis report
-        if key == "market_report" and content:
-            _embed_charts(pdf, ticker, trade_date)
+            text = _strip_think(str(content))
+            if ticker:
+                text = normalize_stock_mentions(text, ticker, final_state)
+            sections.append((title, text))
 
     debate = final_state.get("investment_debate_state")
     if debate and isinstance(debate, dict):
@@ -407,15 +560,24 @@ def generate_pdf(final_state: dict[str, Any], ticker: str, trade_date: str, sign
         if debate.get("judge_decision"):
             parts.append(f"\n=== 研究经理决策 ===\n{debate['judge_decision']}")
         if parts:
-            pdf.add_section("多空辩论", "\n".join(parts))
+            text = _strip_think("\n".join(parts))
+            if ticker:
+                text = normalize_stock_mentions(text, ticker, final_state)
+            sections.append(("多空辩论", text))
 
     trader_decision = final_state.get("trader_investment_decision", "")
     if trader_decision:
-        pdf.add_section("交易员决策", clean_for_pdf(str(trader_decision)))
+        text = _strip_think(str(trader_decision))
+        if ticker:
+            text = normalize_stock_mentions(text, ticker, final_state)
+        sections.append(("交易员决策", text))
 
     inv_plan = final_state.get("investment_plan", "")
     if inv_plan:
-        pdf.add_section("最终投资建议", clean_for_pdf(str(inv_plan)))
+        text = _strip_think(str(inv_plan))
+        if ticker:
+            text = normalize_stock_mentions(text, ticker, final_state)
+        sections.append(("最终投资建议", text))
 
     risk = final_state.get("risk_debate_state")
     if risk and isinstance(risk, dict):
@@ -428,10 +590,66 @@ def generate_pdf(final_state: dict[str, Any], ticker: str, trade_date: str, sign
         if risk.get("judge_decision"):
             parts.append(f"\n=== 风控决策 ===\n{risk['judge_decision']}")
         if parts:
-            pdf.add_section("风控评估", "\n".join(parts))
+            text = _strip_think("\n".join(parts))
+            if ticker:
+                text = normalize_stock_mentions(text, ticker, final_state)
+            sections.append(("风控评估", text))
 
     final_decision = final_state.get("final_trade_decision", "")
     if final_decision:
-        pdf.add_section("最终决策", clean_for_pdf(str(final_decision)))
+        text = _strip_think(str(final_decision))
+        if ticker:
+            text = normalize_stock_mentions(text, ticker, final_state)
+        sections.append(("最终决策", text))
+
+    return sections
+
+
+def generate_pdf(final_state: dict[str, Any], ticker: str, trade_date: str, signal: str) -> bytes:
+    """Generate a PDF report and return it as bytes.
+
+    Raises RuntimeError if the wrong fpdf library is installed (issue #54) or no
+    CJK font is available on the system — callers should catch this and fall back
+    to Markdown export.
+    """
+    _ensure_fpdf2()
+    pdf = _ReportPDF(ticker, trade_date, signal, final_state)
+    pdf.alias_nb_pages()
+    pdf.set_auto_page_break(auto=True, margin=20)
+
+    pdf.add_cover()
+    for title, content in _collect_sections(final_state, ticker):
+        pdf.add_section(title, content)
 
     return bytes(pdf.output())
+
+
+def generate_markdown(final_state: dict[str, Any], ticker: str, trade_date: str, signal: str) -> str:
+    """Generate a Markdown report. Font-free and always works — the safe export.
+
+    This is the bulletproof alternative to PDF when the system lacks a CJK
+    font (common on minimal Linux/Windows installs).
+    """
+    ticker_label = stock_display_label(ticker, final_state)
+    out = [
+        "# A股多Agent投研分析报告",
+        "",
+        f"- **股票代码**：{ticker_label}",
+        f"- **分析日期**：{trade_date}",
+        f"- **生成时间**：{datetime.now().strftime('%Y-%m-%d %H:%M')}",
+        f"- **交易信号**：**{signal.upper()}**",
+        "",
+        "> ⚠️ 本报告由 AI 多 Agent 系统自动生成，仅供学习研究与技术演示，"
+        "不构成任何投资建议。投资决策请咨询持牌专业机构，使用本报告所产生的"
+        "任何损失由使用者自行承担。",
+        "",
+        "---",
+        "",
+    ]
+    for title, content in _collect_sections(final_state, ticker):
+        out.append(f"## {title}")
+        out.append("")
+        out.append(content)
+        out.append("")
+
+    return "\n".join(out)

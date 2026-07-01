@@ -39,8 +39,18 @@ def get_ticker() -> str:
 
 
 def normalize_ticker_symbol(ticker: str) -> str:
-    """Normalize ticker input while preserving exchange suffixes."""
-    return ticker.strip().upper()
+    """Normalize ticker input while preserving exchange suffixes.
+
+    Also validates the result is safe to interpolate into a filesystem path —
+    the ticker becomes a directory name under ``results_dir`` and the report
+    save path, so an input like ``../../tmp/evil`` would otherwise escape the
+    intended directory (#51). ``safe_ticker_component`` rejects ``/``, ``..``,
+    ``~`` etc. and auto-resolves Chinese names to A-stock codes; it raises
+    ``ValueError`` on anything unsafe.
+    """
+    from tradingagents.dataflows.utils import safe_ticker_component
+
+    return safe_ticker_component(ticker.strip().upper())
 
 
 def get_analysis_date() -> str:
