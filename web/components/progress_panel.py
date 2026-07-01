@@ -29,7 +29,7 @@ def render_progress(tracker: ProgressTracker) -> None:
             <span style="font-size:1.6rem; font-weight:700; color:#f5f1eb;">
                 分析进行中
             </span>
-            <span style="font-size:1.1rem; color:#888; margin-left:0.8rem;">
+            <span style="font-size:1.1rem; color:#333; margin-left:0.8rem;">
                 {tracker.ticker}
             </span>
         </div>
@@ -46,7 +46,7 @@ def render_progress(tracker: ProgressTracker) -> None:
     post_stages = PIPELINE_STAGES[7:]
 
     st.markdown(
-        '<div style="margin:0.5rem 0 0.3rem; font-size:0.85rem; color:#888;">ANALYSTS</div>',
+        '<div style="margin:0.5rem 0 0.3rem; font-size:0.85rem; color:#333;">ANALYSTS</div>',
         unsafe_allow_html=True,
     )
 
@@ -54,7 +54,7 @@ def render_progress(tracker: ProgressTracker) -> None:
     for col, stage in zip(cols, analyst_stages):
         status = tracker.stage_status(stage["id"])
         badge = _status_badge(status)
-        label_color = "#f5f1eb" if status == "active" else "#888" if status == "pending" else "#22c55e"
+        label_color = "#f5f1eb" if status == "active" else "#555" if status == "pending" else "#22c55e"
         col.markdown(
             f"""
             <div style="text-align:center; padding:0.5rem 0;">
@@ -66,7 +66,7 @@ def render_progress(tracker: ProgressTracker) -> None:
         )
 
     st.markdown(
-        '<div style="margin:0.8rem 0 0.3rem; font-size:0.85rem; color:#888;">PIPELINE</div>',
+        '<div style="margin:0.8rem 0 0.3rem; font-size:0.85rem; color:#333;">PIPELINE</div>',
         unsafe_allow_html=True,
     )
 
@@ -74,7 +74,7 @@ def render_progress(tracker: ProgressTracker) -> None:
     for col, stage in zip(cols2, post_stages):
         status = tracker.stage_status(stage["id"])
         badge = _status_badge(status)
-        label_color = "#f5f1eb" if status == "active" else "#888" if status == "pending" else "#22c55e"
+        label_color = "#f5f1eb" if status == "active" else "#555" if status == "pending" else "#22c55e"
         col.markdown(
             f"""
             <div style="text-align:center; padding:0.5rem 0;">
@@ -115,7 +115,7 @@ def render_progress(tracker: ProgressTracker) -> None:
                     LLM调用 {stall['llm_calls']} 次 |
                     Token 消耗 {stall['tokens_in']:,} / {stall['tokens_out']:,}
                 </div>
-                <div style="font-size:0.82rem; color:#888; margin-top:0.6rem; line-height:1.8;">
+                <div style="font-size:0.82rem; color:#444; margin-top:0.6rem; line-height:1.8;">
                     <b>可能原因：</b><br>
                     &nbsp;&nbsp;1. LLM API 超时或限流（高峰时段常见）<br>
                     &nbsp;&nbsp;2. 网络不稳，请求挂起<br>

@@ -81,9 +81,9 @@ section[data-testid="stSidebar"] {
     background: #fff; border-radius: 12px; padding: 1rem 0.8rem;
     box-shadow: 0 1px 4px rgba(0,0,0,0.06); text-align: center;
 }
-.metric-card .label { font-size: 0.78rem; color: #999; margin-bottom: 0.2rem; }
+.metric-card .label { font-size: 0.78rem; color: #333; margin-bottom: 0.2rem; }
 .metric-card .value { font-size: 1.35rem; font-weight: 700; color: #1a1a1a; }
-.metric-card .sub { font-size: 0.75rem; color: #aaa; }
+.metric-card .sub { font-size: 0.75rem; color: #444; }
 
 /* Stock cards */
 .stock-card {
@@ -94,14 +94,14 @@ section[data-testid="stSidebar"] {
 .stock-card .code { font-weight: 700; color: #1a1a1a; min-width: 55px; }
 .stock-card .name { color: #555; min-width: 65px; }
 .stock-card .pct { font-weight: 700; min-width: 55px; }
-.stock-card .reason { color: #888; font-size: 0.8rem; flex: 1; }
+.stock-card .reason { color: #333; font-size: 0.8rem; flex: 1; }
 
 /* Tags */
 .tag { display: inline-block; background: #e8f0fe; color: #1a73e8;
        padding: 2px 8px; border-radius: 6px; font-size: 0.76rem; margin: 2px; }
 
 /* Buttons */
-.stMetric label { color: #888 !important; font-size: 0.8rem !important; }
+.stMetric label { color: #333 !important; font-size: 0.8rem !important; }
 .stMetric [data-testid="stMetricValue"] { color: #ff5a1f !important; font-weight: 700 !important; }
 .stProgress > div > div > div { background: linear-gradient(90deg, #ff5a1f, #ff8c42) !important; }
 button[kind="primary"] {
@@ -122,7 +122,7 @@ button[kind="secondary"]:hover {
     background: #fff5f0 !important; border-color: #ff5a1f !important; color: #ff5a1f !important;
 }
 .stExpander { border: 1px solid #e0e0e0 !important; border-radius: 8px !important; }
-.stTabs [data-baseweb="tab"] { color: #888 !important; }
+.stTabs [data-baseweb="tab"] { color: #333 !important; }
 .stTabs [aria-selected="true"] { color: #ff5a1f !important; border-bottom-color: #ff5a1f !important; }
 div[data-testid="stDownloadButton"] button {
     background: #ffffff !important; border: 1px solid #ff5a1f !important; color: #ff5a1f !important;
@@ -134,7 +134,7 @@ input[data-testid="stTextInputRootElement"] input, .stTextInput input {
 .stTextInput input:focus {
     border-color: #ff5a1f !important; box-shadow: 0 0 0 1px #ff5a1f !important;
 }
-.footer-note { text-align: center; color: #ccc; font-size: 0.75rem; padding: 1.5rem 0 0.5rem 0; }
+.footer-note { text-align: center; color: #555; font-size: 0.75rem; padding: 1.5rem 0 0.5rem 0; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -152,7 +152,7 @@ with col_brand:
         <span style="font-size:1.1rem; font-weight:800; color:#1a1a1a;">Agents</span>
         <span style="font-size:1.1rem; font-weight:800; color:#ff5a1f;">-Astock</span>
         <br>
-        <a href="https://github.com/zhzshuai-create" target="_blank" style="font-size:0.7rem; color:#aaa; text-decoration:none;">
+        <a href="https://github.com/zhzshuai-create" target="_blank" style="font-size:0.7rem; color:#555; text-decoration:none;">
             by zhzshuai-create
         </a>
     </div>
@@ -280,7 +280,7 @@ def _render_analysis_mode() -> None:
                 return "N/A"
 
         def _badge(s: str) -> str:
-            label, color, bg = _SIG.get(s, (f"⚪ {s}", "#999", "#f5f5f5"))
+            label, color, bg = _SIG.get(s, (f"⚪ {s}", "#444", "#f5f5f5"))
             return (
                 f'<span style="display:inline-block;font-size:0.7rem;font-weight:700;'
                 f'color:{color};background:{bg};border:1px solid {color};'
@@ -293,7 +293,7 @@ def _render_analysis_mode() -> None:
             <div style="font-size: 2rem; font-weight: 900;">
                 <span style="color: #ff5a1f;">Trading</span><span style="color: #1a1a1a;">Agents</span><span style="color: #1a1a1a;">-</span><span style="color: #ff5a1f;">Astock</span>
             </div>
-            <div style="color: #999; font-size: 0.82rem; margin-top: 0.2rem;">
+            <div style="color: #333; font-size: 0.82rem; margin-top: 0.2rem;">
                 7位AI分析师 → 质量门控 → 多空辩论 → 风控评估 → 最终决策
             </div>
             <div style="margin-top: 0.5rem; font-size: 0.7rem; color: #ff5a1f; background: #fff5f0; display: inline-block; padding: 3px 12px; border-radius: 10px; border: 1px solid #ffccb0;">
@@ -360,7 +360,7 @@ def _render_analysis_mode() -> None:
 
     # Footer
     st.markdown("""
-    <div style="text-align:center;margin-top:2rem;padding:0.8rem;color:#999;font-size:0.75rem;border-top:1px solid #e0e0e0;">
+    <div style="text-align:center;margin-top:2rem;padding:0.8rem;color:#555;font-size:0.75rem;border-top:1px solid #e0e0e0;">
         ⚠️ 本项目仅供学习研究，不构成任何投资建议。
     </div>
     """, unsafe_allow_html=True)
@@ -396,7 +396,7 @@ def _vol_chart(series: pd.Series) -> alt.Chart:
     chart_df.columns = ["x", "y"]
     return (
         alt.Chart(chart_df)
-        .mark_bar(color="#ddd", opacity=0.6)
+        .mark_bar(color="#999", opacity=0.6)
         .encode(
             x=alt.X("x:T", title="", axis=alt.Axis(format="%m/%d")),
             y=alt.Y("y:Q", title="成交量(手)", axis=alt.Axis(format="~s")),
@@ -626,7 +626,7 @@ def _render_data_mode() -> None:
                 with c_cols[2]:
                     st.markdown(f'<div style="padding-top:0.4rem;font-weight:700;color:{pct_color};">{pct_val:+.2f}%</div>', unsafe_allow_html=True)
                 with c_cols[3]:
-                    st.markdown(f'<div style="padding-top:0.4rem;color:#888;font-size:0.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{reason_text}</div>', unsafe_allow_html=True)
+                    st.markdown(f'<div style="padding-top:0.4rem;color:#333;font-size:0.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{reason_text}</div>', unsafe_allow_html=True)
                 with c_cols[4]:
                     if st.button("📊 查看", key=f"hot_{code}", use_container_width=True):
                         st.session_state["data_code"] = normalize_code(code)
