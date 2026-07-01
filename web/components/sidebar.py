@@ -23,7 +23,7 @@ _SIGNAL_STYLE = {
 
 
 def _signal_html(signal: str) -> str:
-    label, color, bg = _SIGNAL_STYLE.get(signal, (f"⚪ {signal}", "#999", "#f5f5f5"))
+    label, color, bg = _SIGNAL_STYLE.get(signal, (f"⚪ {signal}", "#444", "#f5f5f5"))
     return (
         f'<span style="display:inline-block;font-size:0.7rem;font-weight:700;'
         f'color:{color};background:{bg};border:1px solid {color};'
@@ -39,10 +39,10 @@ def render_sidebar() -> None:
         """
         <div style="text-align:center; margin-bottom:1.5rem;">
             <span style="font-size:1.5rem; font-weight:800; color:#ff5a1f;">Trading</span><span style="font-size:1.5rem; font-weight:800; color:#1a1a1a;">Agents</span><span style="font-size:1.5rem; font-weight:800; color:#1a1a1a;">-</span><span style="font-size:1.5rem; font-weight:800; color:#ff5a1f;">Astock</span>
-            <div style="font-size:0.8rem; color:#888; margin-top:0.2rem;">
+            <div style="font-size:0.8rem; color:#333; margin-top:0.2rem;">
                 A股多Agent投研系统
             </div>
-            <div style="font-size:0.65rem; color:#aaa; margin-top:0.3rem;">
+            <div style="font-size:0.65rem; color:#555; margin-top:0.3rem;">
                 by simonlin1212
             </div>
         </div>
@@ -62,7 +62,7 @@ def render_sidebar() -> None:
             <span style="font-weight:700; font-size:1.05rem; color:#1a1a1a;">
                 &#x1F4CA; 分析记录
             </span>
-            <span style="font-size:0.75rem; color:#aaa;">共 {total} 条</span>
+            <span style="font-size:0.75rem; color:#555;">共 {total} 条</span>
         </div>
         """,
         unsafe_allow_html=True,
