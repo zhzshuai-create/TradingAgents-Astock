@@ -59,10 +59,63 @@ if "data_code" not in st.session_state:
 # CSS
 # ═══════════════════════════════════════════════════════════════════════════════
 
+
+
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   CSS Variables — Light (default) + Warm Dark
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root {
+    --bg-primary: #ffffff;
+    --bg-secondary: #f8f9fa;
+    --bg-tertiary: #e9ecef;
+    --text-primary: #1a1a1a;
+    --text-secondary: #555555;
+    --text-tertiary: #777777;
+    --accent: #e85d04;
+    --accent-hover: #d9480f;
+    --accent-light: #fff5f0;
+    --up-color: #c92a2a;
+    --down-color: #2b8a3e;
+    --border-color: #dee2e6;
+    --card-bg: #ffffff;
+    --card-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    --tag-bg: #e8f0fe;
+    --tag-text: #1a73e8;
+    --input-bg: #ffffff;
+    --input-border: #d0d0d0;
+    --brand-text: #1a1a1a;
+    --sidebar-bg: #f8f9fa;
+}
+[data-theme="dark"] {
+    --bg-primary: #1c1816;
+    --bg-secondary: #252120;
+    --bg-tertiary: #2d2927;
+    --text-primary: #ede4dc;
+    --text-secondary: #a3968a;
+    --text-tertiary: #7d7268;
+    --accent: #f0883e;
+    --accent-hover: #ffa94d;
+    --accent-light: #3d2a1a;
+    --up-color: #ff6b6b;
+    --down-color: #51cf66;
+    --border-color: #383330;
+    --card-bg: #252120;
+    --card-shadow: 0 1px 4px rgba(0,0,0,0.25);
+    --tag-bg: #2a3040;
+    --tag-text: #7eb8f4;
+    --input-bg: #2d2927;
+    --input-border: #383330;
+    --brand-text: #ede4dc;
+    --sidebar-bg: #1c1816;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Base
+   ═══════════════════════════════════════════════════════════════════════════ */
 #MainMenu, header[data-testid="stHeader"],
 footer, div[data-testid="stDecoration"],
 button[data-testid="stBaseButton-header"],
@@ -71,88 +124,130 @@ div[data-testid="stToolbar"] { display: none !important; }
 html, body, [class*="css"] {
     font-family: 'Microsoft YaHei', 'PingFang SC', 'Inter', sans-serif;
 }
-.stApp { background: #ffffff; }
+.stApp { background: var(--bg-primary); }
 section[data-testid="stSidebar"] {
-    background: #f8f9fa; border-right: 1px solid #e0e0e0;
+    background: var(--sidebar-bg); border-right: 1px solid var(--border-color);
 }
 
-/* Metric cards */
+/* ═══════════════════════════════════════════════════════════════════════════
+   Components
+   ═══════════════════════════════════════════════════════════════════════════ */
 .metric-card {
-    background: #fff; border-radius: 12px; padding: 1rem 0.8rem;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.06); text-align: center;
+    background: var(--card-bg); border-radius: 12px; padding: 1rem 0.8rem;
+    box-shadow: var(--card-shadow); text-align: center;
 }
-.metric-card .label { font-size: 0.78rem; color: #333; margin-bottom: 0.2rem; }
-.metric-card .value { font-size: 1.35rem; font-weight: 700; color: #1a1a1a; }
-.metric-card .sub { font-size: 0.75rem; color: #444; }
+.metric-card .label { font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 0.2rem; }
+.metric-card .value { font-size: 1.35rem; font-weight: 700; color: var(--text-primary); }
+.metric-card .sub { font-size: 0.75rem; color: var(--text-tertiary); }
 
-/* Stock cards */
 .stock-card {
-    background: #fff; border-radius: 10px; padding: 0.55rem 0.8rem;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 0.25rem;
+    background: var(--card-bg); border-radius: 10px; padding: 0.55rem 0.8rem;
+    box-shadow: var(--card-shadow); margin-bottom: 0.25rem;
     display: flex; align-items: center; gap: 0.6rem; font-size: 0.9rem;
 }
-.stock-card .code { font-weight: 700; color: #1a1a1a; min-width: 55px; }
-.stock-card .name { color: #555; min-width: 65px; }
+.stock-card .code { font-weight: 700; color: var(--text-primary); min-width: 55px; }
+.stock-card .name { color: var(--text-secondary); min-width: 65px; }
 .stock-card .pct { font-weight: 700; min-width: 55px; }
-.stock-card .reason { color: #333; font-size: 0.8rem; flex: 1; }
+.stock-card .reason { color: var(--text-secondary); font-size: 0.8rem; flex: 1; }
 
-/* Tags */
-.tag { display: inline-block; background: #e8f0fe; color: #1a73e8;
+.tag { display: inline-block; background: var(--tag-bg); color: var(--tag-text);
        padding: 2px 8px; border-radius: 6px; font-size: 0.76rem; margin: 2px; }
 
-/* Buttons */
-.stMetric label { color: #333 !important; font-size: 0.8rem !important; }
-.stMetric [data-testid="stMetricValue"] { color: #ff5a1f !important; font-weight: 700 !important; }
-.stProgress > div > div > div { background: linear-gradient(90deg, #ff5a1f, #ff8c42) !important; }
+/* ═══════════════════════════════════════════════════════════════════════════
+   Streamlit overrides
+   ═══════════════════════════════════════════════════════════════════════════ */
+.stMetric label { color: var(--text-secondary) !important; font-size: 0.8rem !important; }
+.stMetric [data-testid="stMetricValue"] { color: var(--accent) !important; font-weight: 700 !important; }
+.stProgress > div > div > div { background: linear-gradient(90deg, var(--accent), var(--accent-hover)) !important; }
 button[kind="primary"] {
-    background: linear-gradient(135deg, #ff5a1f, #e04d15) !important;
+    background: linear-gradient(135deg, var(--accent), var(--accent-hover)) !important;
     border: none !important; font-weight: 700 !important;
-    box-shadow: 0 2px 8px rgba(255,90,31,0.25) !important;
+    box-shadow: 0 2px 8px rgba(232,93,4,0.25) !important;
     color: #fff !important; transition: all 0.2s ease !important;
 }
 button[kind="primary"]:hover {
-    background: linear-gradient(135deg, #e04d15, #cc3d00) !important;
     transform: translateY(-1px) !important;
 }
 button[kind="secondary"] {
-    background: #ffffff !important; border: 1px solid #d0d0d0 !important;
-    color: #333 !important; transition: all 0.2s ease !important;
+    background: var(--card-bg) !important; border: 1px solid var(--border-color) !important;
+    color: var(--text-primary) !important; transition: all 0.2s ease !important;
 }
 button[kind="secondary"]:hover {
-    background: #fff5f0 !important; border-color: #ff5a1f !important; color: #ff5a1f !important;
+    background: var(--accent-light) !important; border-color: var(--accent) !important; color: var(--accent) !important;
 }
-.stExpander { border: 1px solid #e0e0e0 !important; border-radius: 8px !important; }
-.stTabs [data-baseweb="tab"] { color: #333 !important; }
-.stTabs [aria-selected="true"] { color: #ff5a1f !important; border-bottom-color: #ff5a1f !important; }
+.stExpander { border: 1px solid var(--border-color) !important; border-radius: 8px !important; }
+.stTabs [data-baseweb="tab"] { color: var(--text-secondary) !important; }
+.stTabs [aria-selected="true"] { color: var(--accent) !important; border-bottom-color: var(--accent) !important; }
 div[data-testid="stDownloadButton"] button {
-    background: #ffffff !important; border: 1px solid #ff5a1f !important; color: #ff5a1f !important;
+    background: var(--card-bg) !important; border: 1px solid var(--accent) !important; color: var(--accent) !important;
 }
-div[data-testid="stDownloadButton"] button:hover { background: #fff5f0 !important; }
+div[data-testid="stDownloadButton"] button:hover { background: var(--accent-light) !important; }
 input[data-testid="stTextInputRootElement"] input, .stTextInput input {
-    background: #ffffff !important; border-color: #d0d0d0 !important; color: #1a1a1a !important;
+    background: var(--input-bg) !important; border-color: var(--input-border) !important; color: var(--text-primary) !important;
 }
 .stTextInput input:focus {
-    border-color: #ff5a1f !important; box-shadow: 0 0 0 1px #ff5a1f !important;
+    border-color: var(--accent) !important; box-shadow: 0 0 0 1px var(--accent) !important;
 }
-.footer-note { text-align: center; color: #555; font-size: 0.75rem; padding: 1.5rem 0 0.5rem 0; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Theme toggle button
+   ═══════════════════════════════════════════════════════════════════════════ */
+.theme-toggle-row { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; }
+.theme-btn {
+    flex: 1; padding: 0.45rem 0.6rem; border-radius: 8px; border: 2px solid var(--border-color);
+    background: var(--card-bg); color: var(--text-secondary); cursor: pointer;
+    font-size: 0.85rem; font-weight: 600; text-align: center; transition: all 0.2s;
+}
+.theme-btn.active {
+    border-color: var(--accent); color: var(--accent); background: var(--accent-light);
+}
+.theme-btn:hover:not(.active) { border-color: var(--text-tertiary); }
+
+.footer-note { text-align: center; color: var(--text-tertiary); font-size: 0.75rem; padding: 1.5rem 0 0.5rem 0; }
 </style>
+
+<!-- Theme toggle JavaScript -->
+<script>
+(function() {
+    const KEY = 'tradingagents-theme';
+    let theme = localStorage.getItem(KEY) || 'light';
+    document.documentElement.setAttribute('data-theme', theme);
+
+    function syncButtons(active) {
+        document.querySelectorAll('.theme-btn').forEach(b => {
+            b.classList.toggle('active', b.dataset.theme === active);
+        });
+    }
+
+    // Watch for buttons added dynamically
+    new MutationObserver(() => {
+        syncButtons(theme);
+        document.querySelectorAll('.theme-btn').forEach(b => {
+            if (!b._bound) {
+                b._bound = true;
+                b.addEventListener('click', () => {
+                    theme = b.dataset.theme;
+                    localStorage.setItem(KEY, theme);
+                    document.documentElement.setAttribute('data-theme', theme);
+                    syncButtons(theme);
+                });
+            }
+        });
+    }).observe(document.body, { childList: true, subtree: true });
+})();
+</script>
 """, unsafe_allow_html=True)
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# Sidebar
-# ═══════════════════════════════════════════════════════════════════════════════
 
 # ── Top navigation bar (replaces sidebar) ──
 col_brand, col_nav, col_search = st.columns([1, 1.5, 2.5])
 with col_brand:
     st.markdown("""
     <div style="padding-top:0.1rem;">
-        <span style="font-size:1.1rem; font-weight:800; color:#ff5a1f;">Trading</span>
-        <span style="font-size:1.1rem; font-weight:800; color:#1a1a1a;">Agents</span>
-        <span style="font-size:1.1rem; font-weight:800; color:#ff5a1f;">-Astock</span>
+        <span style="font-size:1.1rem; font-weight:800; color:var(--accent);">Trading</span>
+        <span style="font-size:1.1rem; font-weight:800; color:var(--brand-text);">Agents</span>
+        <span style="font-size:1.1rem; font-weight:800; color:var(--accent);">-Astock</span>
         <br>
-        <a href="https://github.com/zhzshuai-create" target="_blank" style="font-size:0.7rem; color:#555; text-decoration:none;">
+        <a href="https://github.com/zhzshuai-create" target="_blank" style="font-size:0.7rem; color:var(--text-tertiary); text-decoration:none;">
             by zhzshuai-create
         </a>
     </div>
@@ -306,7 +401,7 @@ def _render_analysis_mode() -> None:
 
         # Left: history
         with left:
-            st.markdown('<div style="font-weight:700;font-size:1.05rem;color:#1a1a1a;margin-bottom:0.4rem;">📊 历史分析记录</div>', unsafe_allow_html=True)
+            st.markdown('<div style="font-weight:700;font-size:1.05rem;color:var(--text-primary); margin-bottom:0.4rem;">📊 历史分析记录</div>', unsafe_allow_html=True)
 
             full_history = get_history()
             history_search = st.text_input(
@@ -344,7 +439,7 @@ def _render_analysis_mode() -> None:
 
         # Right: new analysis
         with right:
-            st.markdown('<div style="text-align:center;margin-bottom:0.5rem;font-weight:700;font-size:1.05rem;color:#1a1a1a;">🔍 新建分析</div>', unsafe_allow_html=True)
+            st.markdown('<div style="text-align:center;margin-bottom:0.5rem;font-weight:700;font-size:1.05rem;color:var(--text-primary);">🔍 新建分析</div>', unsafe_allow_html=True)
             st.markdown("<div style='height:0.3rem;'></div>", unsafe_allow_html=True)
             ticker = st.text_input("股票代码", placeholder="输入 6 位代码如 000636",
                                    max_chars=6, label_visibility="collapsed")
@@ -360,7 +455,7 @@ def _render_analysis_mode() -> None:
 
     # Footer
     st.markdown("""
-    <div style="text-align:center;margin-top:2rem;padding:0.8rem;color:#555;font-size:0.75rem;border-top:1px solid #e0e0e0;">
+    <div style="text-align:center;margin-top:2rem;padding:0.8rem;color:var(--text-tertiary); font-size:0.75rem; border-top:1px solid var(--border-color);">
         ⚠️ 本项目仅供学习研究，不构成任何投资建议。
     </div>
     """, unsafe_allow_html=True)
@@ -620,9 +715,9 @@ def _render_data_mode() -> None:
 
                 c_cols = st.columns([1, 2, 1.5, 5, 1.2])
                 with c_cols[0]:
-                    st.markdown(f'<div style="padding-top:0.4rem;font-weight:700;color:#1a1a1a;">{code}</div>', unsafe_allow_html=True)
+                    st.markdown(f'<div style="padding-top:0.4rem;font-weight:700;color:var(--text-primary);">{code}</div>', unsafe_allow_html=True)
                 with c_cols[1]:
-                    st.markdown(f'<div style="padding-top:0.4rem;color:#555;">{name}</div>', unsafe_allow_html=True)
+                    st.markdown(f'<div style="padding-top:0.4rem;color:var(--text-secondary);">{name}</div>', unsafe_allow_html=True)
                 with c_cols[2]:
                     st.markdown(f'<div style="padding-top:0.4rem;font-weight:700;color:{pct_color};">{pct_val:+.2f}%</div>', unsafe_allow_html=True)
                 with c_cols[3]:

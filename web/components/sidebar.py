@@ -38,17 +38,27 @@ def render_sidebar() -> None:
     st.markdown(
         """
         <div style="text-align:center; margin-bottom:1.5rem;">
-            <span style="font-size:1.5rem; font-weight:800; color:#ff5a1f;">Trading</span><span style="font-size:1.5rem; font-weight:800; color:#1a1a1a;">Agents</span><span style="font-size:1.5rem; font-weight:800; color:#1a1a1a;">-</span><span style="font-size:1.5rem; font-weight:800; color:#ff5a1f;">Astock</span>
-            <div style="font-size:0.8rem; color:#333; margin-top:0.2rem;">
+            <span style="font-size:1.5rem; font-weight:800; color:var(--accent);">Trading</span><span style="font-size:1.5rem; font-weight:800; color:var(--text-primary);">Agents</span><span style="font-size:1.5rem; font-weight:800; color:var(--text-primary);">-</span><span style="font-size:1.5rem; font-weight:800; color:var(--accent);">Astock</span>
+            <div style="font-size:0.8rem; color:var(--text-secondary); margin-top:0.2rem;">
                 A股多Agent投研系统
             </div>
-            <div style="font-size:0.65rem; color:#555; margin-top:0.3rem;">
+            <div style="font-size:0.65rem; color:var(--text-tertiary); margin-top:0.3rem;">
                 by simonlin1212
             </div>
         </div>
         """,
         unsafe_allow_html=True,
     )
+
+    st.markdown("---")
+
+    # ── Theme toggle ───────────────────────────────────────────────────────
+    st.markdown("""
+        <div class="theme-toggle-row">
+            <div class="theme-btn active" data-theme="light">☀️ 亮色</div>
+            <div class="theme-btn" data-theme="dark">🌙 暗色</div>
+        </div>
+    """, unsafe_allow_html=True)
 
     st.markdown("---")
 
@@ -59,10 +69,10 @@ def render_sidebar() -> None:
     st.markdown(
         f"""
         <div style="display:flex; align-items:baseline; justify-content:space-between; margin-bottom:0.6rem;">
-            <span style="font-weight:700; font-size:1.05rem; color:#1a1a1a;">
+            <span style="font-weight:700; font-size:1.05rem; color:var(--text-primary);">
                 &#x1F4CA; 分析记录
             </span>
-            <span style="font-size:0.75rem; color:#555;">共 {total} 条</span>
+            <span style="font-size:0.75rem; color:var(--text-tertiary);">共 {total} 条</span>
         </div>
         """,
         unsafe_allow_html=True,
