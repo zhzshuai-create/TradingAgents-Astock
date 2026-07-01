@@ -11,8 +11,8 @@ def _status_badge(status: str) -> str:
     if status == "done":
         return '<span style="color:#22c55e; font-size:1.3rem;">●</span>'
     if status == "active":
-        return '<span style="color:var(--accent); font-size:1.3rem;">◉</span>'
-    return '<span style="color:var(--text-tertiary); font-size:1.3rem;">○</span>'
+        return '<span style="color:#ff5a1f; font-size:1.3rem;">◉</span>'
+    return '<span style="color:#333; font-size:1.3rem;">○</span>'
 
 
 def _format_time(seconds: float) -> str:
@@ -26,16 +26,23 @@ def render_progress(tracker: ProgressTracker) -> None:
     st.markdown(
         f"""
         <div style="text-align:center; margin:1rem 0 0.5rem;">
-            <span style="font-size:1.6rem; font-weight:700; color:var(--text-primary);">
+            <span style="font-size:1.6rem; font-weight:700; color:#f5f1eb;">
                 分析进行中
             </span>
-            <span style="font-size:1.1rem; color:var(--text-secondary); margin-left:0.8rem;">
+            <span style="font-size:1.1rem; color:#888; margin-left:0.8rem;">
                 {tracker.ticker}
             </span>
         </div>
         """,
         unsafe_allow_html=True,
     )
+
+    if tracker.stop_requested:
+        st.caption("正在停止当前分析并清空内容；收尾完成后可重新开始。")
+        return
+
+    if tracker.is_paused:
+        st.caption("当前分析已暂停。")
 
     completed = len(tracker.completed_stages)
     total = len(PIPELINE_STAGES)
@@ -46,7 +53,7 @@ def render_progress(tracker: ProgressTracker) -> None:
     post_stages = PIPELINE_STAGES[7:]
 
     st.markdown(
-        '<div style="margin:0.5rem 0 0.3rem; font-size:0.85rem; color:var(--text-secondary);">ANALYSTS</div>',
+        '<div style="margin:0.5rem 0 0.3rem; font-size:0.85rem; color:#888;">ANALYSTS</div>',
         unsafe_allow_html=True,
     )
 
@@ -54,7 +61,7 @@ def render_progress(tracker: ProgressTracker) -> None:
     for col, stage in zip(cols, analyst_stages):
         status = tracker.stage_status(stage["id"])
         badge = _status_badge(status)
-        label_color = "var(--text-primary)" if status == "active" else "var(--text-tertiary)" if status == "pending" else "#22c55e"
+        label_color = "#f5f1eb" if status == "active" else "#888" if status == "pending" else "#22c55e"
         col.markdown(
             f"""
             <div style="text-align:center; padding:0.5rem 0;">
@@ -66,7 +73,7 @@ def render_progress(tracker: ProgressTracker) -> None:
         )
 
     st.markdown(
-        '<div style="margin:0.8rem 0 0.3rem; font-size:0.85rem; color:var(--text-secondary);">PIPELINE</div>',
+        '<div style="margin:0.8rem 0 0.3rem; font-size:0.85rem; color:#888;">PIPELINE</div>',
         unsafe_allow_html=True,
     )
 
@@ -74,7 +81,7 @@ def render_progress(tracker: ProgressTracker) -> None:
     for col, stage in zip(cols2, post_stages):
         status = tracker.stage_status(stage["id"])
         badge = _status_badge(status)
-        label_color = "var(--text-primary)" if status == "active" else "var(--text-tertiary)" if status == "pending" else "#22c55e"
+        label_color = "#f5f1eb" if status == "active" else "#888" if status == "pending" else "#22c55e"
         col.markdown(
             f"""
             <div style="text-align:center; padding:0.5rem 0;">
@@ -96,46 +103,19 @@ def render_progress(tracker: ProgressTracker) -> None:
     if tracker.error:
         st.error(f"错误: {tracker.error}")
 
-    # ── Stall detection warning ──────────────────────────────────────────
-    stall = tracker.stall_info(threshold_seconds=120)
-    if stall:
-        stage_map = {s["id"]: s["name"] for s in PIPELINE_STAGES}
-        stuck_name = stage_map.get(stall["stalled_stage"], stall["stalled_stage"])
-        stall_min = int(stall["stall_seconds"] // 60)
-        stall_sec = int(stall["stall_seconds"] % 60)
+    completed_reports = [
+        (stage["name"], stage["icon"], tracker.stage_reports[stage["id"]])
+        for stage in PIPELINE_STAGES
+        if stage["id"] in tracker.stage_reports
+    ]
 
-        with st.container(border=True):
-            st.markdown(f"""
-            <div style="background:var(--accent-light); border:1px solid var(--accent); border-radius:10px; padding:1rem 1.2rem; margin:0.8rem 0;">
-                <div style="font-size:1rem; font-weight:700; color:var(--accent); margin-bottom:0.5rem;">
-                    ⚠️ 分析疑似卡死 — 已停滞 {stall_min}分{stall_sec:02d}秒
-                </div>
-                <div style="font-size:0.85rem; color:var(--text-secondary); line-height:1.7;">
-                    当前阶段：<b>{stuck_name}</b> |
-                    LLM调用 {stall['llm_calls']} 次 |
-                    Token 消耗 {stall['tokens_in']:,} / {stall['tokens_out']:,}
-                </div>
-                <div style="font-size:0.82rem; color:var(--text-tertiary); margin-top:0.6rem; line-height:1.8;">
-                    <b>可能原因：</b><br>
-                    &nbsp;&nbsp;1. LLM API 超时或限流（高峰时段常见）<br>
-                    &nbsp;&nbsp;2. 网络不稳，请求挂起<br>
-                    &nbsp;&nbsp;3. 数据源连接失败（mootdx / 东财接口）<br><br>
-                    <b>建议操作：</b><br>
-                    &nbsp;&nbsp;• 点击上方 <b>停止 + 重新开始</b> 分析<br>
-                    &nbsp;&nbsp;• 在 <code>.env</code> 中切换到 <b>MiniMax</b> 替代 DeepSeek（高峰不限流）<br>
-                    &nbsp;&nbsp;• 检查网络连接，确认能否访问 <code>api.deepseek.com</code>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-
-    last_report = ""
-    last_name = ""
-    for stage in reversed(PIPELINE_STAGES):
-        if stage["id"] in tracker.stage_reports:
-            last_report = tracker.stage_reports[stage["id"]]
-            last_name = stage["name"]
-            break
-
-    if last_report:
-        with st.expander(f"最新完成: {last_name}", expanded=False):
-            st.markdown(last_report[:3000])
+    if completed_reports:
+        st.markdown(
+            '<div style="margin:0.5rem 0 0.3rem; font-size:0.85rem; color:#888;">'
+            f"REPORTS ({len(completed_reports)})</div>",
+            unsafe_allow_html=True,
+        )
+        for name, icon, report in reversed(completed_reports):
+            is_latest = (name == completed_reports[-1][0])
+            with st.expander(f"{icon} {name}", expanded=is_latest):
+                st.markdown(report[:3000])
