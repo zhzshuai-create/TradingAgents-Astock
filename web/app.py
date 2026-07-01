@@ -91,6 +91,42 @@ _LIGHT_VARS = """
     --sidebar-bg: #f8f9fa;
 """
 
+_LIGHT_STREAMLIT_OVERRIDES = """
+/* Light mode Streamlit overrides (config.toml base=dark) */
+.stApp [data-testid="stHeader"] { background: #fff !important; }
+.stApp [data-testid="stToolbar"] { background: #fff !important; }
+.stApp .stMarkdown, .stApp .stMarkdown * { color: #1a1a1a !important; }
+.stApp .stMarkdown a { color: #e85d04 !important; }
+.stApp [data-testid="stSidebar"] .stMarkdown * { color: #1a1a1a !important; }
+.stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6 { color: #1a1a1a !important; }
+.stApp p, .stApp span:not([class*="metric"]) { color: #1a1a1a !important; }
+.stApp [data-testid="stMetricValue"] { color: #e85d04 !important; }
+.stApp [data-testid="stMetricLabel"] { color: #555 !important; }
+.stApp [data-testid="stCaptionContainer"] { color: #777 !important; }
+.stApp hr { border-color: #dee2e6 !important; }
+.stApp [data-baseweb="input"] { background: #fff !important; color: #1a1a1a !important; border-color: #d0d0d0 !important; }
+.stApp [data-baseweb="input"] input { color: #1a1a1a !important; }
+.stApp [data-baseweb="input"] input::placeholder { color: #999 !important; }
+.stApp [data-baseweb="select"] { background: #fff !important; color: #1a1a1a !important; border-color: #d0d0d0 !important; }
+.stApp [data-baseweb="select"] * { color: #1a1a1a !important; }
+.stApp [data-baseweb="popover"] { background: #fff !important; }
+.stApp [data-baseweb="popover"] * { color: #1a1a1a !important; }
+.stApp [data-testid="stExpander"] { background: #fff !important; border-color: #dee2e6 !important; color: #1a1a1a !important; }
+.stApp [data-testid="stExpander"] *:not(button) { color: #1a1a1a !important; }
+.stApp .stDataFrame { background: #fff !important; }
+.stApp .stDataFrame td, .stApp .stDataFrame th { color: #1a1a1a !important; }
+.stApp [data-testid="stTable"] td, .stApp [data-testid="stTable"] th { color: #1a1a1a !important; }
+.stApp .stAlert { background: #f8f9fa !important; color: #1a1a1a !important; }
+.stApp [data-baseweb="radio"] * { color: #1a1a1a !important; }
+.stApp [data-baseweb="checkbox"] * { color: #1a1a1a !important; }
+.stApp [data-testid="stForm"] { background: #fff !important; border-color: #dee2e6 !important; }
+.stApp [data-testid="stNotification"] { background: #fff !important; color: #1a1a1a !important; }
+.stApp [role="tab"] { color: #555 !important; }
+.stApp [aria-selected="true"][role="tab"] { color: #e85d04 !important; }
+.stApp [data-baseweb="tag"] { background: #e8f0fe !important; color: #1a73e8 !important; }
+.stApp [data-testid="stProgress"] > div { background: #e9ecef !important; }
+"""
+
 _DARK_VARS = """
     --bg-primary: #1c1816;
     --bg-secondary: #252120;
@@ -201,7 +237,8 @@ input[data-testid="stTextInputRootElement"] input, .stTextInput input {
 """
 
 css_vars = _DARK_VARS if st.session_state["theme"] == "dark" else _LIGHT_VARS
-st.markdown(f"<style>:root {{{css_vars}}} {_BASE_CSS}</style>", unsafe_allow_html=True)
+extra_css = "" if st.session_state["theme"] == "dark" else _LIGHT_STREAMLIT_OVERRIDES
+st.markdown(f"<style>:root {{{css_vars}}} {_BASE_CSS} {extra_css}</style>", unsafe_allow_html=True)
 
 # ── Top navigation bar (replaces sidebar) ──
 col_brand, col_nav, col_search, col_theme = st.columns([1, 1.5, 2, 0.5])
