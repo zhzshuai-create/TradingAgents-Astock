@@ -239,7 +239,7 @@ input[data-testid="stTextInputRootElement"] input, .stTextInput input {
 """, unsafe_allow_html=True)
 
 # ── Top navigation bar (replaces sidebar) ──
-col_brand, col_nav, col_search = st.columns([1, 1.5, 2.5])
+col_brand, col_nav, col_search, col_theme = st.columns([1, 1.5, 2, 0.5])
 with col_brand:
     st.markdown("""
     <div style="padding-top:0.1rem;">
@@ -285,6 +285,14 @@ with col_search:
                 st.session_state["data_code"] = cleaned
                 st.session_state["app_mode"] = "data"
                 st.rerun()
+
+with col_theme:
+    st.markdown("""
+        <div class="theme-toggle-row" style="margin-top:0.3rem;">
+            <div class="theme-btn active" data-theme="light">☀️</div>
+            <div class="theme-btn" data-theme="dark">🌙</div>
+        </div>
+    """, unsafe_allow_html=True)
 
 st.markdown("---")
 
