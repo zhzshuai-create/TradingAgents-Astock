@@ -11,8 +11,8 @@ def _status_badge(status: str) -> str:
     if status == "done":
         return '<span style="color:#22c55e; font-size:1.3rem;">●</span>'
     if status == "active":
-        return '<span style="color:#ff5a1f; font-size:1.3rem;">◉</span>'
-    return '<span style="color:#333; font-size:1.3rem;">○</span>'
+        return '<span style="color:var(--accent); font-size:1.3rem;">◉</span>'
+    return '<span style="color:var(--text-tertiary); font-size:1.3rem;">○</span>'
 
 
 def _format_time(seconds: float) -> str:
@@ -26,10 +26,10 @@ def render_progress(tracker: ProgressTracker) -> None:
     st.markdown(
         f"""
         <div style="text-align:center; margin:1rem 0 0.5rem;">
-            <span style="font-size:1.6rem; font-weight:700; color:#f5f1eb;">
+            <span style="font-size:1.6rem; font-weight:700; color:var(--text-primary);">
                 分析进行中
             </span>
-            <span style="font-size:1.1rem; color:#333; margin-left:0.8rem;">
+            <span style="font-size:1.1rem; color:var(--text-secondary); margin-left:0.8rem;">
                 {tracker.ticker}
             </span>
         </div>
@@ -46,7 +46,7 @@ def render_progress(tracker: ProgressTracker) -> None:
     post_stages = PIPELINE_STAGES[7:]
 
     st.markdown(
-        '<div style="margin:0.5rem 0 0.3rem; font-size:0.85rem; color:#333;">ANALYSTS</div>',
+        '<div style="margin:0.5rem 0 0.3rem; font-size:0.85rem; color:var(--text-secondary);">ANALYSTS</div>',
         unsafe_allow_html=True,
     )
 
@@ -54,7 +54,7 @@ def render_progress(tracker: ProgressTracker) -> None:
     for col, stage in zip(cols, analyst_stages):
         status = tracker.stage_status(stage["id"])
         badge = _status_badge(status)
-        label_color = "#f5f1eb" if status == "active" else "#555" if status == "pending" else "#22c55e"
+        label_color = "var(--text-primary)" if status == "active" else "var(--text-tertiary)" if status == "pending" else "#22c55e"
         col.markdown(
             f"""
             <div style="text-align:center; padding:0.5rem 0;">
@@ -66,7 +66,7 @@ def render_progress(tracker: ProgressTracker) -> None:
         )
 
     st.markdown(
-        '<div style="margin:0.8rem 0 0.3rem; font-size:0.85rem; color:#333;">PIPELINE</div>',
+        '<div style="margin:0.8rem 0 0.3rem; font-size:0.85rem; color:var(--text-secondary);">PIPELINE</div>',
         unsafe_allow_html=True,
     )
 
@@ -74,7 +74,7 @@ def render_progress(tracker: ProgressTracker) -> None:
     for col, stage in zip(cols2, post_stages):
         status = tracker.stage_status(stage["id"])
         badge = _status_badge(status)
-        label_color = "#f5f1eb" if status == "active" else "#555" if status == "pending" else "#22c55e"
+        label_color = "var(--text-primary)" if status == "active" else "var(--text-tertiary)" if status == "pending" else "#22c55e"
         col.markdown(
             f"""
             <div style="text-align:center; padding:0.5rem 0;">
@@ -106,16 +106,16 @@ def render_progress(tracker: ProgressTracker) -> None:
 
         with st.container(border=True):
             st.markdown(f"""
-            <div style="background:#fff8e6; border:1px solid #f0c040; border-radius:10px; padding:1rem 1.2rem; margin:0.8rem 0;">
-                <div style="font-size:1rem; font-weight:700; color:#b06000; margin-bottom:0.5rem;">
+            <div style="background:var(--accent-light); border:1px solid var(--accent); border-radius:10px; padding:1rem 1.2rem; margin:0.8rem 0;">
+                <div style="font-size:1rem; font-weight:700; color:var(--accent); margin-bottom:0.5rem;">
                     ⚠️ 分析疑似卡死 — 已停滞 {stall_min}分{stall_sec:02d}秒
                 </div>
-                <div style="font-size:0.85rem; color:#555; line-height:1.7;">
+                <div style="font-size:0.85rem; color:var(--text-secondary); line-height:1.7;">
                     当前阶段：<b>{stuck_name}</b> |
                     LLM调用 {stall['llm_calls']} 次 |
                     Token 消耗 {stall['tokens_in']:,} / {stall['tokens_out']:,}
                 </div>
-                <div style="font-size:0.82rem; color:#444; margin-top:0.6rem; line-height:1.8;">
+                <div style="font-size:0.82rem; color:var(--text-tertiary); margin-top:0.6rem; line-height:1.8;">
                     <b>可能原因：</b><br>
                     &nbsp;&nbsp;1. LLM API 超时或限流（高峰时段常见）<br>
                     &nbsp;&nbsp;2. 网络不稳，请求挂起<br>
