@@ -1,6 +1,6 @@
 """
-TradingAgents-Astock · 统一投资研究平台
-AI多智能体分析 + 实时数据看板
+AStock Pro · zhzshuai-create 定制版
+AI多智能体分析 + 实时数据看板 | Powered by TradingAgents
 """
 
 from __future__ import annotations
@@ -25,8 +25,10 @@ if str(_PROJECT_ROOT) not in sys.path:
 load_dotenv(_PROJECT_ROOT / ".env")
 
 from tradingagents.default_config import DEFAULT_CONFIG  # noqa: E402
+import streamlit.components.v1 as components  # noqa: E402
 from web.components.progress_panel import render_progress  # noqa: E402
 from web.components.report_viewer import render_report  # noqa: E402
+from web.components.sidebar import render_sidebar  # noqa: E402
 from web.history import extract_signal, load_analysis, get_history  # noqa: E402
 from web.progress import ProgressTracker  # noqa: E402
 from web.runner import run_analysis_in_thread  # noqa: E402
@@ -43,10 +45,10 @@ from web.data_functions import (  # noqa: E402
 # ═══════════════════════════════════════════════════════════════════════════════
 
 st.set_page_config(
-    page_title="TradingAgents · AStock Pro",
+    page_title="AStock Pro",
     page_icon="📊",
     layout="wide",
-    initial_sidebar_state="collapsed",
+    initial_sidebar_state="expanded",
 )
 
 # ── Session state ────────────────────────────────────────────────────────────
@@ -56,6 +58,18 @@ if "data_code" not in st.session_state:
     st.session_state["data_code"] = ""
 if "theme" not in st.session_state:
     st.session_state["theme"] = "light"
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# JS: Load saved theme before CSS paints (prevents flash on reruns)
+# ═══════════════════════════════════════════════════════════════════════════════
+components.html("""
+<script>
+(function(){
+    var theme = localStorage.getItem('astock-theme') || 'light';
+    document.documentElement.className = theme;
+})();
+</script>
+""", height=0)
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # CSS
@@ -93,39 +107,39 @@ _LIGHT_VARS = """
 
 _LIGHT_STREAMLIT_OVERRIDES = """
 /* Light mode Streamlit overrides (config.toml base=dark) */
-.stApp [data-testid="stHeader"] { background: #fff !important; }
-.stApp [data-testid="stToolbar"] { background: #fff !important; }
-.stApp .stMarkdown, .stApp .stMarkdown * { color: #1a1a1a !important; }
-.stApp .stMarkdown a { color: #e85d04 !important; }
-.stApp [data-testid="stSidebar"] .stMarkdown * { color: #1a1a1a !important; }
-.stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6 { color: #1a1a1a !important; }
-.stApp p, .stApp span:not([class*="metric"]) { color: #1a1a1a !important; }
-.stApp [data-testid="stMetricValue"] { color: #e85d04 !important; }
-.stApp [data-testid="stMetricLabel"] { color: #555 !important; }
-.stApp [data-testid="stCaptionContainer"] { color: #777 !important; }
-.stApp hr { border-color: #dee2e6 !important; }
-.stApp [data-baseweb="input"] { background: #fff !important; color: #1a1a1a !important; border-color: #d0d0d0 !important; }
-.stApp [data-baseweb="input"] input { color: #1a1a1a !important; }
-.stApp [data-baseweb="input"] input::placeholder { color: #999 !important; }
-.stApp [data-baseweb="select"] { background: #fff !important; color: #1a1a1a !important; border-color: #d0d0d0 !important; }
-.stApp [data-baseweb="select"] * { color: #1a1a1a !important; }
-.stApp [data-baseweb="popover"] { background: #fff !important; }
-.stApp [data-baseweb="popover"] * { color: #1a1a1a !important; }
-.stApp [data-testid="stExpander"] { background: #fff !important; border-color: #dee2e6 !important; color: #1a1a1a !important; }
-.stApp [data-testid="stExpander"] *:not(button) { color: #1a1a1a !important; }
-.stApp .stDataFrame { background: #fff !important; }
-.stApp .stDataFrame td, .stApp .stDataFrame th { color: #1a1a1a !important; }
-.stApp [data-testid="stTable"] td, .stApp [data-testid="stTable"] th { color: #1a1a1a !important; }
-.stApp .stAlert { background: #f8f9fa !important; color: #1a1a1a !important; }
-.stApp [data-baseweb="radio"] * { color: #1a1a1a !important; }
-.stApp [data-baseweb="checkbox"] * { color: #1a1a1a !important; }
-.stApp [data-testid="stForm"] { background: #fff !important; border-color: #dee2e6 !important; }
-.stApp [data-testid="stNotification"] { background: #fff !important; color: #1a1a1a !important; }
-.stApp [role="tab"] { color: #555 !important; }
-.stApp [aria-selected="true"][role="tab"] { color: #e85d04 !important; }
-.stApp [data-baseweb="tag"] { background: #e8f0fe !important; color: #1a73e8 !important; }
-.stApp [data-testid="stFormSubmitButton"] button { background: #e85d04 !important; color: #fff !important; border: none !important; }
-.stApp [data-testid="stFormSubmitButton"] button:hover { background: #d9480f !important; }
+html.light .stApp [data-testid="stHeader"] { background: #fff !important; }
+html.light .stApp [data-testid="stToolbar"] { background: #fff !important; }
+html.light .stApp .stMarkdown, html.light .stApp .stMarkdown * { color: #1a1a1a !important; }
+html.light .stApp .stMarkdown a { color: #e85d04 !important; }
+html.light .stApp [data-testid="stSidebar"] .stMarkdown * { color: #1a1a1a !important; }
+html.light .stApp h1, html.light .stApp h2, html.light .stApp h3, html.light .stApp h4, html.light .stApp h5, html.light .stApp h6 { color: #1a1a1a !important; }
+html.light .stApp p, html.light .stApp span:not([class*="metric"]) { color: #1a1a1a !important; }
+html.light .stApp [data-testid="stMetricValue"] { color: #e85d04 !important; }
+html.light .stApp [data-testid="stMetricLabel"] { color: #555 !important; }
+html.light .stApp [data-testid="stCaptionContainer"] { color: #777 !important; }
+html.light .stApp hr { border-color: #dee2e6 !important; }
+html.light .stApp [data-baseweb="input"] { background: #fff !important; color: #1a1a1a !important; border-color: #d0d0d0 !important; }
+html.light .stApp [data-baseweb="input"] input { color: #1a1a1a !important; }
+html.light .stApp [data-baseweb="input"] input::placeholder { color: #999 !important; }
+html.light .stApp [data-baseweb="select"] { background: #fff !important; color: #1a1a1a !important; border-color: #d0d0d0 !important; }
+html.light .stApp [data-baseweb="select"] * { color: #1a1a1a !important; }
+html.light .stApp [data-baseweb="popover"] { background: #fff !important; }
+html.light .stApp [data-baseweb="popover"] * { color: #1a1a1a !important; }
+html.light .stApp [data-testid="stExpander"] { background: #fff !important; border-color: #dee2e6 !important; color: #1a1a1a !important; }
+html.light .stApp [data-testid="stExpander"] *:not(button) { color: #1a1a1a !important; }
+html.light .stApp .stDataFrame { background: #fff !important; }
+html.light .stApp .stDataFrame td, html.light .stApp .stDataFrame th { color: #1a1a1a !important; }
+html.light .stApp [data-testid="stTable"] td, html.light .stApp [data-testid="stTable"] th { color: #1a1a1a !important; }
+html.light .stApp .stAlert { background: #f8f9fa !important; color: #1a1a1a !important; }
+html.light .stApp [data-baseweb="radio"] * { color: #1a1a1a !important; }
+html.light .stApp [data-baseweb="checkbox"] * { color: #1a1a1a !important; }
+html.light .stApp [data-testid="stForm"] { background: #fff !important; border-color: #dee2e6 !important; }
+html.light .stApp [data-testid="stNotification"] { background: #fff !important; color: #1a1a1a !important; }
+html.light .stApp [role="tab"] { color: #555 !important; }
+html.light .stApp [aria-selected="true"][role="tab"] { color: #e85d04 !important; }
+html.light .stApp [data-baseweb="tag"] { background: #e8f0fe !important; color: #1a73e8 !important; }
+html.light .stApp [data-testid="stFormSubmitButton"] button { background: #e85d04 !important; color: #fff !important; border: none !important; }
+html.light .stApp [data-testid="stFormSubmitButton"] button:hover { background: #d9480f !important; }
 """
 
 _DARK_VARS = """
@@ -154,10 +168,42 @@ _DARK_VARS = """
 _BASE_CSS = """
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
 
-#MainMenu, header[data-testid="stHeader"],
-footer, div[data-testid="stDecoration"],
+/* Hide Streamlit chrome selectively — keep sidebar toggle buttons accessible */
+footer,
+div[data-testid="stDecoration"],
 button[data-testid="stBaseButton-header"],
-div[data-testid="stToolbar"] { display: none !important; }
+div[data-testid="stStatusWidget"],
+div[data-testid="stToolbarActions"],
+div[data-testid="stAppDeployButton"],
+span[data-testid="stMainMenu"] { display: none !important; }
+
+/* Make header transparent so sidebar toggle controls remain clickable */
+header[data-testid="stHeader"] {
+    background: transparent !important;
+    box-shadow: none !important;
+}
+div[data-testid="stToolbar"] {
+    background: transparent !important;
+}
+
+/* Always keep sidebar collapse/expand controls visible & clickable */
+button[data-testid="stSidebarCollapseButton"],
+button[data-testid="collapsedControl"] {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    background: var(--card-bg) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 6px !important;
+    color: var(--text-primary) !important;
+    z-index: 999999 !important;
+}
+button[data-testid="stSidebarCollapseButton"]:hover,
+button[data-testid="collapsedControl"]:hover {
+    background: var(--accent-light) !important;
+    border-color: var(--accent) !important;
+    color: var(--accent) !important;
+}
 
 html, body, [class*="css"] {
     font-family: 'Microsoft YaHei', 'PingFang SC', 'Inter', sans-serif;
@@ -237,22 +283,84 @@ input[data-testid="stTextInputRootElement"] input, .stTextInput input {
 .stApp [data-baseweb="popover"] { background: var(--card-bg); }
 """
 
-css_vars = _DARK_VARS if st.session_state["theme"] == "dark" else _LIGHT_VARS
-extra_css = "" if st.session_state["theme"] == "dark" else _LIGHT_STREAMLIT_OVERRIDES
-st.markdown(f"<style>:root {{{css_vars}}} {_BASE_CSS} {extra_css}</style>", unsafe_allow_html=True)
+st.markdown(f"<style>html.light {{{_LIGHT_VARS}}} html.dark {{{_DARK_VARS}}} {_LIGHT_STREAMLIT_OVERRIDES} {_BASE_CSS}</style>", unsafe_allow_html=True)
+
+# ── Sidebar content ──────────────────────────────────────────────────────────
+with st.sidebar:
+    render_sidebar()
 
 # ── Top navigation bar (replaces sidebar) ──
-col_brand, col_nav, col_search, col_theme = st.columns([1, 1.5, 2, 0.5])
+col_toggle, col_brand, col_nav, col_search, col_theme = st.columns([0.15, 1, 1.5, 2, 0.5])
+with col_toggle:
+    components.html("""
+    <!DOCTYPE html>
+    <html>
+    <head>
+    <meta charset="utf-8">
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body {
+        height: 100%; background: transparent;
+        display: flex; align-items: center; justify-content: center;
+      }
+      .toggle-btn {
+        background: #f8f9fa;
+        border: 1px solid #d0d0d0;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 18px;
+        width: 34px;
+        height: 34px;
+        color: #333;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.15s;
+        padding: 0;
+        line-height: 1;
+        user-select: none;
+        -webkit-user-select: none;
+      }
+      .toggle-btn:hover {
+        background: #fff5f0;
+        border-color: #e85d04;
+        color: #e85d04;
+      }
+      .toggle-btn:active { transform: scale(0.93); }
+    </style>
+    </head>
+    <body>
+    <button class="toggle-btn" id="toggleBtn" title="展开/收起侧边栏">☰</button>
+    <script>
+    document.getElementById('toggleBtn').addEventListener('click', function(e) {
+        e.preventDefault();
+        var d = window.parent.document;
+        // Try both Streamlit native toggle buttons
+        var btn = d.querySelector('button[data-testid="stSidebarCollapseButton"]');
+        if (!btn) btn = d.querySelector('button[data-testid="collapsedControl"]');
+        if (!btn) btn = d.querySelector('[data-testid="stSidebarCollapsedControl"]');
+        if (btn) {
+            btn.click();
+        } else {
+            // Last fallback: click the sidebar section itself to trigger Streamlit
+            var sidebar = d.querySelector('section[data-testid="stSidebar"]');
+            if (sidebar) {
+                var arrow = sidebar.querySelector('button');
+                if (arrow) arrow.click();
+            }
+        }
+    });
+    </script>
+    </body>
+    </html>
+    """, height=44)
 with col_brand:
     st.markdown("""
     <div style="padding-top:0.1rem;">
-        <span style="font-size:1.1rem; font-weight:800; color:var(--accent);">Trading</span>
-        <span style="font-size:1.1rem; font-weight:800; color:var(--brand-text);">Agents</span>
-        <span style="font-size:1.1rem; font-weight:800; color:var(--accent);">-Astock</span>
+        <span style="font-size:1.1rem; font-weight:800; color:var(--accent);">AStock</span>
+        <span style="font-size:1.1rem; font-weight:800; color:var(--brand-text);"> Pro</span>
         <br>
-        <a href="https://github.com/zhzshuai-create" target="_blank" style="font-size:0.7rem; color:var(--text-tertiary); text-decoration:none;">
-            by zhzshuai-create
-        </a>
+        <a href="https://github.com/zhzshuai-create" target="_blank" style="font-size:0.65rem; color:var(--text-tertiary); text-decoration:none;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text-tertiary)'">github.com/zhzshuai-create</a>
     </div>
     """, unsafe_allow_html=True)
 
@@ -290,15 +398,56 @@ with col_search:
                 st.rerun()
 
 with col_theme:
-    new_theme = st.radio(
-        "主题", ["☀️", "🌙"],
-        index=0 if st.session_state["theme"] == "light" else 1,
-        horizontal=True, key="theme_switcher", label_visibility="collapsed",
-    )
-    if ("🌙" in new_theme and st.session_state["theme"] == "light") or \
-       ("☀️" in new_theme and st.session_state["theme"] == "dark"):
-        st.session_state["theme"] = "dark" if "🌙" in new_theme else "light"
-        st.rerun()
+    components.html("""
+    <!DOCTYPE html>
+    <html>
+    <head>
+    <meta charset="utf-8">
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { height: 100%; background: transparent; display: flex; align-items: center; justify-content: center; }
+      .theme-toggle { display: flex; gap: 2px; background: #e9ecef; border-radius: 8px; padding: 2px; }
+      .theme-btn {
+        width: 30px; height: 28px; border: none; border-radius: 6px;
+        cursor: pointer; font-size: 14px;
+        display: flex; align-items: center; justify-content: center;
+        transition: all 0.12s ease; line-height: 1;
+      }
+      .theme-btn[data-theme="light"] { background: #fff; color: #333; }
+      .theme-btn[data-theme="dark"]  { background: #111; color: #fff; }
+      .theme-btn.active { box-shadow: 0 0 0 2px rgba(232,93,4,0.6); }
+      .theme-btn:not(.active):hover { box-shadow: 0 0 0 2px rgba(232,93,4,0.25); }
+    </style>
+    </head>
+    <body>
+    <div class="theme-toggle" id="themeToggle">
+      <button class="theme-btn" data-theme="light" title="亮色模式">☀️</button>
+      <button class="theme-btn" data-theme="dark" title="暗色模式">🌙</button>
+    </div>
+    <script>
+    var currentTheme = localStorage.getItem('astock-theme') || 'light';
+    function updateUI(theme) {
+        var btns = document.querySelectorAll('.theme-btn');
+        btns.forEach(function(b) {
+            b.classList.toggle('active', b.getAttribute('data-theme') === theme);
+        });
+    }
+    updateUI(currentTheme);
+    document.getElementById('themeToggle').addEventListener('click', function(e) {
+        var btn = e.target.closest('.theme-btn');
+        if (!btn) return;
+        var theme = btn.getAttribute('data-theme');
+        if (theme === currentTheme) return;
+        currentTheme = theme;
+        // Apply instantly — zero server round-trip
+        window.parent.document.documentElement.className = theme;
+        localStorage.setItem('astock-theme', theme);
+        updateUI(theme);
+    });
+    </script>
+    </body>
+    </html>
+    """, height=36)
 
 st.markdown("---")
 
@@ -411,7 +560,7 @@ def _render_analysis_mode() -> None:
         </div>
         """, unsafe_allow_html=True)
 
-        left, right = st.columns([1.3, 1])
+        left, right = st.columns([1, 1])
 
         # Left: history
         with left:
@@ -419,7 +568,7 @@ def _render_analysis_mode() -> None:
 
             full_history = get_history()
             history_search = st.text_input(
-                "搜索历史", placeholder="搜索股票代码或日期",
+                "历史", placeholder="搜索股票代码或日期",
                 label_visibility="collapsed", key="main_history_search",
             )
 
@@ -453,9 +602,8 @@ def _render_analysis_mode() -> None:
 
         # Right: new analysis
         with right:
-            st.markdown('<div style="text-align:center;margin-bottom:0.5rem;font-weight:700;font-size:1.05rem;color:var(--text-primary);">🔍 新建分析</div>', unsafe_allow_html=True)
-            st.markdown("<div style='height:0.3rem;'></div>", unsafe_allow_html=True)
-            ticker = st.text_input("股票代码", placeholder="输入 6 位代码如 000636",
+            st.markdown('<div style="font-weight:700;font-size:1.05rem;color:var(--text-primary); margin-bottom:0.4rem;">🔍 新建分析</div>', unsafe_allow_html=True)
+            ticker = st.text_input("代码", placeholder="输入 6 位代码如 000636",
                                    max_chars=6, label_visibility="collapsed")
             trade_date = st.date_input("分析日期", label_visibility="collapsed")
             can_start = bool(ticker and len(ticker.strip()) >= 4)
@@ -827,7 +975,7 @@ def _render_data_mode() -> None:
         else:
             st.info("在上方输入股票代码可加载个股新闻")
 
-    st.markdown('<div class="footer-note">a-stock-data V3.1 | 数据仅供参考，不构成投资建议</div>', unsafe_allow_html=True)
+    st.markdown('<div class="footer-note">AStock Pro · <a href="https://github.com/zhzshuai-create" target="_blank" style="color:var(--text-tertiary); text-decoration:none;">github.com/zhzshuai-create</a> | a-stock-data V3.1 | 数据仅供参考，不构成投资建议</div>', unsafe_allow_html=True)
 
 
 def _render_market_overview() -> None:
