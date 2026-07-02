@@ -95,7 +95,7 @@ def render_report(
         st.download_button(
             "📥 下载 Markdown",
             data=md_text.encode("utf-8"),
-            file_name=f"TradingAgents-Astock_{_safe_filename_label(ticker_label)}_{trade_date}.md",
+            file_name=f"AStock_Pro_{_safe_filename_label(ticker_label)}_{trade_date}.md",
             mime="text/markdown",
             use_container_width=True,
         )
@@ -105,7 +105,7 @@ def render_report(
             st.download_button(
                 "📄 下载 PDF",
                 data=pdf_bytes,
-                file_name=f"TradingAgents-Astock_{_safe_filename_label(ticker_label)}_{trade_date}.pdf",
+                file_name=f"AStock_Pro_{_safe_filename_label(ticker_label)}_{trade_date}.pdf",
                 mime="application/pdf",
                 use_container_width=True,
             )

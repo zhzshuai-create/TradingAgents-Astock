@@ -1,5 +1,5 @@
 """
-A-Stock Data functions — extracted from stock_ui.py for unified app.
+AStock Pro data functions — extracted from stock_ui.py for unified app.
 All functions are standalone, cache-enabled, and return clean data.
 """
 
