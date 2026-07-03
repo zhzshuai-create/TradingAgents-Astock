@@ -473,9 +473,12 @@ st.markdown("---")
 def _build_config() -> dict:
     import os
     config = DEFAULT_CONFIG.copy()
-    config["llm_provider"] = os.getenv("LLM_PROVIDER", "deepseek")
-    config["deep_think_llm"] = os.getenv("DEEP_THINK_LLM", "deepseek-chat")
-    config["quick_think_llm"] = os.getenv("QUICK_THINK_LLM", "deepseek-chat")
+    config["llm_provider"] = st.session_state.get("llm_provider") or os.getenv("LLM_PROVIDER", "deepseek")
+    config["deep_think_llm"] = st.session_state.get("deep_think_llm") or os.getenv("DEEP_THINK_LLM", "deepseek-chat")
+    config["quick_think_llm"] = st.session_state.get("quick_think_llm") or os.getenv("QUICK_THINK_LLM", "deepseek-chat")
+    base_url = st.session_state.get("llm_base_url") or os.getenv("BACKEND_URL")
+    if base_url:
+        config["backend_url"] = base_url
     config["data_vendors"] = {
         "core_stock_apis": "a_stock", "technical_indicators": "a_stock",
         "fundamental_data": "a_stock", "news_data": "a_stock", "signal_data": "a_stock",
