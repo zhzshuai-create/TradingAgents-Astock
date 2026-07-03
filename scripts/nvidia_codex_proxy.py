@@ -193,7 +193,10 @@ async def responses_api(request: Request):
                 for item in results:
                     rtype = item[0]
                     if rtype == "error":
-                        yield f"data: {json.dumps({'type': 'error', 'error': {'message': str(item[1:])}})}\n\n"
+                        err_msg = str(item[1:])
+                        print(f"[proxy:stream] upstream error: {err_msg[:200]}", file=sys.stderr)
+                        yield f"data: {json.dumps({'type': 'error', 'error': {'message': err_msg}})}\n\n"
+                        yield f"data: {json.dumps({'type': 'response.completed', 'response': {'id': resp_id, 'object': 'response', 'model': model, 'status': 'failed', 'status_details': {'error': {'message': err_msg}}}})}\n\n"
                         yield "data: [DONE]\n\n"
                         return
                     elif rtype == "delta":
