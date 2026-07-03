@@ -109,7 +109,7 @@ _LIGHT_STREAMLIT_OVERRIDES = """
 /* Light mode Streamlit overrides (config.toml base=dark) */
 html.light .stApp [data-testid="stHeader"] { background: #fff !important; }
 html.light .stApp [data-testid="stToolbar"] { background: #fff !important; }
-html.light .stApp .stMarkdown, html.light .stApp .stMarkdown * { color: #1a1a1a !important; }
+html.light .stApp .stMarkdown { color: #1a1a1a !important; }
 html.light .stApp .stMarkdown a { color: #e85d04 !important; }
 html.light .stApp [data-testid="stSidebar"] .stMarkdown * { color: #1a1a1a !important; }
 html.light .stApp h1, html.light .stApp h2, html.light .stApp h3, html.light .stApp h4, html.light .stApp h5, html.light .stApp h6 { color: #1a1a1a !important; }
@@ -125,8 +125,8 @@ html.light .stApp [data-baseweb="select"] { background: #fff !important; color: 
 html.light .stApp [data-baseweb="select"] * { color: #1a1a1a !important; }
 html.light .stApp [data-baseweb="popover"] { background: #fff !important; }
 html.light .stApp [data-baseweb="popover"] * { color: #1a1a1a !important; }
-html.light .stApp [data-testid="stExpander"] { background: #fff !important; border-color: #dee2e6 !important; color: #1a1a1a !important; }
-html.light .stApp [data-testid="stExpander"] *:not(button) { color: #1a1a1a !important; }
+html.light .stApp [data-testid="stExpander"] { background: #fff !important; border-color: #dee2e6 !important; }
+html.light .stApp [data-testid="stExpander"] summary { color: #1a1a1a !important; }
 html.light .stApp .stDataFrame { background: #fff !important; }
 html.light .stApp .stDataFrame td, html.light .stApp .stDataFrame th { color: #1a1a1a !important; }
 html.light .stApp [data-testid="stTable"] td, html.light .stApp [data-testid="stTable"] th { color: #1a1a1a !important; }
@@ -251,6 +251,12 @@ button[kind="secondary"]:hover {
     background: var(--accent-light) !important; border-color: var(--accent) !important; color: var(--accent) !important;
 }
 .stExpander { border: 1px solid var(--border-color) !important; border-radius: 8px !important; }
+.stExpander summary { color: var(--text-primary) !important; }
+.stExpander summary:hover { color: var(--accent) !important; }
+.stExpander summary svg { fill: var(--text-primary) !important; }
+.stApp [data-testid="stExpander"] summary { color: var(--text-primary) !important; }
+.stApp [data-testid="stExpander"] summary svg { fill: var(--text-primary) !important; }
+.stApp [data-testid="stExpander"] [data-testid="stExpanderDetails"] { color: var(--text-primary) !important; background: var(--card-bg) !important; }
 .stTabs [data-baseweb="tab"] { color: var(--text-secondary) !important; }
 .stTabs [aria-selected="true"] { color: var(--accent) !important; border-bottom-color: var(--accent) !important; }
 div[data-testid="stDownloadButton"] button {
