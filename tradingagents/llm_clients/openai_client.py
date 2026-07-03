@@ -118,6 +118,7 @@ _PROVIDER_CONFIG = {
     "openrouter": ("https://openrouter.ai/api/v1", "OPENROUTER_API_KEY"),
     "ollama": ("http://localhost:11434/v1", None),
     "minimax": ("https://api.minimax.chat/v1", "MINIMAX_API_KEY"),
+    "nvidia": ("https://integrate.api.nvidia.com/v1", "NVIDIA_API_KEY"),
 }
 
 

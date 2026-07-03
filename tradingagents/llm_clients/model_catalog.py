@@ -114,6 +114,21 @@ MODEL_OPTIONS: ProviderModeOptions = {
             ("Custom model ID", "custom"),
         ],
     },
+    "nvidia": {
+        "quick": [
+            ("GLM-4.7 - 编程突出, 200K上下文", "z-ai/glm4.7"),
+            ("MiniMax-M2.7-highspeed - 快速模型", "MiniMaxAI/MiniMax-M2.7-highspeed"),
+            ("DeepSeek V4 Flash - V4快速版", "deepseek-ai/deepseek-v4-flash"),
+            ("Custom model ID", "custom"),
+        ],
+        "deep": [
+            ("GLM-5.1 - 最新旗舰", "z-ai/glm-5.1"),
+            ("GLM-4.7 - 编程突出", "z-ai/glm4.7"),
+            ("MiniMax-M2.7 - 旗舰模型", "MiniMaxAI/MiniMax-M2.7"),
+            ("DeepSeek V4 Pro - V4旗舰", "deepseek-ai/deepseek-v4-pro"),
+            ("Custom model ID", "custom"),
+        ],
+    },
     # OpenRouter: fetched dynamically. Azure: any deployed model name.
     "ollama": {
         "quick": [
