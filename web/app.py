@@ -287,6 +287,14 @@ input[data-testid="stTextInputRootElement"] input, .stTextInput input {
 .stApp [data-baseweb="select"] { background: var(--input-bg); color: var(--text-primary); }
 .stApp [data-baseweb="input"] { background: var(--input-bg); color: var(--text-primary); }
 .stApp [data-baseweb="popover"] { background: var(--card-bg); }
+/* Code blocks, inline code, blockquotes, tables — theme-aware */
+.stApp .stMarkdown code { color: var(--accent) !important; background: var(--accent-light) !important; padding: 1px 5px; border-radius: 4px; font-size: 0.9em; }
+.stApp .stMarkdown pre { background: var(--bg-tertiary) !important; border: 1px solid var(--border-color); border-radius: 8px; padding: 1rem; }
+.stApp .stMarkdown pre code { background: transparent !important; color: var(--text-primary) !important; padding: 0; }
+.stApp .stMarkdown blockquote { border-left: 3px solid var(--accent); padding: 0.5rem 1rem; margin: 0.5rem 0; background: var(--bg-secondary); color: var(--text-primary); border-radius: 0 6px 6px 0; }
+.stApp .stMarkdown table { background: var(--card-bg); border-collapse: collapse; width: 100%; }
+.stApp .stMarkdown th { background: var(--bg-tertiary); color: var(--text-primary); padding: 8px 12px; border: 1px solid var(--border-color); font-weight: 600; }
+.stApp .stMarkdown td { color: var(--text-primary); padding: 6px 12px; border: 1px solid var(--border-color); }
 """
 
 st.markdown(f"<style>html.light {{{_LIGHT_VARS}}} html.dark {{{_DARK_VARS}}} {_DARK_STREAMLIT_OVERRIDES} {_BASE_CSS}</style>", unsafe_allow_html=True)
