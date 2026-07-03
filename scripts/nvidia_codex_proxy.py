@@ -15,11 +15,72 @@ PORT = int(os.getenv("PROXY_PORT", "8317"))
 app = FastAPI(title="NVIDIA-Codex Proxy")
 
 AVAILABLE_MODELS = [
-    {"id": "z-ai/glm-5.2", "object": "model", "owned_by": "nvidia"},
-    {"id": "deepseek-ai/deepseek-v4-pro", "object": "model", "owned_by": "nvidia"},
-    {"id": "deepseek-ai/deepseek-v4-flash", "object": "model", "owned_by": "nvidia"},
-    {"id": "minimaxai/minimax-m3", "object": "model", "owned_by": "nvidia"},
-    {"id": "moonshotai/kimi-k2.6", "object": "model", "owned_by": "nvidia"},
+    {
+        "id": "z-ai/glm-5.2",
+        "object": "model",
+        "owned_by": "nvidia",
+        "created": 1750000000,
+        "capabilities": {
+            "supports_tool_calls": True,
+            "supports_parallel_tool_calls": True,
+            "supports_images": False,
+            "supports_audio": False,
+            "supports_computer_use": False,
+            "supports_prompt_caching": False,
+            "supports_streaming": True,
+        },
+        "context_window": 200000,
+        "max_output_tokens": 16384,
+        "pricing": {"prompt": 0, "completion": 0},
+    },
+    {
+        "id": "deepseek-ai/deepseek-v4-pro",
+        "object": "model", "owned_by": "nvidia", "created": 1750000000,
+        "capabilities": {
+            "supports_tool_calls": True, "supports_parallel_tool_calls": True,
+            "supports_images": False, "supports_audio": False,
+            "supports_computer_use": False, "supports_prompt_caching": False,
+            "supports_streaming": True,
+        },
+        "context_window": 131072, "max_output_tokens": 16384,
+        "pricing": {"prompt": 0, "completion": 0},
+    },
+    {
+        "id": "deepseek-ai/deepseek-v4-flash",
+        "object": "model", "owned_by": "nvidia", "created": 1750000000,
+        "capabilities": {
+            "supports_tool_calls": True, "supports_parallel_tool_calls": True,
+            "supports_images": False, "supports_audio": False,
+            "supports_computer_use": False, "supports_prompt_caching": False,
+            "supports_streaming": True,
+        },
+        "context_window": 131072, "max_output_tokens": 16384,
+        "pricing": {"prompt": 0, "completion": 0},
+    },
+    {
+        "id": "minimaxai/minimax-m3",
+        "object": "model", "owned_by": "nvidia", "created": 1750000000,
+        "capabilities": {
+            "supports_tool_calls": True, "supports_parallel_tool_calls": True,
+            "supports_images": False, "supports_audio": False,
+            "supports_computer_use": False, "supports_prompt_caching": True,
+            "supports_streaming": True,
+        },
+        "context_window": 1048576, "max_output_tokens": 16384,
+        "pricing": {"prompt": 0, "completion": 0},
+    },
+    {
+        "id": "moonshotai/kimi-k2.6",
+        "object": "model", "owned_by": "nvidia", "created": 1750000000,
+        "capabilities": {
+            "supports_tool_calls": True, "supports_parallel_tool_calls": True,
+            "supports_images": False, "supports_audio": False,
+            "supports_computer_use": False, "supports_prompt_caching": False,
+            "supports_streaming": True,
+        },
+        "context_window": 131072, "max_output_tokens": 16384,
+        "pricing": {"prompt": 0, "completion": 0},
+    },
 ]
 
 
@@ -90,35 +151,66 @@ async def responses_api(request: Request):
         "Content-Type": "application/json",
     }
 
-    print(f"[proxy] → {model}  messages={len(messages)}  max_tokens={max_tokens}", file=sys.stderr)
+    print(f"[proxy] {model} stream={stream}", file=sys.stderr)
 
     try:
         if stream:
             async def _stream():
-                async with httpx.AsyncClient(timeout=300) as client:
-                    async with client.stream(
-                        "POST", f"{NVIDIA_BASE}/chat/completions",
-                        json=chat_body, headers=headers
-                    ) as resp:
-                        async for line in resp.aiter_lines():
-                            if line.startswith("data: "):
-                                data_str = line[6:]
-                                if data_str == "[DONE]":
-                                    yield "data: [DONE]\n\n"
+                import asyncio
+                resp_id = f"resp_{int(time.time())}"
+                yield f"data: {json.dumps({'type': 'response.created', 'response': {'id': resp_id, 'object': 'response', 'model': model, 'status': 'in_progress'}})}\n\n"
+                yield f"data: {json.dumps({'type': 'response.in_progress', 'response': {'id': resp_id, 'object': 'response', 'model': model, 'status': 'in_progress'}})}\n\n"
+
+                # Use sync httpx in a thread to avoid FastAPI stream cancellation issues
+                def _sync_fetch():
+                    results = []
+                    with httpx.Client(timeout=600) as client:
+                        with client.stream("POST", f"{NVIDIA_BASE}/chat/completions", json=chat_body, headers=headers) as resp:
+                            if resp.status_code != 200:
+                                results.append(("error", resp.status_code, resp.read().decode(errors="replace")[:500]))
+                                return results
+                            for line in resp.iter_lines():
+                                if not line:
                                     continue
-                                try:
-                                    chunk = json.loads(data_str)
-                                    choices = chunk.get("choices", [])
-                                    if choices:
-                                        delta = choices[0].get("delta", {})
-                                        content = delta.get("content", "")
-                                        if content:
-                                            r = {"object": "response.output_text.delta", "delta": content}
-                                            yield f"data: {json.dumps(r, ensure_ascii=False)}\n\n"
-                                except json.JSONDecodeError:
-                                    pass
-                    yield "data: [DONE]\n\n"
-            return StreamingResponse(_stream(), media_type="text/event-stream")
+                                if line.startswith("data: "):
+                                    data_str = line[6:]
+                                    if data_str == "[DONE]":
+                                        break
+                                    try:
+                                        chunk_json = json.loads(data_str)
+                                        choices = chunk_json.get("choices", [])
+                                        if choices:
+                                            delta = choices[0].get("delta", {})
+                                            content = delta.get("content", "")
+                                            if content:
+                                                results.append(("delta", content))
+                                    except json.JSONDecodeError:
+                                        pass
+                    return results
+
+                results = await asyncio.to_thread(_sync_fetch)
+                accumulated = ""
+                for item in results:
+                    rtype = item[0]
+                    if rtype == "error":
+                        yield f"data: {json.dumps({'type': 'error', 'error': {'message': str(item[1:])}})}\n\n"
+                        yield "data: [DONE]\n\n"
+                        return
+                    elif rtype == "delta":
+                        content = item[1]
+                        accumulated += content
+                        yield f"data: {json.dumps({'type': 'response.output_text.delta', 'item_id': f'{resp_id}_msg', 'output_index': 0, 'content_index': 0, 'delta': content}, ensure_ascii=False)}\n\n"
+
+                print(f"[proxy:stream] done, accumulated={len(accumulated)} chars", file=sys.stderr)
+
+                # Send completion events
+                yield f"data: {json.dumps({'type': 'response.output_text.done', 'item_id': f'{resp_id}_msg', 'output_index': 0, 'content_index': 0, 'text': accumulated}, ensure_ascii=False)}\n\n"
+                yield f"data: {json.dumps({'type': 'response.content_part.done', 'item_id': f'{resp_id}_msg', 'output_index': 0, 'content_index': 0, 'part': {'type': 'output_text', 'text': accumulated}}, ensure_ascii=False)}\n\n"
+                yield f"data: {json.dumps({'type': 'response.completed', 'response': {'id': resp_id, 'object': 'response', 'model': model, 'status': 'completed', 'output': [{'type': 'message', 'role': 'assistant', 'content': [{'type': 'output_text', 'text': accumulated}]}]}}, ensure_ascii=False)}\n\n"
+                yield "data: [DONE]\n\n"
+
+            return StreamingResponse(_stream(), media_type="text/event-stream",
+                                     headers={"X-Accel-Buffering": "no", "Cache-Control": "no-cache"})
 
         # Non-streaming
         async with httpx.AsyncClient(timeout=300) as client:
