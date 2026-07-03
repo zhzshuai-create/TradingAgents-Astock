@@ -40,10 +40,11 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/simonlin1212/tradingagents-astock"
-Repository = "https://github.com/simonlin1212/tradingagents-astock"
-Issues = "https://github.com/simonlin1212/tradingagents-astock/issues"
+Homepage = "https://github.com/zhzshuai-create/TradingAgents-Astock"
+Repository = "https://github.com/zhzshuai-create/TradingAgents-Astock"
+Issues = "https://github.com/zhzshuai-create/TradingAgents-Astock/issues"
 Upstream = "https://github.com/TauricResearch/TradingAgents"
+AstockFork = "https://github.com/simonlin1212/TradingAgents-astock"
 
 [project.optional-dependencies]
 google = ["langchain-google-genai>=4.0.0"]
