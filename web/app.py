@@ -105,41 +105,41 @@ _LIGHT_VARS = """
     --sidebar-bg: #f8f9fa;
 """
 
-_LIGHT_STREAMLIT_OVERRIDES = """
-/* Light mode Streamlit overrides (config.toml base=dark) */
-html.light .stApp [data-testid="stHeader"] { background: #fff !important; }
-html.light .stApp [data-testid="stToolbar"] { background: #fff !important; }
-html.light .stApp .stMarkdown { color: #1a1a1a !important; }
-html.light .stApp .stMarkdown a { color: #e85d04 !important; }
-html.light .stApp [data-testid="stSidebar"] .stMarkdown * { color: #1a1a1a !important; }
-html.light .stApp h1, html.light .stApp h2, html.light .stApp h3, html.light .stApp h4, html.light .stApp h5, html.light .stApp h6 { color: #1a1a1a !important; }
-html.light .stApp p, html.light .stApp span:not([class*="metric"]) { color: #1a1a1a !important; }
-html.light .stApp [data-testid="stMetricValue"] { color: #e85d04 !important; }
-html.light .stApp [data-testid="stMetricLabel"] { color: #555 !important; }
-html.light .stApp [data-testid="stCaptionContainer"] { color: #777 !important; }
-html.light .stApp hr { border-color: #dee2e6 !important; }
-html.light .stApp [data-baseweb="input"] { background: #fff !important; color: #1a1a1a !important; border-color: #d0d0d0 !important; }
-html.light .stApp [data-baseweb="input"] input { color: #1a1a1a !important; }
-html.light .stApp [data-baseweb="input"] input::placeholder { color: #999 !important; }
-html.light .stApp [data-baseweb="select"] { background: #fff !important; color: #1a1a1a !important; border-color: #d0d0d0 !important; }
-html.light .stApp [data-baseweb="select"] * { color: #1a1a1a !important; }
-html.light .stApp [data-baseweb="popover"] { background: #fff !important; }
-html.light .stApp [data-baseweb="popover"] * { color: #1a1a1a !important; }
-html.light .stApp [data-testid="stExpander"] { background: #fff !important; border-color: #dee2e6 !important; }
-html.light .stApp [data-testid="stExpander"] summary { color: #1a1a1a !important; }
-html.light .stApp .stDataFrame { background: #fff !important; }
-html.light .stApp .stDataFrame td, html.light .stApp .stDataFrame th { color: #1a1a1a !important; }
-html.light .stApp [data-testid="stTable"] td, html.light .stApp [data-testid="stTable"] th { color: #1a1a1a !important; }
-html.light .stApp .stAlert { background: #f8f9fa !important; color: #1a1a1a !important; }
-html.light .stApp [data-baseweb="radio"] * { color: #1a1a1a !important; }
-html.light .stApp [data-baseweb="checkbox"] * { color: #1a1a1a !important; }
-html.light .stApp [data-testid="stForm"] { background: #fff !important; border-color: #dee2e6 !important; }
-html.light .stApp [data-testid="stNotification"] { background: #fff !important; color: #1a1a1a !important; }
-html.light .stApp [role="tab"] { color: #555 !important; }
-html.light .stApp [aria-selected="true"][role="tab"] { color: #e85d04 !important; }
-html.light .stApp [data-baseweb="tag"] { background: #e8f0fe !important; color: #1a73e8 !important; }
-html.light .stApp [data-testid="stFormSubmitButton"] button { background: #e85d04 !important; color: #fff !important; border: none !important; }
-html.light .stApp [data-testid="stFormSubmitButton"] button:hover { background: #d9480f !important; }
+_DARK_STREAMLIT_OVERRIDES = """
+/* Dark mode Streamlit overrides (config.toml base=light) */
+html.dark .stApp [data-testid="stHeader"] { background: #1c1816 !important; }
+html.dark .stApp [data-testid="stToolbar"] { background: #1c1816 !important; }
+html.dark .stApp .stMarkdown { color: #ede4dc !important; }
+html.dark .stApp .stMarkdown a { color: #f0883e !important; }
+html.dark .stApp [data-testid="stSidebar"] .stMarkdown * { color: #ede4dc !important; }
+html.dark .stApp h1, html.dark .stApp h2, html.dark .stApp h3, html.dark .stApp h4, html.dark .stApp h5, html.dark .stApp h6 { color: #ede4dc !important; }
+html.dark .stApp p, html.dark .stApp span:not([class*="metric"]) { color: #ede4dc !important; }
+html.dark .stApp [data-testid="stMetricValue"] { color: #f0883e !important; }
+html.dark .stApp [data-testid="stMetricLabel"] { color: #a3968a !important; }
+html.dark .stApp [data-testid="stCaptionContainer"] { color: #7d7268 !important; }
+html.dark .stApp hr { border-color: #383330 !important; }
+html.dark .stApp [data-baseweb="input"] { background: #2d2927 !important; color: #ede4dc !important; border-color: #383330 !important; }
+html.dark .stApp [data-baseweb="input"] input { color: #ede4dc !important; }
+html.dark .stApp [data-baseweb="input"] input::placeholder { color: #7d7268 !important; }
+html.dark .stApp [data-baseweb="select"] { background: #2d2927 !important; color: #ede4dc !important; border-color: #383330 !important; }
+html.dark .stApp [data-baseweb="select"] * { color: #ede4dc !important; }
+html.dark .stApp [data-baseweb="popover"] { background: #252120 !important; }
+html.dark .stApp [data-baseweb="popover"] * { color: #ede4dc !important; }
+html.dark .stApp [data-testid="stExpander"] { background: #252120 !important; border-color: #383330 !important; }
+html.dark .stApp [data-testid="stExpander"] summary { color: #ede4dc !important; }
+html.dark .stApp .stDataFrame { background: #252120 !important; }
+html.dark .stApp .stDataFrame td, html.dark .stApp .stDataFrame th { color: #ede4dc !important; }
+html.dark .stApp [data-testid="stTable"] td, html.dark .stApp [data-testid="stTable"] th { color: #ede4dc !important; }
+html.dark .stApp .stAlert { background: #252120 !important; color: #ede4dc !important; }
+html.dark .stApp [data-baseweb="radio"] * { color: #ede4dc !important; }
+html.dark .stApp [data-baseweb="checkbox"] * { color: #ede4dc !important; }
+html.dark .stApp [data-testid="stForm"] { background: #252120 !important; border-color: #383330 !important; }
+html.dark .stApp [data-testid="stNotification"] { background: #252120 !important; color: #ede4dc !important; }
+html.dark .stApp [role="tab"] { color: #a3968a !important; }
+html.dark .stApp [aria-selected="true"][role="tab"] { color: #f0883e !important; }
+html.dark .stApp [data-baseweb="tag"] { background: #2a3040 !important; color: #7eb8f4 !important; }
+html.dark .stApp [data-testid="stFormSubmitButton"] button { background: #f0883e !important; color: #fff !important; border: none !important; }
+html.dark .stApp [data-testid="stFormSubmitButton"] button:hover { background: #ffa94d !important; }
 """
 
 _DARK_VARS = """
@@ -251,12 +251,12 @@ button[kind="secondary"]:hover {
     background: var(--accent-light) !important; border-color: var(--accent) !important; color: var(--accent) !important;
 }
 .stExpander { border: 1px solid var(--border-color) !important; border-radius: 8px !important; }
-.stExpander summary { color: var(--text-primary) !important; }
-.stExpander summary:hover { color: var(--accent) !important; }
+.stExpander summary { color: var(--text-primary) !important; background: var(--card-bg) !important; }
+.stExpander summary:hover { color: var(--accent) !important; background: var(--accent-light) !important; }
 .stExpander summary svg { fill: var(--text-primary) !important; }
-.stApp [data-testid="stExpander"] summary { color: var(--text-primary) !important; }
+.stApp [data-testid="stExpander"] summary { color: var(--text-primary) !important; background: var(--card-bg) !important; }
 .stApp [data-testid="stExpander"] summary svg { fill: var(--text-primary) !important; }
-.stApp [data-testid="stExpander"] [data-testid="stExpanderDetails"] { color: var(--text-primary) !important; background: var(--card-bg) !important; }
+.stApp [data-testid="stExpander"] [data-testid="stExpanderDetails"] { color: var(--text-primary) !important; background: var(--bg-primary) !important; }
 .stTabs [data-baseweb="tab"] { color: var(--text-secondary) !important; }
 .stTabs [aria-selected="true"] { color: var(--accent) !important; border-bottom-color: var(--accent) !important; }
 div[data-testid="stDownloadButton"] button {
@@ -289,7 +289,7 @@ input[data-testid="stTextInputRootElement"] input, .stTextInput input {
 .stApp [data-baseweb="popover"] { background: var(--card-bg); }
 """
 
-st.markdown(f"<style>html.light {{{_LIGHT_VARS}}} html.dark {{{_DARK_VARS}}} {_LIGHT_STREAMLIT_OVERRIDES} {_BASE_CSS}</style>", unsafe_allow_html=True)
+st.markdown(f"<style>html.light {{{_LIGHT_VARS}}} html.dark {{{_DARK_VARS}}} {_DARK_STREAMLIT_OVERRIDES} {_BASE_CSS}</style>", unsafe_allow_html=True)
 
 # ── Sidebar content ──────────────────────────────────────────────────────────
 with st.sidebar:
