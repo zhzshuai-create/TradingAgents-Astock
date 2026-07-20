@@ -1,3 +1,27 @@
+# ── Server stability ──
+[server]
+# Kill the auto-reload file watcher — prevents random restarts when idle
+runOnSave = false
+# Use polling instead of native filesystem events (more stable on Windows)
+fileWatcherType = "poll"
+# Disable periodic script health check that can cause false-positive restarts
+scriptHealthCheckEnabled = false
+# Keep WebSocket connections alive longer
+maxMessageSize = 500
+# Disable XSRF for local-only deployment (no cross-site risk)
+enableXsrfProtection = false
+# CORS for local access
+enableCORS = false
+# Increase upload size for large session states
+maxUploadSize = 10
+
+# ── Browser ──
+[browser]
+gatherUsageStats = false
+serverAddress = "localhost"
+serverPort = 8501
+
+# ── Theme ──
 [theme]
 base = "light"
 primaryColor = "#e85d04"
