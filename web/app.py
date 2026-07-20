@@ -60,13 +60,107 @@ if "theme" not in st.session_state:
     st.session_state["theme"] = "light"
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# JS: Load saved theme before CSS paints (prevents flash on reruns)
+# JS: Load saved theme + WebSocket auto-reconnect
 # ═══════════════════════════════════════════════════════════════════════════════
 components.html("""
 <script>
 (function(){
     var theme = localStorage.getItem('astock-theme') || 'light';
     document.documentElement.className = theme;
+})();
+</script>
+""", height=0)
+
+# ── WebSocket auto-reconnect (robust: polling + visibility-change trigger) ──
+components.html("""
+<script>
+// Multi-layered health-check reconnection:
+// 1. Periodic polling (may be throttled when tab is backgrounded)
+// 2. Instant check when user returns to the tab (visibilitychange/focus)
+// 3. Streamlit "Connection lost" overlay detection
+(function() {
+    var HEALTH_URL = window.parent.location.origin + '/_stcore/health';
+    var CHECK_INTERVAL = 5000;     // regular poll every 5s (throttled when hidden)
+    var RECONNECT_AFTER = 2;       // 2 consecutive failures → reconnect
+    var MAX_RETRIES = 20;          // give up after 20 reloads
+    var failCount = 0;
+    var reloadCount = 0;
+    var lastOk = Date.now();
+
+    function doReload() {
+        if (reloadCount >= MAX_RETRIES) {
+            return; // give up, user must manually refresh
+        }
+        reloadCount++;
+        failCount = 0;
+        window.parent.location.reload();
+    }
+
+    function check() {
+        try {
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', HEALTH_URL, true);
+            xhr.timeout = 3000;
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    failCount = 0;
+                    reloadCount = 0;
+                    lastOk = Date.now();
+                } else {
+                    failCount++;
+                    if (failCount >= RECONNECT_AFTER) doReload();
+                }
+            };
+            xhr.onerror = function() {
+                failCount++;
+                if (failCount >= RECONNECT_AFTER) doReload();
+            };
+            xhr.ontimeout = function() {
+                failCount++;
+                if (failCount >= RECONNECT_AFTER) doReload();
+            };
+            xhr.send(null);
+        } catch(e) {
+            failCount++;
+            if (failCount >= RECONNECT_AFTER) doReload();
+        }
+    }
+
+    // Layer 1: periodic polling
+    setInterval(check, CHECK_INTERVAL);
+    setTimeout(check, 3000);  // initial check after page loads
+
+    // Layer 2: instant check when user returns to tab (NOT throttled)
+    var handleVisibility = function() {
+        if (!document.hidden) {
+            // Tab just became visible — aggressive re-check
+            // If last successful ping was > 30s ago, the connection is prob dead
+            if (Date.now() - lastOk > 30000) {
+                failCount = RECONNECT_AFTER; // force reconnect on next failed check
+            }
+            check();
+        }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('focus', handleVisibility);
+
+    // Layer 3: Streamlit "Connection lost" overlay — click "Try again" if visible
+    setInterval(function() {
+        try {
+            var d = window.parent.document;
+            // Streamlit's built-in reconnect prompt
+            var alerts = d.querySelectorAll('[data-testid="stAlert"]');
+            for (var i = 0; i < alerts.length; i++) {
+                var text = alerts[i].textContent || '';
+                if (text.indexOf('Connection') !== -1 || text.indexOf('reconnect') !== -1) {
+                    // Click the "Try again" or reload button
+                    var btn = alerts[i].querySelector('button');
+                    if (btn) btn.click();
+                    else doReload();
+                }
+            }
+        } catch(e) {}
+    }, 3000);
 })();
 </script>
 """, height=0)
