@@ -166,232 +166,13 @@ components.html("""
 """, height=0)
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# CSS
+# CSS — Single Source of Truth (web/theme.py)
 # ═══════════════════════════════════════════════════════════════════════════════
 
+from web.theme import CSS
 
+st.markdown(f"<style>{{CSS}}</style>", unsafe_allow_html=True)
 
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# Dynamic CSS (theme-aware)
-# ═══════════════════════════════════════════════════════════════════════════════
-
-_LIGHT_VARS = """
-    --bg-primary: #ffffff;
-    --bg-secondary: #f8f9fa;
-    --bg-tertiary: #e9ecef;
-    --text-primary: #1a1a1a;
-    --text-secondary: #555555;
-    --text-tertiary: #777777;
-    --accent: #e85d04;
-    --accent-hover: #d9480f;
-    --accent-light: #fff5f0;
-    --up-color: #c92a2a;
-    --down-color: #2b8a3e;
-    --border-color: #dee2e6;
-    --card-bg: #ffffff;
-    --card-shadow: 0 1px 4px rgba(0,0,0,0.06);
-    --tag-bg: #e8f0fe;
-    --tag-text: #1a73e8;
-    --input-bg: #ffffff;
-    --input-border: #d0d0d0;
-    --brand-text: #1a1a1a;
-    --sidebar-bg: #f8f9fa;
-"""
-
-_DARK_STREAMLIT_OVERRIDES = """
-/* Dark mode Streamlit overrides (config.toml base=light) */
-html.dark .stApp [data-testid="stHeader"] { background: #1c1816 !important; }
-html.dark .stApp [data-testid="stToolbar"] { background: #1c1816 !important; }
-html.dark .stApp .stMarkdown { color: #ede4dc !important; }
-html.dark .stApp .stMarkdown a { color: #f0883e !important; }
-html.dark .stApp [data-testid="stSidebar"] .stMarkdown * { color: #ede4dc !important; }
-html.dark .stApp h1, html.dark .stApp h2, html.dark .stApp h3, html.dark .stApp h4, html.dark .stApp h5, html.dark .stApp h6 { color: #ede4dc !important; }
-html.dark .stApp p, html.dark .stApp span:not([class*="metric"]) { color: #ede4dc !important; }
-html.dark .stApp [data-testid="stMetricValue"] { color: #f0883e !important; }
-html.dark .stApp [data-testid="stMetricLabel"] { color: #a3968a !important; }
-html.dark .stApp [data-testid="stCaptionContainer"] { color: #7d7268 !important; }
-html.dark .stApp hr { border-color: #383330 !important; }
-html.dark .stApp [data-baseweb="input"] { background: #2d2927 !important; color: #ede4dc !important; border-color: #383330 !important; }
-html.dark .stApp [data-baseweb="input"] input { color: #ede4dc !important; }
-html.dark .stApp [data-baseweb="input"] input::placeholder { color: #7d7268 !important; }
-html.dark .stApp [data-baseweb="select"] { background: #2d2927 !important; color: #ede4dc !important; border-color: #383330 !important; }
-html.dark .stApp [data-baseweb="select"] * { color: #ede4dc !important; }
-html.dark .stApp [data-baseweb="popover"] { background: #252120 !important; }
-html.dark .stApp [data-baseweb="popover"] * { color: #ede4dc !important; }
-html.dark .stApp [data-testid="stExpander"] { background: #252120 !important; border-color: #383330 !important; }
-html.dark .stApp [data-testid="stExpander"] summary { color: #ede4dc !important; }
-html.dark .stApp .stDataFrame { background: #252120 !important; }
-html.dark .stApp .stDataFrame td, html.dark .stApp .stDataFrame th { color: #ede4dc !important; }
-html.dark .stApp [data-testid="stTable"] td, html.dark .stApp [data-testid="stTable"] th { color: #ede4dc !important; }
-html.dark .stApp .stAlert { background: #252120 !important; color: #ede4dc !important; }
-html.dark .stApp [data-baseweb="radio"] * { color: #ede4dc !important; }
-html.dark .stApp [data-baseweb="checkbox"] * { color: #ede4dc !important; }
-html.dark .stApp [data-testid="stForm"] { background: #252120 !important; border-color: #383330 !important; }
-html.dark .stApp [data-testid="stNotification"] { background: #252120 !important; color: #ede4dc !important; }
-html.dark .stApp [role="tab"] { color: #a3968a !important; }
-html.dark .stApp [aria-selected="true"][role="tab"] { color: #f0883e !important; }
-html.dark .stApp [data-baseweb="tag"] { background: #2a3040 !important; color: #7eb8f4 !important; }
-html.dark .stApp [data-testid="stFormSubmitButton"] button { background: #f0883e !important; color: #fff !important; border: none !important; }
-html.dark .stApp [data-testid="stFormSubmitButton"] button:hover { background: #ffa94d !important; }
-"""
-
-_DARK_VARS = """
-    --bg-primary: #1c1816;
-    --bg-secondary: #252120;
-    --bg-tertiary: #2d2927;
-    --text-primary: #ede4dc;
-    --text-secondary: #a3968a;
-    --text-tertiary: #7d7268;
-    --accent: #f0883e;
-    --accent-hover: #ffa94d;
-    --accent-light: #3d2a1a;
-    --up-color: #ff6b6b;
-    --down-color: #51cf66;
-    --border-color: #383330;
-    --card-bg: #252120;
-    --card-shadow: 0 1px 4px rgba(0,0,0,0.25);
-    --tag-bg: #2a3040;
-    --tag-text: #7eb8f4;
-    --input-bg: #2d2927;
-    --input-border: #383330;
-    --brand-text: #ede4dc;
-    --sidebar-bg: #1c1816;
-"""
-
-_BASE_CSS = """
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
-
-/* Hide Streamlit chrome selectively — keep sidebar toggle buttons accessible */
-footer,
-div[data-testid="stDecoration"],
-button[data-testid="stBaseButton-header"],
-div[data-testid="stStatusWidget"],
-div[data-testid="stToolbarActions"],
-div[data-testid="stAppDeployButton"],
-span[data-testid="stMainMenu"] { display: none !important; }
-
-/* Make header transparent so sidebar toggle controls remain clickable */
-header[data-testid="stHeader"] {
-    background: transparent !important;
-    box-shadow: none !important;
-}
-div[data-testid="stToolbar"] {
-    background: transparent !important;
-}
-
-/* Always keep sidebar collapse/expand controls visible & clickable */
-button[data-testid="stSidebarCollapseButton"],
-button[data-testid="collapsedControl"] {
-    display: flex !important;
-    visibility: visible !important;
-    opacity: 1 !important;
-    background: var(--card-bg) !important;
-    border: 1px solid var(--border-color) !important;
-    border-radius: 6px !important;
-    color: var(--text-primary) !important;
-    z-index: 999999 !important;
-}
-button[data-testid="stSidebarCollapseButton"]:hover,
-button[data-testid="collapsedControl"]:hover {
-    background: var(--accent-light) !important;
-    border-color: var(--accent) !important;
-    color: var(--accent) !important;
-}
-
-html, body, [class*="css"] {
-    font-family: 'Microsoft YaHei', 'PingFang SC', 'Inter', sans-serif;
-}
-.stApp { background: var(--bg-primary); }
-section[data-testid="stSidebar"] {
-    background: var(--sidebar-bg); border-right: 1px solid var(--border-color);
-}
-
-.metric-card {
-    background: var(--card-bg); border-radius: 12px; padding: 1rem 0.8rem;
-    box-shadow: var(--card-shadow); text-align: center;
-}
-.metric-card .label { font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 0.2rem; }
-.metric-card .value { font-size: 1.35rem; font-weight: 700; color: var(--text-primary); }
-.metric-card .sub { font-size: 0.75rem; color: var(--text-tertiary); }
-
-.stock-card {
-    background: var(--card-bg); border-radius: 10px; padding: 0.55rem 0.8rem;
-    box-shadow: var(--card-shadow); margin-bottom: 0.25rem;
-    display: flex; align-items: center; gap: 0.6rem; font-size: 0.9rem;
-}
-.stock-card .code { font-weight: 700; color: var(--text-primary); min-width: 55px; }
-.stock-card .name { color: var(--text-secondary); min-width: 65px; }
-.stock-card .pct { font-weight: 700; min-width: 55px; }
-.stock-card .reason { color: var(--text-secondary); font-size: 0.8rem; flex: 1; }
-
-.tag { display: inline-block; background: var(--tag-bg); color: var(--tag-text);
-       padding: 2px 8px; border-radius: 6px; font-size: 0.76rem; margin: 2px; }
-
-.stMetric label { color: var(--text-secondary) !important; font-size: 0.8rem !important; }
-.stMetric [data-testid="stMetricValue"] { color: var(--accent) !important; font-weight: 700 !important; }
-.stProgress > div > div > div { background: linear-gradient(90deg, var(--accent), var(--accent-hover)) !important; }
-button[kind="primary"] {
-    background: linear-gradient(135deg, var(--accent), var(--accent-hover)) !important;
-    border: none !important; font-weight: 700 !important;
-    color: #fff !important; transition: all 0.2s ease !important;
-}
-button[kind="primary"]:hover { transform: translateY(-1px) !important; }
-button[kind="secondary"] {
-    background: var(--card-bg) !important; border: 1px solid var(--border-color) !important;
-    color: var(--text-primary) !important; transition: all 0.2s ease !important;
-}
-button[kind="secondary"]:hover {
-    background: var(--accent-light) !important; border-color: var(--accent) !important; color: var(--accent) !important;
-}
-.stExpander { border: 1px solid var(--border-color) !important; border-radius: 8px !important; }
-.stExpander summary { color: var(--text-primary) !important; background: var(--card-bg) !important; }
-.stExpander summary:hover { color: var(--accent) !important; background: var(--accent-light) !important; }
-.stExpander summary svg { fill: var(--text-primary) !important; }
-.stApp [data-testid="stExpander"] summary { color: var(--text-primary) !important; background: var(--card-bg) !important; }
-.stApp [data-testid="stExpander"] summary svg { fill: var(--text-primary) !important; }
-.stApp [data-testid="stExpander"] [data-testid="stExpanderDetails"] { color: var(--text-primary) !important; background: var(--bg-primary) !important; }
-.stTabs [data-baseweb="tab"] { color: var(--text-secondary) !important; }
-.stTabs [aria-selected="true"] { color: var(--accent) !important; border-bottom-color: var(--accent) !important; }
-div[data-testid="stDownloadButton"] button {
-    background: var(--card-bg) !important; border: 1px solid var(--accent) !important; color: var(--accent) !important;
-}
-div[data-testid="stDownloadButton"] button:hover { background: var(--accent-light) !important; }
-input[data-testid="stTextInputRootElement"] input, .stTextInput input {
-    background: var(--input-bg) !important; border-color: var(--input-border) !important; color: var(--text-primary) !important;
-}
-.stTextInput input:focus {
-    border-color: var(--accent) !important; box-shadow: 0 0 0 1px var(--accent) !important;
-}
-.footer-note { text-align: center; color: var(--text-tertiary); font-size: 0.75rem; padding: 1.5rem 0 0.5rem 0; }
-
-/* Streamlit native element overrides for dark mode */
-.stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6 { color: var(--text-primary) !important; }
-.stApp p, .stApp span, .stApp li, .stApp td, .stApp th { color: var(--text-primary); }
-.stApp .stMarkdown { color: var(--text-primary); }
-.stApp [data-testid="stExpander"] { background: var(--card-bg) !important; border-color: var(--border-color) !important; color: var(--text-primary) !important; }
-.stApp .stDataFrame, .stApp [data-testid="stTable"] { background: var(--card-bg); }
-.stApp [data-testid="stTable"] td { color: var(--text-primary); }
-.stApp [data-testid="stMetric"] { background: var(--card-bg); border-radius: 8px; padding: 0.5rem; }
-.stApp [data-testid="stCaptionContainer"] { color: var(--text-tertiary); }
-.stApp [data-testid="stNotification"] { background: var(--card-bg); color: var(--text-primary); }
-.stApp hr { border-color: var(--border-color); }
-.stApp .stAlert { background: var(--card-bg); color: var(--text-primary); }
-.stApp [data-testid="stSidebar"] .stMarkdown { color: var(--text-primary); }
-.stApp [data-baseweb="select"] { background: var(--input-bg); color: var(--text-primary); }
-.stApp [data-baseweb="input"] { background: var(--input-bg); color: var(--text-primary); }
-.stApp [data-baseweb="popover"] { background: var(--card-bg); }
-/* Code blocks, inline code, blockquotes, tables — theme-aware */
-.stApp .stMarkdown code { color: var(--accent) !important; background: var(--accent-light) !important; padding: 1px 5px; border-radius: 4px; font-size: 0.9em; }
-.stApp .stMarkdown pre { background: var(--bg-tertiary) !important; border: 1px solid var(--border-color); border-radius: 8px; padding: 1rem; }
-.stApp .stMarkdown pre code { background: transparent !important; color: var(--text-primary) !important; padding: 0; }
-.stApp .stMarkdown blockquote { border-left: 3px solid var(--accent); padding: 0.5rem 1rem; margin: 0.5rem 0; background: var(--bg-secondary); color: var(--text-primary); border-radius: 0 6px 6px 0; }
-.stApp .stMarkdown table { background: var(--card-bg); border-collapse: collapse; width: 100%; }
-.stApp .stMarkdown th { background: var(--bg-tertiary); color: var(--text-primary); padding: 8px 12px; border: 1px solid var(--border-color); font-weight: 600; }
-.stApp .stMarkdown td { color: var(--text-primary); padding: 6px 12px; border: 1px solid var(--border-color); }
-"""
-
-st.markdown(f"<style>html.light {{{_LIGHT_VARS}}} html.dark {{{_DARK_VARS}}} {_DARK_STREAMLIT_OVERRIDES} {_BASE_CSS}</style>", unsafe_allow_html=True)
 
 # ── Sidebar content ──────────────────────────────────────────────────────────
 with st.sidebar:
@@ -412,14 +193,14 @@ with col_toggle:
         display: flex; align-items: center; justify-content: center;
       }
       .toggle-btn {
-        background: #f8f9fa;
-        border: 1px solid #d0d0d0;
-        border-radius: 6px;
+        background: var(--toggle-bg);
+        border: var(--hairline) solid var(--toggle-border);
+        border-radius: var(--radius-sm);
         cursor: pointer;
         font-size: 18px;
         width: 34px;
         height: 34px;
-        color: #333;
+        color: var(--toggle-icon);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -430,9 +211,9 @@ with col_toggle:
         -webkit-user-select: none;
       }
       .toggle-btn:hover {
-        background: #fff5f0;
-        border-color: #e85d04;
-        color: #e85d04;
+        background: var(--brand-soft);
+        border-color: var(--brand);
+        color: var(--brand);
       }
       .toggle-btn:active { transform: scale(0.93); }
     </style>
@@ -465,10 +246,10 @@ with col_toggle:
 with col_brand:
     st.markdown("""
     <div style="padding-top:0.1rem;">
-        <span style="font-size:1.1rem; font-weight:800; color:var(--accent);">AStock</span>
+        <span style="font-size:1.1rem; font-weight:800; color:var(--brand);">AStock</span>
         <span style="font-size:1.1rem; font-weight:800; color:var(--brand-text);"> Pro</span>
         <br>
-        <a href="https://github.com/zhzshuai-create" target="_blank" style="font-size:0.65rem; color:var(--text-tertiary); text-decoration:none;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text-tertiary)'">github.com/zhzshuai-create</a>
+        <a href="https://github.com/zhzshuai-create" target="_blank" style="font-size:0.65rem; color:var(--muted); text-decoration:none;" onmouseover="this.style.color='var(--brand)'" onmouseout="this.style.color='var(--muted)'">github.com/zhzshuai-create</a>
     </div>
     """, unsafe_allow_html=True)
 
@@ -514,17 +295,17 @@ with col_theme:
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
       html, body { height: 100%; background: transparent; display: flex; align-items: center; justify-content: center; }
-      .theme-toggle { display: flex; gap: 2px; background: #e9ecef; border-radius: 8px; padding: 2px; }
+      .theme-toggle { display: flex; gap: 2px; background: var(--theme-switch-bg); border-radius: var(--radius-md); padding: 2px; }
       .theme-btn {
-        width: 30px; height: 28px; border: none; border-radius: 6px;
+        width: 30px; height: 28px; border: none; border-radius: var(--radius-sm);
         cursor: pointer; font-size: 14px;
         display: flex; align-items: center; justify-content: center;
         transition: all 0.12s ease; line-height: 1;
       }
-      .theme-btn[data-theme="light"] { background: #fff; color: #333; }
-      .theme-btn[data-theme="dark"]  { background: #111; color: #fff; }
-      .theme-btn.active { box-shadow: 0 0 0 2px rgba(232,93,4,0.6); }
-      .theme-btn:not(.active):hover { box-shadow: 0 0 0 2px rgba(232,93,4,0.25); }
+      .theme-btn[data-theme="light"] { background: var(--theme-btn-light); color: var(--toggle-icon); }
+      .theme-btn[data-theme="dark"]  { background: var(--theme-btn-dark); color: var(--theme-btn-dark-text); }
+      .theme-btn.active { box-shadow: 0 0 0 2px var(--brand); opacity: 0.6; }
+      .theme-btn:not(.active):hover { box-shadow: 0 0 0 2px var(--brand); opacity: 0.25; }
     </style>
     </head>
     <body>
@@ -636,9 +417,9 @@ def _render_analysis_mode() -> None:
     # State 0: idle
     else:
         _SIG = {
-            "Buy": ("🟢 买入", "#22c55e", "#f0fdf4"),
-            "Sell": ("🔴 卖出", "#ef4444", "#fef2f2"),
-            "Hold": ("🟡 持有", "#f59e0b", "#fffbeb"),
+            "Buy": ("🟢 买入", "var(--buy)", "var(--buy-soft)"),
+            "Sell": ("🔴 卖出", "var(--sell)", "var(--sell-soft)"),
+            "Hold": ("🟡 持有", "var(--hold)", "var(--hold-soft)"),
         }
 
         @st.cache_data(ttl=3600, show_spinner=False)
@@ -649,7 +430,7 @@ def _render_analysis_mode() -> None:
                 return "N/A"
 
         def _badge(s: str) -> str:
-            label, color, bg = _SIG.get(s, (f"⚪ {s}", "#444", "#f5f5f5"))
+            label, color, bg = _SIG.get(s, (f"⚪ {s}", "var(--na)", "var(--na-soft)"))
             return (
                 f'<span style="display:inline-block;font-size:0.7rem;font-weight:700;'
                 f'color:{color};background:{bg};border:1px solid {color};'
@@ -660,12 +441,12 @@ def _render_analysis_mode() -> None:
         st.markdown("""
         <div style="text-align: center; margin-top: 1rem; margin-bottom: 1.5rem;">
             <div style="font-size: 2rem; font-weight: 900;">
-                <span style="color: #ff5a1f;">Trading</span><span style="color: #1a1a1a;">Agents</span><span style="color: #1a1a1a;">-</span><span style="color: #ff5a1f;">Astock</span>
+                <span style="color: var(--brand);">Trading</span><span style="color: var(--text);">Agents</span><span style="color: var(--text);">-</span><span style="color: var(--brand);">Astock</span>
             </div>
-            <div style="color: #333; font-size: 0.82rem; margin-top: 0.2rem;">
+            <div style="color: var(--muted); font-size: var(--font-md); margin-top: var(--space-xs);">
                 7位AI分析师 → 质量门控 → 多空辩论 → 风控评估 → 最终决策
             </div>
-            <div style="margin-top: 0.5rem; font-size: 0.7rem; color: #ff5a1f; background: #fff5f0; display: inline-block; padding: 3px 12px; border-radius: 10px; border: 1px solid #ffccb0;">
+            <div style="margin-top: 0.5rem; font-size: 0.7rem; color: var(--brand); background: var(--pill-bg); display: inline-block; padding: 3px 12px; border-radius: 10px; border: var(--hairline) solid var(--pill-border);">
                 统一平台 · 2026-05-22
             </div>
         </div>
@@ -675,7 +456,7 @@ def _render_analysis_mode() -> None:
 
         # Left: history
         with left:
-            st.markdown('<div style="font-weight:700;font-size:1.05rem;color:var(--text-primary); margin-bottom:0.4rem;">📊 历史分析记录</div>', unsafe_allow_html=True)
+            st.markdown('<div style="font-weight:700;font-size:1.05rem;color:var(--text); margin-bottom:0.4rem;">📊 历史分析记录</div>', unsafe_allow_html=True)
 
             full_history = get_history()
             history_search = st.text_input(
@@ -713,7 +494,7 @@ def _render_analysis_mode() -> None:
 
         # Right: new analysis
         with right:
-            st.markdown('<div style="font-weight:700;font-size:1.05rem;color:var(--text-primary); margin-bottom:0.4rem;">🔍 新建分析</div>', unsafe_allow_html=True)
+            st.markdown('<div style="font-weight:700;font-size:1.05rem;color:var(--text); margin-bottom:0.4rem;">🔍 新建分析</div>', unsafe_allow_html=True)
             ticker = st.text_input("代码", placeholder="输入 6 位代码如 000636",
                                    max_chars=6, label_visibility="collapsed")
             trade_date = st.date_input("分析日期", label_visibility="collapsed")
@@ -728,7 +509,7 @@ def _render_analysis_mode() -> None:
 
     # Footer
     st.markdown("""
-    <div style="text-align:center;margin-top:2rem;padding:0.8rem;color:var(--text-tertiary); font-size:0.75rem; border-top:1px solid var(--border-color);">
+    <div style="text-align:center;margin-top:2rem;padding:0.8rem;color:var(--muted); font-size:0.75rem; border-top:1px solid var(--line);">
         ⚠️ 本项目仅供学习研究，不构成任何投资建议。
     </div>
     """, unsafe_allow_html=True)
@@ -807,7 +588,7 @@ def _render_data_mode() -> None:
                 st.error(f"未找到 {code} 的行情数据")
             else:
                 q = quote[code]
-                clr = "#e03131" if q["change_pct"] >= 0 else "#2f9e44"
+                clr = "var(--up)" if q["change_pct"] >= 0 else "var(--down)"
 
                 st.markdown(f"### {q['name']}({code})")
 
@@ -857,13 +638,13 @@ def _render_data_mode() -> None:
                             st.markdown("#### 估值指标")
                             v1, v2, v3, v4 = st.columns(4)
                             with v1:
-                                pe_color = "#e03131" if pe_fwd > 50 else ("#f08c00" if pe_fwd > 30 else "#2f9e44")
+                                pe_color = "var(--up)" if pe_fwd > 50 else ("var(--warn)" if pe_fwd > 30 else "var(--down)")
                                 st.markdown(f'<div class="metric-card"><div class="label">前向 PE</div><div class="value" style="color:{pe_color}">{pe_fwd:.1f}x</div><div class="sub">{analyst_count} 家覆盖</div></div>', unsafe_allow_html=True)
                             with v2:
                                 st.markdown(f'<div class="metric-card"><div class="label">CAGR</div><div class="value">{cagr*100:.0f}%</div><div class="sub">EPS 增速</div></div>', unsafe_allow_html=True)
                             with v3:
                                 peg_str = f"{peg_val:.2f}" if peg_val != float("inf") else "-"
-                                peg_color = "#2f9e44" if peg_val < 1 else ("#f08c00" if peg_val < 1.5 else "#e03131")
+                                peg_color = "var(--down)" if peg_val < 1 else ("var(--warn)" if peg_val < 1.5 else "var(--up)")
                                 st.markdown(f'<div class="metric-card"><div class="label">PEG</div><div class="value" style="color:{peg_color}">{peg_str}</div><div class="sub">{"便宜" if peg_val < 1 else ("合理" if peg_val < 1.5 else "偏贵")}</div></div>', unsafe_allow_html=True)
                             with v4:
                                 digest_str = f"{digest:.1f}年" if digest != float("inf") else "∞"
@@ -920,7 +701,7 @@ def _render_data_mode() -> None:
                             st.altair_chart(_vol_chart(vol_s), use_container_width=True)
                             closes5 = k5["close"]
                             chg5 = (closes5.iloc[-1] / closes5.iloc[0] - 1) * 100 if len(closes5) >= 2 else 0
-                            chg5_color = "#e03131" if chg5 > 0 else "#2f9e44"
+                            chg5_color = "var(--up)" if chg5 > 0 else "var(--down)"
                             st.markdown(f'5日变动: <span style="color:{chg5_color};font-weight:700">{chg5:+.2f}%</span>', unsafe_allow_html=True)
                         else:
                             st.caption("暂无数据")
@@ -936,7 +717,7 @@ def _render_data_mode() -> None:
                             closes = k30["close"]
                             chg = (closes.iloc[-1] / closes.iloc[0] - 1) * 100
                             avg_vol = k30["vol"].mean()
-                            chg_color = "#e03131" if chg > 0 else "#2f9e44"
+                            chg_color = "var(--up)" if chg > 0 else "var(--down)"
                             st.markdown(f'30日涨幅: <span style="color:{chg_color};font-weight:700">{chg:+.2f}%</span>  |  日均成交量: {avg_vol/10000:.1f}万手', unsafe_allow_html=True)
                         else:
                             st.caption("暂无K线数据")
@@ -950,7 +731,7 @@ def _render_data_mode() -> None:
                             st.altair_chart(_price_chart(close_s), use_container_width=True)
                             closes_all = all_k["close"]
                             chg_all = (closes_all.iloc[-1] / closes_all.iloc[0] - 1) * 100 if len(closes_all) >= 2 else 0
-                            chga_color = "#e03131" if chg_all > 0 else "#2f9e44"
+                            chga_color = "var(--up)" if chg_all > 0 else "var(--down)"
                             st.markdown(f'上市至今: <span style="color:{chga_color};font-weight:700">{chg_all:+.2f}%</span>  |  共 {len(all_k)} 个交易日', unsafe_allow_html=True)
                         else:
                             st.caption("暂无全部历史K线数据")
@@ -983,18 +764,18 @@ def _render_data_mode() -> None:
                 code = str(row.get("代码", ""))
                 name = str(row.get("名称", ""))
                 pct_val = row.get("涨幅%", 0)
-                pct_color = "#e03131" if pct_val >= 0 else "#2f9e44"
+                pct_color = "var(--up)" if pct_val >= 0 else "var(--down)"
                 reason_text = str(row.get(reason_col, "")) if reason_col in row.index else ""
 
                 c_cols = st.columns([1, 2, 1.5, 5, 1.2])
                 with c_cols[0]:
-                    st.markdown(f'<div style="padding-top:0.4rem;font-weight:700;color:var(--text-primary);">{code}</div>', unsafe_allow_html=True)
+                    st.markdown(f'<div style="padding-top:0.4rem;font-weight:700;color:var(--text);">{code}</div>', unsafe_allow_html=True)
                 with c_cols[1]:
-                    st.markdown(f'<div style="padding-top:0.4rem;color:var(--text-secondary);">{name}</div>', unsafe_allow_html=True)
+                    st.markdown(f'<div style="padding-top:0.4rem;color:var(--muted);">{name}</div>', unsafe_allow_html=True)
                 with c_cols[2]:
                     st.markdown(f'<div style="padding-top:0.4rem;font-weight:700;color:{pct_color};">{pct_val:+.2f}%</div>', unsafe_allow_html=True)
                 with c_cols[3]:
-                    st.markdown(f'<div style="padding-top:0.4rem;color:var(--text-secondary);font-size:0.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{reason_text}</div>', unsafe_allow_html=True)
+                    st.markdown(f'<div style="padding-top:0.4rem;color:var(--muted);font-size:0.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{reason_text}</div>', unsafe_allow_html=True)
                 with c_cols[4]:
                     if st.button("📊 查看", key=f"hot_{code}", use_container_width=True):
                         st.session_state["data_code"] = normalize_code(code)
@@ -1015,10 +796,10 @@ def _render_data_mode() -> None:
                     last = df_clean.iloc[-1]
                     nc1, nc2 = st.columns(2)
                     with nc1:
-                        hgt_color = "#e03131" if last["hgt_yi"] > 0 else "#2f9e44"
+                        hgt_color = "var(--up)" if last["hgt_yi"] > 0 else "var(--down)"
                         st.markdown(f'<div class="metric-card"><div class="label">沪股通累计净买入</div><div class="value" style="color:{hgt_color}">{last["hgt_yi"]:.2f} 亿</div></div>', unsafe_allow_html=True)
                     with nc2:
-                        sgt_color = "#e03131" if last["sgt_yi"] > 0 else "#2f9e44"
+                        sgt_color = "var(--up)" if last["sgt_yi"] > 0 else "var(--down)"
                         st.markdown(f'<div class="metric-card"><div class="label">深股通累计净买入</div><div class="value" style="color:{sgt_color}">{last["sgt_yi"]:.2f} 亿</div></div>', unsafe_allow_html=True)
                     st.line_chart(df_clean.set_index("time")[["hgt_yi", "sgt_yi"]], y_label="累计净买入(亿)", width='stretch')
             else:
@@ -1037,13 +818,13 @@ def _render_data_mode() -> None:
                     st.markdown("**涨幅 TOP 10**")
                     for r in comp["top"][:10]:
                         pct = r["change_pct"]
-                        clr = "#e03131" if pct >= 0 else "#2f9e44"
+                        clr = "var(--up)" if pct >= 0 else "var(--down)"
                         st.markdown(f"<span style='color:{clr}'>{pct:+.2f}%</span> {r['name']} 涨{r['up_count']}跌{r['down_count']}", unsafe_allow_html=True)
                 with ct2:
                     st.markdown("**跌幅 TOP 10**")
                     for r in comp["bottom"][:10]:
                         pct = r["change_pct"]
-                        clr = "#e03131" if pct >= 0 else "#2f9e44"
+                        clr = "var(--up)" if pct >= 0 else "var(--down)"
                         st.markdown(f"<span style='color:{clr}'>{pct:+.2f}%</span> {r['name']}", unsafe_allow_html=True)
 
             if code:
@@ -1086,7 +867,7 @@ def _render_data_mode() -> None:
         else:
             st.info("在上方输入股票代码可加载个股新闻")
 
-    st.markdown('<div class="footer-note">AStock Pro · <a href="https://github.com/zhzshuai-create" target="_blank" style="color:var(--text-tertiary); text-decoration:none;">github.com/zhzshuai-create</a> | a-stock-data V3.1 | 数据仅供参考，不构成投资建议</div>', unsafe_allow_html=True)
+    st.markdown('<div class="footer-note">AStock Pro · <a href="https://github.com/zhzshuai-create" target="_blank" style="color:var(--muted); text-decoration:none;">github.com/zhzshuai-create</a> | a-stock-data V3.1 | 数据仅供参考，不构成投资建议</div>', unsafe_allow_html=True)
 
 
 def _render_market_overview() -> None:
@@ -1102,13 +883,13 @@ def _render_market_overview() -> None:
             st.markdown("**📈 涨幅 TOP 10**")
             for r in comp["top"][:10]:
                 pct = r["change_pct"]
-                clr = "#e03131" if pct >= 0 else "#2f9e44"
+                clr = "var(--up)" if pct >= 0 else "var(--down)"
                 st.markdown(f"<span style='color:{clr};font-weight:600'>{pct:+.2f}%</span> {r['name']} 涨{r['up_count']}跌{r['down_count']}", unsafe_allow_html=True)
         with c2:
             st.markdown("**📉 跌幅 TOP 10**")
             for r in comp["bottom"][:10]:
                 pct = r["change_pct"]
-                clr = "#e03131" if pct >= 0 else "#2f9e44"
+                clr = "var(--up)" if pct >= 0 else "var(--down)"
                 st.markdown(f"<span style='color:{clr};font-weight:600'>{pct:+.2f}%</span> {r['name']}", unsafe_allow_html=True)
     else:
         st.caption("暂无行业数据")
@@ -1120,7 +901,7 @@ def _render_market_overview() -> None:
     if not df_hot.empty:
         for _, row in df_hot.head(10).iterrows():
             pct_val = row.get("涨幅%", 0)
-            pct_color = "#e03131" if pct_val >= 0 else "#2f9e44"
+            pct_color = "var(--up)" if pct_val >= 0 else "var(--down)"
             reason_col = "题材归因" if "题材归因" in df_hot.columns else "reason"
             reason_text = str(row.get(reason_col, "")) if reason_col in row.index else ""
             st.markdown(f'<div class="stock-card"><span class="code">{row.get("代码", "-")}</span><span class="name">{row.get("名称", "-")}</span><span class="pct" style="color:{pct_color}">{pct_val:+.2f}%</span><span class="reason">{reason_text}</span></div>', unsafe_allow_html=True)

@@ -198,12 +198,12 @@ def render_sidebar() -> None:
     st.markdown(
         """
         <div style="text-align:center; margin-bottom:1.5rem;">
-            <span style="font-size:2rem; font-weight:800; color:#ff5a1f;">Trading</span><span style="font-size:2rem; font-weight:800; color:#ff5a1f;">Agents</span><span style="font-size:2rem; font-weight:800; color:#f5f1eb;">-</span><span style="font-size:2rem; font-weight:800; color:#ff5a1f;">Astock</span>
-            <div style="font-size:0.85rem; color:#888; margin-top:0.2rem;">
+            <span style="font-size:2rem; font-weight:800; color:var(--brand);">Trading</span><span style="font-size:2rem; font-weight:800; color:var(--brand);">Agents</span><span style="font-size:2rem; font-weight:800; color:var(--text);">-</span><span style="font-size:2rem; font-weight:800; color:var(--brand);">Astock</span>
+            <div style="font-size:var(--font-md); color:var(--muted); margin-top:var(--space-xs);">
                 A股多Agent投研系统
             </div>
-            <div style="font-size:0.7rem; color:#555; margin-top:0.3rem;">
-                by <a href="https://github.com/zhzshuai-create" style="color:#ff5a1f; text-decoration:none;">zhzshuai-create</a>
+            <div style="font-size:var(--font-xs); color:var(--muted); margin-top:var(--space-xs);">
+                by <a href="https://github.com/zhzshuai-create" style="color:var(--brand); text-decoration:none;">zhzshuai-create</a>
             </div>
         </div>
         """,
