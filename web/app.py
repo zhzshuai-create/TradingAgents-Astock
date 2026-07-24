@@ -171,7 +171,7 @@ components.html("""
 
 from web.theme import CSS
 
-st.markdown(f"<style>{{CSS}}</style>", unsafe_allow_html=True)
+st.markdown(f"<style>{CSS}</style>", unsafe_allow_html=True)
 
 
 # ── Sidebar content ──────────────────────────────────────────────────────────
