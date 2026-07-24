@@ -601,13 +601,13 @@ def _render_data_mode() -> None:
                 st.error(f"未找到 {code} 的行情数据")
             else:
                 q = quote[code]
-                clr = "var(--up)" if q["change_pct"] >= 0 else "var(--down)"
+                clr = "txt-up" if q["change_pct"] >= 0 else "txt-down"
 
                 st.markdown(f"### {q['name']}({code})")
 
                 c1, c2, c3, c4, c5, c6 = st.columns(6)
                 with c1:
-                    st.markdown(f'<div class="metric-card"><div class="label">当前价</div><div class="value" style="color:{clr}">{q["price"]:.2f}</div><div class="sub">{q["change_amt"]:+.2f} ({q["change_pct"]:+.2f}%)</div></div>', unsafe_allow_html=True)
+                    st.markdown(f'<div class="metric-card"><div class="label">当前价</div><div class="value" class="{clr}">{q["price"]:.2f}</div><div class="sub">{q["change_amt"]:+.2f} ({q["change_pct"]:+.2f}%)</div></div>', unsafe_allow_html=True)
                 with c2:
                     st.markdown(f'<div class="metric-card"><div class="label">PE(TTM)</div><div class="value">{q["pe_ttm"]:.1f}</div><div class="sub">{"亏损" if q["pe_ttm"] <= 0 else "盈利"}</div></div>', unsafe_allow_html=True)
                 with c3:
@@ -651,14 +651,14 @@ def _render_data_mode() -> None:
                             st.markdown("#### 估值指标")
                             v1, v2, v3, v4 = st.columns(4)
                             with v1:
-                                pe_color = "var(--up)" if pe_fwd > 50 else ("var(--warn)" if pe_fwd > 30 else "var(--down)")
-                                st.markdown(f'<div class="metric-card"><div class="label">前向 PE</div><div class="value" style="color:{pe_color}">{pe_fwd:.1f}x</div><div class="sub">{analyst_count} 家覆盖</div></div>', unsafe_allow_html=True)
+                                pe_color = "txt-up" if pe_fwd > 50 else ("txt-warn" if pe_fwd > 30 else "txt-down")
+                                st.markdown(f'<div class="metric-card"><div class="label">前向 PE</div><div class="value" class="{pe_color}">{pe_fwd:.1f}x</div><div class="sub">{analyst_count} 家覆盖</div></div>', unsafe_allow_html=True)
                             with v2:
                                 st.markdown(f'<div class="metric-card"><div class="label">CAGR</div><div class="value">{cagr*100:.0f}%</div><div class="sub">EPS 增速</div></div>', unsafe_allow_html=True)
                             with v3:
                                 peg_str = f"{peg_val:.2f}" if peg_val != float("inf") else "-"
-                                peg_color = "var(--down)" if peg_val < 1 else ("var(--warn)" if peg_val < 1.5 else "var(--up)")
-                                st.markdown(f'<div class="metric-card"><div class="label">PEG</div><div class="value" style="color:{peg_color}">{peg_str}</div><div class="sub">{"便宜" if peg_val < 1 else ("合理" if peg_val < 1.5 else "偏贵")}</div></div>', unsafe_allow_html=True)
+                                peg_color = "txt-down" if peg_val < 1 else ("txt-warn" if peg_val < 1.5 else "txt-up")
+                                st.markdown(f'<div class="metric-card"><div class="label">PEG</div><div class="value" class="{peg_color}">{peg_str}</div><div class="sub">{"便宜" if peg_val < 1 else ("合理" if peg_val < 1.5 else "偏贵")}</div></div>', unsafe_allow_html=True)
                             with v4:
                                 digest_str = f"{digest:.1f}年" if digest != float("inf") else "∞"
                                 st.markdown(f'<div class="metric-card"><div class="label">PE 消化</div><div class="value">{digest_str}</div><div class="sub">消化至 30x</div></div>', unsafe_allow_html=True)
@@ -714,8 +714,8 @@ def _render_data_mode() -> None:
                             st.altair_chart(_vol_chart(vol_s), use_container_width=True)
                             closes5 = k5["close"]
                             chg5 = (closes5.iloc[-1] / closes5.iloc[0] - 1) * 100 if len(closes5) >= 2 else 0
-                            chg5_color = "var(--up)" if chg5 > 0 else "var(--down)"
-                            st.markdown(f'5日变动: <span style="color:{chg5_color};font-weight:700">{chg5:+.2f}%</span>', unsafe_allow_html=True)
+                            chg5_color = "txt-up" if chg5 > 0 else "txt-down"
+                            st.markdown(f'5日变动: <span class="{chg5_color}" style="font-weight:700">{chg5:+.2f}%</span>', unsafe_allow_html=True)
                         else:
                             st.caption("暂无数据")
 
@@ -730,8 +730,8 @@ def _render_data_mode() -> None:
                             closes = k30["close"]
                             chg = (closes.iloc[-1] / closes.iloc[0] - 1) * 100
                             avg_vol = k30["vol"].mean()
-                            chg_color = "var(--up)" if chg > 0 else "var(--down)"
-                            st.markdown(f'30日涨幅: <span style="color:{chg_color};font-weight:700">{chg:+.2f}%</span>  |  日均成交量: {avg_vol/10000:.1f}万手', unsafe_allow_html=True)
+                            chg_color = "txt-up" if chg > 0 else "txt-down"
+                            st.markdown(f'30日涨幅: <span class="{chg_color}" style="font-weight:700">{chg:+.2f}%</span>  |  日均成交量: {avg_vol/10000:.1f}万手', unsafe_allow_html=True)
                         else:
                             st.caption("暂无K线数据")
 
@@ -744,8 +744,8 @@ def _render_data_mode() -> None:
                             st.altair_chart(_price_chart(close_s), use_container_width=True)
                             closes_all = all_k["close"]
                             chg_all = (closes_all.iloc[-1] / closes_all.iloc[0] - 1) * 100 if len(closes_all) >= 2 else 0
-                            chga_color = "var(--up)" if chg_all > 0 else "var(--down)"
-                            st.markdown(f'上市至今: <span style="color:{chga_color};font-weight:700">{chg_all:+.2f}%</span>  |  共 {len(all_k)} 个交易日', unsafe_allow_html=True)
+                            chga_color = "txt-up" if chg_all > 0 else "txt-down"
+                            st.markdown(f'上市至今: <span class="{chga_color}" style="font-weight:700">{chg_all:+.2f}%</span>  |  共 {len(all_k)} 个交易日', unsafe_allow_html=True)
                         else:
                             st.caption("暂无全部历史K线数据")
 
@@ -777,7 +777,7 @@ def _render_data_mode() -> None:
                 code = str(row.get("代码", ""))
                 name = str(row.get("名称", ""))
                 pct_val = row.get("涨幅%", 0)
-                pct_color = "var(--up)" if pct_val >= 0 else "var(--down)"
+                pct_color = "txt-up" if pct_val >= 0 else "txt-down"
                 reason_text = str(row.get(reason_col, "")) if reason_col in row.index else ""
 
                 c_cols = st.columns([1, 2, 1.5, 5, 1.2])
@@ -786,7 +786,7 @@ def _render_data_mode() -> None:
                 with c_cols[1]:
                     st.markdown(f'<div style="padding-top:var(--space-xs);color:var(--muted);">{name}</div>', unsafe_allow_html=True)
                 with c_cols[2]:
-                    st.markdown(f'<div style="padding-top:var(--space-xs);font-weight:700;color:{pct_color};">{pct_val:+.2f}%</div>', unsafe_allow_html=True)
+                    st.markdown(f'<div class="{pct_color}" style="padding-top:var(--space-xs);font-weight:700">{pct_val:+.2f}%</div>', unsafe_allow_html=True)
                 with c_cols[3]:
                     st.markdown(f'<div style="padding-top:var(--space-xs);color:var(--muted);font-size:var(--font-md);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{reason_text}</div>', unsafe_allow_html=True)
                 with c_cols[4]:
@@ -809,11 +809,11 @@ def _render_data_mode() -> None:
                     last = df_clean.iloc[-1]
                     nc1, nc2 = st.columns(2)
                     with nc1:
-                        hgt_color = "var(--up)" if last["hgt_yi"] > 0 else "var(--down)"
-                        st.markdown(f'<div class="metric-card"><div class="label">沪股通累计净买入</div><div class="value" style="color:{hgt_color}">{last["hgt_yi"]:.2f} 亿</div></div>', unsafe_allow_html=True)
+                        hgt_color = "txt-up" if last["hgt_yi"] > 0 else "txt-down"
+                        st.markdown(f'<div class="metric-card"><div class="label">沪股通累计净买入</div><div class="value" class="{hgt_color}">{last["hgt_yi"]:.2f} 亿</div></div>', unsafe_allow_html=True)
                     with nc2:
-                        sgt_color = "var(--up)" if last["sgt_yi"] > 0 else "var(--down)"
-                        st.markdown(f'<div class="metric-card"><div class="label">深股通累计净买入</div><div class="value" style="color:{sgt_color}">{last["sgt_yi"]:.2f} 亿</div></div>', unsafe_allow_html=True)
+                        sgt_color = "txt-up" if last["sgt_yi"] > 0 else "txt-down"
+                        st.markdown(f'<div class="metric-card"><div class="label">深股通累计净买入</div><div class="value" class="{sgt_color}">{last["sgt_yi"]:.2f} 亿</div></div>', unsafe_allow_html=True)
                     st.line_chart(df_clean.set_index("time")[["hgt_yi", "sgt_yi"]], y_label="累计净买入(亿)", width='stretch')
             else:
                 st.warning("暂无北向实时数据（非交易时段）")
@@ -831,14 +831,14 @@ def _render_data_mode() -> None:
                     st.markdown("**涨幅 TOP 10**")
                     for r in comp["top"][:10]:
                         pct = r["change_pct"]
-                        clr = "var(--up)" if pct >= 0 else "var(--down)"
-                        st.markdown(f"<span style='color:{clr}'>{pct:+.2f}%</span> {r['name']} 涨{r['up_count']}跌{r['down_count']}", unsafe_allow_html=True)
+                        clr = "txt-up" if pct >= 0 else "txt-down"
+                        st.markdown(f"<span class='{clr}'>{pct:+.2f}%</span> {r['name']} 涨{r['up_count']}跌{r['down_count']}", unsafe_allow_html=True)
                 with ct2:
                     st.markdown("**跌幅 TOP 10**")
                     for r in comp["bottom"][:10]:
                         pct = r["change_pct"]
-                        clr = "var(--up)" if pct >= 0 else "var(--down)"
-                        st.markdown(f"<span style='color:{clr}'>{pct:+.2f}%</span> {r['name']}", unsafe_allow_html=True)
+                        clr = "txt-up" if pct >= 0 else "txt-down"
+                        st.markdown(f"<span class='{clr}'>{pct:+.2f}%</span> {r['name']}", unsafe_allow_html=True)
 
             if code:
                 st.markdown(f"#### {code} K线走势")
@@ -896,14 +896,14 @@ def _render_market_overview() -> None:
             st.markdown("**📈 涨幅 TOP 10**")
             for r in comp["top"][:10]:
                 pct = r["change_pct"]
-                clr = "var(--up)" if pct >= 0 else "var(--down)"
-                st.markdown(f"<span style='color:{clr};font-weight:600'>{pct:+.2f}%</span> {r['name']} 涨{r['up_count']}跌{r['down_count']}", unsafe_allow_html=True)
+                clr = "txt-up" if pct >= 0 else "txt-down"
+                st.markdown(f"<span class='{clr}' style='font-weight:600'>{pct:+.2f}%</span> {r['name']} 涨{r['up_count']}跌{r['down_count']}", unsafe_allow_html=True)
         with c2:
             st.markdown("**📉 跌幅 TOP 10**")
             for r in comp["bottom"][:10]:
                 pct = r["change_pct"]
-                clr = "var(--up)" if pct >= 0 else "var(--down)"
-                st.markdown(f"<span style='color:{clr};font-weight:600'>{pct:+.2f}%</span> {r['name']}", unsafe_allow_html=True)
+                clr = "txt-up" if pct >= 0 else "txt-down"
+                st.markdown(f"<span class='{clr}' style='font-weight:600'>{pct:+.2f}%</span> {r['name']}", unsafe_allow_html=True)
     else:
         st.caption("暂无行业数据")
 
@@ -914,10 +914,10 @@ def _render_market_overview() -> None:
     if not df_hot.empty:
         for _, row in df_hot.head(10).iterrows():
             pct_val = row.get("涨幅%", 0)
-            pct_color = "var(--up)" if pct_val >= 0 else "var(--down)"
+            pct_color = "txt-up" if pct_val >= 0 else "txt-down"
             reason_col = "题材归因" if "题材归因" in df_hot.columns else "reason"
             reason_text = str(row.get(reason_col, "")) if reason_col in row.index else ""
-            st.markdown(f'<div class="stock-card"><span class="code">{row.get("代码", "-")}</span><span class="name">{row.get("名称", "-")}</span><span class="pct" style="color:{pct_color}">{pct_val:+.2f}%</span><span class="reason">{reason_text}</span></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="stock-card"><span class="code">{row.get("代码", "-")}</span><span class="name">{row.get("名称", "-")}</span><span class="pct" class="{pct_color}">{pct_val:+.2f}%</span><span class="reason">{reason_text}</span></div>', unsafe_allow_html=True)
     else:
         st.caption("暂无今日数据")
 
