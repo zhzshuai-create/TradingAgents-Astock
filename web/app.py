@@ -179,7 +179,10 @@ with st.sidebar:
     render_sidebar()
 
 # ── Top navigation bar (replaces sidebar) ──
-col_toggle, col_brand, col_nav, col_search, col_theme = st.columns([0.15, 1, 1.5, 2, 0.5])
+# 结构批：5列→4列，砍掉空占位列，col_nav并入col_brand，vertical_alignment对齐
+col_toggle, col_brand, col_search, col_theme = st.columns(
+    [0.8, 1.5, 3, 0.7], vertical_alignment="center"
+)
 with col_toggle:
     components.html("""
     <!DOCTYPE html>
@@ -244,21 +247,18 @@ with col_toggle:
     </html>
     """, height=44)
 with col_brand:
+    # 结构批：logo + radio 同列上下排列 → 引用 theme.py .topbar 容器
     st.markdown("""
-    <div style="padding-top:0.1rem;">
+    <div class="topbar">
         <span style="font-size:1.1rem; font-weight:800; color:var(--brand);">AStock</span>
-        <span style="font-size:1.1rem; font-weight:800; color:var(--brand-text);"> Pro</span>
-        <br>
-        <a href="https://github.com/zhzshuai-create" target="_blank" style="font-size:0.65rem; color:var(--muted); text-decoration:none;" onmouseover="this.style.color='var(--brand)'" onmouseout="this.style.color='var(--muted)'">github.com/zhzshuai-create</a>
+        <span style="font-size:1.1rem; font-weight:800; color:var(--text);"> Pro</span>
     </div>
     """, unsafe_allow_html=True)
-
-with col_nav:
     mode = st.radio(
         "模式",
         ["📊 AI分析报告", "📈 实时数据看板"],
         index=0 if st.session_state.get("app_mode") == "analysis" else 1,
-        horizontal=True, key="top_mode",
+        horizontal=True, key="top_mode", label_visibility="collapsed",
     )
     if "AI分析" in mode and st.session_state.get("app_mode") != "analysis":
         st.session_state["app_mode"] = "analysis"
@@ -416,10 +416,19 @@ def _render_analysis_mode() -> None:
 
     # State 0: idle
     else:
+        # 结构批：信号→标签文案（class 映射见 _TAG_CLASS）
         _SIG = {
-            "Buy": ("🟢 买入", "var(--buy)", "var(--buy-soft)"),
-            "Sell": ("🔴 卖出", "var(--sell)", "var(--sell-soft)"),
-            "Hold": ("🟡 持有", "var(--hold)", "var(--hold-soft)"),
+            "Buy": "🟢 买入",
+            "Sell": "🔴 卖出",
+            "Hold": "🟡 持有",
+        }
+
+        # 结构批：标签 class 映射——Buy→tag--buy, Sell→tag--sell, Hold→tag--na(TODO), N/A→tag--na
+        _TAG_CLASS = {
+            "Buy": "tag--buy",
+            "Sell": "tag--sell",
+            "Hold": "tag--na",   # TODO: 第二批新增 .tag--hold 后改为 tag--hold
+            "N/A": "tag--na",
         }
 
         @st.cache_data(ttl=3600, show_spinner=False)
@@ -430,12 +439,10 @@ def _render_analysis_mode() -> None:
                 return "N/A"
 
         def _badge(s: str) -> str:
-            label, color, bg = _SIG.get(s, (f"⚪ {s}", "var(--na)", "var(--na-soft)"))
-            return (
-                f'<span style="display:inline-block;font-size:0.7rem;font-weight:700;'
-                f'color:{color};background:{bg};border:1px solid {color};'
-                f'border-radius:4px;padding:2px 8px;white-space:nowrap;">{label}</span>'
-            )
+            """结构批：返回 class 化标签 HTML，零内联样式 → 引用 .tag .tag--*"""
+            label = _SIG.get(s, f"⚪ {s}")
+            tag_cls = _TAG_CLASS.get(s, "tag--na")
+            return f'<span class="tag {tag_cls}">{label}</span>'
 
         # Banner
         st.markdown("""
@@ -452,11 +459,13 @@ def _render_analysis_mode() -> None:
         </div>
         """, unsafe_allow_html=True)
 
-        left, right = st.columns([1, 1])
+        # 结构批：左窄右宽 [2:3]，左栏列表仅 code+date+tag，右栏表单需要输入框宽度
+        left, right = st.columns([2, 3])
 
         # Left: history
         with left:
-            st.markdown('<div style="font-weight:700;font-size:1.05rem;color:var(--text); margin-bottom:0.4rem;">📊 历史分析记录</div>', unsafe_allow_html=True)
+            # 结构批：区块标题 → 引用 .card__title
+            st.markdown('<div class="card__title">📊 历史分析记录</div>', unsafe_allow_html=True)
 
             full_history = get_history()
             history_search = st.text_input(
@@ -483,6 +492,8 @@ def _render_analysis_mode() -> None:
                     t, d, p = entry["ticker"], entry["date"], entry["path"]
                     signal = _signal_for(p)
                     badge_html = _badge(signal)
+                    # 结构批：行布局 → 引用 .row / .row__meta
+                    date_html = f'<span class="row__meta">{d}</span>'
                     c1, c2 = st.columns([2.2, 1])
                     with c1:
                         if st.button(f"📈 {t}  ·  {d}", key=f"main_hist_{t}_{d}", use_container_width=True):
@@ -490,11 +501,13 @@ def _render_analysis_mode() -> None:
                             st.session_state["start_analysis"] = None
                             st.rerun()
                     with c2:
-                        st.markdown(f'<div style="padding-top:6px;text-align:right;">{badge_html}</div>', unsafe_allow_html=True)
+                        st.markdown(f'<div>{badge_html}</div>', unsafe_allow_html=True)
 
         # Right: new analysis
         with right:
-            st.markdown('<div style="font-weight:700;font-size:1.05rem;color:var(--text); margin-bottom:0.4rem;">🔍 新建分析</div>', unsafe_allow_html=True)
+            # 结构批：区块外包 .card + 标题用 .card__title
+            st.markdown('<div class="card">', unsafe_allow_html=True)
+            st.markdown('<div class="card__title">🔍 新建分析</div>', unsafe_allow_html=True)
             ticker = st.text_input("代码", placeholder="输入 6 位代码如 000636",
                                    max_chars=6, label_visibility="collapsed")
             trade_date = st.date_input("分析日期", label_visibility="collapsed")
@@ -506,6 +519,7 @@ def _render_analysis_mode() -> None:
                 }
                 st.session_state["viewing_history"] = None
                 st.rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
 
     # Footer
     st.markdown("""
