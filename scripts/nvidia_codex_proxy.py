@@ -2,20 +2,35 @@
 NVIDIA NIM → Codex Proxy (simple synchronous HTTP server)
 """
 import json, os, sys, time, traceback
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 import httpx
+
+LOG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "proxy_debug.log")
+def log(msg):
+    with open(LOG_FILE, "a", encoding="utf-8") as f:
+        f.write(f"[{time.strftime('%H:%M:%S')}] {msg}\n")
+    print(msg, file=sys.stderr, flush=True)
 
 NVIDIA_BASE = os.getenv("NVIDIA_BASE_URL", "https://integrate.api.nvidia.com/v1")
 NVIDIA_KEY = os.getenv("NVIDIA_API_KEY", "")
+DEEPSEEK_BASE = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1")
+DEEPSEEK_KEY = os.getenv("DEEPSEEK_API_KEY", "")
 API_KEY = os.getenv("PROXY_API_KEY", "nvapi-proxy")
 PORT = int(os.getenv("PROXY_PORT", "8317"))
 
+def route_backend(model):
+    """Return (base_url, api_key) based on model name."""
+    if "deepseek" in model.lower():
+        return DEEPSEEK_BASE, DEEPSEEK_KEY
+    return NVIDIA_BASE, NVIDIA_KEY
+
 
 class ProxyHandler(BaseHTTPRequestHandler):
+    protocol_version = "HTTP/1.1"
 
     def _check_auth(self):
-        auth = self.headers.get("Authorization", "")
-        return auth.replace("Bearer ", "") == API_KEY
+        # Localhost proxy — accept any auth token
+        return True
 
     def _send_json(self, data, status=200):
         body = json.dumps(data, ensure_ascii=False).encode("utf-8")
@@ -25,28 +40,48 @@ class ProxyHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
-    def _send_sse(self, data_str):
+    def _send_sse(self, data_str, event=None):
+        if event:
+            chunk = f"event: {event}\n".encode("utf-8")
+            self.wfile.write(chunk)
         chunk = f"data: {data_str}\n\n".encode("utf-8")
         self.wfile.write(chunk)
         self.wfile.flush()
+
+    def do_OPTIONS(self):
+        self.send_response(200)
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Authorization, Content-Type")
+        self.end_headers()
 
     def do_GET(self):
         if not self._check_auth():
             self._send_json({"error": "unauthorized"}, 401)
             return
 
-        if self.path == "/health":
+        if self.path == "/health" or self.path == "/" or self.path == "/v1":
             self._send_json({"status": "ok", "backend": NVIDIA_BASE})
         elif self.path == "/v1/models":
             self._send_json({"object": "list", "data": [
-                {"id": "z-ai/glm-5.2", "object": "model", "owned_by": "nvidia",
-                 "capabilities": {"supports_tool_calls": True, "supports_streaming": True},
+                {"id": "z-ai/glm-5.2", "object": "model", "owned_by": "nvidia", "created": 1750000000,
+                 "capabilities": {"supports_tool_calls": True, "supports_parallel_tool_calls": True, "supports_streaming": True, "supports_images": False},
                  "context_window": 200000, "max_output_tokens": 16384},
-                {"id": "deepseek-ai/deepseek-v4-pro", "object": "model", "owned_by": "nvidia",
+                {"id": "deepseek-ai/deepseek-v4-pro", "object": "model", "owned_by": "nvidia", "created": 1750000000,
+                 "capabilities": {"supports_tool_calls": True, "supports_parallel_tool_calls": True, "supports_streaming": True, "supports_images": False},
+                 "context_window": 131072, "max_output_tokens": 16384},
+                {"id": "deepseek-ai/deepseek-v4-flash", "object": "model", "owned_by": "nvidia", "created": 1750000000,
                  "capabilities": {"supports_tool_calls": True, "supports_streaming": True},
                  "context_window": 131072, "max_output_tokens": 16384},
             ]})
+        elif self.path.startswith("/v1/models/"):
+            # Single model lookup
+            model_id = self.path[len("/v1/models/"):]
+            self._send_json({"id": model_id, "object": "model", "owned_by": "nvidia", "created": 1750000000,
+                            "capabilities": {"supports_tool_calls": True, "supports_parallel_tool_calls": True, "supports_streaming": True},
+                            "context_window": 200000, "max_output_tokens": 16384})
         else:
+            print(f"[proxy] unknown path: {self.path}", file=sys.stderr)
             self._send_json({"error": "not found"}, 404)
 
     def do_POST(self):
@@ -54,18 +89,64 @@ class ProxyHandler(BaseHTTPRequestHandler):
             self._send_json({"error": "unauthorized"}, 401)
             return
 
+        # Read request body
+        content_len = int(self.headers.get("Content-Length", 0))
+        raw_body = self.rfile.read(content_len)
+        log(f"POST {self.path}  body({content_len}): {raw_body[:300]}")
+
+        if self.path == "/v1/chat/completions":
+            # Direct passthrough to NVIDIA Chat Completions API
+            stream = json.loads(raw_body).get("stream", False)
+            headers = {
+                "Authorization": f"Bearer {NVIDIA_KEY}",
+                "Content-Type": "application/json",
+            }
+            try:
+                if stream:
+                    self.send_response(200)
+                    self.send_header("Content-Type", "text/event-stream")
+                    self.send_header("Cache-Control", "no-cache")
+                    self.end_headers()
+                    with httpx.Client(timeout=600) as client:
+                        with client.stream("POST", f"{NVIDIA_BASE}/chat/completions", content=raw_body, headers=headers) as resp:
+                            if resp.status_code != 200:
+                                self._send_sse(json.dumps({"error": f"upstream {resp.status_code}"}))
+                                self._send_sse("[DONE]")
+                                return
+                            for line in resp.iter_lines():
+                                if line:
+                                    self.wfile.write((line + "\n").encode("utf-8"))
+                                    self.wfile.flush()
+                    print(f"[proxy:chat] stream done", file=sys.stderr)
+                else:
+                    with httpx.Client(timeout=300) as client:
+                        resp = client.post(f"{NVIDIA_BASE}/chat/completions", content=raw_body, headers=headers)
+                    self.send_response(resp.status_code)
+                    for k, v in resp.headers.items():
+                        if k.lower() not in ("transfer-encoding", "content-length"):
+                            self.send_header(k, v)
+                    resp_body = resp.content
+                    self.send_header("Content-Length", str(len(resp_body)))
+                    self.end_headers()
+                    self.wfile.write(resp_body)
+            except Exception as e:
+                print(f"[proxy:chat] ERROR: {e}", file=sys.stderr)
+                traceback.print_exc(file=sys.stderr)
+            return
+
         if self.path != "/v1/responses":
             self._send_json({"error": "not found"}, 404)
             return
 
-        # Read request body
-        content_len = int(self.headers.get("Content-Length", 0))
-        body = json.loads(self.rfile.read(content_len))
+        body = json.loads(raw_body)
 
         model = body.get("model", "z-ai/glm-5.2")
         user_input = body.get("input", "")
         stream = body.get("stream", False)
         max_tokens = body.get("max_output_tokens") or body.get("max_tokens") or 4096
+        log(f"responses: model={model} stream={stream} input_len={len(str(user_input))}")
+        base_url, api_key = route_backend(model)
+        log(f"responses: routing to {base_url}")
 
         # Build chat messages from Responses API format
         if isinstance(user_input, str):
@@ -94,11 +175,11 @@ class ProxyHandler(BaseHTTPRequestHandler):
                 chat_body[key] = body[key]
 
         headers = {
-            "Authorization": f"Bearer {NVIDIA_KEY}",
+            "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
         }
 
-        print(f"[proxy] {model} stream={stream}", file=sys.stderr)
+        log(f"responses: model={model} stream={stream} backend={base_url}")
 
         try:
             if stream:
@@ -109,16 +190,25 @@ class ProxyHandler(BaseHTTPRequestHandler):
                 self.end_headers()
 
                 resp_id = f"resp_{int(time.time())}"
-                self._send_sse(json.dumps({"type": "response.created", "response": {"id": resp_id, "object": "response", "model": model, "status": "in_progress"}}, ensure_ascii=False))
-                self._send_sse(json.dumps({"type": "response.in_progress", "response": {"id": resp_id, "object": "response", "model": model, "status": "in_progress"}}, ensure_ascii=False))
+                msg_id = f"{resp_id}_msg"
+                response_obj = {
+                    "id": resp_id, "object": "response", "model": model, "status": "in_progress",
+                    "output": [{
+                        "id": msg_id, "type": "message", "status": "in_progress",
+                        "role": "assistant", "content": []
+                    }]
+                }
+                self._send_sse(json.dumps({"type": "response.created", "response": response_obj, "sequence_number": 0}, ensure_ascii=False), event="response.created")
+                self._send_sse(json.dumps({"type": "response.in_progress", "response": {"id": resp_id, "object": "response", "model": model, "status": "in_progress"}, "sequence_number": 1}, ensure_ascii=False), event="response.in_progress")
 
                 accumulated = ""
                 with httpx.Client(timeout=600) as client:
-                    with client.stream("POST", f"{NVIDIA_BASE}/chat/completions", json=chat_body, headers=headers) as resp:
+                    chat_raw = json.dumps(chat_body, ensure_ascii=False).encode("utf-8")
+                    with client.stream("POST", f"{base_url}/chat/completions", content=chat_raw, headers=headers) as resp:
                         if resp.status_code != 200:
                             err = resp.read().decode(errors="replace")[:500]
-                            self._send_sse(json.dumps({"type": "error", "error": {"message": f"upstream {resp.status_code}: {err}"}}))
-                            self._send_sse(json.dumps({"type": "response.completed", "response": {"id": resp_id, "object": "response", "model": model, "status": "failed", "status_details": {"error": {"message": err}}}}))
+                            self._send_sse(json.dumps({"type": "error", "error": {"message": f"upstream {resp.status_code}: {err}"}}), event="error")
+                            self._send_sse(json.dumps({"type": "response.completed", "response": {"id": resp_id, "object": "response", "model": model, "status": "failed", "status_details": {"error": {"message": err}}}}), event="response.completed")
                             self._send_sse("[DONE]")
                             return
 
@@ -137,20 +227,23 @@ class ProxyHandler(BaseHTTPRequestHandler):
                                         content = delta.get("content", "")
                                         if content:
                                             accumulated += content
-                                            self._send_sse(json.dumps({"type": "response.output_text.delta", "item_id": f"{resp_id}_msg", "output_index": 0, "content_index": 0, "delta": content}, ensure_ascii=False))
+                                            self._send_sse(json.dumps({"type": "response.output_text.delta", "item_id": msg_id, "output_index": 0, "content_index": 0, "delta": content}, ensure_ascii=False), event="response.output_text.delta")
                                 except json.JSONDecodeError:
                                     pass
 
-                self._send_sse(json.dumps({"type": "response.output_text.done", "item_id": f"{resp_id}_msg", "output_index": 0, "content_index": 0, "text": accumulated}, ensure_ascii=False))
-                self._send_sse(json.dumps({"type": "response.content_part.done", "item_id": f"{resp_id}_msg", "output_index": 0, "content_index": 0, "part": {"type": "output_text", "text": accumulated}}, ensure_ascii=False))
-                self._send_sse(json.dumps({"type": "response.completed", "response": {"id": resp_id, "object": "response", "model": model, "status": "completed", "output": [{"type": "message", "role": "assistant", "content": [{"type": "output_text", "text": accumulated}]}]}}, ensure_ascii=False))
+                self._send_sse(json.dumps({"type": "response.output_text.done", "item_id": msg_id, "output_index": 0, "content_index": 0, "text": accumulated}, ensure_ascii=False), event="response.output_text.done")
+                self._send_sse(json.dumps({"type": "response.content_part.done", "item_id": msg_id, "output_index": 0, "content_index": 0, "part": {"type": "output_text", "text": accumulated}}, ensure_ascii=False), event="response.content_part.done")
+                self._send_sse(json.dumps({"type": "response.completed", "response": {"id": resp_id, "object": "response", "model": model, "status": "completed", "output": [{"id": msg_id, "type": "message", "status": "completed", "role": "assistant", "content": [{"type": "output_text", "text": accumulated}]}]}}, ensure_ascii=False), event="response.completed")
                 self._send_sse("[DONE]")
                 print(f"[proxy:stream] done, {len(accumulated)} chars", file=sys.stderr)
 
             else:
                 # Non-streaming
+                log(f"responses: calling {base_url}/chat/completions")
+                chat_raw = json.dumps(chat_body, ensure_ascii=False).encode("utf-8")
                 with httpx.Client(timeout=300) as client:
-                    resp = client.post(f"{NVIDIA_BASE}/chat/completions", json=chat_body, headers=headers)
+                    resp = client.post(f"{base_url}/chat/completions", content=chat_raw, headers=headers)
+                log(f"responses: NVIDIA response status={resp.status_code}")
 
                 if resp.status_code != 200:
                     self._send_json({"error": f"upstream: {resp.status_code}"}, 502)
@@ -171,15 +264,21 @@ class ProxyHandler(BaseHTTPRequestHandler):
                 })
 
         except Exception as e:
+            log(f"responses: ERROR {e}")
             print(f"[proxy] ERROR: {e}", file=sys.stderr)
             traceback.print_exc(file=sys.stderr)
             try:
-                self._send_json({"error": str(e)}, 500)
+                self.send_response(502)
+                self.send_header("Content-Type", "text/event-stream")
+                self.end_headers()
+                self._send_sse(json.dumps({"type": "error", "error": {"message": str(e)[:500]}}))
+                self._send_sse("[DONE]")
             except:
                 pass
 
     def log_message(self, format, *args):
-        pass  # Suppress default HTTP logging
+        sys.stderr.write(f"[proxy] {self.command} {self.path}\n")
+        sys.stderr.flush()
 
 
 if __name__ == "__main__":
@@ -187,5 +286,5 @@ if __name__ == "__main__":
         print("ERROR: NVIDIA_API_KEY not set!", file=sys.stderr)
         sys.exit(1)
     print(f"Proxy: http://localhost:{PORT} → {NVIDIA_BASE}", file=sys.stderr)
-    server = HTTPServer(("0.0.0.0", PORT), ProxyHandler)
+    server = ThreadingHTTPServer(("0.0.0.0", PORT), ProxyHandler)
     server.serve_forever()
