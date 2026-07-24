@@ -522,7 +522,7 @@ def _render_analysis_mode() -> None:
 
     # Footer
     st.markdown("""
-    <div style="text-align:center;margin-top:2rem;padding:0.8rem;color:var(--muted); font-size:0.75rem; border-top:1px solid var(--line);">
+    <div class="footer-note footer--analysis">
         ⚠️ 本项目仅供学习研究，不构成任何投资建议。
     </div>
     """, unsafe_allow_html=True)
