@@ -200,9 +200,9 @@ with col_toggle:
         border: var(--hairline) solid var(--toggle-border);
         border-radius: var(--radius-sm);
         cursor: pointer;
-        font-size: 18px;
-        width: 34px;
-        height: 34px;
+        font-size: 18px; /* 无精确 var 对应，保留 */
+        width: 34px; /* 组件固定尺寸，保留 */
+        height: 34px; /* 组件固定尺寸，保留 */
         color: var(--toggle-icon);
         display: flex;
         align-items: center;
@@ -298,7 +298,7 @@ with col_theme:
       .theme-toggle { display: flex; gap: 2px; background: var(--theme-switch-bg); border-radius: var(--radius-md); padding: 2px; }
       .theme-btn {
         width: 30px; height: 28px; border: none; border-radius: var(--radius-sm);
-        cursor: pointer; font-size: 14px;
+        cursor: pointer; font-size: var(--font-md); /* 14px->var(--font-md) */
         display: flex; align-items: center; justify-content: center;
         transition: all 0.12s ease; line-height: 1;
       }
@@ -453,7 +453,7 @@ def _render_analysis_mode() -> None:
             <div style="color: var(--muted); font-size: var(--font-md); margin-top: var(--space-xs);">
                 7位AI分析师 → 质量门控 → 多空辩论 → 风控评估 → 最终决策
             </div>
-            <div class="banner__pill" style="margin-top: 0.5rem;">
+            <div class="banner__pill" style="margin-top: var(--space-sm);">
                 统一平台 · 2026-05-22
             </div>
         </div>
@@ -770,7 +770,7 @@ def _render_data_mode() -> None:
             cnt = Counter(all_tags)
             if cnt:
                 top_tags = cnt.most_common(8)
-                tag_html = " ".join([f'<span class="tag" style="font-size:0.85rem;margin:3px;">{t}({n})</span>' for t, n in top_tags])
+                tag_html = " ".join([f'<span class="tag" style="font-size:var(--font-md);margin:var(--space-xs);">{t}({n})</span>' for t, n in top_tags])
                 st.markdown(f"**题材热度 TOP 8:** {tag_html}", unsafe_allow_html=True)
             st.caption(f"共 {len(df_hot)} 只强势股  |  点击 📊 查看股票详情")
             for _, row in df_hot.iterrows():
@@ -782,13 +782,13 @@ def _render_data_mode() -> None:
 
                 c_cols = st.columns([1, 2, 1.5, 5, 1.2])
                 with c_cols[0]:
-                    st.markdown(f'<div style="padding-top:0.4rem;font-weight:700;color:var(--text);">{code}</div>', unsafe_allow_html=True)
+                    st.markdown(f'<div style="padding-top:var(--space-xs);font-weight:700;color:var(--text);">{code}</div>', unsafe_allow_html=True)
                 with c_cols[1]:
-                    st.markdown(f'<div style="padding-top:0.4rem;color:var(--muted);">{name}</div>', unsafe_allow_html=True)
+                    st.markdown(f'<div style="padding-top:var(--space-xs);color:var(--muted);">{name}</div>', unsafe_allow_html=True)
                 with c_cols[2]:
-                    st.markdown(f'<div style="padding-top:0.4rem;font-weight:700;color:{pct_color};">{pct_val:+.2f}%</div>', unsafe_allow_html=True)
+                    st.markdown(f'<div style="padding-top:var(--space-xs);font-weight:700;color:{pct_color};">{pct_val:+.2f}%</div>', unsafe_allow_html=True)
                 with c_cols[3]:
-                    st.markdown(f'<div style="padding-top:0.4rem;color:var(--muted);font-size:0.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{reason_text}</div>', unsafe_allow_html=True)
+                    st.markdown(f'<div style="padding-top:var(--space-xs);color:var(--muted);font-size:var(--font-md);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{reason_text}</div>', unsafe_allow_html=True)
                 with c_cols[4]:
                     if st.button("📊 查看", key=f"hot_{code}", use_container_width=True):
                         st.session_state["data_code"] = normalize_code(code)
