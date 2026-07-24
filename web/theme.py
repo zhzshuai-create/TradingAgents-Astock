@@ -153,6 +153,9 @@ DARK_TOKENS = """
 --pill-bg:     #3d2a1a;
 --pill-border: #5c3a20;
 
+/* ===== Streamlit dark header background ===== */
+--st-header-dark: #1c1816;
+
 /* ===== Step 3 补漏：暗色模式缺失变量 ===== */
 /* SHADOW — 暗色需更深的阴影 */
 --shadow-card:  0 1px 4px rgba(0,0,0,0.25);
