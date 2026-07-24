@@ -152,6 +152,28 @@ DARK_TOKENS = """
 /* ===== COMPONENT: 主 Banner 药丸标签 ===== */
 --pill-bg:     #3d2a1a;
 --pill-border: #5c3a20;
+
+/* ===== Step 3 补漏：暗色模式缺失变量 ===== */
+/* SHADOW — 暗色需更深的阴影 */
+--shadow-card:  0 1px 4px rgba(0,0,0,0.25);
+--shadow-hover: 0 2px 8px rgba(0,0,0,0.40);
+
+/* HAIRLINE — 1px 不变 */
+--hairline: 1px;
+
+/* UTILITY — 按钮文字 */
+--btn-text: #ffffff;
+
+/* TRADING SIGNAL BANNER — 固定暗色主题，与亮色同值 */
+--banner-start:  #1a1a2e;
+--banner-end:    #16213e;
+--banner-border: #333333;
+--banner-label:  #888888;
+--banner-text:   #f5f1eb;
+
+/* THEME TOGGLE — 主题切换按钮文字色 */
+--theme-btn-light-text: #333333;
+--theme-btn-dark-text:  #ffffff;
 """
 
 # ============================================================================
@@ -300,6 +322,30 @@ COMBINATION_CSS = """
     color: var(--muted);
     font-size: var(--font-sm);
     flex: 1;
+}
+
+/* ── Banner 区域容器 ── */
+.banner {
+    text-align: center;
+    margin-top: var(--space-md);
+    margin-bottom: var(--space-lg);
+    padding: var(--space-md) 0;
+}
+
+/* ── Banner 主标题 ── */
+.banner__title {
+    font-size: var(--font-2xl);
+    font-weight: 900;
+    color: var(--text);
+    margin-bottom: var(--space-xs);
+}
+
+/* ── 品牌 Logo 文字 ── */
+.brand-logo {
+    font-size: var(--font-lg);
+    font-weight: 800;
+    color: var(--brand);
+    letter-spacing: -0.02em;
 }
 
 /* ── 主 Banner 药丸 ── */

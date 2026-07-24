@@ -250,8 +250,8 @@ with col_brand:
     # 结构批：logo + radio 同列上下排列 → 引用 theme.py .topbar 容器
     st.markdown("""
     <div class="topbar">
-        <span style="font-size:1.1rem; font-weight:800; color:var(--brand);">AStock</span>
-        <span style="font-size:1.1rem; font-weight:800; color:var(--text);"> Pro</span>
+        <span class="brand-logo">AStock</span>
+        <span style="font-size:var(--font-lg); font-weight:800; color:var(--text);"> Pro</span>
     </div>
     """, unsafe_allow_html=True)
     mode = st.radio(
@@ -446,14 +446,14 @@ def _render_analysis_mode() -> None:
 
         # Banner
         st.markdown("""
-        <div style="text-align: center; margin-top: 1rem; margin-bottom: 1.5rem;">
-            <div style="font-size: 2rem; font-weight: 900;">
+        <div class="banner">
+            <div class="banner__title">
                 <span style="color: var(--brand);">Trading</span><span style="color: var(--text);">Agents</span><span style="color: var(--text);">-</span><span style="color: var(--brand);">Astock</span>
             </div>
             <div style="color: var(--muted); font-size: var(--font-md); margin-top: var(--space-xs);">
                 7位AI分析师 → 质量门控 → 多空辩论 → 风控评估 → 最终决策
             </div>
-            <div style="margin-top: 0.5rem; font-size: 0.7rem; color: var(--brand); background: var(--pill-bg); display: inline-block; padding: 3px 12px; border-radius: 10px; border: var(--hairline) solid var(--pill-border);">
+            <div class="banner__pill" style="margin-top: 0.5rem;">
                 统一平台 · 2026-05-22
             </div>
         </div>
@@ -880,7 +880,7 @@ def _render_data_mode() -> None:
         else:
             st.info("在上方输入股票代码可加载个股新闻")
 
-    st.markdown('<div class="footer-note">AStock Pro · <a href="https://github.com/zhzshuai-create" target="_blank" style="color:var(--muted); text-decoration:none;">github.com/zhzshuai-create</a> | a-stock-data V3.1 | 数据仅供参考，不构成投资建议</div>', unsafe_allow_html=True)
+    st.markdown('<div class="footer-note">AStock Pro · <a href="https://github.com/zhzshuai-create" target="_blank">github.com/zhzshuai-create</a> | a-stock-data V3.1 | 数据仅供参考，不构成投资建议</div>', unsafe_allow_html=True)
 
 
 def _render_market_overview() -> None:
