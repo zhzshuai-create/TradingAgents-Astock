@@ -832,7 +832,10 @@ def _render_market_overview() -> None:
 # Main dispatch
 # ═══════════════════════════════════════════════════════════════════════════════
 
+main = st.empty()
 if st.session_state.get("app_mode") == "analysis":
-    _render_analysis_mode()
+    with main.container():
+        _render_analysis_mode()
 else:
-    _render_data_mode()
+    with main.container():
+        _render_data_mode()
