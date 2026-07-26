@@ -329,7 +329,7 @@ COMBINATION_CSS = """
 
 /* ── Banner 区域容器 ── */
 .banner {
-    text-align: center;
+    text-align: left;
     margin-top: var(--space-md);
     margin-bottom: var(--space-lg);
     padding: var(--space-md) 0;
@@ -366,7 +366,7 @@ COMBINATION_CSS = """
 
 /* ── 底部声明 ── */
 .footer-note {
-    text-align: center;
+    text-align: left;
     color: var(--muted);
     font-size: var(--font-sm);
     padding: var(--space-lg) 0 var(--space-sm) 0;
