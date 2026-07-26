@@ -352,15 +352,16 @@ COMBINATION_CSS = """
 }
 
 /* ── 主 Banner 药丸 ── */
+/* ── 主 Banner 药丸 → 降级为灰色 caption ── */
 .banner__pill {
     display: inline-block;
     font-size: var(--font-xs);
-    color: var(--brand);
-    background: var(--pill-bg);
+    color: var(--muted);
+    background: transparent;
     margin-top: var(--space-sm);
-    padding: 3px 12px;
-    border-radius: 10px;
-    border: var(--hairline) solid var(--pill-border);
+    padding: 0;
+    border-radius: 0;
+    border: none;
 }
 
 /* ── 底部声明 ── */
@@ -436,7 +437,7 @@ section[data-testid="stSidebar"] {
     font-size: var(--font-sm) !important;
 }
 .stMetric [data-testid="stMetricValue"] {
-    color: var(--brand) !important;
+    color: var(--text) !important;
     font-weight: 700 !important;
 }
 
@@ -458,24 +459,24 @@ button[kind="secondary"] {
     transition: all 0.2s ease !important;
 }
 button[kind="secondary"]:hover {
-    background: var(--brand-soft) !important;
-    border-color: var(--brand) !important;
-    color: var(--brand) !important;
+    background: var(--bg) !important;
+    border-color: var(--line) !important;
+    color: var(--text) !important;
 }
 
 /* ── 下载按钮 ── */
 div[data-testid="stDownloadButton"] button {
     background: var(--surface) !important;
-    border: var(--hairline) solid var(--brand) !important;
-    color: var(--brand) !important;
+    border: var(--hairline) solid var(--line) !important;
+    color: var(--text) !important;
 }
 div[data-testid="stDownloadButton"] button:hover {
-    background: var(--brand-soft) !important;
+    background: var(--bg) !important;
 }
 
 /* ── 进度条 ── */
 .stProgress > div > div > div {
-    background: linear-gradient(90deg, var(--brand), var(--brand-hover)) !important;
+    background: var(--muted) !important;
 }
 
 /* ── 输入框 ── */
@@ -601,8 +602,8 @@ input[data-testid="stTextInputRootElement"] input, .stTextInput input {
 
 /* ── Markdown 扩展 ── */
 .stApp .stMarkdown code {
-    color: var(--brand) !important;
-    background: var(--brand-soft) !important;
+    color: var(--text) !important;
+    background: var(--bg) !important;
     padding: 1px 5px;
     border-radius: 4px;
     font-size: 0.9em;
@@ -698,8 +699,8 @@ button[data-testid="collapsedControl"]:hover {
 
 /* ── Tag ── */
 .stApp [data-baseweb="tag"] {
-    background: var(--brand-soft) !important;
-    color: var(--brand) !important;
+    background: var(--bg) !important;
+    color: var(--text) !important;
 }
 """
 
@@ -720,7 +721,7 @@ html.dark .stApp p, html.dark .stApp span:not([class*="metric"]) {
     color: var(--text) !important;
 }
 html.dark .stApp [data-testid="stMetricValue"] {
-    color: var(--brand) !important;
+    color: var(--text) !important;
 }
 html.dark .stApp [data-testid="stMetricLabel"] {
     color: var(--muted) !important;
@@ -795,8 +796,8 @@ html.dark .stApp [aria-selected="true"][role="tab"] {
     color: var(--brand) !important;
 }
 html.dark .stApp [data-baseweb="tag"] {
-    background: var(--brand-soft) !important;
-    color: var(--brand) !important;
+    background: var(--bg) !important;
+    color: var(--text) !important;
 }
 html.dark [data-testid="stFormSubmitButton"] {
     border: none !important;

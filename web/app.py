@@ -299,14 +299,16 @@ with col_theme:
       .theme-toggle { display: flex; gap: 2px; background: var(--theme-switch-bg); border-radius: var(--radius-md); padding: 2px; }
       .theme-btn {
         width: 30px; height: 28px; border: none; border-radius: var(--radius-sm);
-        cursor: pointer; font-size: var(--font-md); /* 14px->var(--font-md) */
+        cursor: pointer; font-size: 12px; font-weight: 600;
         display: flex; align-items: center; justify-content: center;
         transition: all 0.12s ease; line-height: 1;
+        background: transparent; color: var(--muted);
       }
-      .theme-btn[data-theme="light"] { background: var(--theme-btn-light); color: var(--toggle-icon); }
-      .theme-btn[data-theme="dark"]  { background: var(--theme-btn-dark); color: var(--theme-btn-dark-text); }
-      .theme-btn.active { box-shadow: 0 0 0 2px var(--brand); opacity: 0.6; }
-      .theme-btn:not(.active):hover { box-shadow: 0 0 0 2px var(--brand); opacity: 0.25; }
+      .theme-btn.active {
+        background: var(--brand) !important; color: var(--btn-text) !important;
+        box-shadow: none;
+      }
+      .theme-btn:not(.active):hover { color: var(--text); background: var(--line); }
     </style>
     </head>
     <body>
