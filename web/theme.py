@@ -375,12 +375,6 @@ COMBINATION_CSS = """
     padding: var(--space-lg) 0 var(--space-sm) 0;
     border-top: var(--hairline) solid var(--line);
 }
-
-/* ── 第三批 Step 3：分析模式 footer 变体 ── */
-.footer--analysis {
-    margin-top: var(--space-xl);
-    padding: var(--space-sm);
-}
 """
 
 # ============================================================================
