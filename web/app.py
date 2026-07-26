@@ -504,21 +504,21 @@ def _render_analysis_mode() -> None:
 
         # Right: new analysis
         with right:
-            # 结构批：区块外包 .card + 标题用 .card__title
-            st.markdown('<div class="card">', unsafe_allow_html=True)
-            st.markdown('<div class="card__title">🔍 新建分析</div>', unsafe_allow_html=True)
-            ticker = st.text_input("代码", placeholder="输入 6 位代码如 000636",
-                                   max_chars=6, label_visibility="collapsed")
-            trade_date = st.date_input("分析日期", label_visibility="collapsed")
-            can_start = bool(ticker and len(ticker.strip()) >= 4)
-            if st.button("开始分析", use_container_width=True, type="primary", disabled=not can_start):
-                st.session_state["start_analysis"] = {
-                    "ticker": ticker.strip(),
-                    "trade_date": trade_date.strftime("%Y-%m-%d"),
-                }
-                st.session_state["viewing_history"] = None
-                st.rerun()
-            st.markdown('</div>', unsafe_allow_html=True)
+            # 结构批：st.container(border=True) 替代 HTML div.card（Streamlit 控件无法嵌套在 st.markdown 内）
+            card = st.container(border=True)
+            with card:
+                st.markdown('<div class="card__title">🔍 新建分析</div>', unsafe_allow_html=True)
+                ticker = st.text_input("代码", placeholder="输入 6 位代码如 000636",
+                                       max_chars=6, label_visibility="collapsed")
+                trade_date = st.date_input("分析日期", label_visibility="collapsed")
+                can_start = bool(ticker and len(ticker.strip()) >= 4)
+                if st.button("开始分析", use_container_width=True, type="primary", disabled=not can_start):
+                    st.session_state["start_analysis"] = {
+                        "ticker": ticker.strip(),
+                        "trade_date": trade_date.strftime("%Y-%m-%d"),
+                    }
+                    st.session_state["viewing_history"] = None
+                    st.rerun()
 
     # Footer
     st.markdown("""
