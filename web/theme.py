@@ -567,24 +567,30 @@ input[data-testid="stTextInputRootElement"] input, .stTextInput input {
     color: var(--text);
 }
 
-/* ── 表单 ── */
+/* ── 表单通用 ── */
 .stApp [data-testid="stForm"] {
     background: var(--surface);
     border-color: var(--line);
 }
-/* 搜索框提交按钮：去掉外层容器框 */
+
+/* ── 搜索框提交按钮：消融容器框，与输入框视觉融合 ── */
 [data-testid="stFormSubmitButton"] {
     border: none !important;
     background: transparent !important;
     box-shadow: none !important;
-    padding: 0 !important;
 }
-.stApp [data-testid="stFormSubmitButton"] button {
+[data-testid="stFormSubmitButton"] > div {
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+[data-testid="stFormSubmitButton"] button {
     background: var(--brand) !important;
     color: var(--btn-text) !important;
     border: none !important;
+    border-radius: var(--radius-sm) !important;
 }
-.stApp [data-testid="stFormSubmitButton"] button:hover {
+[data-testid="stFormSubmitButton"] button:hover {
     background: var(--brand-hover) !important;
 }
 
@@ -797,12 +803,18 @@ html.dark [data-testid="stFormSubmitButton"] {
     background: transparent !important;
     box-shadow: none !important;
 }
-html.dark .stApp [data-testid="stFormSubmitButton"] button {
+html.dark [data-testid="stFormSubmitButton"] > div {
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+html.dark [data-testid="stFormSubmitButton"] button {
     background: var(--brand) !important;
     color: var(--btn-text) !important;
     border: none !important;
+    border-radius: var(--radius-sm) !important;
 }
-html.dark .stApp [data-testid="stFormSubmitButton"] button:hover {
+html.dark [data-testid="stFormSubmitButton"] button:hover {
     background: var(--brand-hover) !important;
 }
 """
