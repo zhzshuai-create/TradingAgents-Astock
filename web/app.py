@@ -362,15 +362,8 @@ def _render_analysis_mode() -> None:
         # Banner
         st.markdown("""
         <div class="banner">
-            <div class="banner__title">
-                <span style="color: var(--brand);">Trading</span><span style="color: var(--text);">Agents</span><span style="color: var(--text);">-</span><span style="color: var(--brand);">Astock</span>
-            </div>
-            <div style="color: var(--muted); font-size: var(--font-md); margin-top: var(--space-xs);">
-                7位AI分析师 → 质量门控 → 多空辩论 → 风控评估 → 最终决策
-            </div>
-            <div class="banner__pill">
-                统一平台 · 2026-05-22
-            </div>
+            <div class="banner__title">TradingAgents-Astock</div>
+            <div style="color:var(--muted);font-size:var(--font-sm);margin-top:2px;">v2026-05-22 · 7位AI分析师 → 多空辩论 → 风控评估 → 投资决策</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -419,21 +412,19 @@ def _render_analysis_mode() -> None:
 
         # Right: new analysis
         with right:
-            # 结构批：st.container(border=True) 替代 HTML div.card（Streamlit 控件无法嵌套在 st.markdown 内）
-            card = st.container(border=False)
-            with card:
-                st.markdown('<div class="card__title">新建分析</div>', unsafe_allow_html=True)
+            st.markdown('<div class="card__title">新建分析</div>', unsafe_allow_html=True)
+            c_code, c_date = st.columns([2, 1])
+            with c_code:
                 ticker = st.text_input("代码", placeholder="输入 6 位代码如 000636",
                                        max_chars=6, label_visibility="collapsed")
+            with c_date:
                 trade_date = st.date_input("分析日期", label_visibility="collapsed")
-                can_start = bool(ticker and len(ticker.strip()) >= 4)
-                if st.button("开始分析", use_container_width=True, type="primary", disabled=not can_start):
-                    st.session_state["start_analysis"] = {
-                        "ticker": ticker.strip(),
-                        "trade_date": trade_date.strftime("%Y-%m-%d"),
-                    }
-                    st.session_state["viewing_history"] = None
-                    st.rerun()
+            can_start = bool(ticker and len(ticker.strip()) >= 4)
+            st.button("开始分析", type="primary", disabled=not can_start,
+                      on_click=lambda: st.session_state.update({
+                          "start_analysis": {"ticker": ticker.strip(), "trade_date": trade_date.strftime("%Y-%m-%d")},
+                          "viewing_history": None,
+                      }))
 
     # Footer
     st.markdown("""
