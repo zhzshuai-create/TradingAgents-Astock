@@ -357,6 +357,7 @@ COMBINATION_CSS = """
     font-size: var(--font-xs);
     color: var(--brand);
     background: var(--pill-bg);
+    margin-top: var(--space-sm);
     padding: 3px 12px;
     border-radius: 10px;
     border: var(--hairline) solid var(--pill-border);
@@ -392,7 +393,8 @@ html, body, [class*="css"] {
     padding-top: var(--space-md) !important;
     padding-bottom: var(--space-md) !important;
 }
-[data-testid="stVerticalBlock"] {
+/* 仅顶层垂直 block 收敛间距，避免波及卡片/表单内部 */
+[data-testid="stAppViewContainer"] > .block-container > [data-testid="stVerticalBlock"] {
     gap: var(--space-sm) !important;
 }
 
