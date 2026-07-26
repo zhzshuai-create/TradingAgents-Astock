@@ -479,15 +479,17 @@ div[data-testid="stDownloadButton"] button:hover {
     background: var(--muted) !important;
 }
 
-/* ── 输入框 ── */
+/* ── 输入框：描边风格（白底+1px描边，focus橙描边）── */
 input[data-testid="stTextInputRootElement"] input, .stTextInput input {
     background: var(--surface) !important;
-    border-color: var(--line) !important;
+    border: var(--hairline) solid var(--line) !important;
     color: var(--text) !important;
+    border-radius: var(--radius-sm) !important;
+    box-shadow: none !important;
 }
 .stTextInput input:focus {
     border-color: var(--brand) !important;
-    box-shadow: 0 0 0 2px var(--brand-soft) !important;
+    box-shadow: 0 0 0 1px var(--brand) !important;
 }
 
 /* ── 选择框 ── */
