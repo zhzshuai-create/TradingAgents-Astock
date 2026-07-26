@@ -572,6 +572,13 @@ input[data-testid="stTextInputRootElement"] input, .stTextInput input {
     background: var(--surface);
     border-color: var(--line);
 }
+/* 搜索框提交按钮：去掉外层容器框 */
+[data-testid="stFormSubmitButton"] {
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+}
 .stApp [data-testid="stFormSubmitButton"] button {
     background: var(--brand) !important;
     color: var(--btn-text) !important;
@@ -784,6 +791,11 @@ html.dark .stApp [aria-selected="true"][role="tab"] {
 html.dark .stApp [data-baseweb="tag"] {
     background: var(--brand-soft) !important;
     color: var(--brand) !important;
+}
+html.dark [data-testid="stFormSubmitButton"] {
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
 }
 html.dark .stApp [data-testid="stFormSubmitButton"] button {
     background: var(--brand) !important;
