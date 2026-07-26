@@ -179,92 +179,25 @@ st.markdown(f"<style>{CSS}</style>", unsafe_allow_html=True)
 with st.sidebar:
     render_sidebar()
 
-# ── Top navigation bar (replaces sidebar) ──
-# 结构批：5列→4列，砍掉空占位列，col_nav并入col_brand，vertical_alignment对齐
-col_toggle, col_brand, col_theme = st.columns(
-    [0.8, 3.5, 0.7], vertical_alignment="center"
-)
-with col_toggle:
-    components.html("""
-    <!DOCTYPE html>
-    <html>
-    <head>
-    <meta charset="utf-8">
-    <style>
-      * { margin: 0; padding: 0; box-sizing: border-box; }
-      html, body {
-        height: 100%; background: transparent;
-        display: flex; align-items: center; justify-content: center;
-      }
-      .toggle-btn {
-        background: var(--toggle-bg);
-        border: var(--hairline) solid var(--toggle-border);
-        border-radius: var(--radius-sm);
-        cursor: pointer;
-        font-size: 18px; /* 无精确 var 对应，保留 */
-        width: 34px; /* 组件固定尺寸，保留 */
-        height: 34px; /* 组件固定尺寸，保留 */
-        color: var(--toggle-icon);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: all 0.15s;
-        padding: 0;
-        line-height: 1;
-        user-select: none;
-        -webkit-user-select: none;
-      }
-      .toggle-btn:hover {
-        background: var(--brand-soft);
-        border-color: var(--brand);
-        color: var(--brand);
-      }
-      .toggle-btn:active { transform: scale(0.93); }
-    </style>
-    </head>
-    <body>
-    <button class="toggle-btn" id="toggleBtn" title="展开/收起侧边栏">☰</button>
-    <script>
-    document.getElementById('toggleBtn').addEventListener('click', function(e) {
-        e.preventDefault();
-        var d = window.parent.document;
-        // Try both Streamlit native toggle buttons
-        var btn = d.querySelector('button[data-testid="stSidebarCollapseButton"]');
-        if (!btn) btn = d.querySelector('button[data-testid="collapsedControl"]');
-        if (!btn) btn = d.querySelector('[data-testid="stSidebarCollapsedControl"]');
-        if (btn) {
-            btn.click();
-        } else {
-            // Last fallback: click the sidebar section itself to trigger Streamlit
-            var sidebar = d.querySelector('section[data-testid="stSidebar"]');
-            if (sidebar) {
-                var arrow = sidebar.querySelector('button');
-                if (arrow) arrow.click();
-            }
-        }
-    });
-    </script>
-    </body>
-    </html>
-    """, height=44)
-with col_brand:
-    # 结构批：logo + radio 同列上下排列 → 引用 theme.py .topbar 容器
+# ── Top navigation bar ──
+# 单行：logo | segmented nav | theme
+col_logo, col_nav, col_theme = st.columns([1.5, 3, 0.7], vertical_alignment="center")
+with col_logo:
     st.markdown("""
-    <div class="topbar">
-        <span class="brand-logo">AStock</span>
-        <span style="font-size:var(--font-lg); font-weight:800; color:var(--text);"> Pro</span>
-    </div>
+    <span class="brand-logo">AStock</span>
+    <span style="font-size:var(--font-lg); font-weight:800; color:var(--text);"> Pro</span>
     """, unsafe_allow_html=True)
-    mode = st.radio(
+with col_nav:
+    mode = st.segmented_control(
         "模式",
         ["AI分析报告", "实时数据看板"],
-        index=0 if st.session_state.get("app_mode") == "analysis" else 1,
-        horizontal=True, key="top_mode", label_visibility="collapsed",
+        default="AI分析报告" if st.session_state.get("app_mode") == "analysis" else "实时数据看板",
+        key="top_mode", label_visibility="collapsed",
     )
-    if "AI分析" in mode and st.session_state.get("app_mode") != "analysis":
+    if mode and "AI分析" in mode and st.session_state.get("app_mode") != "analysis":
         st.session_state["app_mode"] = "analysis"
         st.rerun()
-    elif "数据看板" in mode and st.session_state.get("app_mode") != "data":
+    elif mode and "数据看板" in mode and st.session_state.get("app_mode") != "data":
         st.session_state["app_mode"] = "data"
         st.rerun()
 
