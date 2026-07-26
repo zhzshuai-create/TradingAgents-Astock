@@ -22,12 +22,12 @@ LIGHT_TOKENS = """
 --brand-soft:  #fff5f0;
 --brand-hover: #d9480f;
 
-/* ===== SIGNAL — 状态标签三色 ===== */
---buy:        #22c55e;
+/* ===== SIGNAL — 状态标签色（降饱和）===== */
+--buy:        #2d8a4e;
 --buy-soft:   #f0fdf4;
---sell:       #ef4444;
+--sell:       #d14343;
 --sell-soft:  #fef2f2;
---hold:       #f59e0b;
+--hold:       #b8860b;
 --hold-soft:  #fffbeb;
 --na:         #6b7280;
 --na-soft:    #f5f5f5;
@@ -115,12 +115,12 @@ DARK_TOKENS = """
 --brand-soft:  #3d2a1a;
 --brand-hover: #ffa94d;
 
-/* ===== SIGNAL — 暗色适配 ===== */
---buy:        #4ade80;
+/* ===== SIGNAL — 暗色适配（降饱和）===== */
+--buy:        #5ea870;
 --buy-soft:   #0a2a12;
---sell:       #f87171;
+--sell:       #d97575;
 --sell-soft:  #2a0a0a;
---hold:       #fbbf24;
+--hold:       #c9a020;
 --hold-soft:  #2a2000;
 --na:         #9ca3af;
 --na-soft:    #1a1a1a;
@@ -230,35 +230,45 @@ COMBINATION_CSS = """
     color: var(--muted);
 }
 
-/* ── 状态标签（描边胶囊，三色）── */
+/* ── 状态标签：去框，色点+文字 ── */
 .tag {
     display: inline-block;
     font-size: var(--font-sm);
-    font-weight: 700;
-    padding: 2px var(--space-sm);
-    border-radius: 6px;
+    font-weight: 600;
+    padding: 1px 0;
+    border-radius: 0;
     white-space: nowrap;
-    border: var(--hairline) solid;
+    border: none;
+    background: transparent !important;
 }
-.tag--buy {
-    color: var(--buy);
-    background: var(--buy-soft);
-    border-color: var(--buy);
+.tag--buy  { color: var(--buy); }
+.tag--sell { color: var(--sell); }
+.tag--hold { color: var(--hold); }
+.tag--na   { color: var(--na); }
+
+/* ── 左侧列表：按钮变纯文本 + 行间分割线 ── */
+.st-key-main_hist_ button {
+    background: transparent !important;
+    border: none !important;
+    padding: var(--space-xs) 0 !important;
+    font-size: var(--font-md) !important;
+    color: var(--text) !important;
+    font-weight: 400 !important;
+    text-align: left !important;
+    justify-content: flex-start !important;
+    min-height: auto !important;
+    height: auto !important;
+    line-height: 1.5 !important;
 }
-.tag--sell {
-    color: var(--sell);
-    background: var(--sell-soft);
-    border-color: var(--sell);
+.st-key-main_hist_ button:hover {
+    color: var(--brand) !important;
+    background: transparent !important;
 }
-.tag--hold {
-    color: var(--hold);
-    background: var(--hold-soft);
-    border-color: var(--hold);
+.st-key-main_hist_ [data-testid="stHorizontalBlock"] {
+    border-bottom: var(--hairline) solid var(--line);
 }
-.tag--na {
-    color: var(--na);
-    background: var(--na-soft);
-    border-color: var(--na);
+.st-key-main_hist_ [data-testid="stHorizontalBlock"]:last-child {
+    border-bottom: none;
 }
 
 /* ── 左侧列表行 ── */
@@ -480,14 +490,17 @@ div[data-testid="stDownloadButton"] button:hover {
 }
 
 /* ── 输入框：描边风格（白底+1px描边，focus橙描边）── */
-input[data-testid="stTextInputRootElement"] input, .stTextInput input {
+input[data-testid="stTextInputRootElement"] input,
+.stTextInput input,
+[data-testid="stDateInput"] input {
     background: var(--surface) !important;
     border: var(--hairline) solid var(--line) !important;
     color: var(--text) !important;
     border-radius: var(--radius-sm) !important;
     box-shadow: none !important;
 }
-.stTextInput input:focus {
+.stTextInput input:focus,
+[data-testid="stDateInput"] input:focus {
     border-color: var(--brand) !important;
     box-shadow: 0 0 0 1px var(--brand) !important;
 }
