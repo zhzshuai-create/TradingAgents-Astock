@@ -497,7 +497,7 @@ def _render_analysis_mode() -> None:
                     # 结构批：st.columns 原生处理行布局，badge 走 .tag class
                     c1, c2 = st.columns([2.2, 1])
                     with c1:
-                        if st.button(f"📈 {t}  ·  {d}", key=f"main_hist_{t}_{d}", use_container_width=True):
+                        if st.button(f"{t}  ·  {d}", key=f"main_hist_{t}_{d}", use_container_width=True):
                             st.session_state["viewing_history"] = p
                             st.session_state["start_analysis"] = None
                             st.rerun()
