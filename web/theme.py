@@ -343,11 +343,6 @@ COMBINATION_CSS = """
     margin-bottom: var(--space-xs);
 }
 
-/* ── 第三批 Step 2：动态色语义 class ── */
-.txt-up   { color: var(--up); }
-.txt-down { color: var(--down); }
-.txt-warn { color: var(--warn); }
-
 /* ── 品牌 Logo 文字 ── */
 .brand-logo {
     font-size: var(--font-lg);
