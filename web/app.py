@@ -269,22 +269,23 @@ with col_brand:
         st.rerun()
 
 with col_search:
-    s1, s2 = st.columns([5, 1], vertical_alignment="center")
-    with s1:
-        search_input = st.text_input(
-            "股票代码",
-            placeholder="输入代码如 600460",
-            label_visibility="collapsed",
-            key="top_search",
-        )
-    with s2:
-        if st.button("→", key="top_search_btn", help="搜索股票", use_container_width=True):
-            if search_input:
-                cleaned = normalize_code(search_input)
-                if len(cleaned) >= 6:
-                    st.session_state["data_code"] = cleaned
-                    st.session_state["app_mode"] = "data"
-                    st.rerun()
+    with st.form("search_form", clear_on_submit=False, border=False):
+        s1, s2 = st.columns([5, 1])
+        with s1:
+            search_input = st.text_input(
+                "股票代码",
+                placeholder="输入代码如 600460",
+                label_visibility="collapsed",
+                key="top_search",
+            )
+        with s2:
+            submitted = st.form_submit_button("→", help="搜索股票", use_container_width=True)
+        if submitted and search_input:
+            cleaned = normalize_code(search_input)
+            if len(cleaned) >= 6:
+                st.session_state["data_code"] = cleaned
+                st.session_state["app_mode"] = "data"
+                st.rerun()
 
 with col_theme:
     components.html("""
