@@ -268,24 +268,24 @@ with col_brand:
         st.session_state["app_mode"] = "data"
         st.rerun()
 
+# 搜索回调：回车或失焦时触发
+def _on_search():
+    raw = st.session_state.get("top_search", "")
+    if raw:
+        cleaned = normalize_code(raw)
+        if len(cleaned) >= 6:
+            st.session_state["data_code"] = cleaned
+            st.session_state["app_mode"] = "data"
+            st.session_state["top_search"] = ""  # 清空输入
+
 with col_search:
-    with st.form("search_form", clear_on_submit=False, border=False):
-        s1, s2 = st.columns([5, 1])
-        with s1:
-            search_input = st.text_input(
-                "股票代码",
-                placeholder="输入代码如 600460",
-                label_visibility="collapsed",
-                key="top_search",
-            )
-        with s2:
-            submitted = st.form_submit_button("→", help="搜索股票", use_container_width=True)
-        if submitted and search_input:
-            cleaned = normalize_code(search_input)
-            if len(cleaned) >= 6:
-                st.session_state["data_code"] = cleaned
-                st.session_state["app_mode"] = "data"
-                st.rerun()
+    st.text_input(
+        "股票代码",
+        placeholder="输入代码，回车搜索",
+        label_visibility="collapsed",
+        key="top_search",
+        on_change=_on_search,
+    )
 
 with col_theme:
     components.html("""
