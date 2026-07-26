@@ -182,7 +182,7 @@ with st.sidebar:
 # ── Top navigation bar (replaces sidebar) ──
 # 结构批：5列→4列，砍掉空占位列，col_nav并入col_brand，vertical_alignment对齐
 col_toggle, col_brand, col_search, col_theme = st.columns(
-    [0.8, 1.5, 3, 0.7], vertical_alignment="center"
+    [0.8, 2.2, 2, 0.7], vertical_alignment="center"
 )
 with col_toggle:
     components.html("""
@@ -281,7 +281,7 @@ def _on_search():
 with col_search:
     st.text_input(
         "股票代码",
-        placeholder="输入代码，回车搜索",
+        placeholder="代码",
         label_visibility="collapsed",
         key="top_search",
         on_change=_on_search,
@@ -470,7 +470,7 @@ def _render_analysis_mode() -> None:
 
             full_history = get_history()
             history_search = st.text_input(
-                "历史", placeholder="搜索股票代码或日期",
+                "历史", placeholder="筛选历史",
                 label_visibility="collapsed", key="main_history_search",
             )
 
