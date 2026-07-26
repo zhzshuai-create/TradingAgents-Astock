@@ -296,19 +296,16 @@ with col_theme:
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
       html, body { height: 100%; background: transparent; display: flex; align-items: center; justify-content: center; }
-      .theme-toggle { display: flex; gap: 2px; background: var(--theme-switch-bg); border-radius: var(--radius-md); padding: 2px; }
+      .theme-toggle { display: flex; gap: 2px; background: #e9ecef; border-radius: 8px; padding: 2px; }
       .theme-btn {
-        width: 30px; height: 28px; border: none; border-radius: var(--radius-sm);
+        width: 30px; height: 28px; border: none; border-radius: 6px;
         cursor: pointer; font-size: 12px; font-weight: 600;
         display: flex; align-items: center; justify-content: center;
-        transition: all 0.12s ease; line-height: 1;
-        background: transparent; color: var(--muted);
+        line-height: 1; background: transparent; color: #888;
+        transition: all 0.12s ease;
       }
-      .theme-btn.active {
-        background: var(--brand) !important; color: var(--btn-text) !important;
-        box-shadow: none;
-      }
-      .theme-btn:not(.active):hover { color: var(--text); background: var(--line); }
+      .theme-btn:hover { color: #333; background: #ddd; }
+      .theme-btn.active { background: #e85d04; color: #fff; }
     </style>
     </head>
     <body>
