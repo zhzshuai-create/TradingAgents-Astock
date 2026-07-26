@@ -181,8 +181,8 @@ with st.sidebar:
 
 # ── Top navigation bar (replaces sidebar) ──
 # 结构批：5列→4列，砍掉空占位列，col_nav并入col_brand，vertical_alignment对齐
-col_toggle, col_brand, col_search, col_theme = st.columns(
-    [0.8, 2.2, 2, 0.7], vertical_alignment="center"
+col_toggle, col_brand, col_theme = st.columns(
+    [0.8, 3.5, 0.7], vertical_alignment="center"
 )
 with col_toggle:
     components.html("""
@@ -267,25 +267,6 @@ with col_brand:
     elif "数据看板" in mode and st.session_state.get("app_mode") != "data":
         st.session_state["app_mode"] = "data"
         st.rerun()
-
-# 搜索回调：回车或失焦时触发
-def _on_search():
-    raw = st.session_state.get("top_search", "")
-    if raw:
-        cleaned = normalize_code(raw)
-        if len(cleaned) >= 6:
-            st.session_state["data_code"] = cleaned
-            st.session_state["app_mode"] = "data"
-            st.session_state["top_search"] = ""  # 清空输入
-
-with col_search:
-    st.text_input(
-        "股票代码",
-        placeholder="代码",
-        label_visibility="collapsed",
-        key="top_search",
-        on_change=_on_search,
-    )
 
 with col_theme:
     components.html("""
