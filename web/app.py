@@ -507,7 +507,7 @@ def _render_analysis_mode() -> None:
         # Right: new analysis
         with right:
             # 结构批：st.container(border=True) 替代 HTML div.card（Streamlit 控件无法嵌套在 st.markdown 内）
-            card = st.container(border=True)
+            card = st.container(border=False)
             with card:
                 st.markdown('<div class="card__title">🔍 新建分析</div>', unsafe_allow_html=True)
                 ticker = st.text_input("代码", placeholder="输入 6 位代码如 000636",
