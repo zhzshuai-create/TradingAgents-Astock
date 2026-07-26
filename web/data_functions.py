@@ -357,7 +357,10 @@ def eastmoney_stock_news(code: str, page_size: int = 20) -> list[dict]:
     except Exception:
         return []
     rows = []
-    articles = d.get("result", {}).get("cmsArticleWebOld", {}).get("list", [])
+    result = d.get("result", {})
+    if not isinstance(result, dict):
+        return []
+    articles = result.get("cmsArticleWebOld", {}).get("list", [])
     for a in articles:
         rows.append({
             "title": re.sub(r'<[^>]+>', '', a.get("title", "")),
