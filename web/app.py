@@ -328,7 +328,8 @@ with col_theme:
         var theme = btn.getAttribute('data-theme');
         if (theme === currentTheme) return;
         currentTheme = theme;
-        // Apply instantly — zero server round-trip
+        // Apply to both iframe and parent — Streamlit renders CSS in main doc
+        document.documentElement.className = theme;
         window.parent.document.documentElement.className = theme;
         localStorage.setItem('astock-theme', theme);
         updateUI(theme);
@@ -453,7 +454,7 @@ def _render_analysis_mode() -> None:
             <div style="color: var(--muted); font-size: var(--font-md); margin-top: var(--space-xs);">
                 7位AI分析师 → 质量门控 → 多空辩论 → 风控评估 → 最终决策
             </div>
-            <div class="banner__pill" style="margin-top: var(--space-sm);">
+            <div class="banner__pill">
                 统一平台 · 2026-05-22
             </div>
         </div>
@@ -464,8 +465,8 @@ def _render_analysis_mode() -> None:
 
         # Left: history
         with left:
-            # 结构批：区块标题 → 引用 .card__title
-            st.markdown('<div class="card__title">📊 历史分析记录</div>', unsafe_allow_html=True)
+            # 结构批：纯 HTML 标题，不依赖 .card 父容器
+            st.markdown('<div style="font-weight:700;font-size:var(--font-lg);color:var(--text);margin-bottom:var(--space-sm);">📊 历史分析记录</div>', unsafe_allow_html=True)
 
             full_history = get_history()
             history_search = st.text_input(
@@ -522,7 +523,7 @@ def _render_analysis_mode() -> None:
 
     # Footer
     st.markdown("""
-    <div style="text-align:center;margin-top:2rem;padding:0.8rem;color:var(--muted); font-size:0.75rem; border-top:1px solid var(--line);">
+    <div class="footer-note">
         ⚠️ 本项目仅供学习研究，不构成任何投资建议。
     </div>
     """, unsafe_allow_html=True)
