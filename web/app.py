@@ -67,6 +67,7 @@ components.html("""
 (function(){
     var theme = localStorage.getItem('astock-theme') || 'light';
     document.documentElement.className = theme;
+    window.parent.document.documentElement.className = theme;
 })();
 </script>
 """, height=0)
