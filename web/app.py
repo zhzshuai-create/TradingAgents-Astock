@@ -367,8 +367,8 @@ def _render_analysis_mode() -> None:
         </div>
         """, unsafe_allow_html=True)
 
-        # 结构批：左窄右宽 [2:3]，左栏列表仅 code+date+tag，右栏表单需要输入框宽度
-        left, right = st.columns([2, 3])
+        # 左宽右窄：左栏列表，右栏表单限宽 520px
+        left, right = st.columns([3, 2])
 
         # Left: history
         with left:
