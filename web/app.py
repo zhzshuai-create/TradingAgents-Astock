@@ -257,7 +257,7 @@ with col_brand:
     """, unsafe_allow_html=True)
     mode = st.radio(
         "模式",
-        ["📊 AI分析报告", "📈 实时数据看板"],
+        ["AI分析报告", "实时数据看板"],
         index=0 if st.session_state.get("app_mode") == "analysis" else 1,
         horizontal=True, key="top_mode", label_visibility="collapsed",
     )
@@ -311,8 +311,8 @@ with col_theme:
     </head>
     <body>
     <div class="theme-toggle" id="themeToggle">
-      <button class="theme-btn" data-theme="light" title="亮色模式">☀️</button>
-      <button class="theme-btn" data-theme="dark" title="暗色模式">🌙</button>
+      <button class="theme-btn" data-theme="light" title="亮色模式">亮</button>
+      <button class="theme-btn" data-theme="dark" title="暗色模式">暗</button>
     </div>
     <script>
     var currentTheme = localStorage.getItem('astock-theme') || 'light';
@@ -467,7 +467,7 @@ def _render_analysis_mode() -> None:
         # Left: history
         with left:
             # 结构批：纯 HTML 标题，不依赖 .card 父容器
-            st.markdown('<div style="font-weight:700;font-size:var(--font-lg);color:var(--text);margin-bottom:var(--space-sm);">📊 历史分析记录</div>', unsafe_allow_html=True)
+            st.markdown('<div style="font-weight:700;font-size:var(--font-lg);color:var(--text);margin-bottom:var(--space-sm);">历史分析记录</div>', unsafe_allow_html=True)
 
             full_history = get_history()
             history_search = st.text_input(
@@ -509,7 +509,7 @@ def _render_analysis_mode() -> None:
             # 结构批：st.container(border=True) 替代 HTML div.card（Streamlit 控件无法嵌套在 st.markdown 内）
             card = st.container(border=False)
             with card:
-                st.markdown('<div class="card__title">🔍 新建分析</div>', unsafe_allow_html=True)
+                st.markdown('<div class="card__title">新建分析</div>', unsafe_allow_html=True)
                 ticker = st.text_input("代码", placeholder="输入 6 位代码如 000636",
                                        max_chars=6, label_visibility="collapsed")
                 trade_date = st.date_input("分析日期", label_visibility="collapsed")
@@ -525,7 +525,7 @@ def _render_analysis_mode() -> None:
     # Footer
     st.markdown("""
     <div class="footer-note">
-        ⚠️ 本项目仅供学习研究，不构成任何投资建议。
+        本项目仅供学习研究，不构成任何投资建议。
     </div>
     """, unsafe_allow_html=True)
 
