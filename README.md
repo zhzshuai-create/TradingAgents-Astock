@@ -23,20 +23,20 @@ AI 多智能体 A 股投资研究平台，集成实时数据看板。基于 [Tau
   <img src="assets/screenshot-analysis.png" width="90%" alt="AI分析报告界面"/>
 </p>
 
-### 实时数据看板（暗色模式）
+### 实时数据报告看板
 
 K 线（分时/5日/30日/全部）· 实时估值指标 · 概念板块 · 强势股列表。
 
 <p align="center">
-  <img src="assets/screenshot-dashboard.png" width="90%" alt="实时数据看板暗色"/>
+  <img src="assets/screenshot-dashboard.png" width="90%" alt="实时数据报告看板"/>
 </p>
 
-### 实时数据看板（亮色模式）
+### AI分析报告界面
 
 同一看板在亮色主题下的展示效果。
 
 <p align="center">
-  <img src="assets/dashboard-light.png" width="90%" alt="实时数据看板亮色"/>
+  <img src="assets/dashboard-light.png" width="90%" alt="AI分析报告界面"/>
 </p>
 
 ### 分析进度
