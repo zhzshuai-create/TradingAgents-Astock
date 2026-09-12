@@ -36,9 +36,10 @@ class _FakeMootdxClient:
 
 def test_get_stock_data_supplements_stale_mootdx_with_sina(monkeypatch):
     from tradingagents.dataflows import a_stock
+    from tradingagents.dataflows.a_stock import _common
 
-    monkeypatch.setattr(a_stock, "_get_mootdx_client", lambda: _FakeMootdxClient())
-    monkeypatch.setattr(a_stock, "_sina_kline_fallback", lambda *args: _sina_bars_until_0611())
+    monkeypatch.setattr(_common, "_get_mootdx_client", lambda: _FakeMootdxClient())
+    monkeypatch.setattr(_common, "_sina_kline_fallback", lambda *args: _sina_bars_until_0611())
 
     result = a_stock.get_stock_data("000628", "2026-06-10", "2026-06-11")
 
@@ -49,6 +50,7 @@ def test_get_stock_data_supplements_stale_mootdx_with_sina(monkeypatch):
 def test_load_ohlcv_astock_supplements_fresh_cache_with_sina(tmp_path, monkeypatch):
     from tradingagents.dataflows import a_stock
     from tradingagents.dataflows import config as dataflow_config
+    from tradingagents.dataflows.a_stock import _common
 
     cache_file = Path(tmp_path) / "000628-astock-daily.csv"
     _mootdx_bars_until_0610().reset_index().rename(
@@ -63,8 +65,8 @@ def test_load_ohlcv_astock_supplements_fresh_cache_with_sina(tmp_path, monkeypat
     ).to_csv(cache_file, index=False)
 
     monkeypatch.setattr(dataflow_config, "get_config", lambda: {"data_cache_dir": str(tmp_path)})
-    monkeypatch.setattr(a_stock, "_get_mootdx_client", lambda: _FakeMootdxClient())
-    monkeypatch.setattr(a_stock, "_sina_kline_fallback", lambda *args: _sina_bars_until_0611())
+    monkeypatch.setattr(_common, "_get_mootdx_client", lambda: _FakeMootdxClient())
+    monkeypatch.setattr(_common, "_sina_kline_fallback", lambda *args: _sina_bars_until_0611())
 
     result = a_stock._load_ohlcv_astock("000628", "2026-06-11")
 
