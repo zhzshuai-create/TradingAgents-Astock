@@ -118,6 +118,9 @@ def _run(ticker: str, trade_date: str, config: dict, tracker: ProgressTracker) -
             return
 
         stream = graph.graph.stream(init_state, **args)
+        # incomplete_tasks.json 落盘以「阶段集合/暂停状态变化」为界，而非每个
+        # super-step 一次——状态不变时写盘纯属浪费（一次分析几十次全量 JSON 重写）。
+        record_key: tuple | None = None
         while True:
             tracker.wait_if_paused()
             if tracker.stop_requested:
@@ -135,12 +138,16 @@ def _run(ticker: str, trade_date: str, config: dict, tracker: ProgressTracker) -
             last_chunk = chunk
             _detect_completed_stages(chunk, tracker)
             _infer_active_stage(tracker)
-            record_incomplete_task(
-                ticker,
-                trade_date,
-                status="paused" if tracker.is_paused else "running",
-                completed_stages=tracker.completed_stages,
-            )
+
+            current_key = (tuple(tracker.completed_stages), tracker.is_paused)
+            if current_key != record_key:
+                record_incomplete_task(
+                    ticker,
+                    trade_date,
+                    status="paused" if tracker.is_paused else "running",
+                    completed_stages=tracker.completed_stages,
+                )
+                record_key = current_key
 
             s = stats.get_stats()
             tracker.update_stats(s["llm_calls"], s["tool_calls"], s["tokens_in"], s["tokens_out"])
