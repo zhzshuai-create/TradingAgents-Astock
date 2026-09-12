@@ -270,21 +270,36 @@ _em_last_call = [0.0]  # 模块级上次东财请求时间戳
 
 
 def _em_get(url, params=None, headers=None, timeout=15, **kwargs):
-    """东财统一请求入口：自动节流 + 复用 session + 默认 UA。
+    """东财统一请求入口：自动节流 + 复用 session + 默认 UA + 失败重试。
 
     所有 eastmoney.com 接口都应通过它请求，避免多 Agent 高频拉数据被封 IP。
     串行限流：与上次东财请求间隔 < EM_MIN_INTERVAL 时 sleep 补足 + 0.1~0.5s 随机抖动。
+    重试：连接错误/超时/5xx 自动重试 1 次（约 1s 退避），4xx 与业务错误直接抛出。
     传入的 headers 会覆盖 session 默认 UA（用于保留各端点自己的 Referer/Origin）。
     """
     wait = _EM_MIN_INTERVAL - (time.time() - _em_last_call[0])
     if wait > 0:
         time.sleep(wait + random.uniform(0.1, 0.5))
-    try:
-        return _EM_SESSION.get(
-            url, params=params, headers=headers, timeout=timeout, **kwargs
-        )
-    finally:
-        _em_last_call[0] = time.time()
+
+    for attempt in range(2):
+        try:
+            resp = _EM_SESSION.get(
+                url, params=params, headers=headers, timeout=timeout, **kwargs
+            )
+            _em_last_call[0] = time.time()
+            if attempt == 0 and resp.status_code >= 500:
+                logger.warning("EM %s returned %d, retrying once", url, resp.status_code)
+                time.sleep(1.0 + random.uniform(0.0, 0.5))
+                continue
+            return resp
+        except (_requests.ConnectionError, _requests.Timeout) as e:
+            _em_last_call[0] = time.time()
+            if attempt == 0:
+                logger.warning("EM %s network error (%s), retrying once", url, e)
+                time.sleep(1.0 + random.uniform(0.0, 0.5))
+                continue
+            raise
+    raise RuntimeError("unreachable")
 
 
 def _eastmoney_datacenter(

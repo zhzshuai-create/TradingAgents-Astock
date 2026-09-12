@@ -187,6 +187,7 @@ def get_fundamentals(
         return header + "\n".join(lines)
 
     except Exception as e:
+        logger.warning("Fundamentals failed for %s: %s", code, e)
         return f"Error retrieving fundamentals for {code}: {str(e)}"
 
 
@@ -271,6 +272,7 @@ def get_balance_sheet(
         return header + csv_string
 
     except Exception as e:
+        logger.warning("Balance sheet failed for %s: %s", code, e)
         return f"Error retrieving balance sheet for {code}: {str(e)}"
 
 
@@ -302,6 +304,7 @@ def get_cashflow(
         return header + csv_string
 
     except Exception as e:
+        logger.warning("Cash flow failed for %s: %s", code, e)
         return f"Error retrieving cash flow for {code}: {str(e)}"
 
 
@@ -333,6 +336,7 @@ def get_income_statement(
         return header + csv_string
 
     except Exception as e:
+        logger.warning("Income statement failed for %s: %s", code, e)
         return f"Error retrieving income statement for {code}: {str(e)}"
 
 
@@ -382,6 +386,7 @@ def get_insider_transactions(
         return header + text
 
     except Exception as e:
+        logger.warning("Shareholder research failed for %s: %s", code, e)
         return f"Error retrieving insider/shareholder data for {code}: {str(e)}"
 
 
@@ -475,5 +480,6 @@ def get_profit_forecast(
         return "\n".join(lines)
 
     except Exception as e:
+        logger.warning("Profit forecast failed for %s: %s", code, e)
         return f"Error retrieving profit forecast for {code}: {str(e)}"
 

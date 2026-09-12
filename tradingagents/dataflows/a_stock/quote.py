@@ -171,5 +171,6 @@ def get_indicators(
         return result
 
     except Exception as e:
+        logger.warning("Indicator %s failed for %s: %s", indicator, code, e)
         return f"Error calculating {indicator} for {code}: {str(e)}"
 
