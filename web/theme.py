@@ -139,6 +139,28 @@ DARK_TOKENS = """
 --down: #51cf66;
 --warn: #fbbf24;
 
+/* ===== SPACING — 与亮色一致 ===== */
+--space-xs:  4px;
+--space-sm:  8px;
+--space-md:  16px;
+--space-lg:  24px;
+--space-xl:  32px;
+--space-2xl: 40px;
+
+/* ===== FONT SIZE — 与亮色一致 ===== */
+--font-xs:  0.65rem;
+--font-sm:  0.75rem;
+--font-md:  0.85rem;
+--font-lg:  1.05rem;
+--font-xl:  1.35rem;
+--font-2xl: 2rem;
+
+/* ===== RADIUS — 与亮色一致 ===== */
+--radius-sm: 6px;
+--radius-md: 8px;
+--radius-lg: 12px;
+--radius-xl: 16px;
+
 /* ===== COMPONENT: toggle ===== */
 --toggle-bg:     #2d2927;
 --toggle-border: #383330;
@@ -156,15 +178,10 @@ DARK_TOKENS = """
 /* ===== Streamlit dark header background ===== */
 --st-header-dark: #1c1816;
 
-/* ===== Step 3 补漏：暗色模式缺失变量 ===== */
-/* SHADOW — 暗色需更深的阴影 */
+/* ===== 暗色模式补全：亮色已定义的变量（保持同值） ===== */
 --shadow-card:  0 1px 4px rgba(0,0,0,0.25);
 --shadow-hover: 0 2px 8px rgba(0,0,0,0.40);
-
-/* HAIRLINE — 1px 不变 */
 --hairline: 1px;
-
-/* UTILITY — 按钮文字 */
 --btn-text: #ffffff;
 
 /* TRADING SIGNAL BANNER — 固定暗色主题，与亮色同值 */
@@ -372,6 +389,63 @@ COMBINATION_CSS = """
     padding: 0;
     border-radius: 0;
     border: none;
+}
+
+/* ── 大盘指数条 ── */
+.index-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-lg);
+    flex-wrap: nowrap;
+}
+.index-sep {
+    width: 1px;
+    height: 22px;
+    background: var(--line);
+    flex-shrink: 0;
+}
+.index-item {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    white-space: nowrap;
+}
+.index-name {
+    font-size: var(--font-sm);
+    color: var(--muted);
+}
+.index-price {
+    font-size: var(--font-lg);
+    font-weight: 700;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+}
+.index-change {
+    font-size: var(--font-md);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+.index-change.up    { color: var(--up); }
+.index-change.down  { color: var(--down); }
+.index-change.flat  { color: var(--muted); }
+.index-closed-tag {
+    font-size: var(--font-xs);
+    color: var(--muted);
+    margin-left: 2px;
+}
+
+/* ── 响应式 ── */
+@media (max-width: 1100px) {
+    .index-bar     { gap: var(--space-sm); }
+    .index-item    { gap: 2px; }
+    .index-name    { font-size: var(--font-xs); }
+    .index-price   { font-size: var(--font-sm); }
+    .index-change  { font-size: var(--font-xs); }
+    .index-sep     { height: 16px; }
+}
+@media (max-width: 768px) {
+    .index-bar     { display: none; }
 }
 
 /* ── 底部声明 ── */
@@ -809,6 +883,30 @@ html.dark .stApp [role="tab"] {
 }
 html.dark .stApp [aria-selected="true"][role="tab"] {
     color: var(--brand) !important;
+}
+
+/* ── Segmented Control 暗色适配 ── */
+/* 外层容器 — 通过子按钮反向定位 */
+html.dark .stApp div:has(> button[kind="segmented_control"]) {
+    background: var(--surface) !important;
+    border: var(--hairline) solid var(--line) !important;
+    border-radius: var(--radius-sm) !important;
+}
+/* 未选中 */
+html.dark .stApp button[kind="segmented_control"],
+html.dark .stApp button[kind="segmented_control"] * {
+    color: var(--muted) !important;
+    background: transparent !important;
+}
+html.dark .stApp button[kind="segmented_control"]:hover,
+html.dark .stApp button[kind="segmented_control"]:hover * {
+    color: var(--text) !important;
+}
+/* 选中态：白字橙底 */
+html.dark .stApp button[kind="segmented_controlActive"],
+html.dark .stApp button[kind="segmented_controlActive"] * {
+    color: #fff !important;
+    background: var(--brand) !important;
 }
 html.dark .stApp [data-baseweb="tag"] {
     background: var(--bg) !important;

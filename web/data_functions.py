@@ -10,6 +10,7 @@ import urllib.request
 from pathlib import Path
 from collections import Counter
 
+import streamlit as st
 import requests
 import pandas as pd
 from mootdx.quotes import Quotes
@@ -28,6 +29,7 @@ def normalize_code(raw: str) -> str:
 
 # ── 行情层 ────────────────────────────────────────────────
 
+@st.cache_data(ttl=10, show_spinner=False)
 def tencent_quote(codes: list[str]) -> dict:
     prefixed = []
     for c in codes:
@@ -77,6 +79,7 @@ def tencent_quote(codes: list[str]) -> dict:
 
 # ── 研报层 ────────────────────────────────────────────────
 
+@st.cache_data(ttl=14400, show_spinner=False)
 def ths_eps_forecast(code: str) -> pd.DataFrame:
     url = f"https://basic.10jqka.com.cn/new/{code}/worth.html"
     headers = {"User-Agent": UA, "Referer": "https://basic.10jqka.com.cn/"}
@@ -94,6 +97,7 @@ def ths_eps_forecast(code: str) -> pd.DataFrame:
 
 # ── 信号层 ────────────────────────────────────────────────
 
+@st.cache_data(ttl=3600, show_spinner=False)
 def ths_hot_reason(date_str: str | None = None) -> pd.DataFrame:
     """Return today's strong stocks with real price-change data.
 
@@ -146,6 +150,7 @@ def ths_hot_reason(date_str: str | None = None) -> pd.DataFrame:
     except Exception:
         return pd.DataFrame()
 
+@st.cache_data(ttl=86400, show_spinner=False)
 def baidu_concept_blocks(code: str) -> dict:
     url = (
         f"https://finance.pae.baidu.com/api/getrelatedblock"
@@ -195,6 +200,7 @@ def _northbound_cache_path() -> Path:
     p.parent.mkdir(parents=True, exist_ok=True)
     return p
 
+@st.cache_data(ttl=30, show_spinner=False)
 def hsgt_realtime() -> pd.DataFrame:
     url = "https://data.hexin.cn/market/hsgtApi/method/dayChart/"
     try:
@@ -212,6 +218,7 @@ def hsgt_realtime() -> pd.DataFrame:
     except Exception:
         return pd.DataFrame()
 
+@st.cache_data(ttl=3600, show_spinner=False)
 def load_northbound_history(n: int = 20) -> pd.DataFrame:
     path = _northbound_cache_path()
     if not path.exists():
@@ -227,6 +234,7 @@ def load_northbound_history(n: int = 20) -> pd.DataFrame:
 def _tdx_client():
     return Quotes.factory(market='std')
 
+@st.cache_data(ttl=300, show_spinner=False)
 def get_kline_data(code: str, days: int = 60) -> pd.DataFrame:
     try:
         client = _tdx_client()
@@ -237,6 +245,7 @@ def get_kline_data(code: str, days: int = 60) -> pd.DataFrame:
     except Exception:
         return pd.DataFrame()
 
+@st.cache_data(ttl=30, show_spinner=False)
 def get_minute_data(code: str, date_str: str | None = None) -> pd.DataFrame:
     """Fetch intraday 1‑minute data for *date_str*.
 
@@ -288,6 +297,7 @@ def eastmoney_fund_flow_minute(code: str) -> list[dict]:
             })
     return rows
 
+@st.cache_data(ttl=300, show_spinner=False)
 def industry_comparison(top_n: int = 20) -> dict:
     url = "https://push2.eastmoney.com/api/qt/clist/get"
     params = {
@@ -320,6 +330,7 @@ def industry_comparison(top_n: int = 20) -> dict:
 
 # ── 新闻层 ────────────────────────────────────────────────
 
+@st.cache_data(ttl=120, show_spinner=False)
 def cls_telegraph(page_size: int = 30) -> list[dict]:
     url = "https://www.cls.cn/nodeapi/telegraphList"
     params = {"rn": str(page_size), "page": "1"}
@@ -338,6 +349,7 @@ def cls_telegraph(page_size: int = 30) -> list[dict]:
         })
     return rows
 
+@st.cache_data(ttl=300, show_spinner=False)
 def eastmoney_stock_news(code: str, page_size: int = 20) -> list[dict]:
     cb = "jQuery_news"
     url = "https://search-api-web.eastmoney.com/search/jsonp"
@@ -392,3 +404,63 @@ def pe_digestion(current_pe: float, cagr: float, target_pe: float = 30) -> float
     if cagr <= 0:
         return float("inf")
     return math.log(current_pe / target_pe) / math.log(1 + cagr)
+
+
+# ── 大盘指数 ──────────────────────────────────────────────
+
+@st.cache_data(ttl=10, show_spinner=False)
+def index_spot() -> dict:
+    """获取三大指数（上证/深证/创业板）实时行情。
+
+    优先使用 akshare，失败时回退腾讯 qt.gtimg.cn。
+    返回 {"000001": {name, price, change_pct, change_amt}, ...}
+    """
+    result = {}
+    try:
+        import akshare as ak
+        df = ak.stock_zh_index_spot_em()
+        targets = {"上证指数": "000001", "深证成指": "399001", "创业板指": "399006"}
+        for _, row in df.iterrows():
+            name = str(row.get("名称", ""))
+            if name not in targets:
+                continue
+            code = targets[name]
+            result[code] = {
+                "name": name,
+                "price": float(row["最新价"]) if pd.notna(row.get("最新价")) else 0,
+                "change_pct": float(row["涨跌幅"]) if pd.notna(row.get("涨跌幅")) else 0,
+                "change_amt": float(row["涨跌额"]) if pd.notna(row.get("涨跌额")) else 0,
+            }
+        if len(result) == 3:
+            return result
+    except Exception:
+        pass
+
+    # fallback: Tencent qt.gtimg.cn
+    try:
+        url = "https://qt.gtimg.cn/q=sh000001,sz399001,sz399006"
+        req = urllib.request.Request(url, headers={"User-Agent": UA})
+        resp = urllib.request.urlopen(req, timeout=10)
+        data = resp.read().decode("gbk")
+        order = [("000001", "上证指数"), ("399001", "深证成指"), ("399006", "创业板指")]
+        for code, label in order:
+            result[code] = {"name": label, "price": 0, "change_pct": 0, "change_amt": 0}
+        for line in data.strip().split(";"):
+            if not line.strip() or "=" not in line or '"' not in line:
+                continue
+            try:
+                _, content = line.split("=", 1)
+                vals = content.strip('";\n').split("~")
+                if len(vals) < 33:
+                    continue
+                raw_code = vals[2]  # e.g. "000001" or "399001"
+                if raw_code in result:
+                    result[raw_code]["price"] = float(vals[3]) if vals[3] else 0
+                    result[raw_code]["change_pct"] = float(vals[32]) if vals[32] else 0
+                    result[raw_code]["change_amt"] = float(vals[31]) if vals[31] else 0
+            except Exception:
+                continue
+    except Exception:
+        pass
+
+    return result
