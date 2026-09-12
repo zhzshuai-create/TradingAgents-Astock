@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.10", "3.13"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install project
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e . pytest
+      - name: Run tests
+        run: python -m pytest tests/ -q
+        env:
+          # conftest.py mocks keys, but keep CI hermetic just in case
+          DEEPSEEK_API_KEY: test-key
+          OPENAI_API_KEY: test-key
+          ANTHROPIC_API_KEY: test-key
