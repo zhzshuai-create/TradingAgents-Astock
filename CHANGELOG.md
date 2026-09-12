@@ -6,7 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Breaking changes within the 0.x line are called out explicitly.
 
-## [Unreleased]
+## [0.2.17] — 2026-09-13
 
 工程化整体升级：仓库清理、模块拆分、数据层统一、性能与健壮性优化。无功能行为变化（除注明项），164+ 测试全绿，新增 CI。
 
