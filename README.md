@@ -5,6 +5,8 @@
   <img src="https://img.shields.io/badge/version-0.2.16-green" alt="Version 0.2.16">
   <img src="https://img.shields.io/badge/license-Apache%202.0-orange?logo=apache" alt="Apache 2.0">
   <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey" alt="Platform">
+  <a href="https://github.com/zhzshuai-create/TradingAgents-Astock/actions/workflows/ci.yml"><img src="https://github.com/zhzshuai-create/TradingAgents-Astock/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <img src="https://img.shields.io/badge/tests-164%20passed-brightgreen" alt="Tests">
 </p>
 
 AI 多智能体 A 股投资研究平台，集成实时数据看板。基于 [TauricResearch/TradingAgents](https://github.com/TauricResearch/TradingAgents)（65K+ Stars）的深度定制版。
@@ -17,7 +19,7 @@ AI 多智能体 A 股投资研究平台，集成实时数据看板。基于 [Tau
 
 ### AI 分析报告模式
 
-7 个 AI 分析师并行采集数据 → 多空辩论 → 风控评估 → 最终投资决策。
+7 个 AI 分析师（可开启并行加速）→ 多空辩论 → 风控评估 → 最终投资决策。
 
 <p align="center">
   <img src="assets/screenshot-analysis.png" width="90%" alt="AI分析报告界面"/>
@@ -77,6 +79,9 @@ K 线（分时/5日/30日/全部）· 实时估值指标 · 概念板块 · 强�
 | ⏸️ **分析过程可控** | 随时暂停 / 继续 / 停止，卡死自动检测告警 |
 | 📥 **双格式导出** | Markdown（零依赖）和 PDF 中文完整报告，跨平台字体适配 |
 | 📝 **历史记录** | 自动保存所有分析，支持代码/日期搜索，一键回溯查看 |
+| ⚡ **分析师并行（可选）** | 设 `TA_PARALLEL_ANALYSTS=1` 后 7 个分析师 fan-out 并发执行，墙钟时间约等于最慢的一个 |
+| 💾 **断点续跑** | 开启 checkpoint 后分析中途崩溃可从最后完成的节点恢复，配合暂停/停止 |
+| 🛡️ **数据层防封** | 东财全端点统一节流 + 失败自动重试；腾讯/新浪/同花顺单发请求也带一次重试 |
 
 ---
 
@@ -87,21 +92,32 @@ TradingAgents-Astock/
 ├── tradingagents/          # 核心框架
 │   ├── agents/             # 7 个 AI 分析师 + Bull/Bear 辩论
 │   ├── dataflows/          # 数据层（所有行情/财务/新闻接口）
-│   │   ├── a_stock.py      # A 股数据 vendor 主入口
+│   │   ├── a_stock/        # A 股数据 vendor（包）
+│   │   │   ├── _common.py      # 共享基础设施：代码解析、mootdx 客户端、东财节流、
+│   │   │   │                   #   腾讯/同花顺/新浪 helpers、OHLCV 缓存与补数链
+│   │   │   ├── quote.py        # K 线行情 + 技术指标
+│   │   │   ├── fundamentals.py # 估值快照 + 财报三表 + 盈利预测 + 股东研究
+│   │   │   ├── news.py         # 个股新闻 + 全球财经资讯
+│   │   │   └── signals.py      # 热股题材 / 北向资金 / 资金流 / 龙虎榜 / 解禁 / 行业对比
 │   │   └── interface.py    # vendor 路由模式
-│   └── graph/              # LangGraph 分析流程编排
+│   └── graph/              # LangGraph 分析流程编排（串行链 / 并行 fan-out 可切换）
 ├── web/                    # Streamlit Web UI
-│   ├── app.py              # Web 入口
-│   ├── launch.py           # 启动模块
-│   ├── runner.py           # 分析运行器（支持暂停/继续/停止）
+│   ├── app.py              # Web 入口 + AI 分析模式
+│   ├── launch.py           # 启动模块（tradingagents-web 命令）
+│   ├── data_functions.py   # 看板数据适配层（核心数据层之上的缓存包装）
+│   ├── text_utils.py       # 共享文本清洗（think 标签等）
+│   ├── runner.py           # 分析运行器（后台线程，支持暂停/继续/停止/断点）
 │   ├── components/         # UI 组件
+│   │   └── data_dashboard.py   # 实时数据看板渲染
 │   └── pdf_export.py       # PDF 导出
 ├── cli/                    # 命令行工具
-│   └── main.py             # CLI 入口
+│   ├── main.py             # CLI 入口 + 分析编排
+│   └── display.py          # 终端显示层（MessageBuffer / 实时布局 / 报告展示）
 ├── examples/               # 示例脚本
 │   └── run_cases.py        # 批量分析样例
 ├── scripts/                # 工具脚本
-├── tests/                  # 测试
+├── tests/                  # 测试（164+，含数据解析离线单测与图拓扑测试）
+├── .github/workflows/      # CI（ubuntu/windows × py3.10/3.13 测试矩阵）
 ├── assets/                 # 截图等静态资源
 ├── issues/                 # Issue 归档记录
 ├── pyproject.toml          # 项目配置与依赖
@@ -157,6 +173,18 @@ tradingagents --help    # 查看所有命令
 
 浏览器访问 `http://localhost:8501`。
 
+### 可选：分析师并行加速
+
+默认 7 个分析师按顺序执行。设置环境变量后改为 fan-out 并发（墙钟时间约等于最慢的分析师）：
+
+```bash
+# Windows PowerShell
+$env:TA_PARALLEL_ANALYSTS = "1"; streamlit run web/app.py
+
+# macOS / Linux
+TA_PARALLEL_ANALYSTS=1 streamlit run web/app.py
+```
+
 ---
 
 ## 数据源
@@ -207,7 +235,7 @@ python examples/run_cases.py
 
 ### 东财接口被封了怎么办？
 
-v0.2.11 起已内置限流机制（请求间隔 ≥ 1s + 随机抖动），一般不会触发封禁。如果频繁使用仍被封，可在 `.env` 中增加间隔：
+v0.2.11 起内置限流机制（请求间隔 ≥ 1s + 随机抖动），且所有东财端点（含看板刷新）都走统一节流入口并带失败自动重试，一般不会触发封禁。如果频繁使用仍被封，可在 `.env` 中增加间隔：
 
 ```bash
 EM_MIN_INTERVAL=2.0
