@@ -6,6 +6,38 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Breaking changes within the 0.x line are called out explicitly.
 
+## [Unreleased]
+
+工程化整体升级：仓库清理、模块拆分、数据层统一、性能与健壮性优化。无功能行为变化（除注明项），164+ 测试全绿，新增 CI。
+
+### 新增
+- **CLI 补齐 policy / hot_money / lockup 三个 A 股分析师**：`AnalystType` 枚举、分析师选择菜单、终端显示映射、`save_report_to_disk` 落盘（policy.md / hot_money.md / lockup.md）全部覆盖，与 graph 能力对齐。
+- **分析师 fan-out 并行（opt-in）**：设 `TA_PARALLEL_ANALYSTS=1` 后 7 个分析师在单个 LangGraph super-step 并发执行、汇合 Quality Gate。每个分析师拥有独立的 `<type>_messages` 消息通道（ToolNode `messages_key` + 条件路由改造），从根本上解决共享消息交错导致并行不可行的问题。默认保持串行链，零行为变化。
+- **GitHub Actions CI**：pytest 矩阵（ubuntu/windows × py3.10/3.13）。
+- **tests/test_astock_parsing.py**：28 个离线单测覆盖代码归一化、OHLCV 日期归一/合并/补数判定、腾讯行情 payload 解析。
+- **tests/test_parallel_analysts.py**：串行/并行两种图拓扑的结构断言。
+
+### 性能
+- 东财全端点（含看板刷新路径）统一走 `_em_get` 节流入口，连接错误/超时/5xx 自动重试一次（约 1s 退避）；腾讯/新浪K线/同花顺EPS/新浪财报单发请求也各带一次重试。
+- `incomplete_tasks.json` 只在阶段集合/暂停状态变化时落盘（原先每个 streaming chunk 全量重写一次，一次分析几十次磁盘 IO）。
+- `get_history` / `get_incomplete_history` 加 15s 进程内 TTL 缓存（写路径精确失效）——消除 running 态每 2s rerun 触发的全盘 rglob 扫描和逐条 SQLite 连接；`index_spot` TTL 10s→30s。
+- `_build_name_code_map` 加按天落盘缓存：进程重启不再重拉全市场股票列表。
+- 移除零 import 的死依赖 `redis` / `backtrader` / `langchain-experimental`；看板指数栏删除 akshare 分支（腾讯源为唯一实现）。
+
+### 健壮性
+- mootdx TCP 客户端单例加线程锁（`_LockedTdxClient` 代理）：分析 daemon 线程与看板并发共用同一 socket 不再可能响应错位；`_em_get` 节流时间戳读改写同步加锁，堵住绕过限流的竞态。
+- `_load_ohlcv_astock`：mootdx + 新浪双源都失败但存在旧缓存时，降级返回旧数据并告警，而非硬失败。
+- a_stock 数据层所有终态错误路径补 `logger.warning`（原先错误字符串被静默嵌入 LLM 上下文）。
+- 修复包拆分遗漏：`_sina_stock_code` 缺 `_common` 路由的潜在 NameError。
+
+### 重构 / 仓库卫生
+- `tradingagents/dataflows/a_stock.py`（2140 行）拆为 `a_stock/` 包：`_common`（共享基础设施）/ `quote` / `fundamentals` / `news` / `signals`；`__init__` 全量 re-export，既有 `from ...a_stock import X` 调用方零改动。
+- `web/data_functions.py` 重写为纯 UI 适配层：数据实现委托核心层（单一真相源），`@st.cache_data` 只存在于 UI 适配层；`normalize_code` 委托核心 `_normalize_ticker`。
+- God file 拆分：`web/app.py` 892→492 行（看板模式拆至 `web/components/data_dashboard.py`）；`cli/main.py` 1250→634 行（显示层拆至 `cli/display.py`）。
+- 4 处重复的 `<think>` 标签清洗合并为 `web/text_utils.strip_think_tags`。
+- requirements.txt 改为 `-e .`（真实依赖唯一声明于 pyproject.toml）；ruff 清理 56 个未使用 import（`agent_utils.py` / `alpha_vantage.py` 标记为 re-export 枢纽）。
+- 移出与项目无关的个人文件（CDUT 爬虫套件、微信密钥工具、一次性脚本等）；删除本地 egg-info。
+
 ## [0.2.16] — 2026-06-28
 
 本版采纳一个社区贡献的批量样例脚本 + 文档补充，无核心代码改动。
