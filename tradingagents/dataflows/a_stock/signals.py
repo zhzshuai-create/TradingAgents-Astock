@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from typing import Annotated
 from datetime import datetime
 
@@ -99,7 +100,7 @@ def get_hot_stocks(
 
 def _northbound_cache_path() -> str:
     """Path to local CSV cache for northbound daily close snapshots."""
-    from .config import get_config
+    from ..config import get_config
 
     config = get_config()
     cache_dir = config.get(
