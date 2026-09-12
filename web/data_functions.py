@@ -24,12 +24,8 @@ UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
 # ── 工具 ──────────────────────────────────────────────────
 
 def normalize_code(raw: str) -> str:
-    raw = raw.strip().upper()
-    raw = raw.replace(".SH", "").replace(".SZ", "").replace(".BJ", "")
-    for prefix in ["SH", "SZ", "BJ"]:
-        if raw.startswith(prefix):
-            raw = raw[2:]
-    return raw
+    """委托核心层实现（单一真相源）。"""
+    return _core._normalize_ticker(raw)
 
 # ── 行情层 ────────────────────────────────────────────────
 

@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from tradingagents.default_config import DEFAULT_CONFIG
+from web.text_utils import strip_think_tags
 
 
 _INCOMPLETE_TASKS_FILE = Path.home() / ".tradingagents" / "incomplete_tasks.json"
@@ -222,7 +223,7 @@ def extract_signal(state: dict[str, Any]) -> str:
         text = state.get(field, "")
         if not text:
             continue
-        cleaned = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
+        cleaned = strip_think_tags(text)
         for keyword in ("BUY", "SELL", "HOLD"):
             if keyword in cleaned.upper():
                 return keyword.capitalize()

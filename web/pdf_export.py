@@ -14,6 +14,7 @@ from fpdf import FPDF
 from fpdf.enums import WrapMode
 
 from web.stock_display import normalize_stock_mentions, stock_display_label
+from web.text_utils import strip_think_tags
 
 
 # fpdf2 (maintained fork) and the abandoned pyfpdf 1.x BOTH import as `fpdf`, and
@@ -278,10 +279,6 @@ def _collection_font_number(path: Path) -> int:
     return _TTC_SC_FACE_INDEXES.get(path.name, 0)
 
 
-def _strip_think(text: str) -> str:
-    return re.sub(r"<think>.*?</think>\s*", "", text, flags=re.DOTALL).strip()
-
-
 def _strip_md_inline(text: str) -> str:
     """Remove inline markdown formatting: **bold**, *italic*, `code`, [link](url)."""
     text = re.sub(r"\*\*(.+?)\*\*", r"\1", text)
@@ -431,7 +428,7 @@ class _ReportPDF(FPDF):
         self.cell(0, 10, title)
         self.ln(12)
 
-        cleaned = _strip_think(content)
+        cleaned = strip_think_tags(content)
         self._render_markdown(cleaned)
 
     def _render_markdown(self, text: str) -> None:
@@ -545,7 +542,7 @@ def _collect_sections(
     for key, title in _REPORT_SECTIONS:
         content = final_state.get(key, "")
         if content:
-            text = _strip_think(str(content))
+            text = strip_think_tags(str(content))
             if ticker:
                 text = normalize_stock_mentions(text, ticker, final_state)
             sections.append((title, text))
@@ -560,21 +557,21 @@ def _collect_sections(
         if debate.get("judge_decision"):
             parts.append(f"\n=== 研究经理决策 ===\n{debate['judge_decision']}")
         if parts:
-            text = _strip_think("\n".join(parts))
+            text = strip_think_tags("\n".join(parts))
             if ticker:
                 text = normalize_stock_mentions(text, ticker, final_state)
             sections.append(("多空辩论", text))
 
     trader_decision = final_state.get("trader_investment_decision", "")
     if trader_decision:
-        text = _strip_think(str(trader_decision))
+        text = strip_think_tags(str(trader_decision))
         if ticker:
             text = normalize_stock_mentions(text, ticker, final_state)
         sections.append(("交易员决策", text))
 
     inv_plan = final_state.get("investment_plan", "")
     if inv_plan:
-        text = _strip_think(str(inv_plan))
+        text = strip_think_tags(str(inv_plan))
         if ticker:
             text = normalize_stock_mentions(text, ticker, final_state)
         sections.append(("最终投资建议", text))
@@ -590,14 +587,14 @@ def _collect_sections(
         if risk.get("judge_decision"):
             parts.append(f"\n=== 风控决策 ===\n{risk['judge_decision']}")
         if parts:
-            text = _strip_think("\n".join(parts))
+            text = strip_think_tags("\n".join(parts))
             if ticker:
                 text = normalize_stock_mentions(text, ticker, final_state)
             sections.append(("风控评估", text))
 
     final_decision = final_state.get("final_trade_decision", "")
     if final_decision:
-        text = _strip_think(str(final_decision))
+        text = strip_think_tags(str(final_decision))
         if ticker:
             text = normalize_stock_mentions(text, ticker, final_state)
         sections.append(("最终决策", text))

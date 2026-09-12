@@ -8,6 +8,7 @@ import traceback
 from typing import Any
 
 from web.history import clear_incomplete_task, record_incomplete_task
+from web.text_utils import strip_think_tags
 from web.progress import PIPELINE_STAGES, ProgressTracker
 from web.stock_display import normalize_report_state_mentions, normalize_stock_mentions
 
@@ -34,11 +35,6 @@ def _discard_stopped_run(
     tracker.mark_stopped()
 
 
-def _strip_think_tags(text: str) -> str:
-    """Remove <think>...</think> blocks from LLM output."""
-    return re.sub(r"<think>.*?</think>\s*", "", text, flags=re.DOTALL).strip()
-
-
 def _detect_completed_stages(
     chunk: dict[str, Any],
     tracker: ProgressTracker,
@@ -49,7 +45,7 @@ def _detect_completed_stages(
         content = chunk.get(report_key, "")
         if content and tracker.stage_status(stage_id) != "done":
             report = normalize_stock_mentions(str(content), tracker.ticker, chunk)
-            tracker.mark_stage_done(stage_id, _strip_think_tags(report))
+            tracker.mark_stage_done(stage_id, strip_think_tags(report))
 
     dqs = chunk.get("data_quality_summary", "")
     if dqs and tracker.stage_status("quality_gate") != "done":
@@ -64,7 +60,7 @@ def _detect_completed_stages(
     trader_plan = chunk.get("trader_investment_plan", "")
     if trader_plan and tracker.stage_status("trader") != "done":
         report = normalize_stock_mentions(str(trader_plan), tracker.ticker, chunk)
-        tracker.mark_stage_done("trader", _strip_think_tags(report))
+        tracker.mark_stage_done("trader", strip_think_tags(report))
 
     risk = chunk.get("risk_debate_state")
     if risk and isinstance(risk, dict):
@@ -75,7 +71,7 @@ def _detect_completed_stages(
     final = chunk.get("final_trade_decision", "")
     if final and tracker.stage_status("pm") != "done":
         report = normalize_stock_mentions(str(final), tracker.ticker, chunk)
-        tracker.mark_stage_done("pm", _strip_think_tags(report))
+        tracker.mark_stage_done("pm", strip_think_tags(report))
 
 
 def _infer_active_stage(tracker: ProgressTracker) -> None:
