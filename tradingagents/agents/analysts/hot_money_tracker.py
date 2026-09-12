@@ -99,7 +99,7 @@ def create_hot_money_tracker(llm):
         prompt = prompt.partial(instrument_context=instrument_context)
 
         chain = prompt | llm.bind_tools(tools)
-        result = chain.invoke(state["messages"])
+        result = chain.invoke(state.get("hot_money_messages") or state.get("messages") or [])
 
         report = ""
 
@@ -107,7 +107,7 @@ def create_hot_money_tracker(llm):
             report = result.content
 
         return {
-            "messages": [result],
+            "hot_money_messages": [result],
             "hot_money_report": report,
         }
 

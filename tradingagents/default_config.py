@@ -28,6 +28,11 @@ DEFAULT_CONFIG = {
     # Checkpoint/resume: when True, LangGraph saves state after each node
     # so a crashed run can resume from the last successful step.
     "checkpoint_enabled": False,
+    # Analyst fan-out: run the analysts concurrently in one LangGraph super-step
+    # instead of serially (each analyst uses its own <type>_messages channel).
+    # Cuts analysis wall-clock time roughly to the slowest analyst.
+    # Opt-in: set TA_PARALLEL_ANALYSTS=1.
+    "parallel_analysts": os.getenv("TA_PARALLEL_ANALYSTS", "0") == "1",
     # Output language for analyst reports and final decision
     # Internal agent debate stays in English for reasoning quality
     "output_language": "Chinese",

@@ -98,7 +98,7 @@ MACD 类：
 
         chain = prompt | llm.bind_tools(tools)
 
-        result = chain.invoke(state["messages"])
+        result = chain.invoke(state.get("market_messages") or state.get("messages") or [])
 
         report = ""
 
@@ -106,7 +106,7 @@ MACD 类：
             report = result.content
 
         return {
-            "messages": [result],
+            "market_messages": [result],
             "market_report": report,
         }
 

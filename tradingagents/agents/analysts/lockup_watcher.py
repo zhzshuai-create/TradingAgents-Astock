@@ -82,7 +82,7 @@ def create_lockup_watcher(llm):
         prompt = prompt.partial(instrument_context=instrument_context)
 
         chain = prompt | llm.bind_tools(tools)
-        result = chain.invoke(state["messages"])
+        result = chain.invoke(state.get("lockup_messages") or state.get("messages") or [])
 
         report = ""
 
@@ -90,7 +90,7 @@ def create_lockup_watcher(llm):
             report = result.content
 
         return {
-            "messages": [result],
+            "lockup_messages": [result],
             "lockup_report": report,
         }
 

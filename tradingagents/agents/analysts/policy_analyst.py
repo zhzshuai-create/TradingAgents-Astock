@@ -76,7 +76,7 @@ def create_policy_analyst(llm):
         prompt = prompt.partial(instrument_context=instrument_context)
 
         chain = prompt | llm.bind_tools(tools)
-        result = chain.invoke(state["messages"])
+        result = chain.invoke(state.get("policy_messages") or state.get("messages") or [])
 
         report = ""
 
@@ -84,7 +84,7 @@ def create_policy_analyst(llm):
             report = result.content
 
         return {
-            "messages": [result],
+            "policy_messages": [result],
             "policy_report": report,
         }
 
