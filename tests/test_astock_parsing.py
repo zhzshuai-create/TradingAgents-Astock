@@ -5,7 +5,6 @@ ticker normalization, OHLCV date normalization/merge/supplement-decision, and th
 Tencent quote payload parser.
 """
 
-import io
 from urllib.error import URLError
 
 import pandas as pd

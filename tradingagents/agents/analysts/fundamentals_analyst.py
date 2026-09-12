@@ -6,11 +6,9 @@ from tradingagents.agents.utils.agent_utils import (
     get_fundamentals,
     get_income_statement,
     get_industry_comparison,
-    get_insider_transactions,
     get_language_instruction,
     get_profit_forecast,
 )
-from tradingagents.dataflows.config import get_config
 
 
 def create_fundamentals_analyst(llm):

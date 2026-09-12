@@ -1,4 +1,3 @@
-from typing import Annotated
 
 # Import from vendor-specific modules
 from .y_finance import (
@@ -24,7 +23,6 @@ from .alpha_vantage import (
 )
 from .alpha_vantage_common import AlphaVantageRateLimitError
 from .a_stock import (
-    resolve_ticker,
     get_stock_data as get_astock_stock_data,
     get_indicators as get_astock_indicators,
     get_fundamentals as get_astock_fundamentals,
