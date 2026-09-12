@@ -12,7 +12,6 @@ from tradingagents.agents.utils.agent_utils import (
     get_northbound_flow,
     get_stock_data,
 )
-from tradingagents.dataflows.config import get_config
 
 
 def create_hot_money_tracker(llm):

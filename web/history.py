@@ -213,7 +213,6 @@ def load_analysis(path: str) -> dict[str, Any]:
 
 def extract_signal(state: dict[str, Any]) -> str:
     """Extract the short signal (Buy/Sell/Hold) from a final state dict."""
-    import re
 
     for field in (
         "investment_plan",

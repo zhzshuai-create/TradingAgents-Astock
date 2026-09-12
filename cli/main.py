@@ -1,4 +1,3 @@
-from typing import Optional
 import datetime
 import typer
 from pathlib import Path
@@ -11,14 +10,11 @@ load_dotenv()
 load_dotenv(".env.enterprise", override=False)
 from rich.panel import Panel
 from rich.live import Live
-from collections import deque
 import time
-from rich import box
 from rich.align import Align
 
 from tradingagents.graph.trading_graph import TradingAgentsGraph
 from tradingagents.default_config import DEFAULT_CONFIG
-from cli.models import AnalystType
 from cli.utils import *
 from cli.announcements import fetch_announcements, display_announcements
 from cli.stats_handler import StatsCallbackHandler
@@ -26,16 +22,12 @@ from cli.stats_handler import StatsCallbackHandler
 console = Console()
 
 from cli.display import (  # noqa: E402
-    MessageBuffer,
     create_layout,
-    format_tokens,
     update_display,
     display_complete_report,
     update_research_team_status,
     update_analyst_statuses,
-    extract_content_string,
     classify_message_type,
-    format_tool_args,
 )
 
 app = typer.Typer(

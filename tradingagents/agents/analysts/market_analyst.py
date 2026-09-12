@@ -5,7 +5,6 @@ from tradingagents.agents.utils.agent_utils import (
     get_language_instruction,
     get_stock_data,
 )
-from tradingagents.dataflows.config import get_config
 
 
 def create_market_analyst(llm):

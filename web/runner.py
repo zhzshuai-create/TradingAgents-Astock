@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 import threading
 import traceback
 from typing import Any
