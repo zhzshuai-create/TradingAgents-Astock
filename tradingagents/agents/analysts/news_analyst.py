@@ -73,9 +73,12 @@ def create_news_analyst(llm):
         if len(result.tool_calls) == 0:
             report = result.content
 
-        return {
+        ret = {
             "news_messages": [result],
             "news_report": report,
         }
+        if len(result.tool_calls) == 0:
+            ret["analysts_completed"] = ["news"]  # 并行汇合闸门：完成自报
+        return ret
 
     return news_analyst_node

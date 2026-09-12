@@ -4,6 +4,11 @@ from langgraph.graph import MessagesState
 from langgraph.graph.message import add_messages
 
 
+def merge_unique(left: list, right: list) -> list:
+    """Reducer: merge two completion lists, dedup (parallel analyst join gate)."""
+    return list({*left, *right})
+
+
 # Researcher team state
 class InvestDebateState(TypedDict):
     bull_history: Annotated[
@@ -45,6 +50,7 @@ class RiskDebateState(TypedDict):
 
 
 class AgentState(MessagesState):
+    analysts_completed: Annotated[list, merge_unique]  # 并行汇合闸门：分析师完成时自报
     market_messages: Annotated[list, add_messages]  # analyst-parallel: isolated tool-loop channel
     social_messages: Annotated[list, add_messages]  # analyst-parallel: isolated tool-loop channel
     news_messages: Annotated[list, add_messages]  # analyst-parallel: isolated tool-loop channel

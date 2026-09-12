@@ -104,9 +104,12 @@ MACD 类：
         if len(result.tool_calls) == 0:
             report = result.content
 
-        return {
+        ret = {
             "market_messages": [result],
             "market_report": report,
         }
+        if len(result.tool_calls) == 0:
+            ret["analysts_completed"] = ["market"]  # 并行汇合闸门：完成自报
+        return ret
 
     return market_analyst_node

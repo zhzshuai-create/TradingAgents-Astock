@@ -89,9 +89,12 @@ def create_fundamentals_analyst(llm):
         if len(result.tool_calls) == 0:
             report = result.content
 
-        return {
+        ret = {
             "fundamentals_messages": [result],
             "fundamentals_report": report,
         }
+        if len(result.tool_calls) == 0:
+            ret["analysts_completed"] = ["fundamentals"]  # 并行汇合闸门：完成自报
+        return ret
 
     return fundamentals_analyst_node
