@@ -28,8 +28,11 @@ def _edges_checks(edges):
     # (clearing a shared channel concurrently would race), analysts converge
     # on the Quality Gate directly.
     has_clear_nodes = any(f"Msg Clear {a}" in nodes for a in _ANALYST_NODES)
-    direct_to_qg = all(
-        (f"{a} Analyst", "Quality Gate") in edges for a in _ANALYST_NODES
+    # barrier join: per-analyst Join markers --static--> "Analysts Done" -> QG
+    join_markers = all(f"Join {a}" in nodes for a in _ANALYST_NODES)
+    barrier = (
+        all((f"Join {a}", "Analysts Done") in edges for a in _ANALYST_NODES)
+        and ("Analysts Done", "Quality Gate") in edges
     )
     chained = any(
         (f"Msg Clear {a}", f"{b} Analyst") in edges
@@ -40,26 +43,26 @@ def _edges_checks(edges):
         and (f"tools_{k}", f"{a} Analyst") in edges
         for a, k in zip(_ANALYST_NODES, _ANALYST_KEYS)
     )
-    return start_targets, has_clear_nodes, direct_to_qg, chained, tool_loops
+    return start_targets, has_clear_nodes, join_markers, barrier, chained, tool_loops
 
 
 @pytest.mark.unit
 def test_serial_topology_is_chain():
     edges = _build(False)
-    start_targets, has_clear_nodes, direct_to_qg, chained, tool_loops = _edges_checks(edges)
+    start_targets, has_clear_nodes, join_markers, barrier, chained, tool_loops = _edges_checks(edges)
     assert start_targets == {"Market Analyst"}
     assert chained
     assert has_clear_nodes
-    assert not direct_to_qg
+    assert not join_markers and not barrier
     assert tool_loops
 
 
 def test_parallel_topology_fans_out():
     edges = _build(True)
-    start_targets, has_clear_nodes, direct_to_qg, chained, tool_loops = _edges_checks(edges)
+    start_targets, has_clear_nodes, join_markers, barrier, chained, tool_loops = _edges_checks(edges)
     assert start_targets == {f"{a} Analyst" for a in _ANALYST_NODES}
     assert not has_clear_nodes  # clears would race on the shared channel
-    assert direct_to_qg
+    assert join_markers and barrier  # Quality Gate runs once, after ALL analysts
     assert not chained
     assert tool_loops
 
