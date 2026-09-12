@@ -7,12 +7,10 @@ from typing import Any
 
 import streamlit as st
 
+from web.text_utils import strip_think_tags
+
 from web.pdf_export import generate_markdown, generate_pdf
 from web.stock_display import normalize_stock_mentions, stock_display_label
-
-
-def _strip_think(text: str) -> str:
-    return re.sub(r"<think>.*?</think>\s*", "", text, flags=re.DOTALL).strip()
 
 
 def _signal_style(signal: str) -> tuple[str, str]:
@@ -41,7 +39,7 @@ def _safe_filename_label(label: str) -> str:
 
 
 def _display_report_text(text: Any, ticker: str, final_state: dict[str, Any]) -> str:
-    cleaned = _strip_think(str(text))
+    cleaned = strip_think_tags(str(text))
     return normalize_stock_mentions(cleaned, ticker, final_state)
 
 

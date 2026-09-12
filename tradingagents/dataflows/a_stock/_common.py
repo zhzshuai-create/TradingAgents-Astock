@@ -72,11 +72,35 @@ _name_to_code: dict[str, str] | None = None
 _code_to_name: dict[str, str] | None = None
 
 
+def _cache_dir() -> str:
+    from ..config import get_config
+
+    d = get_config().get("data_cache_dir", os.path.expanduser("~/.tradingagents/cache"))
+    os.makedirs(d, exist_ok=True)
+    return d
+
+
 def _build_name_code_map() -> tuple[dict[str, str], dict[str, str]]:
     """Build name→code and code→name maps via mootdx (both SH & SZ markets)."""
     global _name_to_code, _code_to_name
     if _name_to_code is not None:
         return _name_to_code, _code_to_name
+
+    # 进程级缓存之外再加按天落盘缓存：全市场列表拉取要走 TCP 遍历两个市场，
+    # 每次进程重启都重拉一遍纯属浪费。
+    disk_cache = os.path.join(
+        _cache_dir(), f"name-code-map-{datetime.now():%Y%m%d}.json"
+    )
+    if os.path.exists(disk_cache):
+        try:
+            with open(disk_cache, "r", encoding="utf-8") as f:
+                data = _json.load(f)
+            _name_to_code = data["n2c"]
+            _code_to_name = data["c2n"]
+            logger.info("Loaded name-code map from disk: %d entries", len(_name_to_code))
+            return _name_to_code, _code_to_name
+        except Exception as e:
+            logger.warning("name-code disk cache unreadable (%s), rebuilding", e)
 
     client = _get_mootdx_client()
     n2c: dict[str, str] = {}
@@ -104,6 +128,11 @@ def _build_name_code_map() -> tuple[dict[str, str], dict[str, str]]:
 
     _name_to_code = n2c
     _code_to_name = c2n
+    try:
+        with open(disk_cache, "w", encoding="utf-8") as f:
+            _json.dump({"n2c": n2c, "c2n": c2n}, f, ensure_ascii=False)
+    except Exception as e:
+        logger.warning("name-code disk cache write failed: %s", e)
     logger.info("Built stock name-code map: %d entries", len(n2c))
     return _name_to_code, _code_to_name
 
@@ -590,6 +619,15 @@ def _load_ohlcv_astock(symbol: str, curr_date: str) -> pd.DataFrame:
             if df.empty:
                 raise ValueError(f"No OHLCV data from sina for {code}")
         except Exception:
+            # 弱网降级：两个源都挂但存在旧缓存时，宁可给略旧的数据也别硬失败
+            if os.path.exists(cache_file):
+                logger.warning(
+                    "mootdx/sina OHLCV failed for %s, falling back to stale cache", code
+                )
+                data = pd.read_csv(cache_file, on_bad_lines="skip", encoding="utf-8")
+                data = _normalize_ohlcv_dates(data)
+                cutoff = pd.to_datetime(curr_date)
+                return data[data["Date"] <= cutoff]
             raise ValueError(f"No OHLCV data from mootdx/sina for {code}")
 
     df, _ = _supplement_stale_ohlcv_with_sina(code, df, curr_date, start_date=None)
