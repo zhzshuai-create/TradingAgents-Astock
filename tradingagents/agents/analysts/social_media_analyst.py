@@ -67,9 +67,12 @@ def create_social_media_analyst(llm):
         if len(result.tool_calls) == 0:
             report = result.content
 
-        return {
+        ret = {
             "social_messages": [result],
             "sentiment_report": report,
         }
+        if len(result.tool_calls) == 0:
+            ret["analysts_completed"] = ["social"]  # 并行汇合闸门：完成自报
+        return ret
 
     return social_media_analyst_node

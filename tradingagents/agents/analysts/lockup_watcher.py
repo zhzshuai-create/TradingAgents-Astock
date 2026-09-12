@@ -88,9 +88,12 @@ def create_lockup_watcher(llm):
         if len(result.tool_calls) == 0:
             report = result.content
 
-        return {
+        ret = {
             "lockup_messages": [result],
             "lockup_report": report,
         }
+        if len(result.tool_calls) == 0:
+            ret["analysts_completed"] = ["lockup"]  # 并行汇合闸门：完成自报
+        return ret
 
     return lockup_watcher_node

@@ -105,9 +105,12 @@ def create_hot_money_tracker(llm):
         if len(result.tool_calls) == 0:
             report = result.content
 
-        return {
+        ret = {
             "hot_money_messages": [result],
             "hot_money_report": report,
         }
+        if len(result.tool_calls) == 0:
+            ret["analysts_completed"] = ["hot_money"]  # 并行汇合闸门：完成自报
+        return ret
 
     return hot_money_tracker_node

@@ -130,11 +130,7 @@ class GraphSetup:
         # shared channel is unnecessary and the nodes are omitted entirely.
         for analyst_type, node in analyst_nodes.items():
             workflow.add_node(f"{analyst_type.capitalize()} Analyst", node)
-            if self.parallel_analysts:
-                # terminal marker node: converts the analyst's conditional edge
-                # into a static edge so the join below waits for ALL analysts
-                workflow.add_node(f"Join {analyst_type.capitalize()}", _noop_node)
-            else:
+            if not self.parallel_analysts:
                 workflow.add_node(
                     f"Msg Clear {analyst_type.capitalize()}", delete_nodes[analyst_type]
                 )
@@ -157,14 +153,26 @@ class GraphSetup:
             # its own <type>_messages channel (isolated tool-call routing), then
             # converge on the Quality Gate. Cuts analysis wall-clock time from
             # ~7 serial segments to ~1.
-            workflow.add_node("Analysts Done", _noop_node)
+            # Join gate: analysts self-report completion into the
+            # analysts_completed reducer; "Analyst Join" fires per delivery and
+            # routes to Quality Gate only when ALL analysts have reported (the
+            # router reads the merged post-write state, so the last reporter
+            # sees the full list). Standby is a dead-end branch for early fires.
+            workflow.add_node("Analyst Join", _noop_node)
+            workflow.add_node("Standby", _noop_node)
+            n_analysts = len(selected_analysts)
+            workflow.add_conditional_edges(
+                "Analyst Join",
+                lambda state: (
+                    "Quality Gate"
+                    if len(state.get("analysts_completed") or []) >= n_analysts
+                    else "Standby"
+                ),
+                {"Quality Gate": "Quality Gate", "Standby": "Standby"},
+            )
             for analyst_type in selected_analysts:
                 self._wire_analyst(workflow, analyst_type)
                 workflow.add_edge(START, f"{analyst_type.capitalize()} Analyst")
-                workflow.add_edge(
-                    f"Join {analyst_type.capitalize()}", "Analysts Done"
-                )
-            workflow.add_edge("Analysts Done", "Quality Gate")
         else:
             # Start with the first analyst
             first_analyst = selected_analysts[0]
@@ -240,16 +248,11 @@ class GraphSetup:
         current_clear = f"Msg Clear {analyst_type.capitalize()}"
 
         if self.parallel_analysts:
-            # No Msg Clear node. The terminal branch hits this analyst's Join
-            # marker; the static marker edges into "Analysts Done" form a true
-            # barrier so Quality Gate runs exactly once, after ALL analysts.
+            # No Msg Clear node: the terminal branch reports to the join gate.
             workflow.add_conditional_edges(
                 current_analyst,
                 getattr(self.conditional_logic, f"should_continue_{analyst_type}"),
-                {
-                    current_tools: current_tools,
-                    current_clear: f"Join {analyst_type.capitalize()}",
-                },
+                {current_tools: current_tools, current_clear: "Analyst Join"},
             )
         else:
             workflow.add_conditional_edges(

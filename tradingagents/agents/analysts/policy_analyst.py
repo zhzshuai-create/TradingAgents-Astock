@@ -82,9 +82,12 @@ def create_policy_analyst(llm):
         if len(result.tool_calls) == 0:
             report = result.content
 
-        return {
+        ret = {
             "policy_messages": [result],
             "policy_report": report,
         }
+        if len(result.tool_calls) == 0:
+            ret["analysts_completed"] = ["policy"]  # 并行汇合闸门：完成自报
+        return ret
 
     return policy_analyst_node
