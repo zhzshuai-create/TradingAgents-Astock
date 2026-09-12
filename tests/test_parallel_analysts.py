@@ -22,8 +22,14 @@ def _build(parallel: bool):
 
 def _edges_checks(edges):
     start_targets = {t for s, t in edges if s == "__start__"}
-    clears_to_qg = all(
-        (f"Msg Clear {a}", "Quality Gate") in edges for a in _ANALYST_NODES
+    nodes = {s for s, _ in edges} | {t for _, t in edges}
+    # serial: every analyst's terminal branch goes through its Msg Clear node,
+    # whose outgoing edge leads on. parallel: no Msg Clear nodes exist at all
+    # (clearing a shared channel concurrently would race), analysts converge
+    # on the Quality Gate directly.
+    has_clear_nodes = any(f"Msg Clear {a}" in nodes for a in _ANALYST_NODES)
+    direct_to_qg = all(
+        (f"{a} Analyst", "Quality Gate") in edges for a in _ANALYST_NODES
     )
     chained = any(
         (f"Msg Clear {a}", f"{b} Analyst") in edges
@@ -34,24 +40,26 @@ def _edges_checks(edges):
         and (f"tools_{k}", f"{a} Analyst") in edges
         for a, k in zip(_ANALYST_NODES, _ANALYST_KEYS)
     )
-    return start_targets, clears_to_qg, chained, tool_loops
+    return start_targets, has_clear_nodes, direct_to_qg, chained, tool_loops
 
 
 @pytest.mark.unit
 def test_serial_topology_is_chain():
     edges = _build(False)
-    start_targets, clears_to_qg, chained, tool_loops = _edges_checks(edges)
+    start_targets, has_clear_nodes, direct_to_qg, chained, tool_loops = _edges_checks(edges)
     assert start_targets == {"Market Analyst"}
     assert chained
-    assert not clears_to_qg
+    assert has_clear_nodes
+    assert not direct_to_qg
     assert tool_loops
 
 
 def test_parallel_topology_fans_out():
     edges = _build(True)
-    start_targets, clears_to_qg, chained, tool_loops = _edges_checks(edges)
+    start_targets, has_clear_nodes, direct_to_qg, chained, tool_loops = _edges_checks(edges)
     assert start_targets == {f"{a} Analyst" for a in _ANALYST_NODES}
-    assert clears_to_qg
+    assert not has_clear_nodes  # clears would race on the shared channel
+    assert direct_to_qg
     assert not chained
     assert tool_loops
 

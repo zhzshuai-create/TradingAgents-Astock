@@ -118,12 +118,17 @@ class GraphSetup:
         # Create workflow
         workflow = StateGraph(AgentState)
 
-        # Add analyst nodes to the graph
+        # Add analyst nodes to the graph. Msg Clear wipes the SHARED messages
+        # channel; in parallel fan-out several clears would run in the same
+        # super-step and concurrently RemoveMessage the same IDs -> ValueError.
+        # Parallel mode gives each analyst its own channel, so clearing the
+        # shared channel is unnecessary and the nodes are omitted entirely.
         for analyst_type, node in analyst_nodes.items():
             workflow.add_node(f"{analyst_type.capitalize()} Analyst", node)
-            workflow.add_node(
-                f"Msg Clear {analyst_type.capitalize()}", delete_nodes[analyst_type]
-            )
+            if not self.parallel_analysts:
+                workflow.add_node(
+                    f"Msg Clear {analyst_type.capitalize()}", delete_nodes[analyst_type]
+                )
             workflow.add_node(f"tools_{analyst_type}", tool_nodes[analyst_type])
 
         # Add quality gate + other nodes
@@ -146,9 +151,6 @@ class GraphSetup:
             for analyst_type in selected_analysts:
                 self._wire_analyst(workflow, analyst_type)
                 workflow.add_edge(START, f"{analyst_type.capitalize()} Analyst")
-                workflow.add_edge(
-                    f"Msg Clear {analyst_type.capitalize()}", "Quality Gate"
-                )
         else:
             # Start with the first analyst
             first_analyst = selected_analysts[0]
@@ -223,9 +225,18 @@ class GraphSetup:
         current_tools = f"tools_{analyst_type}"
         current_clear = f"Msg Clear {analyst_type.capitalize()}"
 
-        workflow.add_conditional_edges(
-            current_analyst,
-            getattr(self.conditional_logic, f"should_continue_{analyst_type}"),
-            [current_tools, current_clear],
-        )
+        if self.parallel_analysts:
+            # No Msg Clear node: the router's terminal branch converges on the
+            # Quality Gate directly (each analyst's channel needs no clearing).
+            workflow.add_conditional_edges(
+                current_analyst,
+                getattr(self.conditional_logic, f"should_continue_{analyst_type}"),
+                {current_tools: current_tools, current_clear: "Quality Gate"},
+            )
+        else:
+            workflow.add_conditional_edges(
+                current_analyst,
+                getattr(self.conditional_logic, f"should_continue_{analyst_type}"),
+                [current_tools, current_clear],
+            )
         workflow.add_edge(current_tools, current_analyst)
