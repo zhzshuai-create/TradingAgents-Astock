@@ -19,6 +19,7 @@ import math
 import random
 import re as _re
 import socket
+import threading
 import time
 import uuid
 import urllib.request
@@ -145,6 +146,28 @@ def resolve_ticker(user_input: str) -> str:
 
 _mootdx_client = None
 
+# pytdx 底层 socket 收发非线程安全：web runner 的 daemon 线程跑分析时，
+# dashboard 可能并发复用同一客户端拉 K 线。所有客户端方法调用经此锁串行化。
+_TDX_LOCK = threading.Lock()
+
+
+class _LockedTdxClient:
+    """mootdx 客户端代理：每个方法调用在 _TDX_LOCK 内执行。"""
+
+    def __init__(self, client):
+        self._locked_client = client
+
+    def __getattr__(self, name):
+        attr = getattr(self._locked_client, name)
+        if not callable(attr):
+            return attr
+
+        def _locked(*args, **kwargs):
+            with _TDX_LOCK:
+                return attr(*args, **kwargs)
+
+        return _locked
+
 # 实测可用的通达信备选服务器（按延迟排序，2026-06 验证）。用于规避 mootdx
 # 0.11.x 全新安装时 BESTIP.HQ 为空串导致的 `ValueError: not enough values to unpack`。
 _TDX_SERVERS = [
@@ -179,15 +202,21 @@ def _get_mootdx_client():
 
     for ip, port in _TDX_SERVERS:
         if _probe_tdx(ip, port):
-            _mootdx_client = Quotes.factory(market="std", server=(ip, port))
+            _mootdx_client = _LockedTdxClient(
+                Quotes.factory(market="std", server=(ip, port))
+            )
             return _mootdx_client
     try:
-        _mootdx_client = Quotes.factory(market="std", bestip=True)  # fallback 1
+        _mootdx_client = _LockedTdxClient(
+            Quotes.factory(market="std", bestip=True)
+        )  # fallback 1
         return _mootdx_client
     except Exception:
         pass
     try:
-        _mootdx_client = Quotes.factory(market="std")  # fallback 2（老用户 config 已有 IP）
+        _mootdx_client = _LockedTdxClient(
+            Quotes.factory(market="std")
+        )  # fallback 2（老用户 config 已有 IP）
         return _mootdx_client
     except Exception as e:
         raise RuntimeError(
@@ -267,6 +296,7 @@ _EM_SESSION.headers.update({"User-Agent": _UA})
 # 两次东财请求最小间隔(秒)；批量多 Agent 场景可设环境变量 EM_MIN_INTERVAL=1.5~2 降速。
 _EM_MIN_INTERVAL = float(os.environ.get("EM_MIN_INTERVAL", "1.0"))
 _em_last_call = [0.0]  # 模块级上次东财请求时间戳
+_EM_LOCK = threading.Lock()  # 东财请求跨线程串行化（防封设计的一部分）
 
 
 def _em_get(url, params=None, headers=None, timeout=15, **kwargs):
@@ -277,6 +307,13 @@ def _em_get(url, params=None, headers=None, timeout=15, **kwargs):
     重试：连接错误/超时/5xx 自动重试 1 次（约 1s 退避），4xx 与业务错误直接抛出。
     传入的 headers 会覆盖 session 默认 UA（用于保留各端点自己的 Referer/Origin）。
     """
+    # 节流时间戳的读改写跨线程无锁会有竞态（分析线程与 UI 线程同时放行），
+    # 东财本就按"串行限流"设计，直接整段串行化。
+    with _EM_LOCK:
+        return _em_get_locked(url, params, headers, timeout, **kwargs)
+
+
+def _em_get_locked(url, params=None, headers=None, timeout=15, **kwargs):
     wait = _EM_MIN_INTERVAL - (time.time() - _em_last_call[0])
     if wait > 0:
         time.sleep(wait + random.uniform(0.1, 0.5))
