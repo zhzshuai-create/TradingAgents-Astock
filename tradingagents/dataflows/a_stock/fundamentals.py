@@ -223,7 +223,12 @@ def _get_financial_report_sina(
         "page": "1",
         "num": "20",
     }
-    r = _requests.get(url, params=params, headers={"User-Agent": _common._UA}, timeout=15)
+    r = _common._retry_once(
+        lambda: _requests.get(
+            url, params=params, headers={"User-Agent": _common._UA}, timeout=15
+        ),
+        "sina financial report",
+    )
     d = r.json()
 
     result = d.get("result", {}).get("data", {})

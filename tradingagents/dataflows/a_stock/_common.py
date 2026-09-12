@@ -238,7 +238,9 @@ def _tencent_quote(codes: list[str]) -> dict[str, dict]:
     url = "https://qt.gtimg.cn/q=" + ",".join(prefixed)
     req = urllib.request.Request(url)
     req.add_header("User-Agent", "Mozilla/5.0")
-    resp = urllib.request.urlopen(req, timeout=10)
+    resp = _retry_once(
+        lambda: urllib.request.urlopen(req, timeout=10), "tencent quote"
+    )
     raw = resp.read().decode("gbk")
 
     result = {}
@@ -297,6 +299,20 @@ _EM_SESSION.headers.update({"User-Agent": _UA})
 _EM_MIN_INTERVAL = float(os.environ.get("EM_MIN_INTERVAL", "1.0"))
 _em_last_call = [0.0]  # 模块级上次东财请求时间戳
 _EM_LOCK = threading.Lock()  # 东财请求跨线程串行化（防封设计的一部分）
+
+
+def _retry_once(fn, what: str, delay: float = 1.0):
+    """Run fn() once more on failure — absorbs transient network blips.
+
+    用于非东财源（腾讯/新浪/同花顺）：这些接口不限流也不重试，单发失败会被
+    上层吞成空数据。东财的请求请走 _em_get（自带节流 + 重试）。
+    """
+    try:
+        return fn()
+    except Exception as e:
+        logger.warning("%s failed (%s), retrying once", what, e)
+        time.sleep(delay + random.uniform(0.0, 0.5))
+        return fn()
 
 
 def _em_get(url, params=None, headers=None, timeout=15, **kwargs):
@@ -381,7 +397,9 @@ def _ths_eps_forecast(code: str) -> pd.DataFrame:
         "User-Agent": _UA,
         "Referer": "https://basic.10jqka.com.cn/",
     }
-    r = _requests.get(url, headers=headers, timeout=15)
+    r = _retry_once(
+        lambda: _requests.get(url, headers=headers, timeout=15), "ths eps forecast"
+    )
     r.encoding = "gbk"
     dfs = pd.read_html(r.text)
     # Find the table containing EPS data
@@ -414,7 +432,9 @@ def _sina_kline_fallback(code: str, start_date: str = None, end_date: str = None
         "ma": "no",
         "datalen": "800",
     }
-    r = _requests.get(url, params=params, timeout=15)
+    r = _retry_once(
+        lambda: _requests.get(url, params=params, timeout=15), "sina kline"
+    )
     r.raise_for_status()
     data = _json.loads(r.text)
 
