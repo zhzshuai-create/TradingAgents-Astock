@@ -1,6 +1,10 @@
 """
-AStock Pro data functions — extracted from stock_ui.py for unified app.
-All functions are standalone, cache-enabled, and return clean data.
+AStock Pro data functions — UI adapter layer.
+
+数据实现全部委托给核心数据层 ``tradingagents.dataflows.a_stock``（单一真相源），
+本模块只负责两件事：
+1. 把核心层抛异常/返回原始结构的接口包装成看板需要的形状（空 DataFrame / dict / list）；
+2. 用 ``@st.cache_data`` 提供看板用的短 TTL 缓存（缓存只存在于 UI 层，核心层保持纯净）。
 """
 
 import math
@@ -8,12 +12,12 @@ import re
 import json
 import urllib.request
 from pathlib import Path
-from collections import Counter
 
 import streamlit as st
-import requests
 import pandas as pd
-from mootdx.quotes import Quotes
+
+from tradingagents.dataflows.a_stock import _common as _core
+from tradingagents.dataflows.a_stock import signals as _signals
 
 UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
 
@@ -31,67 +35,19 @@ def normalize_code(raw: str) -> str:
 
 @st.cache_data(ttl=10, show_spinner=False)
 def tencent_quote(codes: list[str]) -> dict:
-    prefixed = []
-    for c in codes:
-        if c.startswith(("6", "9")):
-            prefixed.append(f"sh{c}")
-        elif c.startswith("8"):
-            prefixed.append(f"bj{c}")
-        else:
-            prefixed.append(f"sz{c}")
-    url = "https://qt.gtimg.cn/q=" + ",".join(prefixed)
-    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+    """批量实时行情（腾讯 qt.gtimg.cn），失败返回 {}。"""
     try:
-        resp = urllib.request.urlopen(req, timeout=10)
-        data = resp.read().decode("gbk")
+        return _core._tencent_quote(codes)
     except Exception:
         return {}
-    result = {}
-    for line in data.strip().split(";"):
-        if not line.strip() or "=" not in line or '"' not in line:
-            continue
-        key = line.split("=")[0].split("_")[-1]
-        vals = line.split('"')[1].split("~")
-        if len(vals) < 53:
-            continue
-        code = key[2:]
-        result[code] = {
-            "name": vals[1],
-            "price": float(vals[3]) if vals[3] else 0,
-            "last_close": float(vals[4]) if vals[4] else 0,
-            "open": float(vals[5]) if vals[5] else 0,
-            "change_amt": float(vals[31]) if vals[31] else 0,
-            "change_pct": float(vals[32]) if vals[32] else 0,
-            "high": float(vals[33]) if vals[33] else 0,
-            "low": float(vals[34]) if vals[34] else 0,
-            "amount_wan": float(vals[37]) if vals[37] else 0,
-            "turnover_pct": float(vals[38]) if vals[38] else 0,
-            "pe_ttm": float(vals[39]) if vals[39] else 0,
-            "amplitude_pct": float(vals[43]) if vals[43] else 0,
-            "mcap_yi": float(vals[44]) if vals[44] else 0,
-            "float_mcap_yi": float(vals[45]) if vals[45] else 0,
-            "pb": float(vals[46]) if vals[46] else 0,
-            "limit_up": float(vals[47]) if vals[47] else 0,
-            "limit_down": float(vals[48]) if vals[48] else 0,
-            "vol_ratio": float(vals[49]) if vals[49] else 0,
-        }
-    return result
 
 # ── 研报层 ────────────────────────────────────────────────
 
 @st.cache_data(ttl=14400, show_spinner=False)
 def ths_eps_forecast(code: str) -> pd.DataFrame:
-    url = f"https://basic.10jqka.com.cn/new/{code}/worth.html"
-    headers = {"User-Agent": UA, "Referer": "https://basic.10jqka.com.cn/"}
+    """同花顺一致预期 EPS，失败返回空 DataFrame。"""
     try:
-        r = requests.get(url, headers=headers, timeout=15)
-        r.encoding = "gbk"
-        dfs = pd.read_html(r.text)
-        for df in dfs:
-            cols = [str(c) for c in df.columns]
-            if any("每股收益" in c or "均值" in c for c in cols):
-                return df
-        return dfs[0] if dfs else pd.DataFrame()
+        return _core._ths_eps_forecast(code)
     except Exception:
         return pd.DataFrame()
 
@@ -113,7 +69,7 @@ def ths_hot_reason(date_str: str | None = None) -> pd.DataFrame:
     )
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/117.0.0.0"}
     try:
-        r = requests.get(url, headers=headers, timeout=10)
+        r = _core._requests.get(url, headers=headers, timeout=10)
         data = r.json()
         if data.get("errocode", 0) != 0:
             return pd.DataFrame()
@@ -163,7 +119,7 @@ def baidu_concept_blocks(code: str) -> dict:
         "Referer": "https://gushitong.baidu.com/",
     }
     try:
-        r = requests.get(url, headers=headers, timeout=10)
+        r = _core._requests.get(url, headers=headers, timeout=10)
         d = r.json()
         if str(d.get("ResultCode", -1)) != "0":
             return {"industry": [], "concept": [], "region": [], "concept_tags": []}
@@ -196,15 +152,14 @@ HSGT_HEADERS = {
 }
 
 def _northbound_cache_path() -> Path:
-    p = Path.home() / ".tradingagents" / "cache" / "northbound_daily.csv"
-    p.parent.mkdir(parents=True, exist_ok=True)
-    return p
+    """北向日线缓存路径 — 与核心层共用同一份缓存文件。"""
+    return Path(_signals._northbound_cache_path())
 
 @st.cache_data(ttl=30, show_spinner=False)
 def hsgt_realtime() -> pd.DataFrame:
     url = "https://data.hexin.cn/market/hsgtApi/method/dayChart/"
     try:
-        r = requests.get(url, headers=HSGT_HEADERS, timeout=10)
+        r = _core._requests.get(url, headers=HSGT_HEADERS, timeout=10)
         d = r.json()
         times = d.get("time", [])
         hgt = d.get("hgt", [])
@@ -232,7 +187,8 @@ def load_northbound_history(n: int = 20) -> pd.DataFrame:
 # ── 资金流向 / K线 ───────────────────────────────────────
 
 def _tdx_client():
-    return Quotes.factory(market='std')
+    """复用核心层的健壮 mootdx 客户端（内置 TDX 服务器探测，规避 BESTIP 空串 bug）。"""
+    return _core._get_mootdx_client()
 
 @st.cache_data(ttl=300, show_spinner=False)
 def get_kline_data(code: str, days: int = 60) -> pd.DataFrame:
@@ -279,7 +235,7 @@ def eastmoney_fund_flow_minute(code: str) -> list[dict]:
               "fields2": "f51,f52,f53,f54,f55,f56,f57"}
     headers = {"User-Agent": UA, "Referer": "https://quote.eastmoney.com/"}
     try:
-        r = requests.get(url, params=params, headers=headers, timeout=10)
+        r = _core._em_get(url, params=params, headers=headers, timeout=10)
         d = r.json()
     except Exception:
         return []
@@ -307,7 +263,7 @@ def industry_comparison(top_n: int = 20) -> dict:
     }
     headers = {"User-Agent": UA}
     try:
-        r = requests.get(url, params=params, headers=headers, timeout=15)
+        r = _core._em_get(url, params=params, headers=headers, timeout=15)
         d = r.json()
         items = d.get("data", {}).get("diff", [])
         if not items:
@@ -336,7 +292,7 @@ def cls_telegraph(page_size: int = 30) -> list[dict]:
     params = {"rn": str(page_size), "page": "1"}
     headers = {"User-Agent": UA, "Referer": "https://www.cls.cn/"}
     try:
-        r = requests.get(url, params=params, headers=headers, timeout=10)
+        r = _core._requests.get(url, params=params, headers=headers, timeout=10)
         d = r.json()
     except Exception:
         return []
@@ -362,7 +318,7 @@ def eastmoney_stock_news(code: str, page_size: int = 20) -> list[dict]:
     params = {"cb": cb, "param": inner}
     headers = {"User-Agent": UA, "Referer": "https://so.eastmoney.com/"}
     try:
-        r = requests.get(url, params=params, headers=headers, timeout=15)
+        r = _core._em_get(url, params=params, headers=headers, timeout=15)
         text = r.text
         json_str = text[text.index("(") + 1 : text.rindex(")")]
         d = json.loads(json_str)
