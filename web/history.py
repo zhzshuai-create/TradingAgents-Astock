@@ -16,6 +16,19 @@ from tradingagents.default_config import DEFAULT_CONFIG
 _INCOMPLETE_TASKS_FILE = Path.home() / ".tradingagents" / "incomplete_tasks.json"
 _INCOMPLETE_TASKS_LOCK = threading.Lock()
 
+# 读取缓存 TTL：running 态看板每 2s rerun 一次，不缓存则每次 rerun 都全盘
+# rglob 扫历史目录 + 每条 incomplete 记录开一个 SQLite 连接。写路径
+# （record/clear）精确失效缓存，读侧最多容忍 _CACHE_TTL 秒滞后。
+_CACHE_TTL = 15.0
+_history_cache: tuple[float, list] | None = None
+_incomplete_cache: tuple[float, list] | None = None
+
+
+def _invalidate_history_cache() -> None:
+    global _history_cache, _incomplete_cache
+    _history_cache = None
+    _incomplete_cache = None
+
 
 def _results_dir() -> Path:
     return Path.home() / ".tradingagents" / "logs"
@@ -26,6 +39,10 @@ def get_history() -> list[dict[str, str]]:
 
     Each entry: {"ticker": "300750", "date": "2026-05-12", "path": "/abs/path/...json"}
     """
+    global _history_cache
+    now = time.monotonic()
+    if _history_cache is not None and now - _history_cache[0] < _CACHE_TTL:
+        return _history_cache[1]
     root = _results_dir()
     if not root.exists():
         return []
@@ -40,6 +57,7 @@ def get_history() -> list[dict[str, str]]:
         entries.append({"ticker": ticker, "date": date, "path": str(log_file)})
 
     entries.sort(key=lambda e: e["date"], reverse=True)
+    _history_cache = (now, entries)
     return entries
 
 
@@ -140,6 +158,7 @@ def record_incomplete_task(
         )
         entries.sort(key=lambda e: float(e.get("updated_at", 0)), reverse=True)
         _save_incomplete_index(entries)
+        _invalidate_history_cache()
 
 
 def clear_incomplete_task(ticker: str, trade_date: str) -> None:
@@ -154,10 +173,15 @@ def clear_incomplete_task(ticker: str, trade_date: str) -> None:
             != _completed_key(ticker, trade_date)
         ]
         _save_incomplete_index(entries)
+        _invalidate_history_cache()
 
 
 def get_incomplete_history() -> list[dict[str, Any]]:
     """Return unfinished tasks that can be resumed from their checkpoint."""
+    global _incomplete_cache
+    now = time.monotonic()
+    if _incomplete_cache is not None and now - _incomplete_cache[0] < _CACHE_TTL:
+        return _incomplete_cache[1]
     completed = _completed_keys()
     active_entries: list[dict[str, Any]] = []
 
@@ -175,6 +199,8 @@ def get_incomplete_history() -> list[dict[str, Any]]:
         active_entries.sort(key=lambda e: float(e.get("updated_at", 0)), reverse=True)
         if len(active_entries) != len(entries):
             _save_incomplete_index(active_entries)
+            _invalidate_history_cache()
+    _incomplete_cache = (now, active_entries)
     return active_entries
 
 
