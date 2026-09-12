@@ -366,33 +366,11 @@ def pe_digestion(current_pe: float, cagr: float, target_pe: float = 30) -> float
 
 @st.cache_data(ttl=10, show_spinner=False)
 def index_spot() -> dict:
-    """获取三大指数（上证/深证/创业板）实时行情。
+    """获取三大指数（上证/深证/创业板）实时行情（腾讯 qt.gtimg.cn）。
 
-    优先使用 akshare，失败时回退腾讯 qt.gtimg.cn。
     返回 {"000001": {name, price, change_pct, change_amt}, ...}
     """
     result = {}
-    try:
-        import akshare as ak
-        df = ak.stock_zh_index_spot_em()
-        targets = {"上证指数": "000001", "深证成指": "399001", "创业板指": "399006"}
-        for _, row in df.iterrows():
-            name = str(row.get("名称", ""))
-            if name not in targets:
-                continue
-            code = targets[name]
-            result[code] = {
-                "name": name,
-                "price": float(row["最新价"]) if pd.notna(row.get("最新价")) else 0,
-                "change_pct": float(row["涨跌幅"]) if pd.notna(row.get("涨跌幅")) else 0,
-                "change_amt": float(row["涨跌额"]) if pd.notna(row.get("涨跌额")) else 0,
-            }
-        if len(result) == 3:
-            return result
-    except Exception:
-        pass
-
-    # fallback: Tencent qt.gtimg.cn
     try:
         url = "https://qt.gtimg.cn/q=sh000001,sz399001,sz399006"
         req = urllib.request.Request(url, headers={"User-Agent": UA})
