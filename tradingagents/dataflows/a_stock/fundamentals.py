@@ -196,7 +196,7 @@ def get_fundamentals(
 
 def _sina_stock_code(code: str) -> str:
     """Pure 6-digit code → sina format (sh688017 / sz000001 / bj832000)."""
-    return f"{_get_prefix(code)}{code}"
+    return f"{_common._get_prefix(code)}{code}"
 
 
 def _get_financial_report_sina(
