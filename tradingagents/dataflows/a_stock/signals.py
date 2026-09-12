@@ -92,6 +92,7 @@ def get_hot_stocks(
         return "\n".join(lines)
 
     except Exception as e:
+        logger.warning("Hot stocks failed for %s: %s", curr_date, e)
         return f"Error fetching hot stocks for {curr_date}: {str(e)}"
 
 
@@ -251,6 +252,7 @@ def get_northbound_flow(
         return "\n".join(lines)
 
     except Exception as e:
+        logger.warning("Northbound flow failed: %s", e)
         return f"Error fetching northbound flow: {str(e)}"
 
 
@@ -335,6 +337,7 @@ def get_concept_blocks(
         return "\n".join(lines)
 
     except Exception as e:
+        logger.warning("Concept blocks failed for %s: %s", code, e)
         return f"Error fetching concept blocks for {code}: {str(e)}"
 
 
@@ -450,6 +453,7 @@ def get_fund_flow(
         return "\n".join(lines)
 
     except Exception as e:
+        logger.warning("Fund flow failed for %s: %s", code, e)
         return f"Error fetching fund flow for {code}: {str(e)}"
 
 
@@ -507,6 +511,7 @@ def get_dragon_tiger_board(
                     f"| {turnover:.2f}%"
                 )
     except Exception as e:
+        logger.warning("Dragon-tiger list failed for %s: %s", code, e)
         lines.append(f"龙虎榜列表查询失败: {e}")
 
     # 2. 最近上榜的买卖席位 — eastmoney datacenter direct HTTP
@@ -554,8 +559,8 @@ def get_dragon_tiger_board(
                         f"  {row.get('OPERATEDEPT_NAME', '')} "
                         f"| {buy_amt:.0f} | {sell_amt:.0f} | {net:.0f}"
                     )
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("Dragon-tiger seat details skipped for %s: %s", code, e)
 
     # 3. 机构动向 — 从买卖席位明细筛选机构专用席位 (OPERATEDEPT_CODE="0")
     try:
@@ -626,6 +631,7 @@ def get_lockup_expiry(
         else:
             lines.append("\n无历史解禁记录。")
     except Exception as e:
+        logger.warning("Lockup history failed for %s: %s", code, e)
         lines.append(f"个股解禁查询失败: {e}")
 
     # 2. 未来待解禁 — eastmoney datacenter direct HTTP
@@ -657,6 +663,7 @@ def get_lockup_expiry(
         else:
             lines.append(f"\n未来 {forward_days} 天无待解禁。")
     except Exception as e:
+        logger.warning("Lockup calendar failed for %s: %s", code, e)
         lines.append(f"解禁日历查询失败: {e}")
 
     return "\n".join(lines)
@@ -728,6 +735,7 @@ def get_industry_comparison(
         else:
             lines.append("行业数据获取为空。")
     except Exception as e:
+        logger.warning("Industry comparison failed for %s: %s", code, e)
         lines.append(f"行业对比查询失败: {e}")
 
     return "\n".join(lines)
