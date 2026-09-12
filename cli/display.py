@@ -41,6 +41,9 @@ class MessageBuffer:
         "social": "Social Analyst",
         "news": "News Analyst",
         "fundamentals": "Fundamentals Analyst",
+        "policy": "Policy Analyst",
+        "hot_money": "Hot Money Analyst",
+        "lockup": "Lockup Analyst",
     }
 
     # Report section mapping: section -> (analyst_key for filtering, finalizing_agent)
@@ -51,6 +54,9 @@ class MessageBuffer:
         "sentiment_report": ("social", "Social Analyst"),
         "news_report": ("news", "News Analyst"),
         "fundamentals_report": ("fundamentals", "Fundamentals Analyst"),
+        "policy_report": ("policy", "Policy Analyst"),
+        "hot_money_report": ("hot_money", "Hot Money Analyst"),
+        "lockup_report": ("lockup", "Lockup Analyst"),
         "investment_plan": (None, "Research Manager"),
         "trader_investment_plan": (None, "Trader"),
         "final_trade_decision": (None, "Portfolio Manager"),
@@ -174,7 +180,9 @@ class MessageBuffer:
         report_parts = []
 
         # Analyst Team Reports - use .get() to handle missing sections
-        analyst_sections = ["market_report", "sentiment_report", "news_report", "fundamentals_report"]
+        analyst_sections = [
+            section for section, (key, _) in self.REPORT_SECTIONS.items() if key is not None
+        ]
         if any(self.report_sections.get(section) for section in analyst_sections):
             report_parts.append("## Analyst Team Reports")
             if self.report_sections.get("market_report"):

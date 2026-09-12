@@ -259,6 +259,18 @@ def save_report_to_disk(final_state, ticker: str, save_path: Path):
         analysts_dir.mkdir(exist_ok=True)
         (analysts_dir / "fundamentals.md").write_text(final_state["fundamentals_report"], encoding="utf-8")
         analyst_parts.append(("Fundamentals Analyst", final_state["fundamentals_report"]))
+    if final_state.get("policy_report"):
+        analysts_dir.mkdir(exist_ok=True)
+        (analysts_dir / "policy.md").write_text(final_state["policy_report"], encoding="utf-8")
+        analyst_parts.append(("Policy Analyst", final_state["policy_report"]))
+    if final_state.get("hot_money_report"):
+        analysts_dir.mkdir(exist_ok=True)
+        (analysts_dir / "hot_money.md").write_text(final_state["hot_money_report"], encoding="utf-8")
+        analyst_parts.append(("Hot Money Analyst", final_state["hot_money_report"]))
+    if final_state.get("lockup_report"):
+        analysts_dir.mkdir(exist_ok=True)
+        (analysts_dir / "lockup.md").write_text(final_state["lockup_report"], encoding="utf-8")
+        analyst_parts.append(("Lockup Analyst", final_state["lockup_report"]))
     if analyst_parts:
         content = "\n\n".join(f"### {name}\n{text}" for name, text in analyst_parts)
         sections.append(f"## I. Analyst Team Reports\n\n{content}")
