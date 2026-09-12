@@ -8,7 +8,7 @@ from __future__ import annotations
 import sys
 import time
 import ast
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
 import streamlit as st
@@ -38,6 +38,7 @@ from web.data_functions import (  # noqa: E402
     load_northbound_history, get_kline_data, get_minute_data, industry_comparison,
     cls_telegraph, eastmoney_stock_news,
     forward_pe, calc_peg, pe_digestion,
+    index_spot,
 )
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -65,7 +66,7 @@ if "theme" not in st.session_state:
 components.html("""
 <script>
 (function(){
-    var theme = localStorage.getItem('astock-theme') || 'light';
+    var theme = 'light';
     document.documentElement.className = theme;
     window.parent.document.documentElement.className = theme;
 })();
@@ -171,8 +172,20 @@ components.html("""
 # ═══════════════════════════════════════════════════════════════════════════════
 
 from web.theme import CSS
+from streamlit_autorefresh import st_autorefresh
 
 st.markdown(f"<style>{CSS}</style>", unsafe_allow_html=True)
+
+# ── Autorefresh for header index quotes ──
+def _is_trading_time() -> bool:
+    now = datetime.now()
+    if now.weekday() >= 5:
+        return False
+    t = now.hour * 60 + now.minute
+    return (9 * 60 + 30 <= t <= 11 * 60 + 30) or (13 * 60 <= t <= 15 * 60 + 5)
+
+_auto_interval = 45 if _is_trading_time() else 3600
+st_autorefresh(interval=_auto_interval * 1000, key="idx_autorefresh")
 
 
 # ── Sidebar content ──────────────────────────────────────────────────────────
@@ -180,8 +193,8 @@ with st.sidebar:
     render_sidebar()
 
 # ── Top navigation bar ──
-# 单行：logo | segmented nav | theme
-col_logo, col_nav, col_theme = st.columns([1.5, 3, 0.7], vertical_alignment="center")
+# 单行：logo | segmented nav | index quotes | theme
+col_logo, col_nav, col_index, col_theme = st.columns([1, 2.2, 3, 0.7], vertical_alignment="center")
 with col_logo:
     st.markdown("""
     <span class="brand-logo">AStock</span>
@@ -200,6 +213,44 @@ with col_nav:
     elif mode and "数据看板" in mode and st.session_state.get("app_mode") != "data":
         st.session_state["app_mode"] = "data"
         st.rerun()
+
+with col_index:
+    _indices = index_spot()
+    _order = [("000001", "上证指数"), ("399001", "深证成指"), ("399006", "创业板指")]
+    _parts = []
+    for i, (code, label) in enumerate(_order):
+        d = _indices.get(code) if _indices else None
+        if d and d.get("price", 0) > 0:
+            pct = d.get("change_pct", 0)
+            if pct > 0:
+                arrow = "↑"
+                cls = "up"
+            elif pct < 0:
+                arrow = "↓"
+                cls = "down"
+            else:
+                arrow = ""
+                cls = "flat"
+            _parts.append(
+                f'<div class="index-item">'
+                f'<span class="index-name">{d["name"]}</span>'
+                f'<span class="index-price">{d["price"]:.2f}</span>'
+                f'<span class="index-change {cls}">{arrow}{pct:+.2f}%</span>'
+                f'</div>'
+            )
+        else:
+            _parts.append(
+                f'<div class="index-item">'
+                f'<span class="index-name">{label}</span>'
+                f'<span class="index-price">--</span>'
+                f'<span class="index-change flat">--</span>'
+                f'</div>'
+            )
+        if i < 2:
+            _parts.append('<div class="index-sep"></div>')
+    if not _is_trading_time():
+        _parts.append('<span class="index-closed-tag">已收盘</span>')
+    st.markdown(f'<div class="index-bar">{"".join(_parts)}</div>', unsafe_allow_html=True)
 
 with col_theme:
     components.html("""
