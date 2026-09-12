@@ -48,6 +48,15 @@ class Propagator:
                     "count": 0,
                 }
             ),
+            # per-analyst tool-loop channels (analyst-parallel mode); seeded the
+            # same way as the legacy shared "messages" channel
+            "market_messages": [("human", company_name)],
+            "social_messages": [("human", company_name)],
+            "news_messages": [("human", company_name)],
+            "fundamentals_messages": [("human", company_name)],
+            "policy_messages": [("human", company_name)],
+            "hot_money_messages": [("human", company_name)],
+            "lockup_messages": [("human", company_name)],
             "market_report": "",
             "fundamentals_report": "",
             "sentiment_report": "",

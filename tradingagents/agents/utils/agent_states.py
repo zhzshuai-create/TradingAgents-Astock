@@ -1,6 +1,7 @@
 from typing import Annotated
 from typing_extensions import TypedDict
 from langgraph.graph import MessagesState
+from langgraph.graph.message import add_messages
 
 
 # Researcher team state
@@ -44,6 +45,14 @@ class RiskDebateState(TypedDict):
 
 
 class AgentState(MessagesState):
+    market_messages: Annotated[list, add_messages]  # analyst-parallel: isolated tool-loop channel
+    social_messages: Annotated[list, add_messages]  # analyst-parallel: isolated tool-loop channel
+    news_messages: Annotated[list, add_messages]  # analyst-parallel: isolated tool-loop channel
+    fundamentals_messages: Annotated[list, add_messages]  # analyst-parallel: isolated tool-loop channel
+    policy_messages: Annotated[list, add_messages]  # analyst-parallel: isolated tool-loop channel
+    hot_money_messages: Annotated[list, add_messages]  # analyst-parallel: isolated tool-loop channel
+    lockup_messages: Annotated[list, add_messages]  # analyst-parallel: isolated tool-loop channel
+
     company_of_interest: Annotated[str, "Company that we are interested in trading"]
     trade_date: Annotated[str, "What date we are trading at"]
 

@@ -19,12 +19,14 @@ class GraphSetup:
         deep_thinking_llm: Any,
         tool_nodes: Dict[str, ToolNode],
         conditional_logic: ConditionalLogic,
+        parallel_analysts: bool = False,
     ):
         """Initialize with required components."""
         self.quick_thinking_llm = quick_thinking_llm
         self.deep_thinking_llm = deep_thinking_llm
         self.tool_nodes = tool_nodes
         self.conditional_logic = conditional_logic
+        self.parallel_analysts = parallel_analysts
 
     def setup_graph(
         self, selected_analysts=["market", "social", "news", "fundamentals", "policy", "hot_money", "lockup"]
@@ -136,30 +138,34 @@ class GraphSetup:
         workflow.add_node("Portfolio Manager", portfolio_manager_node)
 
         # Define edges
-        # Start with the first analyst
-        first_analyst = selected_analysts[0]
-        workflow.add_edge(START, f"{first_analyst.capitalize()} Analyst")
+        if self.parallel_analysts:
+            # Fan-out: all analysts run concurrently in one super-step, each with
+            # its own <type>_messages channel (isolated tool-call routing), then
+            # converge on the Quality Gate. Cuts analysis wall-clock time from
+            # ~7 serial segments to ~1.
+            for analyst_type in selected_analysts:
+                self._wire_analyst(workflow, analyst_type)
+                workflow.add_edge(START, f"{analyst_type.capitalize()} Analyst")
+                workflow.add_edge(
+                    f"Msg Clear {analyst_type.capitalize()}", "Quality Gate"
+                )
+        else:
+            # Start with the first analyst
+            first_analyst = selected_analysts[0]
+            workflow.add_edge(START, f"{first_analyst.capitalize()} Analyst")
 
-        # Connect analysts in sequence
-        for i, analyst_type in enumerate(selected_analysts):
-            current_analyst = f"{analyst_type.capitalize()} Analyst"
-            current_tools = f"tools_{analyst_type}"
-            current_clear = f"Msg Clear {analyst_type.capitalize()}"
+            # Connect analysts in sequence
+            for i, analyst_type in enumerate(selected_analysts):
+                self._wire_analyst(workflow, analyst_type)
 
-            # Add conditional edges for current analyst
-            workflow.add_conditional_edges(
-                current_analyst,
-                getattr(self.conditional_logic, f"should_continue_{analyst_type}"),
-                [current_tools, current_clear],
-            )
-            workflow.add_edge(current_tools, current_analyst)
-
-            # Connect to next analyst or to Bull Researcher if this is the last analyst
-            if i < len(selected_analysts) - 1:
-                next_analyst = f"{selected_analysts[i+1].capitalize()} Analyst"
-                workflow.add_edge(current_clear, next_analyst)
-            else:
-                workflow.add_edge(current_clear, "Quality Gate")
+                # Connect to next analyst or to Bull Researcher if this is the last analyst
+                if i < len(selected_analysts) - 1:
+                    next_analyst = f"{selected_analysts[i+1].capitalize()} Analyst"
+                    workflow.add_edge(
+                        f"Msg Clear {analyst_type.capitalize()}", next_analyst
+                    )
+                else:
+                    workflow.add_edge(f"Msg Clear {analyst_type.capitalize()}", "Quality Gate")
 
         workflow.add_edge("Quality Gate", "Bull Researcher")
 
@@ -210,3 +216,16 @@ class GraphSetup:
         workflow.add_edge("Portfolio Manager", END)
 
         return workflow
+
+    def _wire_analyst(self, workflow: StateGraph, analyst_type: str) -> None:
+        """Wire one analyst's self-contained tool loop (analyst ⇄ tools → clear)."""
+        current_analyst = f"{analyst_type.capitalize()} Analyst"
+        current_tools = f"tools_{analyst_type}"
+        current_clear = f"Msg Clear {analyst_type.capitalize()}"
+
+        workflow.add_conditional_edges(
+            current_analyst,
+            getattr(self.conditional_logic, f"should_continue_{analyst_type}"),
+            [current_tools, current_clear],
+        )
+        workflow.add_edge(current_tools, current_analyst)

@@ -122,6 +122,7 @@ class TradingAgentsGraph:
             self.deep_thinking_llm,
             self.tool_nodes,
             self.conditional_logic,
+            parallel_analysts=bool(self.config.get("parallel_analysts", False)),
         )
 
         self.propagator = Propagator()
@@ -164,28 +165,35 @@ class TradingAgentsGraph:
         """Create tool nodes for different data sources using abstract methods."""
         return {
             "market": ToolNode(
+                # messages_key: analyst tool loops read/write their own channel
                 [
                     # Core stock data tools
                     get_stock_data,
                     # Technical indicators
                     get_indicators,
-                ]
+                ],
+                messages_key="market_messages",
             ),
             "social": ToolNode(
+                # messages_key: analyst tool loops read/write their own channel
                 [
                     # News tools for social media analysis
                     get_news,
-                ]
+                ],
+                messages_key="social_messages",
             ),
             "news": ToolNode(
+                # messages_key: analyst tool loops read/write their own channel
                 [
                     # News and insider information
                     get_news,
                     get_global_news,
                     get_insider_transactions,
-                ]
+                ],
+                messages_key="news_messages",
             ),
             "fundamentals": ToolNode(
+                # messages_key: analyst tool loops read/write their own channel
                 [
                     get_fundamentals,
                     get_balance_sheet,
@@ -193,15 +201,19 @@ class TradingAgentsGraph:
                     get_income_statement,
                     get_profit_forecast,
                     get_industry_comparison,
-                ]
+                ],
+                messages_key="fundamentals_messages",
             ),
             "policy": ToolNode(
+                # messages_key: analyst tool loops read/write their own channel
                 [
                     get_news,
                     get_global_news,
-                ]
+                ],
+                messages_key="policy_messages",
             ),
             "hot_money": ToolNode(
+                # messages_key: analyst tool loops read/write their own channel
                 [
                     get_stock_data,
                     get_news,
@@ -212,15 +224,18 @@ class TradingAgentsGraph:
                     get_fund_flow,
                     get_dragon_tiger_board,
                     get_industry_comparison,
-                ]
+                ],
+                messages_key="hot_money_messages",
             ),
             "lockup": ToolNode(
+                # messages_key: analyst tool loops read/write their own channel
                 [
                     get_insider_transactions,
                     get_news,
                     get_fundamentals,
                     get_lockup_expiry,
-                ]
+                ],
+                messages_key="lockup_messages",
             ),
         }
 

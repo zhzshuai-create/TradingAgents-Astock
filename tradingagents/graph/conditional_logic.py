@@ -13,7 +13,8 @@ class ConditionalLogic:
 
     def should_continue_market(self, state: AgentState):
         """Determine if market analysis should continue."""
-        messages = state["messages"]
+        # per-analyst channel: shared "messages" would misroute under fan-out
+        messages = state.get("market_messages") or state.get("messages") or []
         last_message = messages[-1]
         if last_message.tool_calls:
             return "tools_market"
@@ -21,7 +22,8 @@ class ConditionalLogic:
 
     def should_continue_social(self, state: AgentState):
         """Determine if social media analysis should continue."""
-        messages = state["messages"]
+        # per-analyst channel: shared "messages" would misroute under fan-out
+        messages = state.get("social_messages") or state.get("messages") or []
         last_message = messages[-1]
         if last_message.tool_calls:
             return "tools_social"
@@ -29,7 +31,8 @@ class ConditionalLogic:
 
     def should_continue_news(self, state: AgentState):
         """Determine if news analysis should continue."""
-        messages = state["messages"]
+        # per-analyst channel: shared "messages" would misroute under fan-out
+        messages = state.get("news_messages") or state.get("messages") or []
         last_message = messages[-1]
         if last_message.tool_calls:
             return "tools_news"
@@ -37,7 +40,8 @@ class ConditionalLogic:
 
     def should_continue_fundamentals(self, state: AgentState):
         """Determine if fundamentals analysis should continue."""
-        messages = state["messages"]
+        # per-analyst channel: shared "messages" would misroute under fan-out
+        messages = state.get("fundamentals_messages") or state.get("messages") or []
         last_message = messages[-1]
         if last_message.tool_calls:
             return "tools_fundamentals"
@@ -45,7 +49,8 @@ class ConditionalLogic:
 
     def should_continue_policy(self, state: AgentState):
         """Determine if policy analysis should continue."""
-        messages = state["messages"]
+        # per-analyst channel: shared "messages" would misroute under fan-out
+        messages = state.get("policy_messages") or state.get("messages") or []
         last_message = messages[-1]
         if last_message.tool_calls:
             return "tools_policy"
@@ -53,7 +58,8 @@ class ConditionalLogic:
 
     def should_continue_hot_money(self, state: AgentState):
         """Determine if hot money tracking should continue."""
-        messages = state["messages"]
+        # per-analyst channel: shared "messages" would misroute under fan-out
+        messages = state.get("hot_money_messages") or state.get("messages") or []
         last_message = messages[-1]
         if last_message.tool_calls:
             return "tools_hot_money"
@@ -61,7 +67,8 @@ class ConditionalLogic:
 
     def should_continue_lockup(self, state: AgentState):
         """Determine if lockup/reduction analysis should continue."""
-        messages = state["messages"]
+        # per-analyst channel: shared "messages" would misroute under fan-out
+        messages = state.get("lockup_messages") or state.get("messages") or []
         last_message = messages[-1]
         if last_message.tool_calls:
             return "tools_lockup"
