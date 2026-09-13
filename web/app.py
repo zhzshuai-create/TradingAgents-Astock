@@ -333,6 +333,34 @@ with col_theme:
     </html>
     """, height=36)
 
+_q_style = """
+<style>
+.quote-bar {
+  text-align: center; font-size: var(--font-md); color: var(--muted);
+  padding: 0.15rem 0 0.35rem; letter-spacing: 0.02em;
+}
+</style>
+"""
+_q_date = datetime.now().timetuple().tm_yday
+_QUOTES = [
+    ("别人贪婪时我恐惧，别人恐惧时我贪婪。", "沃伦·巴菲特"),
+    ("价格是你付出的，价值是你得到的。", "沃伦·巴菲特"),
+    ("股市是一种把钱从没耐心的人转移到有耐心的人手中的装置。", "沃伦·巴菲特"),
+    ("时间是好生意的朋友，是平庸生意的敌人。", "沃伦·巴菲特"),
+    ("市场短期是投票机，长期是称重机。", "本杰明·格雷厄姆"),
+    ("投资的风险不在于市场，而在于投资者自身。", "本杰明·格雷厄姆"),
+    ("你无法预测，但你可以准备。", "霍华德·马克斯"),
+    ("如果你知道自己会死在哪里，你就永远不要去那里。", "查理·芒格"),
+    ("不积跬步，无以至千里；不积小流，无以成江海。", "《荀子》"),
+    ("知人者智，自知者明。", "《道德经》"),
+    ("谋定而后动，知止而有得。", "《孙子兵法》"),
+]
+_q_text, _q_author = _QUOTES[_q_date % len(_QUOTES)]
+st.markdown(
+    _q_style
+    + f'<div class="quote-bar">“{_q_text}”　—— {_q_author}</div>',
+    unsafe_allow_html=True,
+)
 st.markdown("---")
 
 
