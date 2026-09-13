@@ -424,7 +424,18 @@ def _render_market_overview() -> None:
             pct_color = "var(--up)" if pct_val >= 0 else "var(--down)"
             reason_col = "题材归因" if "题材归因" in df_hot.columns else "reason"
             reason_text = str(row.get(reason_col, "")) if reason_col in row.index else ""
-            st.markdown(f'<div class="stock-card"><span class="code">{row.get("代码", "-")}</span><span class="name">{row.get("名称", "-")}</span><span class="pct" style="color:{pct_color}">{pct_val:+.2f}%</span><span class="reason">{reason_text}</span></div>', unsafe_allow_html=True)
+            code = normalize_code(str(row.get("代码", "-")))
+            name = str(row.get("名称", "-"))
+
+            c_info, c_go = st.columns([9, 1.1], vertical_alignment="center")
+            with c_info:
+                st.markdown(f'<div class="stock-card"><span class="code">{row.get("代码", "-")}</span><span class="name">{row.get("名称", "-")}</span><span class="pct" style="color:{pct_color}">{pct_val:+.2f}%</span><span class="reason">{reason_text}</span></div>', unsafe_allow_html=True)
+            with c_go:
+                if st.button("📊 行情", key=f"ov_hot_{code}", use_container_width=True):
+                    st.session_state["data_code"] = code
+                    st.session_state["dash_tab"] = "📈 个股估值"
+                    st.toast(f"正在打开 {name}({code}) 的行情页", icon="📊")
+                    st.rerun()
     else:
         st.caption("暂无今日数据")
 
