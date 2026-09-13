@@ -69,8 +69,10 @@ LIGHT_TOKENS = """
 --radius-xl: 16px;
 
 /* ===== SHADOW ===== */
---shadow-card:  0 1px 4px rgba(0,0,0,0.06);
---shadow-hover: 0 2px 8px rgba(0,0,0,0.10);
+--shadow-card:  0 1px 2px rgba(16,24,40,0.04), 0 6px 16px rgba(16,24,40,0.05);
+--shadow-hover: 0 2px 6px rgba(16,24,40,0.07), 0 14px 32px rgba(16,24,40,0.12);
+--brand-grad:   linear-gradient(135deg, #e85d04 0%, #f5a623 100%);
+--bg-grad:      linear-gradient(180deg, #fafbfd 0%, #f4f6f9 100%);
 
 /* ===== HAIRLINE — 描边豁免 ===== */
 --hairline: 1px;
@@ -179,8 +181,10 @@ DARK_TOKENS = """
 --st-header-dark: #1c1816;
 
 /* ===== 暗色模式补全：亮色已定义的变量（保持同值） ===== */
---shadow-card:  0 1px 4px rgba(0,0,0,0.25);
---shadow-hover: 0 2px 8px rgba(0,0,0,0.40);
+--shadow-card:  0 1px 2px rgba(0,0,0,0.30), 0 6px 16px rgba(0,0,0,0.28);
+--shadow-hover: 0 2px 6px rgba(0,0,0,0.35), 0 14px 32px rgba(0,0,0,0.45);
+--brand-grad:   linear-gradient(135deg, #f0883e 0%, #ffc078 100%);
+--bg-grad:      linear-gradient(180deg, #1e1a17 0%, #171412 100%);
 --hairline: 1px;
 --btn-text: #ffffff;
 
@@ -934,6 +938,111 @@ html.dark [data-testid="stFormSubmitButton"] button:hover {
 """
 
 # ============================================================================
+# PREMIUM POLISH — 高级感细节层（明暗通用，全部走令牌）
+# ============================================================================
+
+PREMIUM_CSS = """
+/* 页面底色：极淡的纵向渐变，替代纯色 */
+.stApp { background: var(--bg-grad); }
+
+/* 顶部品牌渐变细线（页面的"签名"细节） */
+.stApp::before {
+    content: ""; position: fixed; top: 0; left: 0; right: 0;
+    height: 3px; z-index: 999;
+    background: linear-gradient(90deg, var(--brand) 0%, #f5a623 45%, transparent 90%);
+}
+
+/* 品牌字渐变 */
+.brand-logo {
+    background: var(--brand-grad);
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent; color: transparent;
+    letter-spacing: 0.02em;
+}
+
+/* 标题字距与字重 */
+.stApp h1, .stApp h2, .stApp h3 { letter-spacing: -0.015em; font-weight: 700; }
+
+/* 指标卡：边框 + 分层阴影 + 悬浮上浮 */
+.stApp [data-testid="stMetric"] {
+    border: var(--hairline) solid var(--line);
+    box-shadow: var(--shadow-card);
+    transition: box-shadow 0.22s ease, transform 0.22s ease, border-color 0.22s ease;
+}
+.stApp [data-testid="stMetric"]:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-hover);
+    border-color: var(--brand);
+}
+.stMetric [data-testid="stMetricValue"] {
+    font-variant-numeric: tabular-nums; letter-spacing: -0.01em;
+}
+
+/* 折叠面板卡片化 */
+.stApp [data-testid="stExpander"] details {
+    border: var(--hairline) solid var(--line) !important;
+    border-radius: var(--radius-lg) !important;
+    box-shadow: var(--shadow-card);
+    background: var(--surface);
+    overflow: hidden;
+    transition: box-shadow 0.22s ease, border-color 0.22s ease;
+}
+.stApp [data-testid="stExpander"] details:hover {
+    box-shadow: var(--shadow-hover); border-color: var(--brand);
+}
+.stApp [data-testid="stExpander"] summary { font-weight: 600; }
+.stApp [data-testid="stExpander"] summary:hover { color: var(--brand) !important; }
+
+/* 数据框 / 原生表格 */
+.stApp [data-testid="stDataFrame"],
+.stApp [data-testid="stTable"] {
+    border-radius: var(--radius-lg);
+    border: var(--hairline) solid var(--line);
+    box-shadow: var(--shadow-card);
+    overflow: hidden;
+}
+
+/* 分段导航容器与选中项 */
+.stApp div:has(> button[kind="segmented_control"]),
+.stApp div:has(> button[data-baseweb="radio"]) {
+    box-shadow: var(--shadow-card); border-radius: var(--radius-md);
+}
+.stApp button[kind="segmented_control"][aria-pressed="true"] {
+    background: var(--brand-grad) !important;
+    color: #fff !important;
+    box-shadow: 0 2px 8px rgba(232, 93, 4, 0.35);
+}
+.stApp button[kind="segmented_control"][aria-pressed="true"] * { color: #fff !important; }
+.stApp [data-baseweb="radio"] label:has(input:checked) { color: var(--brand) !important; font-weight: 700; }
+
+/* 进度条品牌渐变 */
+.stApp [data-testid="stProgress"] [role="progressbar"] > div {
+    background: var(--brand-grad) !important;
+}
+.stApp [data-testid="stProgress"] [role="progressbar"] { border-radius: 999px; }
+
+/* Tab 选中下划线品牌渐变 */
+.stApp [data-baseweb="tab-highlight"] { background: var(--brand-grad) !important; }
+
+/* 滚动条细窄化 */
+* { scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb {
+    background: var(--line); border-radius: 999px;
+    border: 2px solid transparent; background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover { background-color: var(--muted); }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* 全局过渡 */
+.stApp button, .stApp [data-testid="stExpander"] details,
+.stApp [data-testid="stMetric"] {
+    transition: box-shadow 0.22s ease, transform 0.22s ease,
+                border-color 0.22s ease, background-color 0.15s ease, color 0.15s ease;
+}
+"""
+
+# ============================================================================
 # 全文拼接
 # ============================================================================
 
@@ -967,9 +1076,8 @@ html.dark {{
    ═══════════════════════════════════════════════════════════════ */
 {OVERRIDE_CSS}
 
-/* ═══════════════════════════════════════════════════════════════
-   暗色模式 — Streamlit 原生控件逐选择器覆盖
-   ═══════════════════════════════════════════════════════════════ */
+{PREMIUM_CSS}
+
 {DARK_STREAMLIT}
 """
 
