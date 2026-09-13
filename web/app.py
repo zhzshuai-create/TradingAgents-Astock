@@ -192,7 +192,7 @@ components.html("""
 <style>
   html, body { background: transparent; margin: 0; overflow: hidden; }
   #rope-root {
-    position: absolute; top: -6px; right: 34px; width: 72px; height: 96px;
+    position: absolute; top: -4px; right: 40px; width: 56px; height: 72px;
     cursor: pointer; transform-origin: top center; text-align: center;
     user-select: none;
   }
@@ -205,10 +205,10 @@ components.html("""
     100% { transform: rotate(0deg); }
   }
   #rope {
-    width: 3px; height: 48px; margin: 0 auto;
+    width: 2.5px; height: 34px; margin: 0 auto;
     background: linear-gradient(#a08b74, #6b5d4f); border-radius: 2px;
   }
-  #orb { width: 44px; height: 44px; margin: -3px auto 0;
+  #orb { width: 34px; height: 34px; margin: -2px auto 0;
          filter: drop-shadow(0 2px 6px rgba(0,0,0,0.25)); }
   #orb svg { display: block; margin: 0 auto; }
 </style>
@@ -223,7 +223,7 @@ components.html("""
     document.documentElement.className = t;
     window.parent.document.documentElement.className = t;
   }
-  var SUN = '<svg width="44" height="44" viewBox="0 0 48 48">' +
+  var SUN = '<svg width="34" height="34" viewBox="0 0 48 48">' +
     '<g stroke="#FFB300" stroke-width="2.6" stroke-linecap="round">' +
     '<line x1="24" y1="2"  x2="24" y2="8"/>' +
     '<line x1="24" y1="40" x2="24" y2="46"/>' +
@@ -236,7 +236,7 @@ components.html("""
     '</g>' +
     '<circle cx="24" cy="24" r="12" fill="#FFD54A" stroke="#f5b301" stroke-width="2"/>' +
     '</svg>';
-  var MOON = '<svg width="44" height="44" viewBox="0 0 48 48">' +
+  var MOON = '<svg width="34" height="34" viewBox="0 0 48 48">' +
     '<defs><mask id="crescent"><rect width="48" height="48" fill="#fff"/>' +
     '<circle cx="32" cy="15" r="14" fill="#000"/></mask></defs>' +
     '<circle cx="24" cy="24" r="16" fill="#f5d76e" mask="url(#crescent)"/>' +
@@ -270,7 +270,10 @@ components.html("""
 # 顶端横带负外边距：顶栏上移与绳子下端并排（绳区在右侧空白处）
 st.markdown("""
 <style>
-[data-testid="stCustomComponentV2"] { margin-bottom: -78px !important; }
+[data-testid="stCustomComponentV2"] {
+  margin-top: -30px !important;    /* 绳子挂点：拉到内容区最顶端（可调） */
+  margin-bottom: -55px !important; /* 顶栏上移与绳子下端并排（可调） */
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -355,6 +358,50 @@ with col_index:
     st.markdown(f'<div class="index-bar">{"".join(_parts)}</div>', unsafe_allow_html=True)
 
 st.markdown("---")
+
+# ── 每日名言库 ──
+from datetime import datetime as _dt
+_QUOTES = [
+    ("别人贪婪时我恐惧，别人恐惧时我贪婪。", "沃伦·巴菲特"),
+    ("价格是你付出的，价值是你得到的。", "沃伦·巴菲特"),
+    ("股市是一种把钱从没耐心的人转移到有耐心的人手中的装置。", "沃伦·巴菲特"),
+    ("时间是好生意的朋友，是平庸生意的敌人。", "沃伦·巴菲特"),
+    ("只有退潮的时候，你才知道谁在裸泳。", "沃伦·巴菲特"),
+    ("市场短期是投票机，长期是称重机。", "本杰明·格雷厄姆"),
+    ("投资的风险不在于市场，而在于投资者自身。", "本杰明·格雷厄姆"),
+    ("你无法预测，但你可以准备。", "霍华德·马克斯"),
+    ("如果你知道自己会死在哪里，你就永远不要去那里。", "查理·芒格"),
+    ("反过来想，总是反过来想。", "查理·芒格"),
+    ("华尔街没有新鲜事，因为人性永远不变。", "杰西·利弗莫尔"),
+    ("知道你拥有什么，并且知道你为什么拥有它。", "彼得·林奇"),
+    ("不积跬步，无以至千里；不积小流，无以成江海。", "《荀子》"),
+    ("知人者智，自知者明。", "《道德经》"),
+    ("谋定而后动，知止而有得。", "《孙子兵法》"),
+    ("工欲善其事，必先利其器。", "《论语》"),
+    ("胜兵先胜而后求战，败兵先战而后求胜。", "《孙子兵法》"),
+    ("人弃我取，人取我与。", "《史记·货殖列传》"),
+]
+_q_date = _dt.now().timetuple().tm_yday
+
+
+# ── 每日名言（点击换一句）──
+if "quote_idx" not in st.session_state:
+    st.session_state["quote_idx"] = _q_date % len(_QUOTES)
+_qt, _qau = _QUOTES[st.session_state["quote_idx"]]
+qc_text, qc_btn = st.columns([6, 1.2], vertical_alignment="center")
+with qc_text:
+    st.markdown(
+        '<div style="text-align:center;font-size:var(--font-md);color:var(--muted);'
+        f'padding:0.1rem 0;">“{_qt}”　—— {_qau}</div>',
+        unsafe_allow_html=True,
+    )
+with qc_btn:
+    if st.button("🔄 换一句", key="quote_swap", use_container_width=True):
+        import random as _random
+        _choices = [i for i in range(len(_QUOTES)) if i != st.session_state["quote_idx"]]
+        st.session_state["quote_idx"] = _random.choice(_choices)
+        st.rerun()
+
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
