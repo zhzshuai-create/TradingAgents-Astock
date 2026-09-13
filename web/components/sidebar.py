@@ -190,6 +190,15 @@ def _render_llm_config() -> None:
             "也可在 .env 里设 BACKEND_URL 代替此处。"
         ),
     )
+    st.toggle(
+        "并行执行分析师（实验性）",
+        key="parallel_analysts",
+        value=st.session_state.get("parallel_analysts", False),
+        help=(
+            "开启后 7 个分析师并发采集数据，分析墙钟时间约为最慢分析师的耗时；"
+            "关闭则按传统链条串行执行。两个模式结论可能因模型随机性略有差异。"
+        ),
+    )
 
 
 def render_sidebar() -> None:

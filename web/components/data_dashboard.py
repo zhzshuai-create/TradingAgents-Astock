@@ -230,7 +230,8 @@ def render_data_mode() -> None:
                     # ── 全部历史 ──────────────────────────────────
                     else:
                         with st.spinner("加载全部历史K线..."):
-                            all_k = get_kline_data(code, days=5000)
+                            from web.data_functions import _get_kline_full
+                            all_k = _get_kline_full(code)
                         if not all_k.empty:
                             close_s = all_k.set_index("datetime")["close"]
                             st.altair_chart(_price_chart(close_s), use_container_width=True)
