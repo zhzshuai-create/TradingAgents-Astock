@@ -40,7 +40,7 @@ def _price_chart(series: pd.Series, y_label: str = "价格(元)") -> alt.Chart:
                     scale=alt.Scale(domain=[y_min - padding, y_max + padding])),
         )
         .properties(width='container')
-        .interactive()
+        .interactive().properties(usermeta={"embedOptions": {"actions": False}})
     )
 
 
@@ -56,7 +56,7 @@ def _vol_chart(series: pd.Series) -> alt.Chart:
             y=alt.Y("y:Q", title="成交量(手)", axis=alt.Axis(format="~s")),
         )
         .properties(width='container')
-        .interactive()
+        .interactive().properties(usermeta={"embedOptions": {"actions": False}})
     )
 
 
@@ -66,14 +66,34 @@ def _vol_chart(series: pd.Series) -> alt.Chart:
 
 def render_data_mode() -> None:
     code = st.session_state.get("data_code", "")
+    # 顶部搜索框输入新代码 → 自动切到个股估值分区
+    if st.session_state.get("_last_data_code") != code:
+        st.session_state["_last_data_code"] = code
+        if code:
+            st.session_state["dash_tab"] = "📈 个股估值"
 
     if code:
-        st.caption(f"当前股票: {code}")
+        bc1, bc2 = st.columns([6, 1])
+        with bc1:
+            st.markdown(
+                f'<div style="font-size:var(--font-md); color:var(--muted);">'
+                f'<a href="#" style="color:var(--muted);text-decoration:none;" onclick="return false;">总览</a>'
+                f'  ›  <b style="color:var(--text);">{code}</b></div>',
+                unsafe_allow_html=True,
+            )
+        with bc2:
+            if st.button("← 返回总览", key="clear_stock_top", use_container_width=True):
+                st.session_state.pop("data_code", None)
+                st.rerun()
 
-    tabs = st.tabs(["📈 个股估值", "🔥 强势股归因", "💰 资金流向", "📰 资讯"])
+    DASH_TABS = ["📈 个股估值", "🔥 强势股归因", "💰 资金流向", "📰 资讯"]
+    selected_tab = st.radio(
+        "看板分区", DASH_TABS, key="dash_tab",
+        horizontal=True, label_visibility="collapsed",
+    )
 
     # ── Tab 1: 个股估值 ──
-    with tabs[0]:
+    if selected_tab == "📈 个股估值":
         if not code:
             _render_market_overview()
         else:
@@ -83,11 +103,6 @@ def render_data_mode() -> None:
                 blocks = baidu_concept_blocks(code)
                 klines = get_kline_data(code)
                 news = eastmoney_stock_news(code, 8)
-
-            # Back-to-overview button
-            if st.button("← 返回市场总览", key="clear_stock", use_container_width=False):
-                st.session_state.pop("data_code", None)
-                st.rerun()
 
             if code not in quote:
                 st.error(f"未找到 {code} 的行情数据")
@@ -249,7 +264,7 @@ def render_data_mode() -> None:
                         st.markdown(f"- **{n['time']}** {n['title']} `{n['source']}`")
 
     # ── Tab 2: 强势股归因 ──
-    with tabs[1]:
+    elif selected_tab == "🔥 强势股归因":
         st.markdown("#### 当日强势股 · 题材归因")
         with st.spinner("加载强势股数据..."):
             df_hot = ths_hot_reason()
@@ -285,11 +300,12 @@ def render_data_mode() -> None:
                 with c_cols[4]:
                     if st.button("📊 查看", key=f"hot_{code}", use_container_width=True):
                         st.session_state["data_code"] = normalize_code(code)
-                        st.toast(f"已选择 {name}({code})，切换到「📈 个股估值」标签页查看详情", icon="📊")
+                        st.session_state["dash_tab"] = "📈 个股估值"
+                        st.toast(f"已选择 {name}({code})，正在跳转个股估值", icon="📊")
                         st.rerun()
 
     # ── Tab 3: 资金流向 ──
-    with tabs[2]:
+    elif selected_tab == "💰 资金流向":
         sub_a, sub_b = st.tabs(["北向资金", "行业资金"])
         with sub_a:
             st.markdown("#### 北向资金（沪股通 + 深股通）")
@@ -350,7 +366,7 @@ def render_data_mode() -> None:
                 st.info("在上方输入股票代码可查看个股K线")
 
     # ── Tab 4: 资讯 ──
-    with tabs[3]:
+    elif selected_tab == "📰 资讯":
         st.markdown("#### 财联社快讯")
         with st.spinner("加载快讯..."):
             telegrams = cls_telegraph(30)
@@ -378,9 +394,7 @@ def render_data_mode() -> None:
 
 def _render_market_overview() -> None:
     """Market overview shown when no stock code entered."""
-    st.info("💡 在上方搜索框输入股票代码，查看完整估值分析")
-    st.markdown("---")
-    st.markdown("#### 大盘行业概况")
+    st.caption("💡 在顶部搜索框输入股票代码，查看完整估值分析")
     with st.spinner("加载行业数据..."):
         comp = industry_comparison(10)
     if comp["top"]:
