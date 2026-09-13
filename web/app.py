@@ -333,20 +333,8 @@ with col_theme:
     </html>
     """, height=36)
 
-_q_style = """
-<style>
-.quote-bar {
-  text-align: center; font-size: var(--font-md);
-  padding: 0.15rem 0 0.35rem; letter-spacing: 0.02em;
-}
-.quote-link {
-  color: var(--muted); text-decoration: none;
-  transition: color 0.15s ease; cursor: pointer;
-}
-.quote-link:hover { color: var(--brand); }
-</style>
-"""
-_q_date = datetime.now().timetuple().tm_yday
+# 名言来源：内置名言库 _QUOTES（上方定义）。
+# 默认按当天日期取一句；点击名言条在库内循环切换（纯前端，无页面刷新）。
 _QUOTES = [
     ("别人贪婪时我恐惧，别人恐惧时我贪婪。", "沃伦·巴菲特"),
     ("价格是你付出的，价值是你得到的。", "沃伦·巴菲特"),
@@ -368,23 +356,32 @@ _QUOTES = [
     ("人弃我取，人取我与。", "《史记·货殖列传》"),
 ]
 
-# 名言来源：内置 Python 名言库（_QUOTES）。
-# 默认按当天日期轮换（同一天固定一句，刷新不闪变）；
-# 点击名言 → URL 带 ?q=序号 重载，显示库里下一句（点击循环切换）。
-_qp = st.query_params.get("q")
-if _qp is not None and _qp.isdigit():
-    _q_idx = int(_qp) % len(_QUOTES)
-else:
-    _q_idx = _q_date % len(_QUOTES)
-_q_text, _q_author = _QUOTES[_q_idx]
-_next_idx = (_q_idx + 1) % len(_QUOTES)
-st.markdown(
-    _q_style
-    + f'<div class="quote-bar">'
-      f'<a class="quote-link" href="/?q={_next_idx}" title="点击换一句">'
-      f'“{_q_text}”　—— {_q_author}</a></div>',
-    unsafe_allow_html=True,
+from datetime import datetime as _dt
+import json as _json
+_q_date = _dt.now().timetuple().tm_yday
+_quotes_json = _json.dumps([list(q) for q in _QUOTES], ensure_ascii=False)
+_today_idx = _q_date % len(_QUOTES)
+_start_text, _start_author = _QUOTES[_today_idx]
+_quote_html = (
+    f'<div id="astock-quote" title="点击换一句" style="cursor:pointer;'
+    'text-align:center; font-size:var(--font-md); color:#8a8a8a;'
+    'padding:0.15rem 0 0.35rem; letter-spacing:0.02em; user-select:none;'
+    'transition:color 0.15s ease;"'
+    ' onmouseover="this.style.color='#e85d04'" onmouseout="this.style.color='#8a8a8a'">'
+    f'“{_start_text}”　—— {_start_author}'
+    '</div>'
+    '<script>'
+    'var AQ = ' + _quotes_json + ';'
+    'var idx = ' + str(_today_idx) + ';'
+    'var qel = document.getElementById("astock-quote");'
+    'qel.addEventListener("click", function() {'
+    '  idx = (idx + 1) % AQ.length;'
+    '  qel.innerHTML = "“" + AQ[idx][0] + "”　—— " + AQ[idx][1];'
+    '});'
+    '</script>'
 )
+components.html(_quote_html, height=44)
+
 st.markdown("---")
 
 
