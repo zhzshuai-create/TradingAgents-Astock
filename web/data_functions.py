@@ -187,15 +187,25 @@ def _tdx_client():
     return _core._get_mootdx_client()
 
 @st.cache_data(ttl=300, show_spinner=False)
-def get_kline_data(code: str, days: int = 60) -> pd.DataFrame:
+def _get_kline_full(code: str) -> pd.DataFrame:
+    """一次性拉取 5000 根日 K（约上市以来全部数据），供各周期切片复用。"""
     try:
         client = _tdx_client()
-        klines = client.bars(symbol=code, category=4, offset=days)
+        klines = client.bars(symbol=code, category=4, offset=5000)
         if klines is None or klines.empty:
             return pd.DataFrame()
         return klines
     except Exception:
         return pd.DataFrame()
+
+
+@st.cache_data(ttl=300, show_spinner=False)
+def get_kline_data(code: str, days: int = 60) -> pd.DataFrame:
+    """按需切片：复用全量缓存，避免分时/近端/全历史各自触发一次 TCP 拉取。"""
+    full = _get_kline_full(code)
+    if full.empty:
+        return full
+    return full.tail(days)
 
 @st.cache_data(ttl=30, show_spinner=False)
 def get_minute_data(code: str, date_str: str | None = None) -> pd.DataFrame:

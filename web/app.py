@@ -315,6 +315,7 @@ def _build_config() -> dict:
         "core_stock_apis": "a_stock", "technical_indicators": "a_stock",
         "fundamental_data": "a_stock", "news_data": "a_stock", "signal_data": "a_stock",
     }
+    config["parallel_analysts"] = bool(st.session_state.get("parallel_analysts"))
     config["max_debate_rounds"] = 1
     config["max_risk_discuss_rounds"] = 1
     config["output_language"] = "Chinese"
