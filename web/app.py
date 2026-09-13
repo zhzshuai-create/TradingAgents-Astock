@@ -331,13 +331,15 @@ def _render_analysis_mode() -> None:
     # Trigger handler
     start_req = st.session_state.pop("start_analysis", None)
     if start_req:
+        run_config = _build_config()
         tracker = ProgressTracker(
             ticker=start_req["ticker"], trade_date=start_req["trade_date"],
         )
+        tracker.parallel = bool(run_config.get("parallel_analysts"))
         st.session_state["tracker"] = tracker
         run_analysis_in_thread(
             ticker=start_req["ticker"], trade_date=start_req["trade_date"],
-            config=_build_config(), tracker=tracker,
+            config=run_config, tracker=tracker,
         )
 
     tracker: ProgressTracker | None = st.session_state.get("tracker")
@@ -356,7 +358,7 @@ def _render_analysis_mode() -> None:
 
     # State 2: running
     elif tracker and tracker.is_running:
-        render_progress(tracker)
+        render_progress(tracker, parallel=getattr(tracker, "parallel", False))
         time.sleep(2)
         st.rerun()
 

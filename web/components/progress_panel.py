@@ -6,13 +6,61 @@ import streamlit as st
 
 from web.progress import PIPELINE_STAGES, ProgressTracker
 
+_CSS = """
+<style>
+@keyframes pp-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(255, 90, 31, 0.45); }
+  70%  { box-shadow: 0 0 0 10px rgba(255, 90, 31, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 90, 31, 0); }
+}
+.pp-dot {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 1.35rem; height: 1.35rem; border-radius: 50%;
+  font-size: 0.85rem; font-weight: 700; line-height: 1;
+}
+.pp-done  { background: var(--up); color: #fff; }
+.pp-active{ background: var(--brand); color: #fff; animation: pp-pulse 1.6s infinite; }
+.pp-pending{ border: 1.6px solid var(--muted); color: var(--muted); }
+.pp-name { font-size: 0.78rem; }
+.pp-name-done { color: var(--up); }
+.pp-name-active { color: var(--text); font-weight: 700; }
+.pp-name-pending { color: var(--muted); }
+.pp-parallel {
+  display: inline-block; padding: 0.1rem 0.55rem; border-radius: 999px;
+  border: 1px solid var(--brand); color: var(--brand);
+  font-size: 0.78rem; margin-left: 0.6rem; vertical-align: middle;
+}
+</style>
+"""
 
-def _status_badge(status: str) -> str:
+
+def _badge(status: str) -> str:
     if status == "done":
-        return '<span style="color:#22c55e; font-size:1.3rem;">●</span>'
+        return '<span class="pp-dot pp-done">✓</span>'
     if status == "active":
-        return '<span style="color:#ff5a1f; font-size:1.3rem;">◉</span>'
-    return '<span style="color:#333; font-size:1.3rem;">○</span>'
+        return '<span class="pp-dot pp-active">●</span>'
+    return '<span class="pp-dot pp-pending">○</span>'
+
+
+def _name_class(status: str) -> str:
+    return {
+        "done": "pp-name pp-name-done",
+        "active": "pp-name pp-name-active",
+    }.get(status, "pp-name pp-name-pending")
+
+
+def _stage_columns(cols, stages, tracker):
+    for col, stage in zip(cols, stages):
+        status = tracker.stage_status(stage["id"])
+        col.markdown(
+            f"""
+            <div style="text-align:center; padding:0.5rem 0;">
+                {_badge(status)}<br>
+                <span class="{_name_class(status)}">{stage['name']}</span>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
 
 def _format_time(seconds: float) -> str:
@@ -20,18 +68,22 @@ def _format_time(seconds: float) -> str:
     return f"{m}:{s:02d}"
 
 
-def render_progress(tracker: ProgressTracker) -> None:
+def render_progress(tracker: ProgressTracker, parallel: bool = False) -> None:
     """Render the pipeline progress panel."""
 
+    st.markdown(_CSS, unsafe_allow_html=True)
+
+    parallel_badge = '<span class="pp-parallel">⚡ 并行模式</span>' if parallel else ""
     st.markdown(
         f"""
         <div style="text-align:center; margin:1rem 0 0.5rem;">
-            <span style="font-size:1.6rem; font-weight:700; color:#f5f1eb;">
+            <span style="font-size:1.6rem; font-weight:700; color:var(--text);">
                 分析进行中
             </span>
-            <span style="font-size:1.1rem; color:#888; margin-left:0.8rem;">
+            <span style="font-size:1.1rem; color:var(--muted); margin-left:0.8rem;">
                 {tracker.ticker}
             </span>
+            {parallel_badge}
         </div>
         """,
         unsafe_allow_html=True,
@@ -53,44 +105,16 @@ def render_progress(tracker: ProgressTracker) -> None:
     post_stages = PIPELINE_STAGES[7:]
 
     st.markdown(
-        '<div style="margin:0.5rem 0 0.3rem; font-size:0.85rem; color:#888;">ANALYSTS</div>',
+        '<div style="margin:0.5rem 0 0.3rem; font-size:0.85rem; color:var(--muted);">ANALYSTS</div>',
         unsafe_allow_html=True,
     )
-
-    cols = st.columns(len(analyst_stages))
-    for col, stage in zip(cols, analyst_stages):
-        status = tracker.stage_status(stage["id"])
-        badge = _status_badge(status)
-        label_color = "#f5f1eb" if status == "active" else "#888" if status == "pending" else "#22c55e"
-        col.markdown(
-            f"""
-            <div style="text-align:center; padding:0.5rem 0;">
-                {badge}<br>
-                <span style="font-size:0.75rem; color:{label_color};">{stage['name']}</span>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+    _stage_columns(st.columns(len(analyst_stages)), analyst_stages, tracker)
 
     st.markdown(
-        '<div style="margin:0.8rem 0 0.3rem; font-size:0.85rem; color:#888;">PIPELINE</div>',
+        '<div style="margin:0.8rem 0 0.3rem; font-size:0.85rem; color:var(--muted);">PIPELINE</div>',
         unsafe_allow_html=True,
     )
-
-    cols2 = st.columns(len(post_stages))
-    for col, stage in zip(cols2, post_stages):
-        status = tracker.stage_status(stage["id"])
-        badge = _status_badge(status)
-        label_color = "#f5f1eb" if status == "active" else "#888" if status == "pending" else "#22c55e"
-        col.markdown(
-            f"""
-            <div style="text-align:center; padding:0.5rem 0;">
-                {badge}<br>
-                <span style="font-size:0.75rem; color:{label_color};">{stage['name']}</span>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+    _stage_columns(st.columns(len(post_stages)), post_stages, tracker)
 
     st.markdown("---")
 
@@ -111,7 +135,7 @@ def render_progress(tracker: ProgressTracker) -> None:
 
     if completed_reports:
         st.markdown(
-            '<div style="margin:0.5rem 0 0.3rem; font-size:0.85rem; color:#888;">'
+            '<div style="margin:0.5rem 0 0.3rem; font-size:0.85rem; color:var(--muted);">'
             f"REPORTS ({len(completed_reports)})</div>",
             unsafe_allow_html=True,
         )

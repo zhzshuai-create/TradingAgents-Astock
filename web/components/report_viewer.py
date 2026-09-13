@@ -115,53 +115,107 @@ def render_report(
                 help=f"PDF 生成失败，请改用 Markdown 导出。原因：{exc}",
             )
 
-    st.markdown("---")
-
+    # ── 连续长文 + 右侧锚点导航 ──
     inv_plan = final_state.get("investment_plan", "")
-    if inv_plan:
-        st.markdown("### 👔 最终投资建议")
-        st.markdown(_display_report_text(inv_plan, ticker, final_state))
-        st.markdown("---")
-
-    st.markdown("### 📊 分析师报告")
-
-    for key, title in _ANALYST_SECTIONS:
-        content = final_state.get(key, "")
-        if not content:
-            continue
-        with st.expander(title, expanded=False):
-            st.markdown(_display_report_text(content, ticker, final_state))
-
     debate = final_state.get("investment_debate_state")
-    if debate and isinstance(debate, dict):
-        st.markdown("### ⚔️ 多空辩论")
-        tab_bull, tab_bear, tab_judge = st.tabs(["多方", "空方", "研究经理"])
-        with tab_bull:
-            st.markdown(_display_report_text(debate.get("bull_history", "") or "无数据", ticker, final_state))
-        with tab_bear:
-            st.markdown(_display_report_text(debate.get("bear_history", "") or "无数据", ticker, final_state))
-        with tab_judge:
-            st.markdown(_display_report_text(debate.get("judge_decision", "") or "无数据", ticker, final_state))
-
     trader_decision = final_state.get("trader_investment_decision", "")
-    if trader_decision:
-        with st.expander("💹 交易员决策", expanded=False):
-            st.markdown(_display_report_text(trader_decision, ticker, final_state))
-
     risk = final_state.get("risk_debate_state")
-    if risk and isinstance(risk, dict):
-        st.markdown("### 🛡️ 风控评估")
-        tab_agg, tab_con, tab_neu, tab_rj = st.tabs(["激进", "保守", "中性", "风控决策"])
-        with tab_agg:
-            st.markdown(_display_report_text(risk.get("aggressive_history", "") or "无数据", ticker, final_state))
-        with tab_con:
-            st.markdown(_display_report_text(risk.get("conservative_history", "") or "无数据", ticker, final_state))
-        with tab_neu:
-            st.markdown(_display_report_text(risk.get("neutral_history", "") or "无数据", ticker, final_state))
-        with tab_rj:
-            st.markdown(_display_report_text(risk.get("judge_decision", "") or "无数据", ticker, final_state))
-
     dqs = final_state.get("data_quality_summary", "")
+
+    nav_css = """
+    <style>
+    .anchor-nav { position: sticky; top: 3.4rem; font-size: 0.85rem; }
+    .anchor-nav a {
+        display: block; padding: 0.28rem 0.6rem; margin: 0.12rem 0;
+        color: var(--muted); text-decoration: none; border-radius: 6px;
+        border-left: 2px solid transparent;
+    }
+    .anchor-nav a:hover {
+        color: var(--text); background: var(--surface, rgba(128,128,128,0.08));
+        border-left-color: var(--brand);
+    }
+    .anchor-nav .nav-title {
+        font-weight: 700; color: var(--text); margin-bottom: 0.3rem;
+    }
+    </style>
+    """
+
+    sections: list[tuple[str, str]] = []
+    if inv_plan:
+        sections.append(("sec-decision", "👔 最终投资建议"))
+    sections += [
+        (f"sec-{key}", f"{icon} {title}")
+        for key, title in _ANALYST_SECTIONS
+        if final_state.get(key, "")
+    ]
+    if debate and isinstance(debate, dict):
+        sections.append(("sec-debate", "⚔️ 多空辩论"))
+    if trader_decision:
+        sections.append(("sec-trader", "💹 交易员决策"))
+    if risk and isinstance(risk, dict):
+        sections.append(("sec-risk", "🛡️ 风控评估"))
     if dqs:
-        with st.expander("✅ 数据质量", expanded=False):
+        sections.append(("sec-quality", "✅ 数据质量"))
+
+    main_col, nav_col = st.columns([4, 1.15])
+    with nav_col:
+        nav_links = "".join(
+            f'<a href="#{anchor}">{label}</a>' for anchor, label in sections
+        )
+        st.markdown(
+            f'{nav_css}<div class="anchor-nav"><div class="nav-title">报告目录</div>{nav_links}</div>',
+            unsafe_allow_html=True,
+        )
+
+    with main_col:
+        if inv_plan:
+            st.markdown('<div id="sec-decision"></div>', unsafe_allow_html=True)
+            st.markdown("### 👔 最终投资建议")
+            st.markdown(_display_report_text(inv_plan, ticker, final_state))
+            st.markdown("---")
+
+        for key, title in _ANALYST_SECTIONS:
+            content = final_state.get(key, "")
+            if not content:
+                continue
+            st.markdown(f'<div id="sec-{key}"></div>', unsafe_allow_html=True)
+            st.markdown(f"### {title}")
+            st.markdown(_display_report_text(content, ticker, final_state))
+            st.markdown("---")
+
+        if debate and isinstance(debate, dict):
+            st.markdown('<div id="sec-debate"></div>', unsafe_allow_html=True)
+            st.markdown("### ⚔️ 多空辩论")
+            tab_bull, tab_bear, tab_judge = st.tabs(["多方", "空方", "研究经理"])
+            with tab_bull:
+                st.markdown(_display_report_text(debate.get("bull_history", "") or "无数据", ticker, final_state))
+            with tab_bear:
+                st.markdown(_display_report_text(debate.get("bear_history", "") or "无数据", ticker, final_state))
+            with tab_judge:
+                st.markdown(_display_report_text(debate.get("judge_decision", "") or "无数据", ticker, final_state))
+            st.markdown("---")
+
+        if trader_decision:
+            st.markdown('<div id="sec-trader"></div>', unsafe_allow_html=True)
+            st.markdown("### 💹 交易员决策")
+            st.markdown(_display_report_text(trader_decision, ticker, final_state))
+            st.markdown("---")
+
+        if risk and isinstance(risk, dict):
+            st.markdown('<div id="sec-risk"></div>', unsafe_allow_html=True)
+            st.markdown("### 🛡️ 风控评估")
+            tab_agg, tab_con, tab_neu, tab_rj = st.tabs(["激进", "保守", "中性", "风控决策"])
+            with tab_agg:
+                st.markdown(_display_report_text(risk.get("aggressive_history", "") or "无数据", ticker, final_state))
+            with tab_con:
+                st.markdown(_display_report_text(risk.get("conservative_history", "") or "无数据", ticker, final_state))
+            with tab_neu:
+                st.markdown(_display_report_text(risk.get("neutral_history", "") or "无数据", ticker, final_state))
+            with tab_rj:
+                st.markdown(_display_report_text(risk.get("judge_decision", "") or "无数据", ticker, final_state))
+            st.markdown("---")
+
+        if dqs:
+            st.markdown('<div id="sec-quality"></div>', unsafe_allow_html=True)
+            st.markdown("### ✅ 数据质量")
             st.markdown(_display_report_text(dqs, ticker, final_state))

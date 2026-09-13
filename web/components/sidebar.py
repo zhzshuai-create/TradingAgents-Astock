@@ -95,12 +95,21 @@ def _render_analysis_controls(raw_ticker: str, trade_date_value: date) -> None:
         st.rerun()
 
     can_stop = tracker is not None or bool(raw_ticker.strip())
+    if not can_stop:
+        st.session_state.pop("confirm_stop", None)
+    confirm_stop = bool(st.session_state.get("confirm_stop")) and can_stop
+    stop_label = "⚠ 确认停止？" if confirm_stop else "停止"
     if stop_col.button(
-        "停止",
+        stop_label,
         key="sidebar_stop_analysis",
         use_container_width=True,
         disabled=not can_stop,
+        type="primary" if confirm_stop else "secondary",
     ):
+        if not confirm_stop:
+            st.session_state["confirm_stop"] = True
+            st.rerun()
+        st.session_state.pop("confirm_stop", None)
         target_ticker = tracker.ticker if tracker is not None and tracker.ticker else ""
         target_date = (
             tracker.trade_date
