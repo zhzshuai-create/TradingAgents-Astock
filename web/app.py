@@ -57,12 +57,9 @@ if "theme" not in st.session_state:
 components.html("""
 <script>
 (function(){
-    var saved = localStorage.getItem('astock-theme') || 'auto';
-    var resolved = saved === 'auto'
-        ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-        : saved;
-    document.documentElement.className = resolved;
-    window.parent.document.documentElement.className = resolved;
+    var theme = localStorage.getItem('astock-theme') === 'dark' ? 'dark' : 'light';
+    document.documentElement.className = theme;
+    window.parent.document.documentElement.className = theme;
 })();
 </script>
 """, height=0)
@@ -187,8 +184,99 @@ with st.sidebar:
     render_sidebar()
 
 # ── Top navigation bar ──
+# ═══════════════════════════════════════════════════════════════
+# 绳吊日月主题切换：页面顶端垂下绳子，亮色挂月亮，暗色挂太阳
+# 点击天体 → 摆动动画 → 明暗互换
+# ═══════════════════════════════════════════════════════════════
+components.html("""
+<style>
+  html, body { background: transparent; margin: 0; overflow: hidden; }
+  #rope-root {
+    position: absolute; top: -6px; right: 34px; width: 72px; height: 96px;
+    cursor: pointer; transform-origin: top center; text-align: center;
+    user-select: none;
+  }
+  #rope-root.swing { animation: rope-swing 0.95s ease-in-out; }
+  @keyframes rope-swing {
+    0%   { transform: rotate(0deg); }
+    25%  { transform: rotate(10deg); }
+    55%  { transform: rotate(-8deg); }
+    80%  { transform: rotate(4deg); }
+    100% { transform: rotate(0deg); }
+  }
+  #rope {
+    width: 3px; height: 48px; margin: 0 auto;
+    background: linear-gradient(#a08b74, #6b5d4f); border-radius: 2px;
+  }
+  #orb { width: 44px; height: 44px; margin: -3px auto 0;
+         filter: drop-shadow(0 2px 6px rgba(0,0,0,0.25)); }
+  #orb svg { display: block; margin: 0 auto; }
+</style>
+<div id="rope-root">
+  <div id="rope"></div>
+  <div id="orb"></div>
+</div>
+<script>
+(function(){
+  var theme = localStorage.getItem('astock-theme') === 'dark' ? 'dark' : 'light';
+  function apply(t) {
+    document.documentElement.className = t;
+    window.parent.document.documentElement.className = t;
+  }
+  var SUN = '<svg width="44" height="44" viewBox="0 0 48 48">' +
+    '<g stroke="#FFB300" stroke-width="2.6" stroke-linecap="round">' +
+    '<line x1="24" y1="2"  x2="24" y2="8"/>' +
+    '<line x1="24" y1="40" x2="24" y2="46"/>' +
+    '<line x1="2"  y1="24" x2="8"  y2="24"/>' +
+    '<line x1="40" y1="24" x2="46" y2="24"/>' +
+    '<line x1="8.4" y1="8.4" x2="12.5" y2="12.5"/>' +
+    '<line x1="35.5" y1="35.5" x2="39.6" y2="39.6"/>' +
+    '<line x1="39.6" y1="8.4" x2="35.5" y2="12.5"/>' +
+    '<line x1="12.5" y1="35.5" x2="8.4" y2="39.6"/>' +
+    '</g>' +
+    '<circle cx="24" cy="24" r="12" fill="#FFD54A" stroke="#f5b301" stroke-width="2"/>' +
+    '</svg>';
+  var MOON = '<svg width="44" height="44" viewBox="0 0 48 48">' +
+    '<defs><mask id="crescent"><rect width="48" height="48" fill="#fff"/>' +
+    '<circle cx="32" cy="15" r="14" fill="#000"/></mask></defs>' +
+    '<circle cx="24" cy="24" r="16" fill="#f5d76e" mask="url(#crescent)"/>' +
+    '<circle cx="17" cy="20" r="2.6" fill="#e3c34d" opacity="0.85"/>' +
+    '<circle cx="13" cy="27" r="1.8" fill="#e3c34d" opacity="0.7"/>' +
+    '</svg>';
+  function render() {
+    document.getElementById('orb').innerHTML =
+      (theme === 'dark') ? SUN : MOON;
+  }
+  var root = document.getElementById('rope-root');
+  var busy = false;
+  root.addEventListener('click', function() {
+    if (busy) return;
+    busy = true;
+    root.classList.add('swing');
+    setTimeout(function() {
+      theme = (theme === 'dark') ? 'light' : 'dark';
+      apply(theme);
+      localStorage.setItem('astock-theme', theme);
+      render();
+    }, 400);
+    setTimeout(function() { root.classList.remove('swing'); busy = false; }, 980);
+  });
+  render();
+  apply(theme);
+})();
+</script>
+""", height=100)
+
+# 顶端横带负外边距：顶栏上移与绳子下端并排（绳区在右侧空白处）
+st.markdown("""
+<style>
+[data-testid="stCustomComponentV2"] { margin-bottom: -78px !important; }
+</style>
+""", unsafe_allow_html=True)
+
+
 # 单行：logo | segmented nav | index quotes | theme
-col_logo, col_nav, col_index, col_theme = st.columns([1, 2.2, 3, 0.7], vertical_alignment="center")
+col_logo, col_nav, col_index = st.columns([1, 2.2, 3.7], vertical_alignment="center")
 with col_logo:
     st.markdown("""
     <span class="brand-logo">AStock</span>
@@ -265,123 +353,6 @@ with col_index:
     if not _is_trading_time():
         _parts.append('<span class="index-closed-tag">已收盘</span>')
     st.markdown(f'<div class="index-bar">{"".join(_parts)}</div>', unsafe_allow_html=True)
-
-with col_theme:
-    components.html("""
-    <!DOCTYPE html>
-    <html>
-    <head>
-    <meta charset="utf-8">
-    <style>
-      * { margin: 0; padding: 0; box-sizing: border-box; }
-      html, body { height: 100%; background: transparent; display: flex; align-items: center; justify-content: center; }
-      .theme-toggle { display: flex; gap: 2px; background: #e9ecef; border-radius: 8px; padding: 2px; }
-      .theme-btn {
-        width: 30px; height: 28px; border: none; border-radius: 6px;
-        cursor: pointer; font-size: 12px; font-weight: 600;
-        display: flex; align-items: center; justify-content: center;
-        line-height: 1; background: transparent; color: #888;
-        transition: all 0.12s ease;
-      }
-      .theme-btn:hover { color: #333; background: #ddd; }
-      .theme-btn.active { background: #e85d04; color: #fff; }
-    </style>
-    </head>
-    <body>
-    <div class="theme-toggle" id="themeToggle">
-      <button class="theme-btn" data-theme="light" title="亮色模式">亮</button>
-      <button class="theme-btn" data-theme="dark" title="暗色模式">暗</button>
-      <button class="theme-btn" data-theme="auto" title="跟随系统">A</button>
-    </div>
-    <script>
-    var currentTheme = localStorage.getItem('astock-theme') || 'auto';
-    function resolveTheme(t) {
-        return t === 'auto'
-            ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-            : t;
-    }
-    function applyTheme(t) {
-        var r = resolveTheme(t);
-        // Apply to both iframe and parent — Streamlit renders CSS in main doc
-        document.documentElement.className = r;
-        window.parent.document.documentElement.className = r;
-    }
-    function updateUI(theme) {
-        var btns = document.querySelectorAll('.theme-btn');
-        btns.forEach(function(b) {
-            b.classList.toggle('active', b.getAttribute('data-theme') === theme);
-        });
-    }
-    applyTheme(currentTheme);
-    updateUI(currentTheme);
-    var mq = window.matchMedia('(prefers-color-scheme: dark)');
-    mq.addEventListener('change', function() {
-        if (currentTheme === 'auto') applyTheme('auto');
-    });
-    document.getElementById('themeToggle').addEventListener('click', function(e) {
-        var btn = e.target.closest('.theme-btn');
-        if (!btn) return;
-        var theme = btn.getAttribute('data-theme');
-        if (theme === currentTheme) return;
-        currentTheme = theme;
-        applyTheme(theme);
-        localStorage.setItem('astock-theme', theme);
-        updateUI(theme);
-    });
-    </script>
-    </body>
-    </html>
-    """, height=36)
-
-# 名言来源：内置名言库 _QUOTES（上方定义）。
-# 默认按当天日期取一句；点击名言条在库内循环切换（纯前端，无页面刷新）。
-_QUOTES = [
-    ("别人贪婪时我恐惧，别人恐惧时我贪婪。", "沃伦·巴菲特"),
-    ("价格是你付出的，价值是你得到的。", "沃伦·巴菲特"),
-    ("股市是一种把钱从没耐心的人转移到有耐心的人手中的装置。", "沃伦·巴菲特"),
-    ("时间是好生意的朋友，是平庸生意的敌人。", "沃伦·巴菲特"),
-    ("只有退潮的时候，你才知道谁在裸泳。", "沃伦·巴菲特"),
-    ("市场短期是投票机，长期是称重机。", "本杰明·格雷厄姆"),
-    ("投资的风险不在于市场，而在于投资者自身。", "本杰明·格雷厄姆"),
-    ("你无法预测，但你可以准备。", "霍华德·马克斯"),
-    ("如果你知道自己会死在哪里，你就永远不要去那里。", "查理·芒格"),
-    ("反过来想，总是反过来想。", "查理·芒格"),
-    ("华尔街没有新鲜事，因为人性永远不变。", "杰西·利弗莫尔"),
-    ("知道你拥有什么，并且知道你为什么拥有它。", "彼得·林奇"),
-    ("不积跬步，无以至千里；不积小流，无以成江海。", "《荀子》"),
-    ("知人者智，自知者明。", "《道德经》"),
-    ("谋定而后动，知止而有得。", "《孙子兵法》"),
-    ("工欲善其事，必先利其器。", "《论语》"),
-    ("胜兵先胜而后求战，败兵先战而后求胜。", "《孙子兵法》"),
-    ("人弃我取，人取我与。", "《史记·货殖列传》"),
-]
-
-from datetime import datetime as _dt
-import json as _json
-_q_date = _dt.now().timetuple().tm_yday
-_quotes_json = _json.dumps([list(q) for q in _QUOTES], ensure_ascii=False)
-_today_idx = _q_date % len(_QUOTES)
-_start_text, _start_author = _QUOTES[_today_idx]
-_quote_html = (
-    '<style>#astock-quote:hover { color: #e85d04 !important; }</style>'
-    f'<div id="astock-quote" title="点击换一句" style="cursor:pointer;'
-    'text-align:center; font-size:var(--font-md); color:#8a8a8a;'
-    'padding:0.15rem 0 0.35rem; letter-spacing:0.02em; user-select:none;'
-    'transition:color 0.15s ease;"'
-    '>'
-    f'“{_start_text}”　—— {_start_author}'
-    '</div>'
-    '<script>'
-    'var AQ = ' + _quotes_json + ';'
-    'var idx = ' + str(_today_idx) + ';'
-    'var qel = document.getElementById("astock-quote");'
-    'qel.addEventListener("click", function() {'
-    '  idx = (idx + 1) % AQ.length;'
-    '  qel.innerHTML = "“" + AQ[idx][0] + "”　—— " + AQ[idx][1];'
-    '});'
-    '</script>'
-)
-components.html(_quote_html, height=44)
 
 st.markdown("---")
 
