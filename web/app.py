@@ -481,45 +481,43 @@ def _render_analysis_mode() -> None:
         # 左宽右窄：左栏列表，右栏表单限宽 520px
         left, right = st.columns([3, 2])
 
-        # Left: history
+        # Left: history（折叠收纳：点击展开/收起，节约空间）
         with left:
-            # 结构批：纯 HTML 标题，不依赖 .card 父容器
-            st.markdown('<div style="font-weight:700;font-size:var(--font-lg);color:var(--text);margin-bottom:var(--space-sm);">历史分析记录</div>', unsafe_allow_html=True)
-
             full_history = get_history()
-            history_search = st.text_input(
-                "历史", placeholder="筛选历史",
-                label_visibility="collapsed", key="main_history_search",
-            )
+            with st.expander(f"📜 历史分析记录（{len(full_history)} 条）", expanded=False):
+                history_search = st.text_input(
+                    "历史", placeholder="筛选历史",
+                    label_visibility="collapsed", key="main_history_search",
+                )
 
-            if history_search:
-                q = history_search.strip().lower()
-                display = [e for e in full_history if q in e["ticker"].lower() or q in e["date"]]
-            else:
-                display = full_history
-
-            if not display:
-                st.info("暂无历史分析记录" if not history_search else "没有匹配的记录")
-            else:
-                total = len(full_history)
                 if history_search:
-                    st.caption(f"找到 {len(display)} 条匹配（共 {total} 条）")
+                    q = history_search.strip().lower()
+                    display = [e for e in full_history if q in e["ticker"].lower() or q in e["date"]]
                 else:
-                    st.caption(f"共 {total} 条记录")
-                max_items = 100 if history_search else 30
-                for entry in display[:max_items]:
-                    t, d, p = entry["ticker"], entry["date"], entry["path"]
-                    signal = _signal_for(p)
-                    badge_html = _badge(signal)
-                    # 结构批：st.columns 原生处理行布局，badge 走 .tag class
-                    c1, c2 = st.columns([2.2, 1])
-                    with c1:
-                        if st.button(f"{t}  ·  {d}", key=f"main_hist_{t}_{d}", use_container_width=True):
-                            st.session_state["viewing_history"] = p
-                            st.session_state["start_analysis"] = None
-                            st.rerun()
-                    with c2:
-                        st.markdown(f'<div>{badge_html}</div>', unsafe_allow_html=True)
+                    display = full_history
+
+                if not display:
+                    st.info("暂无历史分析记录" if not history_search else "没有匹配的记录")
+                else:
+                    total = len(full_history)
+                    if history_search:
+                        st.caption(f"找到 {len(display)} 条匹配（共 {total} 条）")
+                    else:
+                        st.caption(f"共 {total} 条记录")
+                    max_items = 100 if history_search else 30
+                    for entry in display[:max_items]:
+                        t, d, p = entry["ticker"], entry["date"], entry["path"]
+                        signal = _signal_for(p)
+                        badge_html = _badge(signal)
+                        # 结构批：st.columns 原生处理行布局，badge 走 .tag class
+                        c1, c2 = st.columns([2.2, 1])
+                        with c1:
+                            if st.button(f"{t}  ·  {d}", key=f"main_hist_{t}_{d}", use_container_width=True):
+                                st.session_state["viewing_history"] = p
+                                st.session_state["start_analysis"] = None
+                                st.rerun()
+                        with c2:
+                            st.markdown(f'<div>{badge_html}</div>', unsafe_allow_html=True)
 
         # Right: new analysis
         with right:
