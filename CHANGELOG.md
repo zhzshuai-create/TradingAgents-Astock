@@ -6,6 +6,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Breaking changes within the 0.x line are called out explicitly.
 
+## [0.2.18] — 2026-09-13
+
+分析师并行编排正式可用（实验性开关），三组真实管线并发修复，数据层与看板性能优化。
+
+### 新增
+- **分析师并行编排（opt-in）**：`TA_PARALLEL_ANALYSTS=1` 或 Web 侧边栏 ⚙️模型配置中的"并行执行分析师（实验性）"开关。7 个分析师 fan-out 并发执行，墙钟时间缩短 19%~94%（三个行业板块标的实测）。每个分析师独享消息通道，计数闸门保证质量门恰好执行一次。
+- Web 侧边栏新增并行分析开关，无需环境变量。
+
+### 修复
+- 并行模式三处并发缺陷（经由真实管线实验发现并修复）：消息清理竞态（fa42c27）、静态边屏障失效、错峰完成导致的质量门重复触发（计数闸门方案）。
+- `_sina_stock_code` 缺失 `_common` 路由的潜在 NameError。
+
+### 性能
+- 看板 K 线改为单次 5000 根全量拉取 + 按周期切片复用，切换周期不再重复发起通达信请求。
+- `incomplete_tasks.json` 仅在阶段/暂停状态变化时落盘；历史扫描与指数行情加 TTL 缓存。
+- 东财请求增加连接错误/超时/5xx 自动重试；腾讯/新浪/同花顺单发请求各带一次重试；mootdx 客户端与东财节流加线程锁。
+- 移除零引用依赖 redis/backtrader/langchain-experimental。
+
+### 变更
+- CLI 补齐 policy/hot_money/lockup 三个 A 股分析师（选择菜单、展示与报告落盘）。
+- `web/data_functions.py` 重构为纯 UI 适配层，数据实现统一由核心数据层提供。
+- `a_stock.py`（2140 行）拆分为 `a_stock/` 包；`web/app.py`、`cli/main.py` 拆分显示层组件。
+
 ## [0.2.17] — 2026-09-13
 
 工程化整体升级：仓库清理、模块拆分、数据层统一、性能与健壮性优化。无功能行为变化（除注明项），164+ 测试全绿，新增 CI。

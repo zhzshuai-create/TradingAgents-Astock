@@ -2,7 +2,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/python-≥3.10-blue?logo=python" alt="Python >=3.10">
-  <img src="https://img.shields.io/badge/version-0.2.17-green" alt="Version 0.2.17">
+  <img src="https://img.shields.io/badge/version-0.2.18-green" alt="Version 0.2.18">
   <img src="https://img.shields.io/badge/license-Apache%202.0-orange?logo=apache" alt="Apache 2.0">
   <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey" alt="Platform">
   <a href="https://github.com/zhzshuai-create/TradingAgents-Astock/actions/workflows/ci.yml"><img src="https://github.com/zhzshuai-create/TradingAgents-Astock/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
