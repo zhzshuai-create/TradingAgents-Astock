@@ -527,7 +527,8 @@ def _render_analysis_mode() -> None:
             c_code, c_date = st.columns([2, 1])
             with c_code:
                 ticker = st.text_input("代码", placeholder="输入 6 位代码如 000636",
-                                       max_chars=6, label_visibility="collapsed")
+                                       max_chars=6, label_visibility="collapsed",
+                                       key="idle_ticker")
             with c_date:
                 trade_date = st.date_input("分析日期", label_visibility="collapsed")
             can_start = bool(ticker and len(ticker.strip()) >= 4)
@@ -536,6 +537,86 @@ def _render_analysis_mode() -> None:
                           "start_analysis": {"ticker": ticker.strip(), "trade_date": trade_date.strftime("%Y-%m-%d")},
                           "viewing_history": None,
                       }))
+
+            # ── 快捷标的：历史标的一键回填 ──
+            quick_codes = []
+            seen = set()
+            for e in full_history:
+                if e["ticker"] not in seen:
+                    seen.add(e["ticker"])
+                    quick_codes.append(e["ticker"])
+                if len(quick_codes) >= 6:
+                    break
+            if quick_codes:
+                st.markdown(
+                    '<div style="font-size:var(--font-sm);color:var(--muted);'
+                    'margin:var(--space-md) 0 var(--space-xs);">⚡ 快捷标的</div>',
+                    unsafe_allow_html=True,
+                )
+                qc = st.columns(min(len(quick_codes), 3))
+                for i, qcode in enumerate(quick_codes):
+                    with qc[i % min(len(quick_codes), 3)]:
+                        if st.button(qcode, key=f"quick_{qcode}", use_container_width=True):
+                            st.session_state["idle_ticker"] = qcode
+                            st.rerun()
+
+            # ── 历史信号分布 ──
+            if full_history:
+                dist = {"Buy": 0, "Hold": 0, "Sell": 0}
+                other = 0
+                for e in full_history[:50]:
+                    sig = _signal_for(e["path"])
+                    if sig in dist:
+                        dist[sig] += 1
+                    elif sig != "N/A":
+                        other += 1
+                total_sig = sum(dist.values())
+                if total_sig:
+                    st.markdown(
+                        '<div style="font-size:var(--font-sm);color:var(--muted);'
+                        'margin:var(--space-md) 0 var(--space-xs);">📊 历史信号分布（近 '
+                        f'{min(len(full_history), 50)} 次）</div>',
+                        unsafe_allow_html=True,
+                    )
+                    seg = []
+                    colors = {"Buy": "var(--up)", "Hold": "var(--hold)", "Sell": "var(--sell)"}
+                    for k in ("Buy", "Hold", "Sell"):
+                        if dist[k]:
+                            seg.append(f'<div style="flex:{dist[k]};background:{colors[k]};" '
+                                       f'title="{k}: {dist[k]}"></div>')
+                    st.markdown(
+                        f'<div style="display:flex;height:10px;border-radius:999px;overflow:hidden;'
+                        f'border:1px solid var(--line);">{"".join(seg)}</div>',
+                        unsafe_allow_html=True,
+                    )
+                    st.caption(f"买入 {dist['Buy']} · 持有 {dist['Hold']} · 卖出 {dist['Sell']}"
+                               + (f" · 其他 {other}" if other else ""))
+
+            # ── 系统状态 ──
+            import os as _os
+            try:
+                from importlib.metadata import version as _pkg_version
+                _ver = _pkg_version("tradingagents-astock")
+            except Exception:
+                _ver = "0.2.18"
+            _prov = (st.session_state.get("llm_provider")
+                     or _os.getenv("LLM_PROVIDER", "deepseek")).upper()
+            _model = (st.session_state.get("deep_think_llm")
+                      or _os.getenv("DEEP_THINK_LLM", "")).split("/")[-1] or "未配置"
+            _par = "并行 ⚡" if st.session_state.get("parallel_analysts") else "串行"
+            _mode_color = "var(--brand)" if st.session_state.get("parallel_analysts") else "var(--muted)"
+            st.markdown(
+                '<div style="font-size:var(--font-sm);color:var(--muted);'
+                'margin:var(--space-md) 0 var(--space-xs);">🖥️ 系统状态</div>',
+                unsafe_allow_html=True,
+            )
+            st.markdown(
+                f'<div style="font-size:var(--font-sm);color:var(--muted);line-height:1.9;">'
+                f'模型：<b style="color:var(--text);">{_prov} · {_model}</b><br>'
+                f'编排：<b style="color:{_mode_color};">{_par}</b><br>'
+                f'版本：v{_ver}</div>',
+                unsafe_allow_html=True,
+            )
 
     # Footer
     st.markdown("""
