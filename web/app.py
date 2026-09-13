@@ -369,29 +369,37 @@ _q_date = _dt.now().timetuple().tm_yday
 
 
 # ── 每日名言（点击换一句）──
-if "quote_idx" not in st.session_state:
-    st.session_state["quote_idx"] = _q_date % len(_QUOTES)
-_qt, _qau = _QUOTES[st.session_state["quote_idx"]]
-if st.button(f'“{_qt}”　—— {_qau}', key="quote_swap", use_container_width=True):
-    import random as _random
-    _choices = [i for i in range(len(_QUOTES)) if i != st.session_state["quote_idx"]]
-    st.session_state["quote_idx"] = _random.choice(_choices)
-    st.rerun()
-st.markdown("""
+# 名言条：纯 HTML 组件（无按钮白框），点击在库内循环换句，无页面刷新
+import json as _json
+_quotes_json = _json.dumps(_QUOTES, ensure_ascii=False)
+components.html("""
 <style>
-[data-st-key="quote_swap"] button {
-  background: transparent !important; border: none !important;
-  box-shadow: none !important; color: var(--muted) !important;
-  font-size: var(--font-md) !important; padding: 0.1rem 0 !important;
-  transition: color 0.15s ease;
-}
-[data-st-key="quote_swap"] button:hover,
-[data-st-key="quote_swap"] button:focus {
-  color: var(--brand) !important; box-shadow: none !important;
-}
-[data-st-key="quote_swap"] button p { color: inherit !important; }
+  html, body { background: transparent; margin: 0; }
+  #quote-bar {
+    text-align: center; font-size: var(--font-md); color: #8a8a8a;
+    padding: 0.1rem 0; letter-spacing: 0.02em; cursor: pointer;
+    transition: color 0.15s ease; user-select: none;
+  }
+  #quote-bar:hover { color: #e85d04; }
 </style>
-""", unsafe_allow_html=True)
+<div id="quote-bar" title="点击换一句"></div>
+<script>
+(function(){
+  var AQ = __QUOTES_JSON__;
+  var daily = __TODAY_IDX__;
+  var idx = daily;
+  var el = document.getElementById('quote-bar');
+  function show() {
+    el.innerHTML = '“' + AQ[idx][0] + '”　—— ' + AQ[idx][1];
+  }
+  show();
+  el.addEventListener('click', function() {
+    idx = (idx + 1) % AQ.length;
+    show();
+  });
+})();
+</script>
+""".replace("__QUOTES_JSON__", _quotes_json).replace("__TODAY_IDX__", str(_q_date % len(_QUOTES))), height=44)
 
 
 
