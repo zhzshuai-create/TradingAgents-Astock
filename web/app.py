@@ -336,9 +336,14 @@ with col_theme:
 _q_style = """
 <style>
 .quote-bar {
-  text-align: center; font-size: var(--font-md); color: var(--muted);
+  text-align: center; font-size: var(--font-md);
   padding: 0.15rem 0 0.35rem; letter-spacing: 0.02em;
 }
+.quote-link {
+  color: var(--muted); text-decoration: none;
+  transition: color 0.15s ease; cursor: pointer;
+}
+.quote-link:hover { color: var(--brand); }
 </style>
 """
 _q_date = datetime.now().timetuple().tm_yday
@@ -347,18 +352,37 @@ _QUOTES = [
     ("价格是你付出的，价值是你得到的。", "沃伦·巴菲特"),
     ("股市是一种把钱从没耐心的人转移到有耐心的人手中的装置。", "沃伦·巴菲特"),
     ("时间是好生意的朋友，是平庸生意的敌人。", "沃伦·巴菲特"),
+    ("只有退潮的时候，你才知道谁在裸泳。", "沃伦·巴菲特"),
     ("市场短期是投票机，长期是称重机。", "本杰明·格雷厄姆"),
     ("投资的风险不在于市场，而在于投资者自身。", "本杰明·格雷厄姆"),
     ("你无法预测，但你可以准备。", "霍华德·马克斯"),
     ("如果你知道自己会死在哪里，你就永远不要去那里。", "查理·芒格"),
+    ("反过来想，总是反过来想。", "查理·芒格"),
+    ("华尔街没有新鲜事，因为人性永远不变。", "杰西·利弗莫尔"),
+    ("知道你拥有什么，并且知道你为什么拥有它。", "彼得·林奇"),
     ("不积跬步，无以至千里；不积小流，无以成江海。", "《荀子》"),
     ("知人者智，自知者明。", "《道德经》"),
     ("谋定而后动，知止而有得。", "《孙子兵法》"),
+    ("工欲善其事，必先利其器。", "《论语》"),
+    ("胜兵先胜而后求战，败兵先战而后求胜。", "《孙子兵法》"),
+    ("人弃我取，人取我与。", "《史记·货殖列传》"),
 ]
-_q_text, _q_author = _QUOTES[_q_date % len(_QUOTES)]
+
+# 名言来源：内置 Python 名言库（_QUOTES）。
+# 默认按当天日期轮换（同一天固定一句，刷新不闪变）；
+# 点击名言 → URL 带 ?q=序号 重载，显示库里下一句（点击循环切换）。
+_qp = st.query_params.get("q")
+if _qp is not None and _qp.isdigit():
+    _q_idx = int(_qp) % len(_QUOTES)
+else:
+    _q_idx = _q_date % len(_QUOTES)
+_q_text, _q_author = _QUOTES[_q_idx]
+_next_idx = (_q_idx + 1) % len(_QUOTES)
 st.markdown(
     _q_style
-    + f'<div class="quote-bar">“{_q_text}”　—— {_q_author}</div>',
+    + f'<div class="quote-bar">'
+      f'<a class="quote-link" href="/?q={_next_idx}" title="点击换一句">'
+      f'“{_q_text}”　—— {_q_author}</a></div>',
     unsafe_allow_html=True,
 )
 st.markdown("---")
