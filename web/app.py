@@ -184,102 +184,10 @@ with st.sidebar:
     render_sidebar()
 
 # ── Top navigation bar ──
-# ═══════════════════════════════════════════════════════════════
-# 绳吊日月主题切换：页面顶端垂下绳子，亮色挂月亮，暗色挂太阳
-# 点击天体 → 摆动动画 → 明暗互换
-# ═══════════════════════════════════════════════════════════════
-components.html("""
-<style>
-  html, body { background: transparent; margin: 0; overflow: hidden; }
-  #rope-root {
-    position: absolute; top: -4px; right: 40px; width: 56px; height: 72px;
-    cursor: pointer; transform-origin: top center; text-align: center;
-    user-select: none;
-  }
-  #rope-root.swing { animation: rope-swing 0.95s ease-in-out; }
-  @keyframes rope-swing {
-    0%   { transform: rotate(0deg); }
-    25%  { transform: rotate(10deg); }
-    55%  { transform: rotate(-8deg); }
-    80%  { transform: rotate(4deg); }
-    100% { transform: rotate(0deg); }
-  }
-  #rope {
-    width: 2.5px; height: 34px; margin: 0 auto;
-    background: linear-gradient(#a08b74, #6b5d4f); border-radius: 2px;
-  }
-  #orb { width: 34px; height: 34px; margin: -2px auto 0;
-         filter: drop-shadow(0 2px 6px rgba(0,0,0,0.25)); }
-  #orb svg { display: block; margin: 0 auto; }
-</style>
-<div id="rope-root">
-  <div id="rope"></div>
-  <div id="orb"></div>
-</div>
-<script>
-(function(){
-  var theme = localStorage.getItem('astock-theme') === 'dark' ? 'dark' : 'light';
-  function apply(t) {
-    document.documentElement.className = t;
-    window.parent.document.documentElement.className = t;
-  }
-  var SUN = '<svg width="34" height="34" viewBox="0 0 48 48">' +
-    '<g stroke="#FFB300" stroke-width="2.6" stroke-linecap="round">' +
-    '<line x1="24" y1="2"  x2="24" y2="8"/>' +
-    '<line x1="24" y1="40" x2="24" y2="46"/>' +
-    '<line x1="2"  y1="24" x2="8"  y2="24"/>' +
-    '<line x1="40" y1="24" x2="46" y2="24"/>' +
-    '<line x1="8.4" y1="8.4" x2="12.5" y2="12.5"/>' +
-    '<line x1="35.5" y1="35.5" x2="39.6" y2="39.6"/>' +
-    '<line x1="39.6" y1="8.4" x2="35.5" y2="12.5"/>' +
-    '<line x1="12.5" y1="35.5" x2="8.4" y2="39.6"/>' +
-    '</g>' +
-    '<circle cx="24" cy="24" r="12" fill="#FFD54A" stroke="#f5b301" stroke-width="2"/>' +
-    '</svg>';
-  var MOON = '<svg width="34" height="34" viewBox="0 0 48 48">' +
-    '<defs><mask id="crescent"><rect width="48" height="48" fill="#fff"/>' +
-    '<circle cx="32" cy="15" r="14" fill="#000"/></mask></defs>' +
-    '<circle cx="24" cy="24" r="16" fill="#f5d76e" mask="url(#crescent)"/>' +
-    '<circle cx="17" cy="20" r="2.6" fill="#e3c34d" opacity="0.85"/>' +
-    '<circle cx="13" cy="27" r="1.8" fill="#e3c34d" opacity="0.7"/>' +
-    '</svg>';
-  function render() {
-    document.getElementById('orb').innerHTML =
-      (theme === 'dark') ? SUN : MOON;
-  }
-  var root = document.getElementById('rope-root');
-  var busy = false;
-  root.addEventListener('click', function() {
-    if (busy) return;
-    busy = true;
-    root.classList.add('swing');
-    setTimeout(function() {
-      theme = (theme === 'dark') ? 'light' : 'dark';
-      apply(theme);
-      localStorage.setItem('astock-theme', theme);
-      render();
-    }, 400);
-    setTimeout(function() { root.classList.remove('swing'); busy = false; }, 980);
-  });
-  render();
-  apply(theme);
-})();
-</script>
-""", height=100)
-
-# 顶端横带负外边距：顶栏上移与绳子下端并排（绳区在右侧空白处）
-st.markdown("""
-<style>
-[data-testid="stCustomComponentV2"] {
-  margin-top: -30px !important;    /* 绳子挂点：拉到内容区最顶端（可调） */
-  margin-bottom: -55px !important; /* 顶栏上移与绳子下端并排（可调） */
-}
-</style>
-""", unsafe_allow_html=True)
 
 
 # 单行：logo | segmented nav | index quotes | theme
-col_logo, col_nav, col_index = st.columns([1, 2.2, 3.7], vertical_alignment="center")
+col_logo, col_nav, col_index, col_theme = st.columns([1, 2.2, 3, 1.0], vertical_alignment="center")
 with col_logo:
     st.markdown("""
     <span class="brand-logo">AStock</span>
@@ -357,6 +265,82 @@ with col_index:
         _parts.append('<span class="index-closed-tag">已收盘</span>')
     st.markdown(f'<div class="index-bar">{"".join(_parts)}</div>', unsafe_allow_html=True)
 
+with col_theme:
+    components.html("""
+<style>
+  html, body { background: transparent; margin: 0; overflow: hidden; }
+  #rope-root {
+    margin-top: -18px; width: 100%; text-align: center; cursor: pointer;
+    transform-origin: top center; user-select: none;
+  }
+  #rope-root.swing { animation: rope-swing 0.95s ease-in-out; }
+  @keyframes rope-swing {
+    0%   { transform: rotate(0deg); }
+    25%  { transform: rotate(10deg); }
+    55%  { transform: rotate(-8deg); }
+    80%  { transform: rotate(4deg); }
+    100% { transform: rotate(0deg); }
+  }
+  #rope { width: 2.5px; height: 30px; margin: 0 auto;
+          background: linear-gradient(#a08b74, #6b5d4f); border-radius: 2px; }
+  #orb { width: 34px; height: 34px; margin: -2px auto 0;
+         filter: drop-shadow(0 2px 5px rgba(0,0,0,0.25)); }
+  #orb svg { display: block; margin: 0 auto; }
+</style>
+<div id="rope-root">
+  <div id="rope"></div>
+  <div id="orb"></div>
+</div>
+<script>
+(function(){
+  var theme = localStorage.getItem('astock-theme') === 'dark' ? 'dark' : 'light';
+  function apply(t) {
+    document.documentElement.className = t;
+    window.parent.document.documentElement.className = t;
+  }
+  var SUN = '<svg width="34" height="34" viewBox="0 0 48 48">' +
+    '<g stroke="#FFB300" stroke-width="2.6" stroke-linecap="round">' +
+    '<line x1="24" y1="2"  x2="24" y2="8"/>' +
+    '<line x1="24" y1="40" x2="24" y2="46"/>' +
+    '<line x1="2"  y1="24" x2="8"  y2="24"/>' +
+    '<line x1="40" y1="24" x2="46" y2="24"/>' +
+    '<line x1="8.4" y1="8.4" x2="12.5" y2="12.5"/>' +
+    '<line x1="35.5" y1="35.5" x2="39.6" y2="39.6"/>' +
+    '<line x1="39.6" y1="8.4" x2="35.5" y2="12.5"/>' +
+    '<line x1="12.5" y1="35.5" x2="8.4" y2="39.6"/>' +
+    '</g>' +
+    '<circle cx="24" cy="24" r="12" fill="#FFD54A" stroke="#f5b301" stroke-width="2"/>' +
+    '</svg>';
+  var MOON = '<svg width="34" height="34" viewBox="0 0 48 48">' +
+    '<defs><mask id="crescent"><rect width="48" height="48" fill="#fff"/>' +
+    '<circle cx="32" cy="15" r="14" fill="#000"/></mask></defs>' +
+    '<circle cx="24" cy="24" r="16" fill="#f5d76e" mask="url(#crescent)"/>' +
+    '<circle cx="17" cy="20" r="2.6" fill="#e3c34d" opacity="0.85"/>' +
+    '<circle cx="13" cy="27" r="1.8" fill="#e3c34d" opacity="0.7"/>' +
+    '</svg>';
+  function render() {
+    document.getElementById('orb').innerHTML =
+      (theme === 'dark') ? SUN : MOON;
+  }
+  var root = document.getElementById('rope-root');
+  var busy = false;
+  root.addEventListener('click', function() {
+    if (busy) return;
+    busy = true;
+    root.classList.add('swing');
+    setTimeout(function() {
+      theme = (theme === 'dark') ? 'light' : 'dark';
+      apply(theme);
+      localStorage.setItem('astock-theme', theme);
+      render();
+    }, 400);
+    setTimeout(function() { root.classList.remove('swing'); busy = false; }, 980);
+  });
+  render();
+  apply(theme);
+})();
+</script>
+""", height=104)
 st.markdown("---")
 
 # ── 每日名言库 ──
@@ -388,19 +372,26 @@ _q_date = _dt.now().timetuple().tm_yday
 if "quote_idx" not in st.session_state:
     st.session_state["quote_idx"] = _q_date % len(_QUOTES)
 _qt, _qau = _QUOTES[st.session_state["quote_idx"]]
-qc_text, qc_btn = st.columns([6, 1.2], vertical_alignment="center")
-with qc_text:
-    st.markdown(
-        '<div style="text-align:center;font-size:var(--font-md);color:var(--muted);'
-        f'padding:0.1rem 0;">“{_qt}”　—— {_qau}</div>',
-        unsafe_allow_html=True,
-    )
-with qc_btn:
-    if st.button("🔄 换一句", key="quote_swap", use_container_width=True):
-        import random as _random
-        _choices = [i for i in range(len(_QUOTES)) if i != st.session_state["quote_idx"]]
-        st.session_state["quote_idx"] = _random.choice(_choices)
-        st.rerun()
+if st.button(f'“{_qt}”　—— {_qau}', key="quote_swap", use_container_width=True):
+    import random as _random
+    _choices = [i for i in range(len(_QUOTES)) if i != st.session_state["quote_idx"]]
+    st.session_state["quote_idx"] = _random.choice(_choices)
+    st.rerun()
+st.markdown("""
+<style>
+[data-st-key="quote_swap"] button {
+  background: transparent !important; border: none !important;
+  box-shadow: none !important; color: var(--muted) !important;
+  font-size: var(--font-md) !important; padding: 0.1rem 0 !important;
+  transition: color 0.15s ease;
+}
+[data-st-key="quote_swap"] button:hover,
+[data-st-key="quote_swap"] button:focus {
+  color: var(--brand) !important; box-shadow: none !important;
+}
+[data-st-key="quote_swap"] button p { color: inherit !important; }
+</style>
+""", unsafe_allow_html=True)
 
 
 
