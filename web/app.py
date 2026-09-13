@@ -363,11 +363,12 @@ _quotes_json = _json.dumps([list(q) for q in _QUOTES], ensure_ascii=False)
 _today_idx = _q_date % len(_QUOTES)
 _start_text, _start_author = _QUOTES[_today_idx]
 _quote_html = (
+    '<style>#astock-quote:hover { color: #e85d04 !important; }</style>'
     f'<div id="astock-quote" title="点击换一句" style="cursor:pointer;'
     'text-align:center; font-size:var(--font-md); color:#8a8a8a;'
     'padding:0.15rem 0 0.35rem; letter-spacing:0.02em; user-select:none;'
     'transition:color 0.15s ease;"'
-    ' onmouseover="this.style.color='#e85d04'" onmouseout="this.style.color='#8a8a8a'">'
+    '>'
     f'“{_start_text}”　—— {_start_author}'
     '</div>'
     '<script>'
