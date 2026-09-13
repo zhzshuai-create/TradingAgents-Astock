@@ -419,23 +419,35 @@ def _render_market_overview() -> None:
     with st.spinner("加载..."):
         df_hot = ths_hot_reason()
     if not df_hot.empty:
-        for _, row in df_hot.head(10).iterrows():
-            pct_val = row.get("涨幅%", 0)
-            pct_color = "var(--up)" if pct_val >= 0 else "var(--down)"
-            reason_col = "题材归因" if "题材归因" in df_hot.columns else "reason"
-            reason_text = str(row.get(reason_col, "")) if reason_col in row.index else ""
-            code = normalize_code(str(row.get("代码", "-")))
-            name = str(row.get("名称", "-"))
+        reason_col = "题材归因" if "题材归因" in df_hot.columns else "reason"
+        hot_display = df_hot.head(10)[["代码", "名称", "涨幅%", reason_col]].rename(
+            columns={reason_col: "题材归因"}
+        )
+        hot_display["代码"] = hot_display["代码"].astype(str)
+        _chg = pd.to_numeric(hot_display["涨幅%"], errors="coerce").fillna(0)
+        hot_display["涨幅%"] = _chg.map(lambda v: f"{v:+.2f}%")
 
-            c_info, c_go = st.columns([9, 1.1], vertical_alignment="center")
-            with c_info:
-                st.markdown(f'<div class="stock-card"><span class="code">{row.get("代码", "-")}</span><span class="name">{row.get("名称", "-")}</span><span class="pct" style="color:{pct_color}">{pct_val:+.2f}%</span><span class="reason">{reason_text}</span></div>', unsafe_allow_html=True)
-            with c_go:
-                if st.button("📊 行情", key=f"ov_hot_{code}", use_container_width=True):
-                    st.session_state["data_code"] = code
-                    st.session_state["dash_tab"] = "📈 个股估值"
-                    st.toast(f"正在打开 {name}({code}) 的行情页", icon="📊")
-                    st.rerun()
+        # 整行可点：点击任意一行直接跳转到该股的个股估值页
+        event = st.dataframe(
+            hot_display,
+            hide_index=True,
+            use_container_width=True,
+            on_select="rerun",
+            selection_mode="single-row",
+            key="hot_pick",
+            column_config={
+                "代码": st.column_config.TextColumn("代码", width="small"),
+                "名称": st.column_config.TextColumn("名称", width="small"),
+                "涨幅%": st.column_config.TextColumn("涨幅%", width="small"),
+                "题材归因": st.column_config.TextColumn("题材归因", width="large"),
+            },
+        )
+        sel_rows = event.selection.rows
+        if sel_rows:
+            picked = str(hot_display.iloc[sel_rows[0]]["代码"])
+            st.session_state["data_code"] = normalize_code(picked)
+            st.session_state["dash_tab"] = "📈 个股估值"
+            st.rerun()
     else:
         st.caption("暂无今日数据")
 
