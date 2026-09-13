@@ -483,6 +483,7 @@ def _render_analysis_mode() -> None:
 
         # Left: history（折叠收纳：点击展开/收起，节约空间）
         with left:
+            st.markdown('<div class="card__title">历史记录</div>', unsafe_allow_html=True)
             full_history = get_history()
             with st.expander(f"📜 历史分析记录（{len(full_history)} 条）", expanded=False):
                 history_search = st.text_input(
