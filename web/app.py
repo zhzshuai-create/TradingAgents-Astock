@@ -57,9 +57,12 @@ if "theme" not in st.session_state:
 components.html("""
 <script>
 (function(){
-    var theme = 'light';
-    document.documentElement.className = theme;
-    window.parent.document.documentElement.className = theme;
+    var saved = localStorage.getItem('astock-theme') || 'auto';
+    var resolved = saved === 'auto'
+        ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+        : saved;
+    document.documentElement.className = resolved;
+    window.parent.document.documentElement.className = resolved;
 })();
 </script>
 """, height=0)
@@ -191,6 +194,26 @@ with col_logo:
     <span class="brand-logo">AStock</span>
     <span style="font-size:var(--font-lg); font-weight:800; color:var(--text);"> Pro</span>
     """, unsafe_allow_html=True)
+    import os as _os
+    _prov = (st.session_state.get("llm_provider")
+             or _os.getenv("LLM_PROVIDER", "deepseek")).upper()
+    _model = (st.session_state.get("quick_think_llm")
+              or _os.getenv("QUICK_THINK_LLM", "")).split("/")[-1]
+    _model = _model or "未配置"
+    _par = " · 并行" if st.session_state.get("parallel_analysts") else ""
+    st.markdown(
+        f'<span class="model-badge">⚡ {_prov} · {_model}{_par}</span>',
+        unsafe_allow_html=True,
+    )
+    st.markdown("""
+    <style>
+    .model-badge {
+      font-size: 0.72rem; color: var(--muted);
+      border: 1px solid var(--muted); border-radius: 999px;
+      padding: 0.05rem 0.5rem; white-space: nowrap;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 with col_nav:
     mode = st.segmented_control(
         "模式",
@@ -268,25 +291,40 @@ with col_theme:
     <div class="theme-toggle" id="themeToggle">
       <button class="theme-btn" data-theme="light" title="亮色模式">亮</button>
       <button class="theme-btn" data-theme="dark" title="暗色模式">暗</button>
+      <button class="theme-btn" data-theme="auto" title="跟随系统">A</button>
     </div>
     <script>
-    var currentTheme = localStorage.getItem('astock-theme') || 'light';
+    var currentTheme = localStorage.getItem('astock-theme') || 'auto';
+    function resolveTheme(t) {
+        return t === 'auto'
+            ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+            : t;
+    }
+    function applyTheme(t) {
+        var r = resolveTheme(t);
+        // Apply to both iframe and parent — Streamlit renders CSS in main doc
+        document.documentElement.className = r;
+        window.parent.document.documentElement.className = r;
+    }
     function updateUI(theme) {
         var btns = document.querySelectorAll('.theme-btn');
         btns.forEach(function(b) {
             b.classList.toggle('active', b.getAttribute('data-theme') === theme);
         });
     }
+    applyTheme(currentTheme);
     updateUI(currentTheme);
+    var mq = window.matchMedia('(prefers-color-scheme: dark)');
+    mq.addEventListener('change', function() {
+        if (currentTheme === 'auto') applyTheme('auto');
+    });
     document.getElementById('themeToggle').addEventListener('click', function(e) {
         var btn = e.target.closest('.theme-btn');
         if (!btn) return;
         var theme = btn.getAttribute('data-theme');
         if (theme === currentTheme) return;
         currentTheme = theme;
-        // Apply to both iframe and parent — Streamlit renders CSS in main doc
-        document.documentElement.className = theme;
-        window.parent.document.documentElement.className = theme;
+        applyTheme(theme);
         localStorage.setItem('astock-theme', theme);
         updateUI(theme);
     });
