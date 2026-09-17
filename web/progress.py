@@ -173,6 +173,30 @@ class ProgressTracker:
     def elapsed(self) -> float:
         return time.time() - self.start_time
 
+    def snapshot(self) -> dict[str, Any]:
+        """Return a consistent point-in-time copy of all UI-visible fields.
+
+        The UI thread must use this instead of reading mutable collections
+        directly, to avoid RuntimeError from concurrent mutation.
+        """
+        with self._lock:
+            return {
+                "is_running": self.is_running,
+                "is_complete": self.is_complete,
+                "is_paused": self.is_paused,
+                "stop_requested": self.stop_requested,
+                "error": self.error,
+                "current_stage": self.current_stage,
+                "completed_stages": list(self.completed_stages),
+                "stage_reports": dict(self.stage_reports),
+                "signal": self.signal,
+                "llm_calls": self.llm_calls,
+                "tool_calls": self.tool_calls,
+                "tokens_in": self.tokens_in,
+                "tokens_out": self.tokens_out,
+                "elapsed": time.time() - self.start_time,
+            }
+
     def stage_status(self, stage_id: str) -> str:
         with self._lock:
             if stage_id in self.completed_stages:

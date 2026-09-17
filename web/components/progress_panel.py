@@ -70,6 +70,7 @@ def _format_time(seconds: float) -> str:
 
 def render_progress(tracker: ProgressTracker, parallel: bool = False) -> None:
     """Render the pipeline progress panel."""
+    snap = tracker.snapshot()
 
     st.markdown(_CSS, unsafe_allow_html=True)
 
@@ -89,17 +90,17 @@ def render_progress(tracker: ProgressTracker, parallel: bool = False) -> None:
         unsafe_allow_html=True,
     )
 
-    if tracker.stop_requested:
+    if snap["stop_requested"]:
         st.caption("正在停止当前分析并清空内容；收尾完成后可重新开始。")
         return
 
-    if tracker.is_paused:
+    if snap["is_paused"]:
         st.caption("当前分析已暂停。")
 
-    completed = len(tracker.completed_stages)
+    completed = len(snap["completed_stages"])
     total = len(PIPELINE_STAGES)
     pct = completed / total if total else 0
-    st.progress(pct, text=f"{completed}/{total} 阶段完成  ·  {_format_time(tracker.elapsed)}")
+    st.progress(pct, text=f"{completed}/{total} 阶段完成  ·  {_format_time(snap['elapsed'])}")
 
     analyst_stages = PIPELINE_STAGES[:7]
     post_stages = PIPELINE_STAGES[7:]
@@ -119,18 +120,19 @@ def render_progress(tracker: ProgressTracker, parallel: bool = False) -> None:
     st.markdown("---")
 
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("LLM 调用", tracker.llm_calls)
-    c2.metric("工具调用", tracker.tool_calls)
-    c3.metric("输入 Tokens", f"{tracker.tokens_in:,}")
-    c4.metric("输出 Tokens", f"{tracker.tokens_out:,}")
+    c1.metric("LLM 调用", snap["llm_calls"])
+    c2.metric("工具调用", snap["tool_calls"])
+    c3.metric("输入 Tokens", f"{snap['tokens_in']:,}")
+    c4.metric("输出 Tokens", f"{snap['tokens_out']:,}")
 
-    if tracker.error:
-        st.error(f"错误: {tracker.error}")
+    if snap["error"]:
+        st.error(f"错误: {snap['error']}")
 
+    stage_reports = snap["stage_reports"]
     completed_reports = [
-        (stage["name"], stage["icon"], tracker.stage_reports[stage["id"]])
+        (stage["name"], stage["icon"], stage_reports[stage["id"]])
         for stage in PIPELINE_STAGES
-        if stage["id"] in tracker.stage_reports
+        if stage["id"] in stage_reports
     ]
 
     if completed_reports:

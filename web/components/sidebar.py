@@ -74,7 +74,7 @@ def _render_analysis_controls(raw_ticker: str, trade_date_value: date) -> None:
                 tracker.ticker,
                 tracker.trade_date,
                 status="paused",
-                completed_stages=tracker.completed_stages,
+                completed_stages=list(tracker.completed_stages),
             )
         st.rerun()
 
@@ -90,7 +90,7 @@ def _render_analysis_controls(raw_ticker: str, trade_date_value: date) -> None:
                 tracker.ticker,
                 tracker.trade_date,
                 status="running",
-                completed_stages=tracker.completed_stages,
+                completed_stages=list(tracker.completed_stages),
             )
         st.rerun()
 
