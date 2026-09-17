@@ -188,6 +188,7 @@ class TestTencentQuoteParsing:
         def _boom(req, timeout=10):
             raise URLError("down")
 
+        _common._data_cache.invalidate(("tencent_quote", "000858"))
         monkey = pytest.MonkeyPatch()
         monkey.setattr(_common.urllib.request, "urlopen", _boom)
         try:

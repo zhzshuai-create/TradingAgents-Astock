@@ -251,6 +251,69 @@ def _get_mootdx_client():
 
 
 # ---------------------------------------------------------------------------
+# TTL Cache — 避免同一分析运行中重复请求相同数据
+# ---------------------------------------------------------------------------
+
+class _TTLCache:
+    """Thread-safe TTL cache with LRU eviction.
+
+    Designed for caching API responses that are stable within a time window
+    (e.g. quotes for 60s, EPS consensus for 1h, financial statements for 24h).
+    """
+
+    def __init__(self, max_entries: int = 256):
+        self._lock = threading.Lock()
+        self._store: dict[tuple, tuple[float, object]] = {}
+        self._max_entries = max_entries
+
+    def get(self, key: tuple, ttl: float):
+        """Return cached value if fresh, else None."""
+        with self._lock:
+            entry = self._store.get(key)
+            if entry is None:
+                return None
+            ts, val = entry
+            if time.time() - ts > ttl:
+                del self._store[key]
+                return None
+            return val
+
+    def set(self, key: tuple, value: object):
+        """Store value with current timestamp."""
+        with self._lock:
+            if len(self._store) >= self._max_entries:
+                oldest_key = min(self._store, key=lambda k: self._store[k][0])
+                del self._store[oldest_key]
+            self._store[key] = (time.time(), value)
+
+    def invalidate(self, key: tuple):
+        with self._lock:
+            self._store.pop(key, None)
+
+    def clear(self):
+        with self._lock:
+            self._store.clear()
+
+
+_data_cache = _TTLCache(max_entries=512)
+
+
+def cached_call(key: tuple, ttl: float, fetcher):
+    """Return cached result or call fetcher() and cache it.
+
+    Usage:
+        result = cached_call(("tencent", code), 60, lambda: _tencent_quote_raw([code]))
+    """
+    val = _data_cache.get(key, ttl)
+    if val is not None:
+        return val
+    result = fetcher()
+    if result is not None:
+        _data_cache.set(key, result)
+    return result
+
+
+# ---------------------------------------------------------------------------
 # Tencent Finance API
 # ---------------------------------------------------------------------------
 
@@ -258,8 +321,22 @@ def _tencent_quote(codes: list[str]) -> dict[str, dict]:
     """Batch real-time quotes from Tencent Finance (qt.gtimg.cn).
 
     Returns dict[code] -> {name, price, pe_ttm, pb, mcap_yi, ...}
+    Results are cached per-code for 60s to avoid duplicate fetches across agents.
     """
-    prefixed = [f"{_get_prefix(c)}{c}" for c in codes]
+    _QUOTE_TTL = 60
+    result = {}
+    uncached = []
+    for c in codes:
+        cached = _data_cache.get(("tencent_quote", c), _QUOTE_TTL)
+        if cached is not None:
+            result[c] = cached
+        else:
+            uncached.append(c)
+
+    if not uncached:
+        return result
+
+    prefixed = [f"{_get_prefix(c)}{c}" for c in uncached]
     url = "https://qt.gtimg.cn/q=" + ",".join(prefixed)
     req = urllib.request.Request(url)
     req.add_header("User-Agent", "Mozilla/5.0")
@@ -268,7 +345,6 @@ def _tencent_quote(codes: list[str]) -> dict[str, dict]:
     )
     raw = resp.read().decode("gbk")
 
-    result = {}
     for line in raw.strip().split(";"):
         if not line.strip() or "=" not in line or '"' not in line:
             continue
@@ -277,7 +353,7 @@ def _tencent_quote(codes: list[str]) -> dict[str, dict]:
         if len(vals) < 53:
             continue
         code = key[2:]  # strip sh/sz/bj prefix
-        result[code] = {
+        parsed = {
             "name": vals[1],
             "price": float(vals[3]) if vals[3] else 0,
             "last_close": float(vals[4]) if vals[4] else 0,
@@ -298,6 +374,8 @@ def _tencent_quote(codes: list[str]) -> dict[str, dict]:
             "vol_ratio": float(vals[49]) if vals[49] else 0,
             "pe_static": float(vals[52]) if vals[52] else 0,
         }
+        result[code] = parsed
+        _data_cache.set(("tencent_quote", code), parsed)
     return result
 
 
@@ -402,7 +480,12 @@ def _eastmoney_datacenter(
     sort_columns: str = "",
     sort_types: str = "-1",
 ) -> list[dict]:
-    """东财数据中心统一查询 — 龙虎榜/解禁 共用."""
+    """东财数据中心统一查询 — 龙虎榜/解禁 共用. Cached 5min per unique query."""
+    cache_key = ("em_dc", report_name, filter_str, page_size, sort_columns, sort_types)
+    cached = _data_cache.get(cache_key, 300)
+    if cached is not None:
+        return cached
+
     params = {
         "reportName": report_name,
         "columns": columns,
@@ -417,8 +500,11 @@ def _eastmoney_datacenter(
     r = _em_get(_DATACENTER_URL, params=params, timeout=15)
     d = r.json()
     if d.get("result") and d["result"].get("data"):
-        return d["result"]["data"]
-    return []
+        rows = d["result"]["data"]
+    else:
+        rows = []
+    _data_cache.set(cache_key, rows)
+    return rows
 
 
 # ---------------------------------------------------------------------------
@@ -430,7 +516,13 @@ def _ths_eps_forecast(code: str) -> pd.DataFrame:
     """Fetch consensus EPS forecast from 同花顺 (direct HTTP).
 
     Returns DataFrame with columns roughly: 年度, 预测机构数, 最小值, 均值, 最大值.
+    Cached 1h per code (consensus updates at most daily).
     """
+    cache_key = ("ths_eps", code)
+    cached = _data_cache.get(cache_key, 3600)
+    if cached is not None:
+        return cached
+
     url = f"https://basic.10jqka.com.cn/new/{code}/worth.html"
     headers = {
         "User-Agent": _UA,
@@ -442,12 +534,16 @@ def _ths_eps_forecast(code: str) -> pd.DataFrame:
     r.encoding = "gbk"
     dfs = pd.read_html(r.text)
     # Find the table containing EPS data
+    result = None
     for df in dfs:
         cols = [str(c) for c in df.columns]
         if any("每股收益" in c or "均值" in c for c in cols):
-            return df
-    # Fallback: return first table if exists
-    return dfs[0] if dfs else pd.DataFrame()
+            result = df
+            break
+    if result is None:
+        result = dfs[0] if dfs else pd.DataFrame()
+    _data_cache.set(cache_key, result)
+    return result
 
 
 # ---------------------------------------------------------------------------
