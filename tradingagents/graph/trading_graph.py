@@ -281,32 +281,41 @@ class TradingAgentsGraph:
 
         Trade-off: only same-ticker entries are resolved per run.  Entries for
         other tickers accumulate until that ticker is run again.
+
+        This is auxiliary work — failures are logged and swallowed so they never
+        block the current analysis pipeline.
         """
-        pending = [e for e in self.memory_log.get_pending_entries() if e["ticker"] == ticker]
-        if not pending:
-            return
+        try:
+            pending = [e for e in self.memory_log.get_pending_entries() if e["ticker"] == ticker]
+            if not pending:
+                return
 
-        updates = []
-        for entry in pending:
-            raw, alpha, days = self._fetch_returns(ticker, entry["date"])
-            if raw is None:
-                continue  # price not available yet — try again next run
-            reflection = self.reflector.reflect_on_final_decision(
-                final_decision=entry.get("decision", ""),
-                raw_return=raw,
-                alpha_return=alpha,
+            updates = []
+            for entry in pending:
+                raw, alpha, days = self._fetch_returns(ticker, entry["date"])
+                if raw is None:
+                    continue  # price not available yet — try again next run
+                reflection = self.reflector.reflect_on_final_decision(
+                    final_decision=entry.get("decision", ""),
+                    raw_return=raw,
+                    alpha_return=alpha,
+                )
+                updates.append({
+                    "ticker": ticker,
+                    "trade_date": entry["date"],
+                    "raw_return": raw,
+                    "alpha_return": alpha,
+                    "holding_days": days,
+                    "reflection": reflection,
+                })
+
+            if updates:
+                self.memory_log.batch_update_with_outcomes(updates)
+        except Exception as e:
+            logger.warning(
+                "Failed to resolve pending memory entries for %s (non-fatal): %s",
+                ticker, e,
             )
-            updates.append({
-                "ticker": ticker,
-                "trade_date": entry["date"],
-                "raw_return": raw,
-                "alpha_return": alpha,
-                "holding_days": days,
-                "reflection": reflection,
-            })
-
-        if updates:
-            self.memory_log.batch_update_with_outcomes(updates)
 
     def propagate(self, company_name, trade_date):
         """Run the trading agents graph for a company on a specific date.

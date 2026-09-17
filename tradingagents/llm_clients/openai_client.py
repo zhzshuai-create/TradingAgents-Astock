@@ -146,6 +146,10 @@ class OpenAIClient(BaseLLMClient):
         self.warn_if_unknown_model()
         llm_kwargs = {"model": self.model}
 
+        # Default retry: 3 attempts with exponential backoff on 429/5xx/timeout.
+        # Prevents a single transient provider error from killing the whole pipeline.
+        llm_kwargs.setdefault("max_retries", 3)
+
         # Provider-specific base URL and auth. An explicit base_url on the
         # client (e.g. a corporate proxy) takes precedence over the
         # provider default so users can route through their own gateway.
