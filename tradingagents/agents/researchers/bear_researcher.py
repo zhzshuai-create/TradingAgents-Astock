@@ -5,16 +5,30 @@ def create_bear_researcher(llm):
         investment_debate_state = state["investment_debate_state"]
         history = investment_debate_state.get("history", "")
         bear_history = investment_debate_state.get("bear_history", "")
+        count = investment_debate_state["count"]
 
         current_response = investment_debate_state.get("current_response", "")
-        market_research_report = state["market_report"]
-        sentiment_report = state["sentiment_report"]
-        news_report = state["news_report"]
-        fundamentals_report = state["fundamentals_report"]
-        policy_report = state.get("policy_report", "")
-        hot_money_report = state.get("hot_money_report", "")
-        lockup_report = state.get("lockup_report", "")
-        data_quality_summary = state.get("data_quality_summary", "")
+
+        if count == 0:
+            market_research_report = state["market_report"]
+            sentiment_report = state["sentiment_report"]
+            news_report = state["news_report"]
+            fundamentals_report = state["fundamentals_report"]
+            policy_report = state.get("policy_report", "")
+            hot_money_report = state.get("hot_money_report", "")
+            lockup_report = state.get("lockup_report", "")
+            data_quality_summary = state.get("data_quality_summary", "")
+            reports_block = f"""Resources available:
+Market research report: {market_research_report}
+Social media sentiment report: {sentiment_report}
+Latest news report: {news_report}
+Company fundamentals report: {fundamentals_report}
+Policy analysis report: {policy_report}
+Hot money / capital flow report: {hot_money_report}
+Lockup expiry / insider reduction report: {lockup_report}
+Data quality assessment: {data_quality_summary}"""
+        else:
+            reports_block = "(Analyst reports were provided in round 1 — refer to the debate history below for context.)"
 
         prompt = f"""You are a Bear Analyst making the case against investing in this A-share (China mainland) stock. Your goal is to present a well-reasoned argument emphasizing risks, challenges, and negative indicators unique to the Chinese market. Leverage the provided research and data to highlight potential downsides and counter bullish arguments effectively.
 
@@ -33,15 +47,7 @@ General bear points:
 - Bull Counterpoints: Expose over-optimistic assumptions with specific data
 - Engagement: Present your argument conversationally, directly engaging with the bull analyst's points
 
-Resources available:
-Market research report: {market_research_report}
-Social media sentiment report: {sentiment_report}
-Latest news report: {news_report}
-Company fundamentals report: {fundamentals_report}
-Policy analysis report: {policy_report}
-Hot money / capital flow report: {hot_money_report}
-Lockup expiry / insider reduction report: {lockup_report}
-Data quality assessment: {data_quality_summary}
+{reports_block}
 Conversation history of the debate: {history}
 Last bull argument: {current_response}
 
@@ -59,7 +65,7 @@ Deliver a compelling bear argument grounded in A-share market realities. Refute 
             "bear_history": bear_history + "\n" + argument,
             "bull_history": investment_debate_state.get("bull_history", ""),
             "current_response": argument,
-            "count": investment_debate_state["count"] + 1,
+            "count": count + 1,
         }
 
         return {"investment_debate_state": new_investment_debate_state}

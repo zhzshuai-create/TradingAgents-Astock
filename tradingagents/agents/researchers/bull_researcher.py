@@ -5,16 +5,32 @@ def create_bull_researcher(llm):
         investment_debate_state = state["investment_debate_state"]
         history = investment_debate_state.get("history", "")
         bull_history = investment_debate_state.get("bull_history", "")
+        count = investment_debate_state["count"]
 
         current_response = investment_debate_state.get("current_response", "")
-        market_research_report = state["market_report"]
-        sentiment_report = state["sentiment_report"]
-        news_report = state["news_report"]
-        fundamentals_report = state["fundamentals_report"]
-        policy_report = state.get("policy_report", "")
-        hot_money_report = state.get("hot_money_report", "")
-        lockup_report = state.get("lockup_report", "")
-        data_quality_summary = state.get("data_quality_summary", "")
+
+        # Only include full reports on the first round — subsequent rounds
+        # already carry the context via debate history (saves 50-70% tokens).
+        if count == 0:
+            market_research_report = state["market_report"]
+            sentiment_report = state["sentiment_report"]
+            news_report = state["news_report"]
+            fundamentals_report = state["fundamentals_report"]
+            policy_report = state.get("policy_report", "")
+            hot_money_report = state.get("hot_money_report", "")
+            lockup_report = state.get("lockup_report", "")
+            data_quality_summary = state.get("data_quality_summary", "")
+            reports_block = f"""Resources available:
+Market research report: {market_research_report}
+Social media sentiment report: {sentiment_report}
+Latest news report: {news_report}
+Company fundamentals report: {fundamentals_report}
+Policy analysis report: {policy_report}
+Hot money / capital flow report: {hot_money_report}
+Lockup expiry / insider reduction report: {lockup_report}
+Data quality assessment: {data_quality_summary}"""
+        else:
+            reports_block = "(Analyst reports were provided in round 1 — refer to the debate history below for context.)"
 
         prompt = f"""You are a Bull Analyst advocating for investing in this A-share (China mainland) stock. Your task is to build a strong, evidence-based case emphasizing growth potential, competitive advantages, and positive market indicators. Leverage the provided research and data to address concerns and counter bearish arguments effectively.
 
@@ -32,15 +48,7 @@ General bull points:
 - Bear Counterpoints: Critically analyze the bear argument with specific data and sound reasoning
 - Engagement: Present your argument conversationally, engaging directly with the bear analyst's points
 
-Resources available:
-Market research report: {market_research_report}
-Social media sentiment report: {sentiment_report}
-Latest news report: {news_report}
-Company fundamentals report: {fundamentals_report}
-Policy analysis report: {policy_report}
-Hot money / capital flow report: {hot_money_report}
-Lockup expiry / insider reduction report: {lockup_report}
-Data quality assessment: {data_quality_summary}
+{reports_block}
 Conversation history of the debate: {history}
 Last bear argument: {current_response}
 
@@ -58,7 +66,7 @@ Deliver a compelling bull argument that integrates A-share market dynamics. Refu
             "bull_history": bull_history + "\n" + argument,
             "bear_history": investment_debate_state.get("bear_history", ""),
             "current_response": argument,
-            "count": investment_debate_state["count"] + 1,
+            "count": count + 1,
         }
 
         return {"investment_debate_state": new_investment_debate_state}
