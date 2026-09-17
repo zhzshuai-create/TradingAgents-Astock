@@ -116,16 +116,17 @@ MODEL_OPTIONS: ProviderModeOptions = {
     },
     "nvidia": {
         "quick": [
-            ("GLM-5.2 - 最新GLM旗舰", "z-ai/glm-5.2"),
-            ("DeepSeek V4 Flash - V4快速版", "deepseek-ai/deepseek-v4-flash"),
+            ("GLM-5.3 Flash - 最新GLM快速版", "z-ai/glm-5.3-flash"),
+            ("DeepSeek V4 Flash 0731 - V4快速版(新版)", "deepseek-ai/deepseek-v4-flash-0731"),
             ("MiniMax-M3 - 最新旗舰", "minimaxai/minimax-m3"),
             ("Kimi K2.6 - 长上下文", "moonshotai/kimi-k2.6"),
             ("Custom model ID", "custom"),
         ],
         "deep": [
-            ("GLM-5.2 - 最新GLM旗舰", "z-ai/glm-5.2"),
+            ("GLM-5.3 - 最新GLM旗舰", "z-ai/glm-5.3"),
             ("DeepSeek V4 Pro - V4旗舰", "deepseek-ai/deepseek-v4-pro"),
-            ("MiniMax-M3 - 最新旗舰", "minimaxai/minimax-m3"),
+            ("DeepSeek V4 Flash 0731 - V4快速版(新版)", "deepseek-ai/deepseek-v4-flash-0731"),
+            ("Kimi K3 - 最新Kimi", "moonshotai/kimi-k3"),
             ("Qwen3.5-397B - 超大参数", "qwen/qwen3.5-397b-a17b"),
             ("Custom model ID", "custom"),
         ],
