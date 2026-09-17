@@ -10,6 +10,7 @@ Domain modules access these helpers through this module's namespace
 from __future__ import annotations
 
 from datetime import datetime
+import io
 import json as _json
 import os
 import logging
@@ -551,7 +552,10 @@ def _ths_eps_forecast(code: str) -> pd.DataFrame:
         lambda: _requests.get(url, headers=headers, timeout=15), "ths eps forecast"
     )
     r.encoding = "gbk"
-    dfs = pd.read_html(r.text)
+    # pandas >=3.0 treats a bare str arg to read_html as a path/URL, raising
+    # FileNotFoundError (and dumping the whole page into the message). Pass a
+    # buffer so it is unambiguously parsed as raw HTML content.
+    dfs = pd.read_html(io.StringIO(r.text))
     # Find the table containing EPS data
     result = None
     for df in dfs:
