@@ -119,6 +119,7 @@ _PROVIDER_CONFIG = {
     "ollama": ("http://localhost:11434/v1", None),
     "minimax": ("https://api.minimax.chat/v1", "MINIMAX_API_KEY"),
     "nvidia": ("https://integrate.api.nvidia.com/v1", "NVIDIA_API_KEY"),
+    "mimo": ("https://api.xiaomimimo.com/v1", "MIMO_API_KEY"),
 }
 
 

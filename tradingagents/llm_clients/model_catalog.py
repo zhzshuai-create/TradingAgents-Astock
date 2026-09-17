@@ -131,6 +131,17 @@ MODEL_OPTIONS: ProviderModeOptions = {
             ("Custom model ID", "custom"),
         ],
     },
+    "mimo": {
+        "quick": [
+            ("MiMo V2.5 - 小米快速模型", "mimo-v2.5"),
+            ("Custom model ID", "custom"),
+        ],
+        "deep": [
+            ("MiMo V2.5 Pro - 小米旗舰模型", "mimo-v2.5-pro"),
+            ("MiMo V2.5 - 小米快速模型", "mimo-v2.5"),
+            ("Custom model ID", "custom"),
+        ],
+    },
     # OpenRouter: fetched dynamically. Azure: any deployed model name.
     "ollama": {
         "quick": [
