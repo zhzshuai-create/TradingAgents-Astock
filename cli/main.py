@@ -28,6 +28,7 @@ from cli.display import (  # noqa: E402
     update_research_team_status,
     update_analyst_statuses,
     classify_message_type,
+    message_buffer,
 )
 
 app = typer.Typer(
@@ -353,7 +354,7 @@ def run_analysis(checkpoint: bool = False):
 
     # Normalize analyst selection to predefined order (selection is a 'set', order is fixed)
     selected_set = {analyst.value for analyst in selections["analysts"]}
-    selected_analyst_keys = [a for a in ANALYST_ORDER if a in selected_set]
+    selected_analyst_keys = [at.value for _, at in ANALYST_ORDER if at.value in selected_set]
 
     # Initialize the graph with callbacks bound to LLMs
     graph = TradingAgentsGraph(
