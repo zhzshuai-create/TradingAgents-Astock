@@ -322,8 +322,32 @@ _EM_SESSION = _requests.Session()
 _EM_SESSION.headers.update({"User-Agent": _UA})
 # 两次东财请求最小间隔(秒)；批量多 Agent 场景可设环境变量 EM_MIN_INTERVAL=1.5~2 降速。
 _EM_MIN_INTERVAL = float(os.environ.get("EM_MIN_INTERVAL", "1.0"))
-_em_last_call = [0.0]  # 模块级上次东财请求时间戳
-_EM_LOCK = threading.Lock()  # 东财请求跨线程串行化（防封设计的一部分）
+
+
+class _EMRateLimiter:
+    """Token-bucket rate limiter — spaces request initiations without blocking I/O.
+
+    Old design held a mutex across sleep + network round-trip (up to 30s),
+    serializing ALL Eastmoney traffic. New design: lock is held only to
+    reserve a time slot (~microseconds), then sleep and I/O happen outside.
+    """
+
+    def __init__(self, min_interval: float):
+        self._lock = threading.Lock()
+        self._min_interval = min_interval
+        self._next_allowed: float = 0.0
+
+    def acquire(self):
+        """Reserve the next available slot and wait until it."""
+        with self._lock:
+            now = time.time()
+            wait = max(0.0, self._next_allowed - now)
+            self._next_allowed = max(now, self._next_allowed) + self._min_interval
+        if wait > 0:
+            time.sleep(wait + random.uniform(0.1, 0.5))
+
+
+_em_limiter = _EMRateLimiter(_EM_MIN_INTERVAL)
 
 
 def _retry_once(fn, what: str, delay: float = 1.0):
@@ -341,40 +365,30 @@ def _retry_once(fn, what: str, delay: float = 1.0):
 
 
 def _em_get(url, params=None, headers=None, timeout=15, **kwargs):
-    """东财统一请求入口：自动节流 + 复用 session + 默认 UA + 失败重试。
+    """东财统一请求入口：令牌桶限流 + 复用 session + 默认 UA + 失败重试。
 
     所有 eastmoney.com 接口都应通过它请求，避免多 Agent 高频拉数据被封 IP。
-    串行限流：与上次东财请求间隔 < EM_MIN_INTERVAL 时 sleep 补足 + 0.1~0.5s 随机抖动。
-    重试：连接错误/超时/5xx 自动重试 1 次（约 1s 退避），4xx 与业务错误直接抛出。
+    限流：请求发起间隔 ≥ EM_MIN_INTERVAL + 随机抖动，但网络 I/O 不持锁（并发安全）。
+    重试：连接错误/超时/5xx 自动重试 1 次（约 1s 退避），4xx 直接返回。
     传入的 headers 会覆盖 session 默认 UA（用于保留各端点自己的 Referer/Origin）。
     """
-    # 节流时间戳的读改写跨线程无锁会有竞态（分析线程与 UI 线程同时放行），
-    # 东财本就按"串行限流"设计，直接整段串行化。
-    with _EM_LOCK:
-        return _em_get_locked(url, params, headers, timeout, **kwargs)
-
-
-def _em_get_locked(url, params=None, headers=None, timeout=15, **kwargs):
-    wait = _EM_MIN_INTERVAL - (time.time() - _em_last_call[0])
-    if wait > 0:
-        time.sleep(wait + random.uniform(0.1, 0.5))
+    _em_limiter.acquire()
 
     for attempt in range(2):
         try:
             resp = _EM_SESSION.get(
-                url, params=params, headers=headers, timeout=timeout, **kwargs
+                url, params=params, headers=headers,
+                timeout=(5, timeout), **kwargs
             )
-            _em_last_call[0] = time.time()
             if attempt == 0 and resp.status_code >= 500:
                 logger.warning("EM %s returned %d, retrying once", url, resp.status_code)
-                time.sleep(1.0 + random.uniform(0.0, 0.5))
+                _em_limiter.acquire()
                 continue
             return resp
         except (_requests.ConnectionError, _requests.Timeout) as e:
-            _em_last_call[0] = time.time()
             if attempt == 0:
                 logger.warning("EM %s network error (%s), retrying once", url, e)
-                time.sleep(1.0 + random.uniform(0.0, 0.5))
+                _em_limiter.acquire()
                 continue
             raise
     raise RuntimeError("unreachable")
