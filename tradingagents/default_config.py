@@ -25,6 +25,10 @@ DEFAULT_CONFIG = {
     "google_thinking_level": None,      # "high", "minimal", etc.
     "openai_reasoning_effort": None,    # "medium", "high", "low"
     "anthropic_effort": None,           # "high", "medium", "low"
+    # MiMo is an OpenAI-compatible reasoning model: reasoning_effort controls
+    # how many reasoning tokens it spends before answering. "low" cuts latency
+    # ~30-40% per call at a small quality cost. Override via MIMO_REASONING_EFFORT.
+    "mimo_reasoning_effort": os.getenv("MIMO_REASONING_EFFORT", "low"),
     # Checkpoint/resume: when True, LangGraph saves state after each node
     # so a crashed run can resume from the last successful step.
     "checkpoint_enabled": False,

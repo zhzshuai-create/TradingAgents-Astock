@@ -154,6 +154,13 @@ class TradingAgentsGraph:
             if effort:
                 kwargs["effort"] = effort
 
+        elif provider == "mimo":
+            # MiMo is an OpenAI-compatible reasoning model; openai_client
+            # forwards reasoning_effort to ChatOpenAI via _PASSTHROUGH_KWARGS.
+            effort = self.config.get("mimo_reasoning_effort")
+            if effort:
+                kwargs["reasoning_effort"] = effort
+
         return kwargs
 
     def _create_tool_nodes(self) -> Dict[str, ToolNode]:
