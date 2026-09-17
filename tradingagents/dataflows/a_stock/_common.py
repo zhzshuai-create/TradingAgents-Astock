@@ -60,6 +60,25 @@ def _normalize_ticker(symbol: str) -> str:
     return safe_ticker_component(s)
 
 
+def _realtime_disclaimer(curr_date: str | None, source_name: str) -> str:
+    """Return a disclaimer if curr_date is not today (look-ahead bias guard).
+
+    Many A-stock data sources are realtime-only (no historical API). When a
+    backtest requests data for a past date, we still return live data but
+    prepend this warning so the LLM doesn't mistake it for point-in-time data.
+    Returns empty string if curr_date is today or None.
+    """
+    if not curr_date:
+        return ""
+    today = datetime.now().strftime("%Y-%m-%d")
+    if curr_date == today:
+        return ""
+    return (
+        f"⚠️ 数据时效性警告：{source_name} 仅提供实时数据，以下为当前最新数据，"
+        f"非 {curr_date} 的历史快照。请勿将其视为该日期的 point-in-time 数据。\n\n"
+    )
+
+
 # ---------------------------------------------------------------------------
 # Stock name <-> code mapping (cached)
 # ---------------------------------------------------------------------------

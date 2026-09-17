@@ -268,7 +268,8 @@ def get_global_news(
         news_str += "\n"
 
     return (
-        f"## China & Global Market News, from {start_date} to {curr_date}:\n\n"
+        _common._realtime_disclaimer(curr_date, "全球财经新闻")
+        + f"## China & Global Market News, from {start_date} to {curr_date}:\n\n"
         + news_str
     )
 

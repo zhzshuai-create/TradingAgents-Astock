@@ -177,6 +177,7 @@ def get_northbound_flow(
     }
 
     lines = [
+        _common._realtime_disclaimer(curr_date, "北向资金实时数据"),
         f"# Northbound Capital Flow ({curr_date})",
         "# Source: 同花顺 hsgtApi (沪深股通) + local cache",
         "",
@@ -362,6 +363,7 @@ def get_fund_flow(
     code = _common._normalize_ticker(ticker)
     secid = f"1.{code}" if code.startswith("6") else f"0.{code}"
     lines = [
+        _common._realtime_disclaimer(curr_date, "个股资金流实时数据"),
         f"# Fund Flow for {code} (A-stock)",
         "# Source: 东财 push2 (Eastmoney)",
         f"# Retrieved: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
@@ -690,7 +692,10 @@ def get_industry_comparison(
         the sector the target stock belongs to.
     """
     code = safe_ticker_component(ticker)
-    lines = [f"# 行业横向对比 | {code} | {trade_date}"]
+    lines = [
+        _common._realtime_disclaimer(trade_date, "行业板块排名"),
+        f"# 行业横向对比 | {code} | {trade_date}",
+    ]
 
     # 东财 push2 行业板块排名 (direct HTTP, replaces 同花顺 which has 401)
     try:

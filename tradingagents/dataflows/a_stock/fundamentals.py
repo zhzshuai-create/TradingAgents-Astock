@@ -183,6 +183,7 @@ def get_fundamentals(
         header += (
             f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
         )
+        header = _common._realtime_disclaimer(curr_date, "基本面估值数据") + header
 
         return header + "\n".join(lines)
 
