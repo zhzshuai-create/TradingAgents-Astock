@@ -214,17 +214,17 @@ with col_logo:
     </style>
     """, unsafe_allow_html=True)
 with col_nav:
+    _MODE_LABELS = {"analysis": "AI分析报告", "data": "实时数据看板", "journal": "交易日志"}
+    _label_to_mode = {v: k for k, v in _MODE_LABELS.items()}
     mode = st.segmented_control(
         "模式",
-        ["AI分析报告", "实时数据看板"],
-        default="AI分析报告" if st.session_state.get("app_mode") == "analysis" else "实时数据看板",
+        list(_MODE_LABELS.values()),
+        default=_MODE_LABELS.get(st.session_state.get("app_mode"), "AI分析报告"),
         key="top_mode", label_visibility="collapsed",
     )
-    if mode and "AI分析" in mode and st.session_state.get("app_mode") != "analysis":
-        st.session_state["app_mode"] = "analysis"
-        st.rerun()
-    elif mode and "数据看板" in mode and st.session_state.get("app_mode") != "data":
-        st.session_state["app_mode"] = "data"
+    _new_mode = _label_to_mode.get(mode)
+    if _new_mode and _new_mode != st.session_state.get("app_mode"):
+        st.session_state["app_mode"] = _new_mode
         st.rerun()
 
 with col_index:
@@ -666,6 +666,7 @@ def _render_analysis_mode() -> None:
 
 
 from web.components.data_dashboard import render_data_mode  # noqa: E402
+from web.components.trade_journal import render_journal_mode  # noqa: E402
 # ═══════════════════════════════════════════════════════════════════════════════
 # Main dispatch
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -674,6 +675,9 @@ main = st.empty()
 if st.session_state.get("app_mode") == "analysis":
     with main.container():
         _render_analysis_mode()
+elif st.session_state.get("app_mode") == "journal":
+    with main.container():
+        render_journal_mode()
 else:
     with main.container():
         render_data_mode()
