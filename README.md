@@ -68,11 +68,24 @@ K 线（分时/5日/30日/全部）· 实时估值指标 · 概念板块 · 强�
 ### 交易日志（嵌入式复盘看板）
 
 顶部模式切到 **交易日志**，即以 iframe 嵌入独立的 trade-journal 复盘应用（需与本项目同级目录）：
-资金曲线**点击任意点回显该笔交易**（一一对应）、持仓周期/换手、仓位集中度、收益分布直方图。
 零侵入集成——平台不读写日志代码与数据，仅通过 URL 回显。
 
+**资金曲线点击联动**：指标卡 + 期望值判定 + 资金曲线，曲线上每个点 = 一笔已平仓交易（一一对应）。
+
 <p align="center">
-  <img src="assets/trade-journal-dashboard.png" width="90%" alt="交易日志嵌入式复盘看板"/>
+  <img src="assets/trade-journal-dashboard.png" width="90%" alt="交易日志-资金曲线"/>
+</p>
+
+**点击回显记录**：点任意点即展示该笔完整明细（股数/买卖价/收益率/账户影响/手续费/卖出原因）与分布图。
+
+<p align="center">
+  <img src="assets/trade-journal-click-record.png" width="90%" alt="交易日志-点击回显记录"/>
+</p>
+
+**行为诊断**：持仓周期与换手、仓位集中度（top5 标的）、单笔收益分布直方图（含均值线）。
+
+<p align="center">
+  <img src="assets/trade-journal-metrics.png" width="90%" alt="交易日志-行为诊断指标"/>
 </p>
 
 ---
