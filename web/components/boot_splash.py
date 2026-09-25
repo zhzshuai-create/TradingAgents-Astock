@@ -22,9 +22,10 @@ from __future__ import annotations
 import streamlit as st
 import streamlit.components.v1 as components
 
-# 遮罩最短可见时长. 冷启动首帧实测 3.3-4.6s, 但导入被 Python 缓存后刷新只要几百 ms;
-# 没有下限的话动画会一闪而过, 比不播更难看.
-MIN_VISIBLE_MS = 1400
+# 遮罩最短可见时长. 节点点亮→汇聚的完整时间线在 2.9s 结束(见下方 CSS 的 delay),
+# 下限取 2800ms 是为了让动画播完再放行; 冷启动首帧实测 2.1-4.6s, 多数情况下
+# 真正决定放行时刻的仍是内容就绪, 这个下限只约束"内容比动画还快"的场景.
+MIN_VISIBLE_MS = 2800
 
 # 兜底上限: 脚本卡死/抛异常时最迟这么久放行. 取 6s 是因为第三次基线实测首帧 4630ms.
 FALLBACK_MS = 6000
@@ -61,7 +62,68 @@ html.dark #boot-mask { background: #0e1117; color: #fafafa; }
   font-size: 0.8rem; letter-spacing: 0.22em; opacity: 0.55;
   margin-top: -0.9rem;
 }
-/* 不确定态进度条: 不显示百分比. 首帧耗时极差 2.2-4.6s(2.1 倍), 假进度会被看穿. */
+
+/* ── 7 个分析师节点: 逐个点亮(0.55s 起, 间隔 0.16s), 2.0s 一起向决策节点汇聚 ──
+   每个节点只带一个 --i, 点亮 delay 与汇聚位移都由它算出来, HTML 里不写死坐标.
+   列宽固定, 汇聚的横向位移才是可算的: 第 i 列中心到行中心 = (3 - i) * 列宽. */
+#boot-mask .boot-nodes {
+  --col: 76px;
+  display: grid;
+  grid-template-columns: repeat(7, var(--col));
+  margin-top: 0.6rem;
+}
+#boot-mask .boot-node,
+#boot-mask .boot-decision {
+  display: flex; flex-direction: column; align-items: center; gap: 0.3rem;
+}
+#boot-mask .boot-node {
+  opacity: 0;
+  /* boot-node-go 只写 to 关键帧且不回填 backwards: 它的隐式起点 = 下层动画
+     (boot-node-in 的 forwards 填充)的结果, 所以汇聚是从"已点亮"的位置出发的. */
+  animation:
+    boot-node-in 0.32s ease-out calc(0.55s + var(--i) * 0.16s) both,
+    boot-node-go 0.5s cubic-bezier(0.5, 0, 0.75, 0.4) 2s forwards;
+}
+@keyframes boot-node-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.85); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes boot-node-go {
+  to {
+    opacity: 0;
+    transform: translateX(calc((3 - var(--i)) * var(--col)))
+               translateY(38px) scale(0.5);
+  }
+}
+#boot-mask .boot-node-ico { font-size: 1.15rem; line-height: 1; }
+#boot-mask .boot-node-name {
+  font-size: 0.68rem; letter-spacing: 0.08em; opacity: 0.7; white-space: nowrap;
+}
+
+#boot-mask .boot-decision {
+  position: relative;
+  opacity: 0;
+  animation: boot-decision-in 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.35) 2.15s forwards;
+}
+@keyframes boot-decision-in {
+  from { opacity: 0; transform: scale(0.55); }
+  60%  { opacity: 1; }
+  to   { opacity: 1; transform: scale(1); }
+}
+#boot-mask .boot-decision .boot-node-name { opacity: 0.9; font-size: 0.74rem; }
+#boot-mask .boot-ring {
+  position: absolute; top: -7px; left: 50%; width: 26px; height: 26px;
+  margin-left: -13px; border-radius: 50%;
+  border: 1px solid #e85d04; opacity: 0;
+  animation: boot-ring 0.9s ease-out 2.3s forwards;
+}
+@keyframes boot-ring {
+  0%   { opacity: 0.7; transform: scale(0.6); }
+  100% { opacity: 0;   transform: scale(2.1); }
+}
+
+/* 不确定态进度条: 不显示百分比. 首帧耗时极差 2.2-4.6s(2.1 倍), 假进度会被看穿.
+   动画时间线 2.9s 结束后, 它是"还在加载"的唯一提示. */
 #boot-mask .boot-track {
   width: min(240px, 46vw); height: 2px;
   background: rgba(128, 128, 128, 0.18);
@@ -86,6 +148,9 @@ html.dark #boot-mask { background: #0e1117; color: #fafafa; }
 
 @media (prefers-reduced-motion: reduce) {
   #boot-mask { animation: none; opacity: 1; }
+  #boot-mask .boot-node { animation: none; opacity: 1; }
+  #boot-mask .boot-decision { animation: none; opacity: 1; }
+  #boot-mask .boot-ring { display: none; }
   #boot-mask .boot-bar { animation: none; width: 100%; opacity: 0.5; }
 }
 </style>
@@ -95,6 +160,20 @@ _MASK_HTML = """
 <div id="boot-mask" aria-hidden="true">
   <div class="boot-wordmark">AStock <span>Pro</span></div>
   <div class="boot-sub">AI MULTI-AGENT</div>
+  <div class="boot-nodes">
+    <div class="boot-node" style="--i:0"><span class="boot-node-ico">📊</span><span class="boot-node-name">技术</span></div>
+    <div class="boot-node" style="--i:1"><span class="boot-node-ico">💬</span><span class="boot-node-name">情绪</span></div>
+    <div class="boot-node" style="--i:2"><span class="boot-node-ico">📰</span><span class="boot-node-name">舆情</span></div>
+    <div class="boot-node" style="--i:3"><span class="boot-node-ico">📋</span><span class="boot-node-name">基本面</span></div>
+    <div class="boot-node" style="--i:4"><span class="boot-node-ico">🏛️</span><span class="boot-node-name">政策</span></div>
+    <div class="boot-node" style="--i:5"><span class="boot-node-ico">🔥</span><span class="boot-node-name">游资</span></div>
+    <div class="boot-node" style="--i:6"><span class="boot-node-ico">🔒</span><span class="boot-node-name">解禁</span></div>
+  </div>
+  <div class="boot-decision">
+    <span class="boot-ring"></span>
+    <span class="boot-node-ico">👔</span>
+    <span class="boot-node-name">投资决策</span>
+  </div>
   <div class="boot-track"><div class="boot-bar"></div></div>
 </div>
 """
