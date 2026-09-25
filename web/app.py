@@ -20,12 +20,6 @@ if str(_PROJECT_ROOT) not in sys.path:
 
 load_dotenv(_PROJECT_ROOT / ".env")
 
-import streamlit.components.v1 as components  # noqa: E402
-from web.components.sidebar import render_sidebar  # noqa: E402
-from web.data_functions import (  # noqa: E402
-    index_spot,
-)
-
 # ═══════════════════════════════════════════════════════════════════════════════
 # Page config
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -35,6 +29,15 @@ st.set_page_config(
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded",
+)
+
+# 这三个导入必须留在 set_page_config 之后: sidebar 会拉起整条 agent 图依赖链
+# (langgraph/langsmith, 实测约 3.2s), index_spot 是阻塞网络调用. 任何要在首屏
+# 之前上屏的元素都得插在它们上面.
+import streamlit.components.v1 as components  # noqa: E402
+from web.components.sidebar import render_sidebar  # noqa: E402
+from web.data_functions import (  # noqa: E402
+    index_spot,
 )
 
 # ── Session state ────────────────────────────────────────────────────────────
