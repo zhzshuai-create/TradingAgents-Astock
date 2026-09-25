@@ -18,6 +18,7 @@ Breaking changes within the 0.x line are called out explicitly.
 ### 性能
 - 首屏重导入下沉：`web/app.py` 的 sidebar / 数据层导入移到 `set_page_config` 与遮罩下发之后；`web/components/sidebar.py` 的 checkpointer / model_catalog 导入下沉到函数内。交错 A/B 实测首屏合计快约 1.4s。
 - 遮罩放行点定为"应用外壳下发完成"（sidebar / 顶栏 / 指数条），不再等脚本跑完，避免界面已可见后遮罩仍多停留数秒。
+- `web/launch.py` 去掉串行 `sleep(2)`：平台与交易日志双服务并行拉起（实测自举各 ~1.0s），端到端再 −2.0s；探活失败路径原有 warning 引导 + iframe 重连兜底不变。
 
 ### 修复
 - `web/components/report_viewer.py` 未定义变量 `icon` 的 NameError（历史遗留，打开报告页即崩）。
