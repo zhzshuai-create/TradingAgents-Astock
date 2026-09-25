@@ -1,0 +1,22 @@
+{
+  "app": "web\\app.py",
+  "runs": 1,
+  "median": {
+    "health_ready_s": 1.0,
+    "overlay_first_ms": 646,
+    "content_first_ms": 3684,
+    "spinner_first_ms": 524,
+    "spinner_exposed_ms": 122
+  },
+  "per_run": [
+    {
+      "health_ready_s": 1.03,
+      "overlay_first_ms": 646,
+      "content_first_ms": 3684,
+      "spinner_first_ms": 524,
+      "spinner_last_ms": 8088,
+      "spinner_exposed_ms": 122,
+      "samples": 220
+    }
+  ]
+}

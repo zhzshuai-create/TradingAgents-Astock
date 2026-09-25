@@ -1,0 +1,110 @@
+{
+  "light.mask": {
+    "present": true,
+    "rect": [
+      0,
+      0,
+      1440,
+      900
+    ],
+    "viewport": [
+      1440,
+      900
+    ],
+    "position": "fixed",
+    "zIndex": "2147483000",
+    "display": "flex",
+    "opacity": "0",
+    "cls": "",
+    "hits": [
+      "SECTION.stMain st-emotion-cache-4rsbii eqt0gmo1",
+      "DIV.stAppToolbar st-emotion-cache-14vh5up e1yxiy6j2",
+      "SECTION.stMain st-emotion-cache-4rsbii eqt0gmo1",
+      "DIV.stAppToolbar st-emotion-cache-14vh5up e1yxiy6j2",
+      "svg.[object SVGAnimatedString]"
+    ],
+    "badAncestor": null
+  },
+  "light.settled": {
+    "present": true,
+    "rect": [
+      0,
+      0,
+      1440,
+      900
+    ],
+    "viewport": [
+      1440,
+      900
+    ],
+    "position": "fixed",
+    "zIndex": "2147483000",
+    "display": "flex",
+    "opacity": "1",
+    "cls": "",
+    "hits": [
+      "SECTION.stMain st-emotion-cache-4rsbii eqt0gmo1",
+      "DIV.st-emotion-cache-1csi29a eelgd2m2",
+      "SECTION.stMain st-emotion-cache-4rsbii eqt0gmo1",
+      "DIV.stAppToolbar st-emotion-cache-14vh5up e1yxiy6j2",
+      "DIV.stAppToolbar st-emotion-cache-14vh5up e1yxiy6j2"
+    ],
+    "badAncestor": null
+  },
+  "light.after": {
+    "present": true,
+    "rect": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "viewport": [
+      1440,
+      900
+    ],
+    "position": "fixed",
+    "zIndex": "2147483000",
+    "display": "none",
+    "opacity": "0",
+    "cls": "",
+    "hits": [
+      "DIV.stVerticalBlock st-emotion-cache-tn0cau e1rw0b1u3",
+      "DIV.st-emotion-cache-1csi29a eelgd2m2",
+      "DIV.stMainBlockContainer block-container st-emotion-cache-zy6yx3 eqt0gmo4",
+      "DIV.stAppToolbar st-emotion-cache-14vh5up e1yxiy6j2",
+      "DIV.stAppToolbar st-emotion-cache-14vh5up e1yxiy6j2"
+    ],
+    "badAncestor": null
+  },
+  "light.after_hits": [
+    "DIV.stVerticalBlock st-emotion-cache-tn0cau e1rw0b1u3",
+    "DIV.stAppToolbar st-emotion-cache-14vh5up e1yxiy6j2"
+  ],
+  "dark.mask": {
+    "present": true,
+    "rect": [
+      0,
+      0,
+      1440,
+      900
+    ],
+    "viewport": [
+      1440,
+      900
+    ],
+    "position": "fixed",
+    "zIndex": "2147483000",
+    "display": "flex",
+    "opacity": "1",
+    "cls": "",
+    "hits": [
+      "SECTION.stMain st-emotion-cache-4rsbii eqt0gmo1",
+      "DIV.st-emotion-cache-1csi29a eelgd2m2",
+      "SECTION.stMain st-emotion-cache-4rsbii eqt0gmo1",
+      "DIV.stAppToolbar st-emotion-cache-14vh5up e1yxiy6j2",
+      "DIV.stAppToolbar st-emotion-cache-14vh5up e1yxiy6j2"
+    ],
+    "badAncestor": null
+  }
+}

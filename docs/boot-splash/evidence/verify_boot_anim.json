@@ -1,0 +1,126 @@
+{
+  "light": [
+    {
+      "t_ms": 300,
+      "name": "anim_t03",
+      "nodes": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "decision": 0,
+      "mask": 1
+    },
+    {
+      "t_ms": 900,
+      "name": "anim_t09",
+      "nodes": [
+        1,
+        1,
+        0.8,
+        0.18,
+        0,
+        0,
+        0
+      ],
+      "decision": 0,
+      "mask": 1
+    },
+    {
+      "t_ms": 1700,
+      "name": "anim_t17",
+      "nodes": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "decision": 0,
+      "mask": 1
+    },
+    {
+      "t_ms": 2700,
+      "name": "anim_t27",
+      "nodes": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "decision": 1,
+      "mask": 0
+    }
+  ],
+  "dark": [
+    {
+      "t_ms": 300,
+      "name": "anim_t03",
+      "nodes": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "decision": 0,
+      "mask": 0.69
+    },
+    {
+      "t_ms": 900,
+      "name": "anim_t09",
+      "nodes": [
+        1,
+        0.83,
+        0.23,
+        0,
+        0,
+        0,
+        0
+      ],
+      "decision": 0,
+      "mask": 1
+    },
+    {
+      "t_ms": 1700,
+      "name": "anim_t17",
+      "nodes": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0.97
+      ],
+      "decision": 0,
+      "mask": 1
+    },
+    {
+      "t_ms": 2700,
+      "name": "anim_t27",
+      "nodes": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "decision": 1,
+      "mask": 0
+    }
+  ]
+}

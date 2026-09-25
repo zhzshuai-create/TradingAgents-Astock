@@ -556,6 +556,8 @@ pyproject.toml:
 
 用户用图像生成软件产出龙头+ascending 红烛 logo(提示词六层结构法: 主体/构图/风格/色彩/背景/约束+负面, 显式声明 A股红涨绿跌)。资产化管线: 填掉水印块 → 背景转 alpha(对 AA 边做 un-mix) → bbox 裁切 → 方形 pad → 512 母版 / 192 遮罩版 / 7 尺寸 ico。遮罩以 base64 data URI 内联 192px 版(自包含, 不早于任何静态资源请求), wordmark 上方与遮罩同步淡入; 透明底亮暗通用。favicon 由 📊 换为 ico。遮罩门禁的像素采样点从中心改到上/下空白点——logo 把内容列推下 ~36px, 原中心点会落到文字上(布局位移, 非覆盖缺陷)。
 
+**留存清单(2026-09-26 固化进仓库, 会话目录产物不随会话消亡)**：`docs/boot-splash/STARTUP_ANIMATION_PLAN.md`(评估+九阶段方案)、`docs/boot-splash/evidence/`(终版亮暗截图 7 张 + 基线/阶段/交错 A/B/门禁 JSON 11 份)、`tools/boot_verify/`(6 个门禁 harness + process_logo 资产管线 + README; 硬编码路径已参数化为 `ASTOCK_REPO`/`ASTOCK_JOURNAL` env + `__file__` 默认, 证据落运行目录)。明日接续入口: 本 DEV_LOG 各「当前进展」节 + 上述 README。
+
 ---
 
 ## 风险与开放问题

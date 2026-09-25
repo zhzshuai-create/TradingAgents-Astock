@@ -1,0 +1,40 @@
+{
+  "app": "web\\app.py",
+  "runs": 3,
+  "median": {
+    "health_ready_s": 1.0,
+    "overlay_first_ms": null,
+    "content_first_ms": 3323,
+    "spinner_first_ms": 522,
+    "spinner_exposed_ms": 2803
+  },
+  "per_run": [
+    {
+      "health_ready_s": 1.03,
+      "overlay_first_ms": null,
+      "content_first_ms": 3323,
+      "spinner_first_ms": 520,
+      "spinner_last_ms": 4615,
+      "spinner_exposed_ms": 2803,
+      "samples": 491
+    },
+    {
+      "health_ready_s": 1.03,
+      "overlay_first_ms": null,
+      "content_first_ms": 2228,
+      "spinner_first_ms": 560,
+      "spinner_last_ms": 3184,
+      "spinner_exposed_ms": 1668,
+      "samples": 495
+    },
+    {
+      "health_ready_s": 1.01,
+      "overlay_first_ms": null,
+      "content_first_ms": 4630,
+      "spinner_first_ms": 522,
+      "spinner_last_ms": 8176,
+      "spinner_exposed_ms": 4108,
+      "samples": 467
+    }
+  ]
+}
