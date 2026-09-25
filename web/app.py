@@ -691,6 +691,13 @@ from web.components.trade_journal import render_journal_mode  # noqa: E402
 # Main dispatch
 # ═══════════════════════════════════════════════════════════════════════════════
 
+# 遮罩放行点: 到这里 sidebar / 顶栏 / 指数条都已下发, 应用外壳在视觉上已经存在,
+# 遮罩该让位了. 分析区自身的加载态由应用内部 UI 承担, 不该让遮罩替它值班 ——
+# 实测脚本跑完要比外壳上屏晚 4-5s(分析区还有磁盘/网络读取), 放在脚本末尾会把
+# 用户多关好几秒. 三个分支里的 st.rerun() 会跳过这一行, 那种情况由看门狗兜底,
+# 且 rerun 后的第二遍脚本会正常走到这里.
+finish_boot()
+
 main = st.empty()
 if st.session_state.get("app_mode") == "analysis":
     with main.container():
@@ -701,8 +708,3 @@ elif st.session_state.get("app_mode") == "journal":
 else:
     with main.container():
         render_data_mode()
-
-# 遮罩放行. 放在 dispatch 之后 = "主内容已经全部下发". 上面三个分支里任何一处
-# st.rerun() 都会跳过这一行, 那种情况下由看门狗的 FALLBACK_MS 兜底, 并且 rerun 后的
-# 第二遍脚本会正常走到这里.
-finish_boot()
