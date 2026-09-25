@@ -19,8 +19,16 @@
 
 from __future__ import annotations
 
+import base64
+from pathlib import Path
+
 import streamlit as st
 import streamlit.components.v1 as components
+
+# logo 以 data URI 内联: 遮罩必须在任何静态资源请求之前自包含上屏.
+# 192px 透明底 PNG (~15KB), 亮暗主题通用; 读盘发生在模块导入期, 亚毫秒级.
+_LOGO_PATH = Path(__file__).resolve().parents[2] / "assets" / "logo-dragon-192.png"
+_LOGO_URI = "data:image/png;base64," + base64.b64encode(_LOGO_PATH.read_bytes()).decode("ascii")
 
 # 遮罩最短可见时长. 节点点亮→汇聚的完整时间线在 2.9s 结束(见下方 CSS 的 delay),
 # 下限取 2800ms 是为了让动画播完再放行; 冷启动首帧实测 2.1-4.6s, 多数情况下
@@ -78,6 +86,19 @@ html.dark #boot-mask { background: #0e1117; color: #fafafa; }
 #boot-mask .boot-sub {
   font-size: 0.8rem; letter-spacing: 0.22em; opacity: 0.55;
   margin-top: -0.9rem;
+}
+
+/* 龙头 K 线 logo: 透明底, 亮暗通用; 与遮罩同步淡入(0.12s 微延迟避开首帧拥塞).
+   margin-bottom 负值抵消 flex gap, 让 logo 与 wordmark 视觉成组. */
+#boot-mask .boot-logo {
+  width: 5.2rem; height: 5.2rem; object-fit: contain;
+  margin-bottom: -0.7rem;
+}
+html[data-boot="play"] #boot-mask .boot-logo {
+  animation: boot-logo-in 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.25) 0.12s both;
+}
+@keyframes boot-logo-in {
+  from { opacity: 0; transform: scale(0.86) translateY(8px); }
 }
 
 /* ── 7 个分析师节点: 逐个点亮(0.55s 起, 间隔 0.16s), 2.0s 一起向决策节点汇聚 ──
@@ -170,6 +191,7 @@ html[data-boot="play"] #boot-mask .boot-bar {
      .boot-play 时的保险 —— 静态呈现, 内容就绪即放行(hide 拿不到动画时钟,
      shown 退化为极大值, wait=0). */
   html[data-boot="play"] #boot-mask { animation: none; opacity: 1; }
+  html[data-boot="play"] #boot-mask .boot-logo { animation: none; }
   html[data-boot="play"] #boot-mask .boot-node { animation: none; opacity: 1; }
   html[data-boot="play"] #boot-mask .boot-decision { animation: none; opacity: 1; }
   html[data-boot="play"] #boot-mask .boot-ring { display: none; }
@@ -191,6 +213,7 @@ html[data-boot-gone="1"] #boot-mask {
 
 _MASK_HTML = """
 <div id="boot-mask" aria-hidden="true">
+  <img class="boot-logo" src="__BOOT_LOGO_URI__" alt="" />
   <div class="boot-wordmark">AStock <span>Pro</span></div>
   <div class="boot-sub">AI MULTI-AGENT</div>
   <div class="boot-nodes">
@@ -210,6 +233,7 @@ _MASK_HTML = """
   <div class="boot-track"><div class="boot-bar"></div></div>
 </div>
 """
+_MASK_HTML = _MASK_HTML.replace("__BOOT_LOGO_URI__", _LOGO_URI)
 
 # 每个 components.html 都是独立沙箱 iframe, 看不见主窗口的变量, 所以共享状态挂在
 # window.parent 上.

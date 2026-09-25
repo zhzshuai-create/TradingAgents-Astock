@@ -26,7 +26,7 @@ load_dotenv(_PROJECT_ROOT / ".env")
 
 st.set_page_config(
     page_title="AStock Pro",
-    page_icon="📊",
+    page_icon=str(_PROJECT_ROOT / "assets" / "app_icon.ico"),
     layout="wide",
     initial_sidebar_state="expanded",
 )

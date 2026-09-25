@@ -23,6 +23,10 @@ Breaking changes within the 0.x line are called out explicitly.
 ### 修复
 - `web/components/report_viewer.py` 未定义变量 `icon` 的 NameError（历史遗留，打开报告页即崩）。
 
+### 变更
+- 程序图标换为"龙头 K 线"logo（`assets/app_icon.ico` 多尺寸重制 + 透明底母版 `logo-dragon.png`）；浏览器 favicon 由 📊 改为该图标。
+- 启动遮罩在 wordmark 上方同步淡入同款 logo（透明底 data URI 内联，亮暗主题通用）。
+
 ## [0.2.18] — 2026-09-13
 
 分析师并行编排正式可用（实验性开关），三组真实管线并发修复，数据层与看板性能优化。
