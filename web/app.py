@@ -20,14 +20,8 @@ if str(_PROJECT_ROOT) not in sys.path:
 
 load_dotenv(_PROJECT_ROOT / ".env")
 
-from tradingagents.default_config import DEFAULT_CONFIG  # noqa: E402
 import streamlit.components.v1 as components  # noqa: E402
-from web.components.progress_panel import render_progress  # noqa: E402
-from web.components.report_viewer import render_report  # noqa: E402
 from web.components.sidebar import render_sidebar  # noqa: E402
-from web.history import extract_signal, load_analysis, get_history  # noqa: E402
-from web.progress import ProgressTracker  # noqa: E402
-from web.runner import run_analysis_in_thread  # noqa: E402
 from web.data_functions import (  # noqa: E402
     index_spot,
 )
@@ -664,6 +658,16 @@ def _render_analysis_mode() -> None:
     """, unsafe_allow_html=True)
 
 
+
+# 延迟导入: 这些名字只在 _build_config / _render_analysis_mode 内部用到, 而这两个函数
+# 都在下方 dispatch 时才被调用. 放在这里可以让首屏渲染不必等 report_viewer 的 PDF
+# 导出依赖链(实测 2.04s)与 sidebar 的 agent 图依赖链加载完.
+from tradingagents.default_config import DEFAULT_CONFIG  # noqa: E402
+from web.components.progress_panel import render_progress  # noqa: E402
+from web.components.report_viewer import render_report  # noqa: E402
+from web.history import extract_signal, load_analysis, get_history  # noqa: E402
+from web.progress import ProgressTracker  # noqa: E402
+from web.runner import run_analysis_in_thread  # noqa: E402
 
 from web.components.data_dashboard import render_data_mode  # noqa: E402
 from web.components.trade_journal import render_journal_mode  # noqa: E402
