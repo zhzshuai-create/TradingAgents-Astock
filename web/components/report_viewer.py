@@ -144,7 +144,7 @@ def render_report(
     if inv_plan:
         sections.append(("sec-decision", "👔 最终投资建议"))
     sections += [
-        (f"sec-{key}", f"{icon} {title}")
+        (f"sec-{key}", title)
         for key, title in _ANALYST_SECTIONS
         if final_state.get(key, "")
     ]
