@@ -31,6 +31,19 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+# ── 首屏遮罩 ─────────────────────────────────────────────────────────────────
+# 必须紧贴 set_page_config: 下面三个导入合计约 5.5s(sidebar 的 agent 图链 3.2s +
+# index_spot 的阻塞网络调用), 遮罩要在它们之前上屏才有意义. boot_splash 自身只依赖
+# streamlit, 导入成本可忽略.
+from web.components.boot_splash import (  # noqa: E402
+    finish_boot,
+    render_boot_mask,
+    start_boot_watchdog,
+)
+
+render_boot_mask()
+start_boot_watchdog()
+
 # 这三个导入必须留在 set_page_config 之后: sidebar 会拉起整条 agent 图依赖链
 # (langgraph/langsmith, 实测约 3.2s), index_spot 是阻塞网络调用. 任何要在首屏
 # 之前上屏的元素都得插在它们上面.
@@ -688,3 +701,8 @@ elif st.session_state.get("app_mode") == "journal":
 else:
     with main.container():
         render_data_mode()
+
+# 遮罩放行. 放在 dispatch 之后 = "主内容已经全部下发". 上面三个分支里任何一处
+# st.rerun() 都会跳过这一行, 那种情况下由看门狗的 FALLBACK_MS 兜底, 并且 rerun 后的
+# 第二遍脚本会正常走到这里.
+finish_boot()
