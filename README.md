@@ -17,6 +17,15 @@ AI 多智能体 A 股投资研究平台，集成实时数据看板。基于 [Tau
 
 ## 📸 界面预览
 
+### 启动过渡动画
+
+冷启动期间全屏遮罩播放"7 个分析师节点逐个点亮 → 汇聚到投资决策节点"的过渡动画，盖住 3~5s 的空白等待；每个标签页播一次，URL 加 `?noboot=1` 可跳过。亮/暗主题自适应：
+
+<p align="center">
+  <img src="assets/boot-splash-light.png" width="49%" alt="启动过渡动画-亮色"/>
+  <img src="assets/boot-splash-dark.png" width="49%" alt="启动过渡动画-暗色"/>
+</p>
+
 ### AI 分析报告模式
 
 7 个 AI 分析师（可开启并行加速）→ 多空辩论 → 风控评估 → 最终投资决策。

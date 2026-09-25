@@ -6,6 +6,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Breaking changes within the 0.x line are called out explicitly.
 
+## [Unreleased]
+
+启动体验改造：冷启动的空白等待改为品牌化过渡动画，首屏重导入下沉。
+
+### 新增
+- **启动过渡动画（boot splash）**：双击启动到主界面呈现之间，全屏遮罩播放"7 个分析师节点逐个点亮 → 汇聚到投资决策节点 → 淡出"的过渡动画，盖住 Streamlit 冷启动 3~5s 的空白/转圈等待（遮罩自身 ~0.7s 上屏）。亮/暗主题自适应；`prefers-reduced-motion` 下自动跳过。
+- **每标签页播一次的门控**：`sessionStorage` 记录已播状态，同标签页刷新/切模式不重播，新标签页重播；URL 加 `?noboot=1` 完全跳过；脚本崩溃时看门狗 6s 兜底放行（经变异测试验证）。
+- 验收门禁：AppTest 冒烟测试 + 4 个 Playwright 脚本（遮罩覆盖/动画时间线/门控 7 场景/崩溃兜底）。
+
+### 性能
+- 首屏重导入下沉：`web/app.py` 的 sidebar / 数据层导入移到 `set_page_config` 与遮罩下发之后；`web/components/sidebar.py` 的 checkpointer / model_catalog 导入下沉到函数内。交错 A/B 实测首屏合计快约 1.4s。
+- 遮罩放行点定为"应用外壳下发完成"（sidebar / 顶栏 / 指数条），不再等脚本跑完，避免界面已可见后遮罩仍多停留数秒。
+
+### 修复
+- `web/components/report_viewer.py` 未定义变量 `icon` 的 NameError（历史遗留，打开报告页即崩）。
+
 ## [0.2.18] — 2026-09-13
 
 分析师并行编排正式可用（实验性开关），三组真实管线并发修复，数据层与看板性能优化。

@@ -521,6 +521,27 @@ pyproject.toml:
 
 ---
 
+## 当前进展(2026-09-26)
+
+### 启动过渡动画(boot splash)完成
+
+动机：双击桌面图标到主界面出现之间有 3~5s 空白/转圈(Streamlit 冷启动)，观感像"卡死了"。方案：全屏遮罩 + "7 分析师节点逐个点亮 → 汇聚决策节点 → 淡出"动画盖住这段等待。实现分 8 个阶段提交在 `feat/boot-splash` 分支(`ec302b8` 骨架 → `8bb8134` 动画 → `0fb439b` 门控 → `f4f3ffa` 导入下沉收尾)。
+
+踩坑结论(后续改 Streamlit 前端动效时直接复用)：
+
+- **Streamlit 1.57 增量渲染是前提**：阻塞调用之前下发的元素会立即上屏，遮罩因此能在 3~5s 阻塞窗口前画出来(实测 ~650-700ms)。
+- **状态载体三次选型**：遮罩 div 的 class/inline style 会被 React 重写 markdown 容器 innerHTML 抹掉 → `<html>` 的 class 会被 app.py 主题 JS 的 `documentElement.className = theme` 整体覆盖 → 最终落在 `<html>` 的 `data-boot` / `data-boot-done` / `data-boot-gone` 属性上，前两者都动不到它。
+- **就绪信号不能用 `components.html` 的 iframe**：iframe 内脚本执行滞后于元素插入；改成流式下发普通 `<div id="boot-ready">` 标记，看门狗轮询它。
+- **放行点语义**：在"应用外壳(sidebar/顶栏/指数条)下发完成"处放行，不是脚本末尾——脚本末尾还要跑数秒的分析区磁盘/网络工作，遮罩多留就是遮挡已可用的界面。
+- **覆盖率证明不能用 `elementFromPoint`**：遮罩 `pointer-events: none`(永不抢点击)后命中测试会穿透；改用截图像素采样证明盖满，淡出后用 `elementsFromPoint` 证明主界面可点。
+- **门控**：`sessionStorage`(每标签页一次，F5 不重播、新标签页重播) + `?noboot=1` 跳过 + `prefers-reduced-motion` 跳过 + 崩溃 6s 兜底(变异测试验证过放行路径)。
+
+实测收益：spinner 暴露时间从基线 ~3.3s 降到 ~150ms；导入下沉合计 ~1.4s(阶段 2 ~0.9s + 阶段 7 ~0.55s，交错 A/B 实测，阶段 7 低于预估——phases 2/3 之后 langgraph 依赖链已不在 sidebar 导入路径上)。
+
+遗留杠杆(未做)：冷启动剩余大头是 `get_incomplete_history()` 历史扫描 ~1.2s 与 `index_spot` 网络请求，属应用逻辑而非导入问题，留待后续。
+
+---
+
 ## 风险与开放问题
 
 ### 已识别风险
