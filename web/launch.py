@@ -9,7 +9,6 @@ from __future__ import annotations
 import argparse
 import subprocess
 import sys
-import time
 from pathlib import Path
 
 JOURNAL_DIR = Path(__file__).resolve().parent.parent.parent / "trade-journal"
@@ -36,9 +35,8 @@ def main() -> None:
     args = parser.parse_args()
 
     journal_proc = _start_journal() if args.with_journal else None
-    if journal_proc:
-        time.sleep(2)  # 让日志服务先起来, 平台页首帧即可探活成功
-
+    # 不串行等日志: 实测两服务自举各 ~1.0s, 并行拉起后平台首帧(点击后 ~2s)探活时
+    # 日志早已监听; 即便探空也有 warning 引导 + iframe 重连兜底, 下次 rerun 自愈.
     app_path = Path(__file__).parent / "app.py"
     try:
         subprocess.run([sys.executable, "-m", "streamlit", "run", str(app_path)])
