@@ -7,14 +7,16 @@ from datetime import date
 import streamlit as st
 
 from tradingagents.default_config import DEFAULT_CONFIG
-from tradingagents.graph.checkpointer import clear_checkpoint
-from tradingagents.llm_clients.model_catalog import MODEL_OPTIONS
 from web.history import (
     clear_incomplete_task,
     get_history,
     get_incomplete_history,
     record_incomplete_task,
 )
+
+# 注意: checkpointer 与 model_catalog 不在这里导入 —— 它们会拉起整条 langgraph /
+# langsmith 依赖链(实测约 3.2s), 而首屏遮罩要在 sidebar 导入之前上屏.
+# 两者都只在函数体内用到, 见 _clear_analysis_artifacts / _render_llm_config.
 
 # Provider display names in recommended order
 _PROVIDERS: list[tuple[str, str]] = [
@@ -51,6 +53,8 @@ def _resolve_user_input(raw: str) -> tuple[str, str | None]:
 
 
 def _clear_analysis_artifacts(ticker: str, trade_date: str) -> None:
+    from tradingagents.graph.checkpointer import clear_checkpoint
+
     clear_incomplete_task(ticker, trade_date)
     clear_checkpoint(DEFAULT_CONFIG["data_cache_dir"], ticker, trade_date)
 
@@ -142,6 +146,7 @@ def _render_analysis_controls(raw_ticker: str, trade_date_value: date) -> None:
 
 def _render_llm_config() -> None:
     """Render LLM provider and model selection controls."""
+    from tradingagents.llm_clients.model_catalog import MODEL_OPTIONS
 
     provider_idx = st.selectbox(
         "LLM 供应商",
