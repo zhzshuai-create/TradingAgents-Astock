@@ -1,9 +1,12 @@
+import logging
 from typing import Annotated
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 import pandas as pd
 import yfinance as yf
 from .stockstats_utils import StockstatsUtils, yf_retry, load_ohlcv, filter_financials_by_date
+
+logger = logging.getLogger(__name__)
 
 def get_YFin_data_online(
     symbol: Annotated[str, "ticker symbol of the company"],
@@ -163,7 +166,7 @@ def get_stock_stats_indicators_window(
             ind_string += f"{date_str}: {value}\n"
         
     except Exception as e:
-        print(f"Error getting bulk stockstats data: {e}")
+        logger.warning("yfinance bulk stockstats failed for %s/%s: %s", symbol, indicator, e)
         # Fallback to original implementation if bulk method fails
         ind_string = ""
         curr_date_dt = datetime.strptime(curr_date, "%Y-%m-%d")
@@ -236,8 +239,9 @@ def get_stockstats_indicator(
             curr_date,
         )
     except Exception as e:
-        print(
-            f"Error getting stockstats indicator data for indicator {indicator} on {curr_date}: {e}"
+        logger.warning(
+            "yfinance stockstats indicator %s failed for %s on %s: %s",
+            indicator, symbol, curr_date, e,
         )
         return ""
 
@@ -298,6 +302,7 @@ def get_fundamentals(
         return header + "\n".join(lines)
 
     except Exception as e:
+        logger.warning("yfinance fundamentals failed for %s: %s", ticker, e)
         return f"Error retrieving fundamentals for {ticker}: {str(e)}"
 
 
@@ -330,6 +335,7 @@ def get_balance_sheet(
         return header + csv_string
         
     except Exception as e:
+        logger.warning("yfinance balance sheet failed for %s (%s): %s", ticker, freq, e)
         return f"Error retrieving balance sheet for {ticker}: {str(e)}"
 
 
@@ -362,6 +368,7 @@ def get_cashflow(
         return header + csv_string
         
     except Exception as e:
+        logger.warning("yfinance cash flow failed for %s (%s): %s", ticker, freq, e)
         return f"Error retrieving cash flow for {ticker}: {str(e)}"
 
 
@@ -394,6 +401,7 @@ def get_income_statement(
         return header + csv_string
         
     except Exception as e:
+        logger.warning("yfinance income statement failed for %s (%s): %s", ticker, freq, e)
         return f"Error retrieving income statement for {ticker}: {str(e)}"
 
 
@@ -418,4 +426,5 @@ def get_insider_transactions(
         return header + csv_string
         
     except Exception as e:
+        logger.warning("yfinance insider transactions failed for %s: %s", ticker, e)
         return f"Error retrieving insider transactions for {ticker}: {str(e)}"
