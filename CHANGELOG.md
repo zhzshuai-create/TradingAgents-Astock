@@ -15,6 +15,7 @@ Breaking changes within the 0.x line are called out explicitly.
 - **每标签页播一次的门控**：`sessionStorage` 记录已播状态，同标签页刷新/切模式不重播，新标签页重播；URL 加 `?noboot=1` 完全跳过；脚本崩溃时看门狗 6s 兜底放行（经变异测试验证）。
 - 验收门禁：AppTest 冒烟测试 + 4 个 Playwright 脚本（遮罩覆盖/动画时间线/门控 7 场景/崩溃兜底）。
 - **交易日志页懒加载**：进入"交易日志"页时若 8502 未运行，平台原地自动拉起 trade-journal 子进程（spinner 等待、双探活就绪判定），失败回落手动引导；启动/探活逻辑收敛为 `web/journal_service.py` 单一知识点，与 `run_all.bat` 共用。
+- **顶栏品牌 logo**：主界面顶栏左上角在 "AStock Pro" 字标前内联龙头 K 线 logo（透明底 data URI，亮暗主题通用，与启动遮罩同款）。
 
 ### 性能
 - 首屏重导入下沉：`web/app.py` 的 sidebar / 数据层导入移到 `set_page_config` 与遮罩下发之后；`web/components/sidebar.py` 的 checkpointer / model_catalog 导入下沉到函数内。交错 A/B 实测首屏合计快约 1.4s。
@@ -23,10 +24,13 @@ Breaking changes within the 0.x line are called out explicitly.
 
 ### 修复
 - `web/components/report_viewer.py` 未定义变量 `icon` 的 NameError（历史遗留，打开报告页即崩）。
+- 静态守卫 `tests/test_static_undefined_names.py` 两处 `subprocess.run` 补 `encoding=utf-8`：Windows 中文（GBK）环境下 reader 线程对中文输出抛 UnicodeDecodeError 的潜伏缺陷（CI 含 windows-latest）。
+- `y_finance.py` 7 处 + `yfinance_news.py` 2 处静默 `except` 补 `logger.warning`（2 处 `print` 一并转 logger）：降级行为不变，但失败不再无声——此前这两文件连 logger 都未 import。
 
 ### 变更
 - 程序图标换为"龙头 K 线"logo（`assets/app_icon.ico` 多尺寸重制 + 透明底母版 `logo-dragon.png`）；浏览器 favicon 由 📊 改为该图标。
 - 启动遮罩在 wordmark 上方同步淡入同款 logo（透明底 data URI 内联，亮暗主题通用）。
+- `CLAUDE.md` 4 处漂移更正（外部审计清单 P0）：仓库 URL、版本号改指 `pyproject.toml`、数据层路径 `a_stock/` 包、限流机制改为 `_EMRateLimiter` 令牌桶描述。
 
 ## [0.2.18] — 2026-09-13
 

@@ -562,6 +562,14 @@ pyproject.toml:
 
 此前日志必须外部先开(桌面 `AStock-UI.bat` 只起平台), 进日志页探空只能给引导。轮 4 把启动/探活逻辑收敛到 `web/journal_service.py`(路径 sibling 解析 / TCP+health 探活 / Popen 启动 / 双探活等就绪≥150ms), `launch.py --with-journal` 与日志页共用同一知识点。日志页进页时 8502 未跑则 spinner 内原地拉起, 失败回落原引导文案。孤儿进程策略: 留着下次秒开(平台退出不带走; 杀端口由 bat 兜底)。冒烟测试 autouse fixture 桩掉 `start_journal`, 防测试期真拉子进程。冷进走查实测: 点击→iframe 4.74s(含日志自举), 截图见会话目录 journal_autostart.png。
 
+### 轮 5(2026-09-27)：外部审计清单修复批 + 顶栏品牌 logo
+
+外部审计文档(`AStock-待修问题清单.md`, P0–P7)逐条对当前树核实: P0/P1/P2/P3/P4/P6 属实, P5 覆盖缺口属实但行数过期(a_stock 包现 2519 行非 2114), 基线 171 passed 非 170。本批修前三项: **P1** 静态守卫两处 `subprocess.run` 补 `encoding=utf-8`+`errors=replace`(Windows GBK 环境 reader 线程 UnicodeDecodeError 潜伏缺陷, CI 含 windows-latest); **P0** CLAUDE.md 4 处漂移(仓库 URL→zhzshuai-create; 版本号不再硬写改指 pyproject.toml 防复发; `a_stock.py`→`a_stock/` 包; 限流描述→`_EMRateLimiter` 令牌桶"锁只预约时隙"), L69 a-stock-data 外链无法本地核实保留待确认; **P2** `y_finance.py` 7 处 + `yfinance_news.py` 2 处静默 except 补 `logger.warning`(2 处 print 一并转 logger), 降级行为不变——这两文件连 logger 都没 import, 是降级链外唯一真会无声失败处(百度 PAE 下线空数据曾直到人工才发现)。未做项按清单序: P5 数据层解析测试 / P7 求职一页清单 / P4 桌面 bat / P3 theme 拆分 / P6 合规声明。
+
+同批顶栏品牌 logo: `web/app.py` 顶栏 col_logo 在 "AStock Pro" 文字前内联 `logo-dragon-192.png` 的 base64 data URI(同轮 3 遮罩方案, 自包含不走静态资源路由; 透明底亮暗通用), 30px 高对齐 brand-logo 字高。Playwright 1600×900 实测: 30×30 渲染、与品牌字同基线、列宽 146px 无溢出; 证据 `docs/boot-splash/evidence/topbar_logo.png`。桌面快捷方式图标同步换新: 仓库 `assets/app_icon.ico`(9/26 新版)覆盖桌面旧 `AStock-UI.ico`(9/13), 快捷方式指向不变。
+
+**留存清单(2026-09-27)**：`docs/boot-splash/evidence/topbar_logo.png`(顶栏 logo 实测截图); 审计清单本体在会话外路径 `D:\Documents\qwen-agent\...\AStock-待修问题清单.md`(未入库, 属外部输入)。接续入口: 本节 + 清单 P5 起步建议(signals.py 的 get_dragon_tiger_board / get_lockup_expiry fixture)。
+
 ---
 
 ## 风险与开放问题
