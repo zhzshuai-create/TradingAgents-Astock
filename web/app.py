@@ -5,6 +5,7 @@ AI多智能体分析 + 实时数据看板 | Powered by TradingAgents
 
 from __future__ import annotations
 
+import base64
 import sys
 import time
 from datetime import datetime
@@ -17,6 +18,11 @@ from dotenv import load_dotenv
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
+
+# 顶栏 logo 以 data URI 内联(同启动遮罩): 自包含, 不走 Streamlit 静态资源路由.
+_LOGO_URI = "data:image/png;base64," + base64.b64encode(
+    (_PROJECT_ROOT / "assets" / "logo-dragon-192.png").read_bytes()
+).decode("ascii")
 
 load_dotenv(_PROJECT_ROOT / ".env")
 
@@ -199,7 +205,8 @@ with st.sidebar:
 # 单行：logo | segmented nav | index quotes | theme
 col_logo, col_nav, col_index, col_theme = st.columns([1, 2.2, 3, 1.0], vertical_alignment="center")
 with col_logo:
-    st.markdown("""
+    st.markdown(f"""
+    <img class="topbar-logo" src="{_LOGO_URI}" alt="" />
     <span class="brand-logo">AStock</span>
     <span style="font-size:var(--font-lg); font-weight:800; color:var(--text);"> Pro</span>
     """, unsafe_allow_html=True)
@@ -220,6 +227,11 @@ with col_logo:
       font-size: 0.72rem; color: var(--muted);
       border: 1px solid var(--muted); border-radius: 999px;
       padding: 0.05rem 0.5rem; white-space: nowrap;
+    }
+    /* 透明底 PNG, 亮暗主题通用; 高度对齐 brand-logo 字高 */
+    .topbar-logo {
+      height: 30px; width: auto; vertical-align: middle;
+      margin-right: 8px; margin-top: -3px;
     }
     </style>
     """, unsafe_allow_html=True)
