@@ -13,6 +13,7 @@ python <repo>/tools/boot_verify/verify_boot_gating.py     # 门控 7 场景
 python <repo>/tools/boot_verify/verify_boot_fallback.py   # 崩溃兜底变异测试
 python <repo>/tools/boot_verify/round2_timeline.py        # 冷启动浏览器内时间线
 python <repo>/tools/boot_verify/round2_launcher_verify.py # launcher 并行自举 + 日志探活
+python <repo>/tools/boot_verify/verify_journal_autostart.py # 日志页懒加载冷进自动拉起
 ```
 
 默认对**本仓库**起服务（端口 8503/8504）。要对别的树跑：`ASTOCK_REPO=C:\path\to\tree`；
@@ -28,6 +29,7 @@ python <repo>/tools/boot_verify/round2_launcher_verify.py # launcher 并行自�
 | verify_boot_fallback | 遮罩后抛异常时, FALLBACK_MS 后遮罩自行放行（变异测试） |
 | round2_timeline | mask/play/ready/done/gone/script_end 六点时间线（进程冷重启 ×3） |
 | round2_launcher_verify | 双服务并行自举耗时 + 首帧切日志模式 iframe 直挂 + 遮罩时间线无回归 |
+| verify_journal_autostart | 8502 冷态进日志页: spinner 内自动拉起子进程, iframe 出且日志应用真渲染(截图); 预检要求 8502/8503 空闲 |
 
 ## 已知环境怪象（写新门禁前必读）
 
