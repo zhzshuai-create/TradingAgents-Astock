@@ -42,6 +42,9 @@ def test_no_undefined_names():
         cwd=str(PROJECT_ROOT),
         capture_output=True,
         text=True,
+        # Windows 中文环境 text=True 默认 GBK, ruff 输出含非 GBK 字节时 reader 线程会崩
+        encoding="utf-8",
+        errors="replace",
         timeout=180,
     )
     # ruff 通过时也会往 stdout 打 "All checks passed!", 所以只以退出码判定
@@ -57,7 +60,14 @@ def test_no_undefined_names():
 
 def test_ruff_itself_is_usable():
     """守卫不能因为 ruff 坏了而静默变绿."""
-    proc = subprocess.run([RUFF, "--version"], capture_output=True, text=True, timeout=30)
+    proc = subprocess.run(
+        [RUFF, "--version"],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=30,
+    )
     assert proc.returncode == 0, f"ruff 无法执行: {proc.stderr}"
     assert "ruff" in (proc.stdout + proc.stderr).lower()
     sys.stdout.write(f"  [ruff {proc.stdout.strip()}]\n")
