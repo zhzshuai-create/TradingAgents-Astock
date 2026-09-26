@@ -28,8 +28,11 @@ APP_TIMEOUT = 120
 def _stub_network(monkeypatch):
     """app.py 模块级会调 index_spot() 拉三大指数, 测试里必须打桩."""
     import web.data_functions as df
+    import web.journal_service as js
 
     monkeypatch.setattr(df, "index_spot", lambda: {}, raising=True)
+    # 日志页懒加载不得在测试期间真拉起 trade-journal 子进程
+    monkeypatch.setattr(js, "start_journal", lambda: None, raising=True)
 
 
 def _run_app(mode: str):

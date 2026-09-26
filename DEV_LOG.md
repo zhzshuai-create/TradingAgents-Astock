@@ -558,6 +558,10 @@ pyproject.toml:
 
 **留存清单(2026-09-26 固化进仓库, 会话目录产物不随会话消亡)**：`docs/boot-splash/STARTUP_ANIMATION_PLAN.md`(评估+九阶段方案)、`docs/boot-splash/evidence/`(终版亮暗截图 7 张 + 基线/阶段/交错 A/B/门禁 JSON 11 份)、`tools/boot_verify/`(6 个门禁 harness + process_logo 资产管线 + README; 硬编码路径已参数化为 `ASTOCK_REPO`/`ASTOCK_JOURNAL` env + `__file__` 默认, 证据落运行目录)。明日接续入口: 本 DEV_LOG 各「当前进展」节 + 上述 README。
 
+### 轮 4(2026-09-27)：交易日志页懒加载自动拉起
+
+此前日志必须外部先开(桌面 `AStock-UI.bat` 只起平台), 进日志页探空只能给引导。轮 4 把启动/探活逻辑收敛到 `web/journal_service.py`(路径 sibling 解析 / TCP+health 探活 / Popen 启动 / 双探活等就绪≥150ms), `launch.py --with-journal` 与日志页共用同一知识点。日志页进页时 8502 未跑则 spinner 内原地拉起, 失败回落原引导文案。孤儿进程策略: 留着下次秒开(平台退出不带走; 杀端口由 bat 兜底)。冒烟测试 autouse fixture 桩掉 `start_journal`, 防测试期真拉子进程。冷进走查实测: 点击→iframe 4.74s(含日志自举), 截图见会话目录 journal_autostart.png。
+
 ---
 
 ## 风险与开放问题

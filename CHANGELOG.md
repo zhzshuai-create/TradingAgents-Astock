@@ -14,6 +14,7 @@ Breaking changes within the 0.x line are called out explicitly.
 - **启动过渡动画（boot splash）**：双击启动到主界面呈现之间，全屏遮罩播放"7 个分析师节点逐个点亮 → 汇聚到投资决策节点 → 淡出"的过渡动画，盖住 Streamlit 冷启动 3~5s 的空白/转圈等待（遮罩自身 ~0.7s 上屏）。亮/暗主题自适应；`prefers-reduced-motion` 下自动跳过。
 - **每标签页播一次的门控**：`sessionStorage` 记录已播状态，同标签页刷新/切模式不重播，新标签页重播；URL 加 `?noboot=1` 完全跳过；脚本崩溃时看门狗 6s 兜底放行（经变异测试验证）。
 - 验收门禁：AppTest 冒烟测试 + 4 个 Playwright 脚本（遮罩覆盖/动画时间线/门控 7 场景/崩溃兜底）。
+- **交易日志页懒加载**：进入"交易日志"页时若 8502 未运行，平台原地自动拉起 trade-journal 子进程（spinner 等待、双探活就绪判定），失败回落手动引导；启动/探活逻辑收敛为 `web/journal_service.py` 单一知识点，与 `run_all.bat` 共用。
 
 ### 性能
 - 首屏重导入下沉：`web/app.py` 的 sidebar / 数据层导入移到 `set_page_config` 与遮罩下发之后；`web/components/sidebar.py` 的 checkpointer / model_catalog 导入下沉到函数内。交错 A/B 实测首屏合计快约 1.4s。
