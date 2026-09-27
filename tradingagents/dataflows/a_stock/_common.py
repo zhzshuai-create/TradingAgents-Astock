@@ -96,8 +96,20 @@ def _cache_dir() -> str:
     return d
 
 
+_NAME_MAP_LOCK = threading.Lock()
+
+
 def _build_name_code_map() -> tuple[dict[str, str], dict[str, str]]:
-    """Build name→code and code→name maps via mootdx (both SH & SZ markets)."""
+    """Build name→code and code→name maps via mootdx (both SH & SZ markets).
+
+    M7: 并行分析师(TA_PARALLEL_ANALYSTS=1)下 7 个线程会同时进入 —
+    check-then-set 必须持锁, 否则并发重复全市场 TCP 拉取 + 并发写坏磁盘缓存。
+    """
+    with _NAME_MAP_LOCK:
+        return _build_name_code_map_unlocked()
+
+
+def _build_name_code_map_unlocked() -> tuple[dict[str, str], dict[str, str]]:
     global _name_to_code, _code_to_name
     if _name_to_code is not None:
         return _name_to_code, _code_to_name
@@ -718,7 +730,9 @@ def _load_ohlcv_astock(symbol: str, curr_date: str) -> pd.DataFrame:
                 code, data, curr_date, start_date=None
             )
             if supplemented:
-                data.to_csv(cache_file, index=False, encoding="utf-8")
+                _tmp = cache_file + ".tmp"
+                data.to_csv(_tmp, index=False, encoding="utf-8")
+                os.replace(_tmp, cache_file)  # 原子替换: 并行分析师读到半截 CSV (M6)
             cutoff = pd.to_datetime(curr_date)
             return data[data["Date"] <= cutoff]
 
@@ -767,7 +781,9 @@ def _load_ohlcv_astock(symbol: str, curr_date: str) -> pd.DataFrame:
     df, _ = _supplement_stale_ohlcv_with_sina(code, df, curr_date, start_date=None)
 
     # Cache to disk
-    df.to_csv(cache_file, index=False, encoding="utf-8")
+    _tmp = cache_file + ".tmp"
+    df.to_csv(_tmp, index=False, encoding="utf-8")
+    os.replace(_tmp, cache_file)  # M6: 原子替换, 防并发读者读到半截 CSV
 
     # Filter by curr_date to prevent look-ahead bias
     cutoff = pd.to_datetime(curr_date)
