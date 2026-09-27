@@ -10,6 +10,7 @@ AStock Pro data functions — UI adapter layer.
 import math
 import re
 import json
+import logging
 import urllib.request
 from pathlib import Path
 
@@ -18,6 +19,8 @@ import pandas as pd
 
 from tradingagents.dataflows.a_stock import _common as _core
 from tradingagents.dataflows.a_stock import signals as _signals
+
+logger = logging.getLogger(__name__)
 
 UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
 
@@ -34,7 +37,8 @@ def tencent_quote(codes: list[str]) -> dict:
     """批量实时行情（腾讯 qt.gtimg.cn），失败返回 {}。"""
     try:
         return _core._tencent_quote(codes)
-    except Exception:
+    except Exception as e:
+        logger.warning("tencent_quote failed: %s", e, exc_info=True)
         return {}
 
 # ── 研报层 ────────────────────────────────────────────────
@@ -44,7 +48,8 @@ def ths_eps_forecast(code: str) -> pd.DataFrame:
     """同花顺一致预期 EPS，失败返回空 DataFrame。"""
     try:
         return _core._ths_eps_forecast(code)
-    except Exception:
+    except Exception as e:
+        logger.warning("ths_eps_forecast failed: %s", e, exc_info=True)
         return pd.DataFrame()
 
 # ── 信号层 ────────────────────────────────────────────────
@@ -99,7 +104,8 @@ def ths_hot_reason(date_str: str | None = None) -> pd.DataFrame:
         for k, v in enrich.items():
             df[k] = v
         return df
-    except Exception:
+    except Exception as e:
+        logger.warning("ths_hot_reason failed: %s", e, exc_info=True)
         return pd.DataFrame()
 
 @st.cache_data(ttl=86400, show_spinner=False)
@@ -136,7 +142,8 @@ def baidu_concept_blocks(code: str) -> dict:
                 elif "地域" in block_type:
                     result["region"].append(entry)
         return result
-    except Exception:
+    except Exception as e:
+        logger.warning("baidu_concept_blocks failed: %s", e, exc_info=True)
         return {"industry": [], "concept": [], "region": [], "concept_tags": []}
 
 # ── 北向资金 ──────────────────────────────────────────────
@@ -166,7 +173,8 @@ def hsgt_realtime() -> pd.DataFrame:
             "hgt_yi": hgt[:n] + [None] * (n - len(hgt)),
             "sgt_yi": sgt[:n] + [None] * (n - len(sgt)),
         })
-    except Exception:
+    except Exception as e:
+        logger.warning("hsgt_realtime failed: %s", e, exc_info=True)
         return pd.DataFrame()
 
 @st.cache_data(ttl=3600, show_spinner=False)
@@ -177,7 +185,8 @@ def load_northbound_history(n: int = 20) -> pd.DataFrame:
     try:
         df = pd.read_csv(path)
         return df.tail(n)
-    except Exception:
+    except Exception as e:
+        logger.warning("load_northbound_history failed: %s", e, exc_info=True)
         return pd.DataFrame()
 
 # ── 资金流向 / K线 ───────────────────────────────────────
@@ -200,13 +209,15 @@ def _get_kline_full(code: str) -> pd.DataFrame:
         klines = client.bars(symbol=code, category=4, offset=5000)
         if klines is not None and not klines.empty:
             return klines
-    except Exception:
+    except Exception as e:
+        logger.warning("_get_kline_full failed: %s", e, exc_info=True)
         pass
     from datetime import datetime as _dt
 
     try:
         df = _core._load_ohlcv_astock(code, _dt.now().strftime("%Y-%m-%d"))
-    except Exception:
+    except Exception as e:
+        logger.warning("_get_kline_full failed: %s", e, exc_info=True)
         return pd.DataFrame()
     if df.empty:
         return df
@@ -248,7 +259,8 @@ def get_minute_data(code: str, date_str: str | None = None) -> pd.DataFrame:
         if df is None or df.empty:
             return pd.DataFrame()
         return df
-    except Exception:
+    except Exception as e:
+        logger.warning("get_minute_data failed: %s", e, exc_info=True)
         return pd.DataFrame()
 
 def eastmoney_fund_flow_minute(code: str) -> list[dict]:
@@ -260,7 +272,8 @@ def eastmoney_fund_flow_minute(code: str) -> list[dict]:
     try:
         r = _core._em_get(url, params=params, headers=headers, timeout=10)
         d = r.json()
-    except Exception:
+    except Exception as e:
+        logger.warning("eastmoney_fund_flow_minute failed: %s", e, exc_info=True)
         return []
     rows = []
     for line in d.get("data", {}).get("klines", []):
@@ -304,7 +317,8 @@ def industry_comparison(top_n: int = 20) -> dict:
                 "leader_change": item.get("f136", 0),
             })
         return {"top": rows[:top_n], "bottom": rows[-top_n:], "total": len(rows)}
-    except Exception:
+    except Exception as e:
+        logger.warning("industry_comparison failed: %s", e, exc_info=True)
         return {"top": [], "bottom": [], "total": 0}
 
 # ── 新闻层 ────────────────────────────────────────────────
@@ -317,7 +331,8 @@ def cls_telegraph(page_size: int = 30) -> list[dict]:
     try:
         r = _core._requests.get(url, params=params, headers=headers, timeout=10)
         d = r.json()
-    except Exception:
+    except Exception as e:
+        logger.warning("cls_telegraph failed: %s", e, exc_info=True)
         return []
     rows = []
     for item in d.get("data", {}).get("roll_data", []):
@@ -345,7 +360,8 @@ def eastmoney_stock_news(code: str, page_size: int = 20) -> list[dict]:
         text = r.text
         json_str = text[text.index("(") + 1 : text.rindex(")")]
         d = json.loads(json_str)
-    except Exception:
+    except Exception as e:
+        logger.warning("eastmoney_stock_news failed: %s", e, exc_info=True)
         return []
     rows = []
     result = d.get("result", {})
@@ -415,9 +431,11 @@ def index_spot() -> dict:
                     result[raw_code]["price"] = float(vals[3]) if vals[3] else 0
                     result[raw_code]["change_pct"] = float(vals[32]) if vals[32] else 0
                     result[raw_code]["change_amt"] = float(vals[31]) if vals[31] else 0
-            except Exception:
+            except Exception as e:
+                logger.warning("index_spot failed: %s", e, exc_info=True)
                 continue
-    except Exception:
+    except Exception as e:
+        logger.warning("index_spot failed: %s", e, exc_info=True)
         pass
 
     return result
