@@ -1,5 +1,11 @@
 # Changes from Upstream TradingAgents
 
+> ⚠️ **时效声明（2026-09-28）**：本文件只覆盖 Week 1–7（上游 commit `7e9e7b8`，
+> 2026-05-04 → **2026-05-12**）的早期改动，且写作时数据层还是单体 `a_stock.py`
+> ——**该文件现已拆分为 `a_stock/` 包**（文中路径按当时状态保留，导航请认包名）。
+> **v0.2.5 之后的全部改动见 [CHANGELOG.md](CHANGELOG.md)**；与上游的分叉规模
+> 见 `git log upstream/main..master`。
+
 本文件记录本 Fork 相对于 [TauricResearch/TradingAgents](https://github.com/TauricResearch/TradingAgents) 上游 commit `7e9e7b8`（2026-05-04）的所有改动。
 
 ---

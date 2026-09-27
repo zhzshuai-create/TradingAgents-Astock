@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "Apache-2.0"}
 authors = [
-    {name = "simonlin1212", email = "simonlin1212@users.noreply.github.com"},
+    {name = "zhzshuai-create", email = "zhzshuai-create@users.noreply.github.com"},
 ]
 dependencies = [
     "langchain-core>=0.3.81",
