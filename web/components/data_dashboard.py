@@ -376,7 +376,7 @@ def render_data_mode() -> None:
                         if not klines.empty:
                             k30 = klines.tail(50).copy()  # 50 根算 MA，只显示最近 30 根
                             _show_candles(k30, display_tail=30, height=480)
-                            closes = k30["close"]
+                            closes = k30.tail(30)["close"]  # 涨幅只算显示窗内 30 根（H5: 原漏 tail, 实算约 50 日）
                             chg = (closes.iloc[-1] / closes.iloc[0] - 1) * 100
                             avg_vol = klines.tail(30)["vol"].mean()
                             chg_color = "var(--up)" if chg > 0 else "var(--down)"
