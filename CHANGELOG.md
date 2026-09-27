@@ -21,6 +21,7 @@ Breaking changes within the 0.x line are called out explicitly.
 - **顶栏品牌 logo**：主界面顶栏左上角在 "AStock Pro" 字标前内联龙头 K 线 logo（透明底 data URI，亮暗主题通用，与启动遮罩同款）。
 
 ### 性能
+- **个股估值骨架屏**：首载 2~8s 的阻塞抓取期（行情/估值/K 线 bundle）由转圈 spinner 升级为版式模拟的 shimmer 骨架（标题+6 估值卡+两栏+K线区块），复用主题 CSS 变量亮暗自适配；session 门控保证同股后续交互重跑（切 K 线周期等）不再渲染骨架、零闪烁。 占位在阻塞抓取前下发（探针页实测阻塞 6s 期间骨架可见）。
 - 首屏重导入下沉：`web/app.py` 的 sidebar / 数据层导入移到 `set_page_config` 与遮罩下发之后；`web/components/sidebar.py` 的 checkpointer / model_catalog 导入下沉到函数内。交错 A/B 实测首屏合计快约 1.4s。
 - 遮罩放行点定为"应用外壳下发完成"（sidebar / 顶栏 / 指数条），不再等脚本跑完，避免界面已可见后遮罩仍多停留数秒。
 - `web/launch.py` 去掉串行 `sleep(2)`：平台与交易日志双服务并行拉起（实测自举各 ~1.0s），端到端再 −2.0s；探活失败路径原有 warning 引导 + iframe 重连兜底不变。

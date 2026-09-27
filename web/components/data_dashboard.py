@@ -129,6 +129,44 @@ def _show_candles(kdf: pd.DataFrame, display_tail: int | None = None, height: in
     )
 
 
+# 个股估值首载骨架屏：模拟 标题 + 6 估值卡 + 左右两栏 + K线图 的版式。
+# 复用主题 CSS 变量（--line/--muted 等），亮暗主题自动适配，无需 JS 判断主题。
+_QUOTE_SKELETON_HTML = """
+<style>
+@keyframes sk-shimmer {
+  0%   { background-position: -420px 0; }
+  100% { background-position: 420px 0; }
+}
+.sk-block {
+  border-radius: 10px;
+  background: linear-gradient(90deg, var(--line) 25%, var(--muted) 45%, var(--line) 65%);
+  background-size: 420px 100%;
+  animation: sk-shimmer 1.3s infinite linear;
+  opacity: 0.35;
+}
+</style>
+<div style="padding: 0.25rem 0;">
+  <div class="sk-block" style="width:220px;height:28px;margin-bottom:0.9rem;"></div>
+  <div style="display:flex;gap:0.8rem;margin-bottom:0.9rem;">
+    <div class="sk-block" style="flex:1;height:84px;"></div>
+    <div class="sk-block" style="flex:1;height:84px;"></div>
+    <div class="sk-block" style="flex:1;height:84px;"></div>
+    <div class="sk-block" style="flex:1;height:84px;"></div>
+    <div class="sk-block" style="flex:1;height:84px;"></div>
+    <div class="sk-block" style="flex:1;height:84px;"></div>
+  </div>
+  <div style="display:flex;gap:0.8rem;margin-bottom:0.9rem;">
+    <div class="sk-block" style="flex:1;height:200px;"></div>
+    <div class="sk-block" style="flex:1;height:200px;"></div>
+  </div>
+  <div class="sk-block" style="width:100%;height:320px;"></div>
+  <div style="color:var(--muted);font-size:var(--font-sm);margin-top:0.6rem;">
+    正在加载 __CODE__ 的行情、估值与 K 线数据…
+  </div>
+</div>
+"""
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # Data Dashboard Mode
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -199,12 +237,20 @@ def render_data_mode() -> None:
         if not code:
             _render_market_overview()
         else:
-            with st.spinner("加载中..."):
-                quote = tencent_quote([code])
-                eps_df = ths_eps_forecast(code)
-                blocks = baidu_concept_blocks(code)
-                klines = get_kline_data(code)
-                news = eastmoney_stock_news(code, 8)
+            # 骨架屏：仅同股首次加载显示（慢速抓取 2~8s），后续重跑（切周期/换主题）
+            # 走缓存秒回，不再渲染骨架避免闪烁。抓取完成后用 ph.empty() 清除占位。
+            _sk_key = f"_quote_loaded_{code}"
+            ph = st.empty()
+            if not st.session_state.get(_sk_key):
+                with ph.container():
+                    st.markdown(_QUOTE_SKELETON_HTML.replace("__CODE__", code), unsafe_allow_html=True)
+            quote = tencent_quote([code])
+            eps_df = ths_eps_forecast(code)
+            blocks = baidu_concept_blocks(code)
+            klines = get_kline_data(code)
+            news = eastmoney_stock_news(code, 8)
+            st.session_state[_sk_key] = True
+            ph.empty()
 
             if code not in quote:
                 st.error(f"未找到 {code} 的行情数据")
