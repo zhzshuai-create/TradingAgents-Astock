@@ -1,0 +1,478 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AStock Pro 修复审查报告 · 对 v0.2.19 缺陷清单的逐条核实</title>
+<style>
+:root { --ink:#1a1a1a; --muted:#666; --line:#ddd; --bg:#fff; --soft:#f6f7f9;
+        --hi:#c92a2a; --mid:#e8590c; --low:#1971c2; }
+* { box-sizing:border-box; }
+html { -webkit-text-size-adjust:100%; }
+body { margin:0; padding:0; background:#eceef1; color:var(--ink);
+  font-family:"Segoe UI","Microsoft YaHei","PingFang SC","Hiragino Sans GB",
+              "Source Han Sans SC","Noto Sans CJK SC",sans-serif;
+  font-size:15px; line-height:1.78; }
+.page { max-width:960px; margin:0 auto; padding:56px 64px 96px; background:var(--bg);
+  box-shadow:0 0 24px rgba(0,0,0,.09); }
+h1 { font-size:30px; line-height:1.4; margin:0 0 6px; padding-bottom:16px;
+  border-bottom:3px solid var(--ink); letter-spacing:-.2px; }
+h2 { font-size:22px; margin:46px 0 14px; padding:8px 0 8px 14px;
+  border-left:5px solid var(--ink); background:var(--soft); }
+h3 { font-size:17px; margin:32px 0 10px; padding-bottom:6px; border-bottom:1px solid var(--line); }
+h3 code { font-size:15px; }
+p { margin:11px 0; }
+a { color:#1864ab; text-decoration:none; }
+a:hover { text-decoration:underline; }
+hr { border:0; border-top:1px solid var(--line); margin:38px 0; }
+blockquote { margin:18px 0; padding:12px 20px; background:var(--soft);
+  border-left:4px solid #adb5bd; color:#444; }
+blockquote p { margin:5px 0; }
+code { font-family:"Cascadia Code",Consolas,"SF Mono",Menlo,monospace; font-size:.88em;
+  background:#f1f3f5; padding:1.5px 5px; border-radius:3px; color:#c92a2a; }
+pre { background:#22252a; color:#e6e6e6; padding:15px 18px; border-radius:6px;
+  overflow-x:auto; font-size:13px; line-height:1.62; margin:14px 0; }
+pre code { background:none; color:inherit; padding:0; font-size:inherit; }
+table { border-collapse:collapse; width:100%; margin:16px 0; font-size:13.6px; }
+th, td { border:1px solid var(--line); padding:8px 11px; text-align:left;
+  vertical-align:top; word-break:break-word; overflow-wrap:anywhere; }
+th { background:var(--soft); font-weight:600; }
+tbody tr:nth-child(even) { background:#fbfbfc; }
+ul, ol { padding-left:26px; margin:11px 0; }
+li { margin:5px 0; }
+strong { font-weight:650; }
+@media print {
+  body { background:#fff; font-size:11.2pt; }
+  .page { max-width:none; margin:0; padding:0; box-shadow:none; }
+  h1 { font-size:21pt; } h2 { font-size:15pt; break-after:avoid; }
+  h3 { font-size:12.5pt; break-after:avoid; }
+  pre, table, blockquote { break-inside:avoid; }
+  tr, li { break-inside:avoid; }
+  pre { background:#f4f4f4 !important; color:#111 !important; border:1px solid #ccc;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  a { color:#111; }
+  @page { size:A4; margin:19mm 16mm 21mm; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+<h1 id="astock-pro-v0219">AStock Pro 修复审查报告 · 对 v0.2.19 缺陷清单的逐条核实</h1>
+<blockquote>
+<p>项目路径：<code>C:\Users\zhzsh\TradingAgents-astock</code>
+审查日期：2026-09-28
+审查对象：审计基线 <code>78a3ddb</code> → 当前 HEAD <code>87662e3</code>，共 <strong>12 个提交</strong>，工作区干净
+被审清单：<code>docs/AUDIT-v0.2.19-待修问题清单.md</code>（39 条：H1–H7 / M1–M16 / L1–L16）
+核查方式：逐条读 diff + 回到当前树 Read/Grep 复核 + 实跑测试套件</p>
+</blockquote>
+<p>本报告回答一个问题：<strong>清单里的 39 条，哪些真的修好了，哪些只是看起来修好了。</strong></p>
+<hr />
+<h2 id="0">0. 结论摘要</h2>
+<table>
+<thead>
+<tr>
+<th>状态</th>
+<th>条数</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>修复正确</strong></td>
+<td><strong>22</strong></td>
+<td>diff 与当前树双向核实，含新增测试钉子</td>
+</tr>
+<tr>
+<td><strong>部分修复</strong></td>
+<td><strong>5</strong></td>
+<td>H2、M12、M14、L6 —— 方向对但没做完，各自差在哪见第 3 节</td>
+</tr>
+<tr>
+<td><strong>修复无效</strong></td>
+<td><strong>1</strong></td>
+<td><strong>L12</strong> —— 代码改了但新分支不可达，暗色主题下行为与修复前完全相同。见第 2 节</td>
+</tr>
+<tr>
+<td><strong>未动</strong></td>
+<td><strong>11</strong></td>
+<td>见第 4 节</td>
+</tr>
+</tbody>
+</table>
+<p><strong>回归检查</strong>：<code>pytest tests/</code> <strong>174 passed + 61 subtests</strong>（基线 171 + 59，新增 3 个龙虎榜 fixture 用例）；<code>ruff check .</code> 全绿；无测试由绿转红。<strong>没有引入回归。</strong></p>
+<p><strong>总评</strong>：这批修复的质量高于平均水平——几乎每处都带根因注释（如 <code>_common.py:402</code> 把工行实测数字写进了注释），H1/H3/H4 三条还配了能复现缺陷的离线 fixture 测试。<strong>唯一的问题是 L12：修了一个不存在的开关。</strong> 另外有两条修复引入了新的边界行为（第 5 节），都不严重但应当知道。</p>
+<hr />
+<h2 id="1">1. 逐条核实表</h2>
+<p>状态图例：✅ 修复正确 ｜ ◐ 部分修复 ｜ ❌ 修复无效 ｜ ⬜ 未动</p>
+<h3 id="_1">高严重度</h3>
+<table>
+<thead>
+<tr>
+<th>条</th>
+<th>状态</th>
+<th>核实证据</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>H1 腾讯市值字段互换</td>
+<td>✅</td>
+<td><code>_common.py:399-405</code> 两位对调并附工行实测注释；<code>test_astock_parsing.py:137</code> 夹具改为 <code>2100.5 / 2800.7</code> 两个不同值，L175-178 增加方向断言 <code>float_mcap_yi &lt;= mcap_yi</code>——<strong>互换再发生会立刻红灯</strong></td>
+</tr>
+<tr>
+<td>H2 Web 断点续跑失效</td>
+<td>◐</td>
+<td><code>sidebar.py:295</code> 文案由"可继续"改为"重新分析"并注释说明原因——<strong>如实化了界面承诺</strong>；但 <code>_build_config()</code> 仍未设 <code>checkpoint_enabled</code>，续跑功能本身未打通。这是清单里"修好前先改文案"建议的正确执行，功能欠账仍在</td>
+</tr>
+<tr>
+<td>H3 龙虎榜机构动向双重静默</td>
+<td>✅</td>
+<td><code>signals.py:497-499</code> 预置 <code>buy_data/sell_data = None</code> + <code>list_failed</code> 标志；第 3 节失败时显式输出"数据获取失败"两档文案；裸 <code>except: pass</code> 换成 <code>logger.warning</code>。<code>test_dragon_tiger_fixtures.py:74-81</code> 断言第 1 节抛异常时输出同时含"机构动向"与"数据获取失败"</td>
+</tr>
+<tr>
+<td>H4 三处误用 safe_ticker_component</td>
+<td>✅</td>
+<td><code>signals.py:494/634/717</code> 全部改 <code>_common._normalize_ticker</code>，<code>safe_ticker_component</code> 的 import 已从 signals.py 移除；<code>test_dragon_tiger_fixtures.py:46-58</code> 断言 <code>600379.SH</code> 进 filter 前被规范成 <code>SECURITY_CODE="600379"</code> 且不含 <code>.SH</code></td>
+</tr>
+<tr>
+<td>H5 30日涨幅按 50 根算</td>
+<td>✅</td>
+<td><code>data_dashboard.py:383</code> <code>closes = k30.tail(30)["close"]</code>，与下一行 <code>avg_vol</code> 口径一致</td>
+</tr>
+<tr>
+<td>H6 归属链失真</td>
+<td>✅</td>
+<td><code>CHANGES_FROM_UPSTREAM.md:3-8</code> 加时效声明（只覆盖 Week 1–7、<code>a_stock.py</code> 已拆包、v0.2.5 后见 CHANGELOG）；<code>NOTICE:13-15</code> 数据源改为 mootdx + 六家直连并注明 akshare 移除；<code>NOTICE:20-21</code> 指针拆成"早期见 CHANGES_FROM_UPSTREAM / v0.2.5 后见 CHANGELOG"</td>
+</tr>
+<tr>
+<td>H7 桌面 bat 盲杀/硬编码</td>
+<td>⬜</td>
+<td><code>Desktop/AStock-UI.bat</code> 未改，且仍不在仓库内。清单里已注明"仅在准备分发时做"，可接受</td>
+</tr>
+</tbody>
+</table>
+<h3 id="_2">中严重度</h3>
+<table>
+<thead>
+<tr>
+<th>条</th>
+<th>状态</th>
+<th>核实证据</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>M1 主题桥首帧丢失</td>
+<td>✅</td>
+<td><code>trade_journal.py:35-52</code>：<code>send()</code> 返回布尔，<code>last</code> 仅在投递成功时更新（失败下个 tick 重发）；新增握手——日志侧就绪后发 <code>astock-theme-request</code>，桥监听 <code>window.parent</code> 立即回送。外部仓库 <code>trade-journal/app.py:638</code> 确有对应的 request 发送，<strong>两侧闭环</strong></td>
+</tr>
+<tr>
+<td>M2 postMessage 无 origin 校验</td>
+<td>⬜</td>
+<td>桥与日志侧均无 <code>ev.origin</code> 检查。清单已评估实际影响有限（载荷仅主题字符串且有白名单），保持开放合理</td>
+</tr>
+<tr>
+<td>M3 journal_alive 宽探活</td>
+<td>✅</td>
+<td><code>journal_service.py:29-39</code> 改为两次探测、间隔 1.5s，两次都拿不到 200 才判死。<strong>但引入了一个新边界，见第 5 节</strong></td>
+</tr>
+<tr>
+<td>M4 launch.py 未固定端口</td>
+<td>✅</td>
+<td><code>launch.py:39</code> 显式 <code>--server.port 8501</code></td>
+</tr>
+<tr>
+<td>M5 自启失败遗留孤儿进程</td>
+<td>✅</td>
+<td><code>trade_journal.py:74-76</code> 失败路径先 <code>proc.terminate()</code> 再提示</td>
+</tr>
+<tr>
+<td>M6 OHLCV 缓存非原子写</td>
+<td>✅</td>
+<td><code>_common.py:734-736</code> 与 <code>:785-787</code> 两处均改为临时文件 + <code>os.replace</code></td>
+</tr>
+<tr>
+<td>M7 name-code map 无锁</td>
+<td>✅</td>
+<td><code>_common.py:99-110</code> 新增 <code>_NAME_MAP_LOCK</code>，check-then-set 整段持锁，逻辑拆到 <code>_build_name_code_map_unlocked</code></td>
+</tr>
+<tr>
+<td>M8 data_functions 静默 except</td>
+<td>✅</td>
+<td>模块级 <code>logger</code> + 各函数 <code>logger.warning(..., exc_info=True)</code>，含 <code>index_spot</code> 等 UI 层自实现函数</td>
+</tr>
+<tr>
+<td>M9 北向快照无收盘守卫</td>
+<td>✅</td>
+<td><code>signals.py:226-229</code> <code>if datetime.now().strftime("%H%M") &gt;= "1505"</code> 才落盘。<strong>依赖本地时区，见第 5 节</strong></td>
+</tr>
+<tr>
+<td>M10 东财空结果负缓存</td>
+<td>✅</td>
+<td><code>_common.py:541-544</code> <code>if rows:</code> 才 set；<code>:519</code> 缓存键补 <code>columns</code></td>
+</tr>
+<tr>
+<td>M11 市场前缀 5 处各写一份</td>
+<td>⬜</td>
+<td>仍在：<code>_common.py:600</code>、<code>fundamentals.py:81</code>、<code>fundamentals.py:217</code>、<code>news.py:75</code>（第三种变体）。8 开头北交所仍会被路由成 <code>sz8xxxxx</code></td>
+</tr>
+<tr>
+<td>M12 pip-audit 观察模式</td>
+<td>◐</td>
+<td><code>ci.yml:22-24</code> 仍 <code>continue-on-error: true</code>，但注释补了已知通告名单（soupsieve/torch/urllib3）与<strong>复评期限 2026-12</strong>。从"无限期观察"变成"有期限的观察"，方向对</td>
+</tr>
+<tr>
+<td>M13 Docker 无 Web 入口</td>
+<td>⬜</td>
+<td>Dockerfile / docker-compose.yml 未改：仍 <code>ENTRYPOINT ["tradingagents"]</code>、无 EXPOSE/HEALTHCHECK/ports</td>
+</tr>
+<tr>
+<td>M14 数据层测试缺口</td>
+<td>◐</td>
+<td>新增 <code>tests/test_dragon_tiger_fixtures.py</code>（3 用例，离线 mock）——<strong>正是清单建议的起步点</strong>，且顺手把 H1 的夹具鉴别力修了。但 16 个公开函数里其余 13 个仍无直接测试</td>
+</tr>
+<tr>
+<td>M15 质量门不阻断、Trader/PM 盲</td>
+<td>⬜</td>
+<td><code>quality_gate.py</code> 未改；<code>data_quality_summary</code> 消费方仍只有 bull/bear researcher</td>
+</tr>
+<tr>
+<td>M16 作者归属冲突</td>
+<td>✅</td>
+<td><code>pyproject.toml:13</code> authors 改 zhzshuai-create；<code>NOTICE:2-3</code> 改为"Copyright zhzshuai-create / Based on … by Simon"，Apache 归属链完整且保留了上游与中间层声明</td>
+</tr>
+</tbody>
+</table>
+<h3 id="_3">低严重度</h3>
+<table>
+<thead>
+<tr>
+<th>条</th>
+<th>状态</th>
+<th>核实证据</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>L1 chart_utils 死代码</td>
+<td>✅</td>
+<td>文件已删除（-321 行）；全仓除文档外零引用</td>
+</tr>
+<tr>
+<td>L2 TTLCache docstring</td>
+<td>✅</td>
+<td><code>_common.py:290</code> 改为 "FIFO eviction（按插入时间逐出, 非 LRU）"</td>
+</tr>
+<tr>
+<td>L3 app.py 过期字面值</td>
+<td>✅</td>
+<td><code>:538</code> banner 改 <code>v0.2.19</code>；<code>:661</code> 回退值改 <code>"unknown"</code> 并注释防漂移</td>
+</tr>
+<tr>
+<td>L4 CLAUDE.md 启动命令</td>
+<td>✅</td>
+<td><code>CLAUDE.md:66</code> 改 <code>streamlit run web/app.py</code>，并补一句"launch.py 是会二次 spawn 的启动器"</td>
+</tr>
+<tr>
+<td>L5 DEV_LOG 待决策四项</td>
+<td>⬜</td>
+<td><code>DEV_LOG.md:588-591</code> 四个未勾选框原样保留</td>
+</tr>
+<tr>
+<td>L6 README 徽章</td>
+<td>◐</td>
+<td>两版 <code>alt="Version 0.2.19"</code> 已修、测试数徽章同步 174；<strong>但 <code>README.en.md:10</code> 仍是静态 <code>shields.io/badge/CI-passing</code>，CI 挂掉时英文版恒绿</strong></td>
+</tr>
+<tr>
+<td>L7 cached_call 死代码</td>
+<td>⬜</td>
+<td><code>_common.py:334</code> 仍在，docstring 仍引用不存在的 <code>_tencent_quote_raw</code></td>
+</tr>
+<tr>
+<td>L8 news 时间窗语义</td>
+<td>⬜</td>
+<td><code>news.py</code> 未改：解析失败的文章仍保留；<code>look_back_days</code> 仍只影响表头</td>
+</tr>
+<tr>
+<td>L9 scan_sectors akshare</td>
+<td>✅</td>
+<td>裸字符串改真注释并指认 <code>.[scripts]</code>；<code>pyproject.toml:50</code> 新增 <code>scripts = ["akshare"]</code> extra</td>
+</tr>
+<tr>
+<td>L10 generate_report 硬编码路径</td>
+<td>✅</td>
+<td><code>tools/generate_report.py:337</code> 改 <code>os.environ.get('ASTOCK_REPORT_OUT', 'A股科技板块投资分析报告.docx')</code></td>
+</tr>
+<tr>
+<td>L11 rangebreaks 只排周末</td>
+<td>⬜</td>
+<td><code>data_dashboard.py:120</code> 未改</td>
+</tr>
+<tr>
+<td>L12 蜡烛色硬编码亮色值</td>
+<td>❌</td>
+<td><strong>修复无效</strong>，见第 2 节</td>
+</tr>
+<tr>
+<td>L13 LLM 无默认超时</td>
+<td>✅</td>
+<td><code>openai_client.py:153-154</code> <code>llm_kwargs.setdefault("timeout", 120)</code></td>
+</tr>
+<tr>
+<td>L14 行业对比 docstring 不符</td>
+<td>⬜</td>
+<td><code>signals.py:715-717</code> docstring 与 "top/bottom" 文案未改</td>
+</tr>
+<tr>
+<td>L15 新浪兜底 volume 单位</td>
+<td>⬜</td>
+<td>未改，且仍未实测（清单第 8 节挂着）</td>
+</tr>
+<tr>
+<td>L16 并发/续跑只做静态断言</td>
+<td>⬜</td>
+<td>无新增并行图端到端测试；<code>test_parallel_analysts.py</code> 仍只断言拓扑</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="2-l12">2. 唯一一条修复无效：L12</h2>
+<p><strong>提交做了什么</strong>（<code>data_dashboard.py:83-88</code>）：</p>
+<pre><code class="language-python"># L12: 跟随当前主题的 --up/--down（亮 #e03131/#2f9e44, 暗 #ff6b6b/#51cf66）
+if st.session_state.get(&quot;theme&quot;) == &quot;dark&quot;:
+    up_c, dn_c = &quot;#ff6b6b&quot;, &quot;#51cf66&quot;
+else:
+    up_c, dn_c = &quot;#e03131&quot;, &quot;#2f9e44&quot;
+</code></pre>
+<p><strong>为什么无效</strong>：<code>st.session_state["theme"]</code> 在全仓<strong>只有一处写入</strong>——<code>web/app.py:67-68</code> 的初始化，且恒为 <code>"light"</code>：</p>
+<pre><code class="language-python">if &quot;theme&quot; not in st.session_state:
+    st.session_state[&quot;theme&quot;] = &quot;light&quot;
+</code></pre>
+<p>真实主题载体是浏览器侧的 <code>localStorage['astock-theme']</code> 与 <code>&lt;html&gt;</code> 的 class（<code>app.py:76-78</code> 读取、<code>:354-356</code> 的 rope 开关切换）。那个开关<strong>只写 localStorage 和 DOM class，不写 session_state，也不触发 rerun</strong>。</p>
+<p>所以 <code>st.session_state.get("theme") == "dark"</code> 在任何会话里都恒为 False，新加的分支<strong>不可达</strong>。暗色用户看到的蜡烛颜色与修复前逐像素相同。这不是"修得不够好"，是"修了一个不存在的开关"——与 H2 的病灶同型（界面/代码承诺了一个没有接线的状态）。</p>
+<p><strong>两个可行修法</strong>（按投入排序）：</p>
+<ol>
+<li><strong>诚实的最小修法</strong>：删掉条件分支，选一组在亮暗两主题下都可读的配色（现有的 <code>#e03131/#2f9e44</code> 在暗底上其实可辨，只是不如主题变量亮）。一行删除，消灭"看似跟随主题"的错觉。</li>
+<li><strong>真接通</strong>：rope 开关的 JS（<code>app.py:354-356</code>）在写 localStorage 的同时用 <code>history.replaceState</code> 把 <code>?theme=dark</code> 写进父页 URL；<code>app.py:67-68</code> 改为优先从 <code>st.query_params.get("theme")</code> 初始化 session_state。这样<strong>下一次任意 rerun</strong>（搜索、切 tab）就能拿到正确配色。代价是暗色切换后蜡烛颜色要等一次交互才跟上——但至少是真的在跟随。</li>
+</ol>
+<p>不建议维持现状：一段永远走不到的分支比没有分支更糟，它会让下一个读者以为主题联动已经做了。</p>
+<hr />
+<h2 id="3">3. 四条部分修复，各自差在哪</h2>
+<table>
+<thead>
+<tr>
+<th>条</th>
+<th>已完成</th>
+<th>欠账</th>
+<th>建议</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>H2</strong></td>
+<td>sidebar 文案改"重新分析"，界面不再承诺做不到的事</td>
+<td><code>_build_config()</code> 仍未开 <code>checkpoint_enabled</code>；<code>history.py:181</code> 的 docstring 仍写 "can be resumed from their checkpoint"，与文案自相矛盾</td>
+<td>要么开开关 + 补 Web→resume 集成测试，要么把 docstring 也改如实。<strong>文案和 docstring 二选一地撒谎是不行的</strong></td>
+</tr>
+<tr>
+<td><strong>M12</strong></td>
+<td>注释里写了已知通告名单与复评期限 2026-12</td>
+<td>仍 <code>continue-on-error: true</code>，CI 不会因漏洞变红</td>
+<td>期限到了必须转硬闸门；建议把期限写进 CHANGELOG 的 Unreleased，否则 12 月没人记得</td>
+</tr>
+<tr>
+<td><strong>M14</strong></td>
+<td>龙虎榜 3 个离线 fixture（含 H1 夹具鉴别力修复）</td>
+<td>其余 13 个公开函数仍无直接测试</td>
+<td>下一批建议 <code>get_lockup_expiry</code> + <code>get_industry_comparison</code>（清单里点名的两个），再补 <code>_tencent_quote</code> 以外的 fundamentals 三表</td>
+</tr>
+<tr>
+<td><strong>L6</strong></td>
+<td>两版 alt 文本、测试数徽章同步</td>
+<td><code>README.en.md:10</code> 静态 CI 徽章</td>
+<td>换成与中文版同一个 <code>badge.svg</code>，一行</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="4-11">4. 未动的 11 条</h2>
+<p>按"是否会产生错误结论"排序，前四条建议下一批处理：</p>
+<ol>
+<li><strong>M11</strong> 市场前缀 4 处各写一份 —— 8 开头北交所标的仍会被拼成 <code>sz8xxxxx</code> 查空。<strong>与 H4 同型：静默查空变成错误结论。</strong> 修法是让四处都走 <code>_get_prefix</code>。</li>
+<li><strong>M15</strong> 质量门评 F 不阻断、Trader/PM 看不到评级 —— 最终给买卖建议的两个角色在不知道输入质量的情况下决策。</li>
+<li><strong>L16</strong> 并行编排无运行时测试 —— CHANGELOG 声称的"质量门恰好一次"至今只有结构论证。</li>
+<li><strong>L8</strong> <code>get_global_news</code> 的 <code>look_back_days</code> 是装饰性参数 —— 参数语义与实现不符，属于会误导调用方的接口谎言。</li>
+<li>M2 origin 校验（影响有限，载荷变复杂前修）</li>
+<li>M13 Docker 无 Web 入口（决定容器化定位后再做）</li>
+<li>L5 DEV_LOG 待决策四项（纯文档，5 分钟）</li>
+<li>L7 <code>cached_call</code> 死代码（删）</li>
+<li>L11 节假日 rangebreaks（ cosmetic ）</li>
+<li>L14 行业对比 docstring（ cosmetic ）</li>
+<li>L15 新浪兜底 volume 单位（<strong>先实测再决定</strong>，清单第 8 节挂着核实办法）</li>
+</ol>
+<p>另有两条清单外、按设计搁置的：P3（theme.py 1,130 行内联 CSS）、P6（数据源合规声明——NOTICE 已修数据源列表，但 README 仍无"非官方接口/失效风险"的说明）。</p>
+<hr />
+<h2 id="5">5. 修复引入的两条新边界行为</h2>
+<p>都不严重，但属于"改完之后世界变了"，应当记录：</p>
+<p><strong>（1）M3 的双探活让"服务在跑但健康端点慢"变成"再拉一个进程"。</strong>
+旧逻辑：TCP 通但健康端点异常 → 判活 → 不拉起，交给 iframe 重连。
+新逻辑（<code>journal_service.py:29-39</code>）：两次探测都拿不到 200 → 判死 → <code>render_journal_mode</code> 调 <code>start_journal()</code> 再 spawn 一个 streamlit。
+若 8502 上真有一个<strong>在跑但 /_stcore/health 卡住</strong>的实例，新进程会抢不到端口。概率低（Streamlit 的 health 端点极轻），且比旧的"假 200 跳过启动得白屏"更可控——<strong>接受这个权衡是对的</strong>，但值得在 <code>journal_service.py</code> 的注释里写明，否则下次有人看到孤儿进程会以为是 M5 没修干净。</p>
+<p><strong>（2）M9 的收盘守卫依赖本地时区。</strong>
+<code>datetime.now().strftime("%H%M") &gt;= "1505"</code> 用的是机器本地时间。在 CST 机器上正确；在 UTC 机器上，北京时间 15:05 = UTC 07:05，守卫会在错误的时间窗放行/拦截。这与清单里未收录的一条潜在问题同源（数据层多处用本地 <code>datetime.now()</code> 判断交易日）。<strong>当前部署环境是 CST，所以不是缺陷；一旦容器化（M13）或换机部署就会变成真 bug。</strong> 建议与 M13 一起处理：容器里显式设 <code>TZ=Asia/Shanghai</code>，或把守卫改成基于数据时间戳而非墙钟。</p>
+<hr />
+<h2 id="6">6. 回归与规模核对</h2>
+<table>
+<thead>
+<tr>
+<th>项</th>
+<th>审计基线</th>
+<th>当前</th>
+<th>变化</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>pytest tests/</code></td>
+<td>171 passed + 59 subtests</td>
+<td><strong>174 passed + 61 subtests</strong></td>
+<td>+3 用例（龙虎榜 fixture），无转红</td>
+</tr>
+<tr>
+<td><code>ruff check .</code></td>
+<td>全绿</td>
+<td>全绿</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>web/chart_utils.py</code></td>
+<td>321 行死代码</td>
+<td>已删除</td>
+<td>-321 行</td>
+</tr>
+<tr>
+<td>README 徽章测试数</td>
+<td>171</td>
+<td>174</td>
+<td>已同步</td>
+</tr>
+<tr>
+<td>工作区</td>
+<td>干净</td>
+<td>干净</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="_4">附：审查方法</h2>
+<ol>
+<li><code>git log 78a3ddb..HEAD</code> 取 12 个提交，<code>git diff --stat</code> 定改动面（26 文件）。</li>
+<li>逐文件读 diff；对每条声称的修复，回到当前树用 Read/Grep 复核行号与上下文，<strong>不信提交信息</strong>。</li>
+<li>对 L12 这类"改了但可能没生效"的修复，额外追查其依赖的状态载体（<code>session_state["theme"]</code> 的写入点）——这是本轮唯一一条被判定无效的修复，靠的是追写入点而不是看 diff。</li>
+<li>外部仓库 <code>trade-journal/app.py</code> 的握手发送点（:638）单独核实，确认 M1 是双侧闭环而非单侧。</li>
+<li>实跑 <code>pytest tests/</code> 与 <code>ruff check .</code> 确认无回归。</li>
+</ol>
+</div>
+</body>
+</html>

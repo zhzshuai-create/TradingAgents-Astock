@@ -7,6 +7,7 @@ Extracted from app.py: all Streamlit rendering for the real-time data report mod
 from __future__ import annotations
 
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 import altair as alt
 from collections import Counter
@@ -80,11 +81,11 @@ def _candlestick_chart(
     if display_tail:
         k = k.tail(display_tail)
     up = (k["close"] >= k["open"]).tolist()
-    # L12: 跟随当前主题的 --up/--down（亮 #e03131/#2f9e44, 暗 #ff6b6b/#51cf66）
-    if st.session_state.get("theme") == "dark":
-        up_c, dn_c = "#ff6b6b", "#51cf66"
-    else:
-        up_c, dn_c = "#e03131", "#2f9e44"
+    # L12: 服务端拿不到 rope 切的实时主题（那是 localStorage+html class 的
+    # 客户端状态, 不触发 rerun）——暗色换色由 _CHART_THEME_BRIDGE_JS 在
+    # 客户端做 Plotly.restyle, 这里固定亮色基线并给 volume trace 带 customdata
+    # （0/1 方向数组）供桥重算涨跌色。
+    up_c, dn_c = "#e03131", "#2f9e44"
 
     fig = make_subplots(
         rows=2, cols=1, shared_xaxes=True,
@@ -105,6 +106,7 @@ def _candlestick_chart(
     fig.add_trace(go.Bar(
         x=k["datetime"], y=k["vol"],
         marker_color=[up_c if u else dn_c for u in up],
+        customdata=[1 if u else 0 for u in up],  # 方向数组: 主题桥 restyle 用
         name="成交量", showlegend=False,
     ), row=2, col=1)
 
@@ -131,6 +133,64 @@ def _show_candles(kdf: pd.DataFrame, display_tail: int | None = None, height: in
         use_container_width=True,
         config={"displayModeBar": False, "scrollZoom": True},
     )
+    components.html(_CHART_THEME_BRIDGE_JS, height=0)
+
+
+# 图表主题桥（L12 真正生效的修法）: Plotly 暴露在主文档（已实证
+# window.Plotly 为 object, 图表 div.js-plotly-plot 在主页面, 非 iframe），
+# 桥从 srcdoc 子 iframe 访问 window.parent.Plotly 做客户端 restyle ——
+# 服务端永远拿不到 rope 切的实时主题, 纯客户端换色才是唯一可靠路径。
+_CHART_THEME_BRIDGE_JS = """
+<style>/* 零高度 */</style>
+<script>
+(function(){
+  var PALETTE = {
+    light: { up:'#e03131', down:'#2f9e44', font:'#888888', grid:'rgba(128,128,128,0.18)' },
+    dark:  { up:'#ff6b6b', down:'#51cf66', font:'#aaaaaa', grid:'rgba(128,128,128,0.28)' }
+  };
+  function currentTheme() {
+    try {
+      var cls = window.parent.document.documentElement.className || '';
+      if (cls.indexOf('dark') >= 0) return 'dark';
+      if (cls.indexOf('light') >= 0) return 'light';
+    } catch (e) {}
+    try { return localStorage.getItem('astock-theme') || 'light'; } catch (e) { return 'light'; }
+  }
+  function apply(t) {
+    var P = window.parent, pal = PALETTE[t] || PALETTE.light;
+    if (!P || !P.Plotly) return;                     // plotly 库在主文档
+    var divs = P.document.querySelectorAll('div.js-plotly-plot');
+    for (var i = 0; i < divs.length; i++) {
+      var gd = divs[i];
+      if (!gd.data) continue;
+      for (var j = 0; j < gd.data.length; j++) {
+        var tr = gd.data[j], up = {};
+        if (tr.type === 'candlestick') {
+          up['increasing.line.color'] = pal.up;
+          up['increasing.fillcolor'] = pal.up;
+          up['decreasing.line.color'] = pal.down;
+          up['decreasing.fillcolor'] = pal.down;
+        } else if (tr.type === 'bar' && tr.customdata) {
+          up['marker.color'] = tr.customdata.map(function(u){ return u ? pal.up : pal.down; });
+        } else { continue; }
+        P.Plotly.restyle(gd, up, [j]);
+      }
+      P.Plotly.relayout(gd, {
+        'font.color': pal.font,
+        'xaxis.gridcolor': pal.grid, 'yaxis.gridcolor': pal.grid,
+        'xaxis2.gridcolor': pal.grid, 'yaxis2.gridcolor': pal.grid
+      });
+    }
+  }
+  var last = null;
+  setInterval(function() {
+    var t = currentTheme();
+    if (t !== last) { last = t; apply(t); }
+  }, 600);
+  apply(currentTheme());   // 首帧立即对齐
+})();
+</script>
+"""
 
 
 # 个股估值首载骨架屏：模拟 标题 + 6 估值卡 + 左右两栏 + K线图 的版式。

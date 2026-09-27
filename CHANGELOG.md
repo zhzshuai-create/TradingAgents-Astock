@@ -18,6 +18,11 @@ Breaking changes within the 0.x line are called out explicitly.
 ### 测试
 - **M14 龙虎榜 fixture 钉子**（3 个离线 mock 测试）：规范化进 filter / 机构席位聚合 / 失败显式可见；171→174
 
+### 返工（2026-09-28 审计批二复查）
+- **L12 真正生效**：前版读 `session_state["theme"]` 是不可达分支（该键恒 light，rope 只写 localStorage+html class 不触发 rerun）。实证 Plotly 暴露在主文档后改为**客户端 restyle 桥**：volume trace 带 customdata 方向数组，桥轮询主题对蜡烛/成交量/网格/字体做 `Plotly.restyle/relayout`——暗色预置与运行中切换双路径实测生效
+- **M3 判活回归 TCP 语义**：双探活让「服务在跑但 health 慢」变成重复 spawn 孤儿进程；「是否拉起」只看 TCP 绑定，health 职责归 wait_ready 双 200
+- **M9 收盘守卫显式 Asia/Shanghai 时区**：本地时区在 UTC 容器里会让守卫变成真 bug
+
 ### 修复（2026-09-28 审计批·二）
 - **M1 主题桥首帧丢失**：日志 iframe 冷启动数秒，首帧主题消息必然早于监听器注册——send 失败不再置位 last（下 tick 重发）+ 日志侧就绪后主动握手请求主题
 - **M3 journal_alive 健康端点异常复测一次再判死**（DEV_LOG 假 200 教训），单探宽判会白屏

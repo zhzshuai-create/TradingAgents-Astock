@@ -222,11 +222,15 @@ def get_northbound_flow(
             lines.append("No realtime data (non-trading hours or holiday)")
 
         if got_realtime:
-            today_str = datetime.now().strftime("%Y-%m-%d")
-            # M9: 仅收盘后(>=15:05)落盘 — 盘中调用会把分钟级累计值当当日 close
-            # 写进 northbound_daily.csv, 而该 CSV 是北向历史唯一来源, 脏一次永久留
-            if datetime.now().strftime("%H%M") >= "1505":
-                _save_northbound_snapshot(today_str, hgt_close, sgt_close)
+            # M9: 仅 A 股收盘后(北京时间 >=15:05)落盘 — 盘中调用会把分钟级
+            # 累计值当当日 close 写进 northbound_daily.csv, 而该 CSV 是北向
+            # 历史唯一来源, 脏一次永久留。显式北京时间: UTC 容器里本地时区
+            # 会让这条守卫变成真 bug。
+            from zoneinfo import ZoneInfo
+
+            now_cn = datetime.now(ZoneInfo("Asia/Shanghai"))
+            if now_cn.strftime("%H%M") >= "1505":
+                _save_northbound_snapshot(now_cn.strftime("%Y-%m-%d"), hgt_close, sgt_close)
 
         if include_history:
             history = _load_northbound_history(20)

@@ -26,16 +26,15 @@ def journal_alive() -> bool:
             pass
     except OSError:
         return False
-    # M3: DEV_LOG:553 记录过本机 loopback 假 200/假失败怪象 — 健康端点异常时
-    # 间隔复测一次再下结论, 单探宽判会跳过启动直接嵌 iframe 得白屏
-    for _ in range(2):
-        try:
-            with urllib.request.urlopen(f"{JOURNAL_URL}/_stcore/health", timeout=1.0) as r:
-                return r.status == 200
-        except Exception:
-            time.sleep(1.5)
-    # 两次都拿不到 200: TCP 却通 — 进程在但服务未就绪, 让调用方走拉起/等待路径
-    return False
+    # M3 返工: 「是否拉起」只看 TCP 有没有进程绑定 8502 — health 慢/假失败
+    # 时若据此判死会对已绑定端口重复 spawn(孤儿)。health 的职责是「就绪判定」
+    # (wait_ready 的双 200 探活, DEV_LOG:553 教训), 两件事分开。
+    # 注: 本机 loopback 假 200 是 health 端点层面的怪象, TCP connect 不受影响。
+    try:
+        with socket.create_connection((JOURNAL_HOST, JOURNAL_PORT), timeout=0.5):
+            return True
+    except OSError:
+        return False
 
 
 def start_journal() -> subprocess.Popen | None:
