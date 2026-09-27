@@ -2,12 +2,12 @@
 """自动化录制 AStock Web UI 演示 GIF（Playwright 逐帧截图 + PIL 合成）.
 
 前提：Web 已在本地运行（streamlit run web/app.py），或加 --launch 自动拉起。
-脚本按"分镜"执行：boot 动画 → AI 分析页 → 实时数据看板 → 强势股归因 →
-资金流 → 主题切换 → 侧边栏；每一步都是 best-effort，单个控件失败不中断
-录制，结束时打印每步成败报告。
+脚本按"分镜"执行：boot 动画 → AI 分析页 → 数据看板总览 → 搜索个股 →
+估值/K线（默认 30 日）→ 切 5 日 → 强势股归因 → 资金流 → 主题切换 → 侧边栏；
+每一步都是 best-effort，单个控件失败不中断录制，结束时打印每步成败报告。
 
-个股 K 线周期切换依赖页面顶部搜索框（自定义组件，Playwright 无法触达），
-自动化路线覆盖不到；需要 K 线镜头请走人工录制路线（docs/demo-script.md）。
+选型注记：st.radio 的 <input> 本体被 CSS 隐藏，要点可见的 label 文本；
+侧边栏与看板搜索框的 placeholder 都含 "300750"，用 "搜索代码" 前缀区分。
 
 用法：
     python scripts/make_demo_gif.py                          # 默认 http://localhost:8501
@@ -54,13 +54,24 @@ def click_radio(page, label: str) -> bool:
     return False
 
 
+def dash_search(page, query: str) -> bool:
+    """看板顶部搜索框（原生 text_input，placeholder 以"搜索代码"开头；
+    侧边栏输入框 placeholder 也含 300750，用前缀区分避免误填）"""
+    try:
+        inp = page.locator("input[placeholder^='搜索代码']").first
+        inp.fill(query)
+        inp.press("Enter")
+        return True
+    except Exception:
+        return False
+
+
 def click_zone_radio(page, label: str, wait_s: float = 8.0) -> bool:
     """看板分区 radio（个股估值/强势股归因/资金流/资讯）。
-    注意：个股 K 线区块由"顶部搜索框"（自定义组件，Playwright 无法触达）驱动，
-    自动化路线到不了 K 线周期切换，人工录制路线可以。"""
+    注意：st.radio 的 <input> 本体被 CSS 隐藏，必须点可见的 label 文本。"""
     for how in (
-        lambda: page.get_by_role("radio", name=label).first.click(timeout=3000),
         lambda: page.locator("label", has_text=label).first.click(timeout=3000),
+        lambda: page.get_by_text(label, exact=True).first.click(timeout=3000),
     ):
         try:
             how()
@@ -68,6 +79,22 @@ def click_zone_radio(page, label: str, wait_s: float = 8.0) -> bool:
             return True
         except Exception:
             continue
+    return False
+
+
+def click_kline_period(page, label: str, wait_s: float = 25.0) -> bool:
+    """个股 K 线周期切换（"单日详情/5日/30日/全部历史"）。
+    st.radio 的 <input> 被 CSS 隐藏，等它渲染后点可见的 label 文本。"""
+    deadline = time.time() + wait_s
+    while time.time() < deadline:
+        try:
+            lbl = page.locator("label", has_text=label)
+            if lbl.count():
+                lbl.first.click(timeout=3000)
+                return True
+        except Exception:
+            pass
+        time.sleep(0.5)
     return False
 
 
@@ -185,16 +212,26 @@ def main() -> int:
 
             ok = click_radio(page, "实时数据看板")
             report.append(("切换到数据看板", ok))
-            time.sleep(7 if ok else 2)           # 等看板数据（K线/指标）渲染
-            grab(page, frames, args.interval, 4)  # 分镜3: 实时数据看板
+            time.sleep(6 if ok else 2)           # 等看板总览渲染
+            grab(page, frames, args.interval, 3)  # 分镜3: 实时数据看板总览
+
+            ok_c = dash_search(page, "300750")
+            report.append(("搜索 300750", ok_c))
+            time.sleep(10 if ok_c else 2)        # 等估值卡 + K线（30日默认）渲染
+            grab(page, frames, args.interval, 4)  # 分镜4: 个股估值
+
+            ok_k = click_kline_period(page, "5日")
+            report.append(("K线切 5 日", ok_k))
+            time.sleep(3)
+            grab(page, frames, args.interval, 3)  # 分镜5: K线周期对比
 
             ok_z1 = click_zone_radio(page, "强势股归因", wait_s=4)
             report.append(("分区切强势股归因", ok_z1))
-            grab(page, frames, args.interval, 3)  # 分镜4: 强势股归因
+            grab(page, frames, args.interval, 3)  # 分镜6: 强势股归因
 
             ok_z2 = click_zone_radio(page, "资金流", wait_s=3)
             report.append(("分区切资金流", ok_z2))
-            grab(page, frames, args.interval, 2)  # 分镜5: 资金流
+            grab(page, frames, args.interval, 2)  # 分镜7: 资金流
 
             ok_t = toggle_theme(page)
             report.append(("主题切换", ok_t))

@@ -64,8 +64,41 @@ def _vol_chart(series: pd.Series) -> alt.Chart:
 # Data Dashboard Mode
 # ═══════════════════════════════════════════════════════════════════════════════
 
+def _dash_search_callback() -> None:
+    """看板顶部搜索框提交回调：代码/中文名 → data_code（与侧边栏同源 resolve_ticker）.
+
+    提交后清空输入框便于连续搜索；解析失败把错误写进 session 下一轮显示。
+    """
+    from tradingagents.dataflows.a_stock import resolve_ticker
+
+    raw = (st.session_state.get("dash_search_input") or "").strip()
+    st.session_state["dash_search_input"] = ""
+    if not raw:
+        return
+    try:
+        code = resolve_ticker(raw)
+    except ValueError as e:
+        st.session_state["dash_search_err"] = str(e)
+        return
+    st.session_state["dash_search_err"] = None
+    st.session_state["data_code"] = code
+    # 新代码 → 自动切个股估值分区，复用 render_data_mode 开头的 _last_data_code 门控
+
+
 def render_data_mode() -> None:
     code = st.session_state.get("data_code", "")
+
+    # ── 顶部搜索框（代码或中文名，Enter 提交）──
+    ss1, _ = st.columns([2, 3])
+    with ss1:
+        st.text_input(
+            "搜索股票", key="dash_search_input", on_change=_dash_search_callback,
+            placeholder="搜索代码或名称，如 300750 / 宁德时代",
+            label_visibility="collapsed",
+        )
+    if st.session_state.get("dash_search_err"):
+        st.error(f"搜索失败：{st.session_state.pop('dash_search_err')}")
+
     # 顶部搜索框输入新代码 → 自动切到个股估值分区
     if st.session_state.get("_last_data_code") != code:
         st.session_state["_last_data_code"] = code
