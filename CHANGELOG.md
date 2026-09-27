@@ -23,6 +23,7 @@ Breaking changes within the 0.x line are called out explicitly.
 - `web/launch.py` 去掉串行 `sleep(2)`：平台与交易日志双服务并行拉起（实测自举各 ~1.0s），端到端再 −2.0s；探活失败路径原有 warning 引导 + iframe 重连兜底不变。
 
 ### 修复
+- **顶栏中等宽度重叠修复**：1440/1600 视口下指数条内容（恒定 ~511px）在收缩后的列宽（1440 时 396px）里以 flex nowrap 居中布局向两侧出血 119px，与模式导航、模型徽标、主题开关重叠，且模式导航自身被挤成两行。现 ≤1680px 指数条独占第二行居中展示，顶栏各列 `min-width:0`、模型徽标省略号收缩；1920px 布局不变。纯 CSS 实现（`:has` 锁定含指数条的顶栏行），前后对比图见 README「响应式顶栏」。
 - `web/components/report_viewer.py` 未定义变量 `icon` 的 NameError（历史遗留，打开报告页即崩）。
 - 静态守卫 `tests/test_static_undefined_names.py` 两处 `subprocess.run` 补 `encoding=utf-8`：Windows 中文（GBK）环境下 reader 线程对中文输出抛 UnicodeDecodeError 的潜伏缺陷（CI 含 windows-latest）。
 - `y_finance.py` 7 处 + `yfinance_news.py` 2 处静默 `except` 补 `logger.warning`（2 处 `print` 一并转 logger）：降级行为不变，但失败不再无声——此前这两文件连 logger 都未 import。

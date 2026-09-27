@@ -452,6 +452,49 @@ COMBINATION_CSS = """
     .index-bar     { display: none; }
 }
 
+/* ── 顶栏防溢出（修复 1440/1600 宽度下指数条与模式导航/主题开关重叠）──
+   顶栏行 = 唯一含 .index-bar 的四列 horizontal block，用 :has 精确锁定。
+   根因：指数条内容恒定 ~511px+，列宽随视口收缩（1920=596px → 1440=396px），
+   flex nowrap + 居中布局使内容向两侧出血（1440 下 119px）。
+   方案：≤1680px 指数条整列换行到第二行居中，顶行三段各自吃满所需宽度。 */
+div[data-testid=stHorizontalBlock]:has(> div[data-testid=stColumn] .index-bar) > div[data-testid=stColumn] {
+    min-width: 0;   /* 允许列收缩到分配宽度，内容不再把列撑破 */
+}
+div[data-testid=stHorizontalBlock]:has(> div[data-testid=stColumn] .index-bar) .model-badge {
+    display: inline-block;   /* span→inline-block，否则 max-width/ellipsis 不生效 */
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+@media (max-width: 1680px) {
+    div[data-testid=stHorizontalBlock]:has(> div[data-testid=stColumn] .index-bar) {
+        flex-wrap: wrap;
+    }
+    div[data-testid=stHorizontalBlock]:has(> div[data-testid=stColumn] .index-bar) > div[data-testid=stColumn]:nth-child(1) {
+        flex: 0 0 auto !important;              /* logo：按内容收缩 */
+        width: auto !important;                 /* Streamlit 还内联了 width:%，须一并覆盖，否则品牌字换行 */
+    }
+    div[data-testid=stHorizontalBlock]:has(> div[data-testid=stColumn] .index-bar) > div[data-testid=stColumn]:nth-child(2) {
+        flex: 1 1 auto !important;              /* 模式导航：吃满剩余空间 */
+        width: auto !important;
+    }
+    div[data-testid=stHorizontalBlock]:has(> div[data-testid=stColumn] .index-bar) > div[data-testid=stColumn]:nth-child(3) {
+        flex: 1 1 100% !important;              /* 指数条：独占第二行 */
+        width: 100% !important;
+        order: 9;
+    }
+    div[data-testid=stHorizontalBlock]:has(> div[data-testid=stColumn] .index-bar) > div[data-testid=stColumn]:nth-child(4) {
+        flex: 0 0 auto !important;              /* 主题开关：靠右 */
+        width: auto !important;
+        margin-left: auto;
+    }
+    div[data-testid=stHorizontalBlock]:has(> div[data-testid=stColumn] .index-bar) .index-bar {
+        justify-content: center;
+        padding-top: 2px;
+    }
+}
+
+
 /* ── 底部声明 ── */
 .footer-note {
     text-align: left;

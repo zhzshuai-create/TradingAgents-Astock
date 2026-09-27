@@ -32,6 +32,14 @@ AI 多智能体 A 股投资研究平台，集成实时数据看板。基于 [Tau
   <img src="assets/boot-splash-dark.png" width="49%" alt="启动过渡动画-暗色"/>
 </p>
 
+### 响应式顶栏
+
+中等宽度（≤1680px）下指数条自动换行到第二行居中展示，模式导航、模型徽标、主题开关互不干扰；1920px 布局不变：
+
+<p align="center">
+  <img src="assets/topbar-responsive-fix.png" width="90%" alt="顶栏响应式修复：1440px 修复前后对比"/>
+</p>
+
 ### AI 分析报告模式
 
 7 个 AI 分析师（可开启并行加速）→ 多空辩论 → 风控评估 → 最终投资决策。
