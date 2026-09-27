@@ -134,7 +134,7 @@ def _tencent_payload(code: str, name: str) -> str:
         (33, "58.80"), (34, "52.96"),              # high/low
         (37, "205219"), (38, "1.85"),              # amount_wan/turnover
         (39, "25.3"), (43, "10.9"),                # pe_ttm/amplitude
-        (44, "2100.5"), (45, "2100.5"), (46, "5.6"),  # mcap/float_mcap/pb
+        (44, "2100.5"), (45, "2800.7"), (46, "5.6"),  # float_mcap/mcap/pb — 两值必须不同, 否则互换缺陷无鉴别力
         (47, "58.80"), (48, "48.11"),              # limit_up/limit_down
         (49, "2.1"), (52, "24.8"),                 # vol_ratio/pe_static
     ]:
@@ -172,8 +172,10 @@ class TestTencentQuoteParsing:
         assert q["turnover_pct"] == 1.85
         assert q["pe_ttm"] == 25.3
         assert q["amplitude_pct"] == 10.9
-        assert q["mcap_yi"] == 2100.5
+        assert q["mcap_yi"] == 2800.7
         assert q["float_mcap_yi"] == 2100.5
+        # 方向断言: 正常公司总市值 >= 流通市值, 防止字段再被换回去
+        assert q["float_mcap_yi"] <= q["mcap_yi"]
         assert q["pb"] == 5.6
         assert q["limit_up"] == 58.80
         assert q["limit_down"] == 48.11
