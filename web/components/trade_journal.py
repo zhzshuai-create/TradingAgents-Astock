@@ -2,6 +2,8 @@
 
 零侵入: 本模块不读写 trade-journal 的任何代码或数据 (data/ 隐私隔离由其自身负责),
 仅通过 URL 回显。8502 未启动时原地自动拉起(懒加载); 失败回落到手动引导, 不白屏。
+主题联动: 跨端口 iframe 属跨源, 通过 postMessage 把平台亮/暗主题同步给日志应用
+(日志侧监听器: trade-journal/app.py::_inject_theme_listener)。
 """
 from __future__ import annotations
 
@@ -10,12 +12,40 @@ import streamlit.components.v1 as components
 
 from web import journal_service
 
+# 主题联动桥：轮询平台父页的实时主题（rope 切换只改 html class，不触发 rerun），
+# 变化即 postMessage 给 8502 日志 iframe。srcdoc 桥 iframe 与父页同源，
+# 可读父文档 html class（与 app.py 主题加载器同一访问模式）。
+_THEME_BRIDGE_JS = """
+<script>
+(function(){
+  function currentTheme() {
+    try {
+      var cls = window.parent.document.documentElement.className || '';
+      if (cls.indexOf('dark') >= 0) return 'dark';
+      if (cls.indexOf('light') >= 0) return 'light';
+    } catch (e) {}
+    try { return localStorage.getItem('astock-theme') || 'light'; } catch (e) { return 'light'; }
+  }
+  function send(theme) {
+    var f = window.parent.document.querySelector('iframe[src*=":8502"]');
+    if (f && f.contentWindow) f.contentWindow.postMessage({type: 'astock-theme', theme: theme}, '*');
+  }
+  var last = null;
+  setInterval(function() {
+    var t = currentTheme();
+    if (t !== last) { last = t; send(t); }
+  }, 600);
+})();
+</script>
+"""
+
 
 def render_journal_mode() -> None:
     st.subheader("📖 交易日志 · 复盘看板")
     st.caption(
         "这是独立运行的 trade-journal 应用 (localhost:8502), 以 iframe 嵌入。"
         "资金曲线点击联动、持仓周期/仓位集中度/收益分布等指标都在下方。"
+        "亮/暗主题跟随平台自动同步。"
     )
     if not journal_service.journal_alive():
         with st.spinner("首次打开, 正在启动交易日志服务…"):
@@ -29,3 +59,4 @@ def render_journal_mode() -> None:
                 )
                 return
     components.iframe(journal_service.JOURNAL_URL, height=1800, scrolling=True)
+    components.html(_THEME_BRIDGE_JS, height=0)
