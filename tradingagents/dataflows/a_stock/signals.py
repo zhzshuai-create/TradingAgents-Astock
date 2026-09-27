@@ -223,7 +223,10 @@ def get_northbound_flow(
 
         if got_realtime:
             today_str = datetime.now().strftime("%Y-%m-%d")
-            _save_northbound_snapshot(today_str, hgt_close, sgt_close)
+            # M9: 仅收盘后(>=15:05)落盘 — 盘中调用会把分钟级累计值当当日 close
+            # 写进 northbound_daily.csv, 而该 CSV 是北向历史唯一来源, 脏一次永久留
+            if datetime.now().strftime("%H%M") >= "1505":
+                _save_northbound_snapshot(today_str, hgt_close, sgt_close)
 
         if include_history:
             history = _load_northbound_history(20)

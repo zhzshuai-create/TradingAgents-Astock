@@ -503,7 +503,7 @@ def _eastmoney_datacenter(
     sort_types: str = "-1",
 ) -> list[dict]:
     """东财数据中心统一查询 — 龙虎榜/解禁 共用. Cached 5min per unique query."""
-    cache_key = ("em_dc", report_name, filter_str, page_size, sort_columns, sort_types)
+    cache_key = ("em_dc", report_name, filter_str, page_size, sort_columns, sort_types, columns)
     cached = _data_cache.get(cache_key, 300)
     if cached is not None:
         return cached
@@ -525,7 +525,10 @@ def _eastmoney_datacenter(
         rows = d["result"]["data"]
     else:
         rows = []
-    _data_cache.set(cache_key, rows)
+    # M10: 空结果不进缓存 — 东财风控瞬时返空若被固化整个 TTL, 会叠加成
+    # 报告里一句理直气壮的「未上榜」; 另缓存键补 columns 防潜伏冲突
+    if rows:
+        _data_cache.set(cache_key, rows)
     return rows
 
 
