@@ -19,7 +19,9 @@ jobs:
         run: ruff check .
 
   audit:
-    # 依赖漏洞扫描：先观察模式（不阻塞 CI），评估完传递依赖升级空间后转硬闸门
+    # 依赖漏洞扫描：先观察模式（不阻塞 CI）。已知通告：soupsieve/torch/urllib3
+    # 传递依赖旧版被钉。复评期限 2026-12：评估升级路径后对 Critical/High
+    # 去掉 continue-on-error 转硬闸门。
     runs-on: ubuntu-latest
     continue-on-error: true
     steps:

@@ -18,6 +18,17 @@ Breaking changes within the 0.x line are called out explicitly.
 ### 测试
 - **M14 龙虎榜 fixture 钉子**（3 个离线 mock 测试）：规范化进 filter / 机构席位聚合 / 失败显式可见；171→174
 
+### 修复（2026-09-28 审计批·二）
+- **M1 主题桥首帧丢失**：日志 iframe 冷启动数秒，首帧主题消息必然早于监听器注册——send 失败不再置位 last（下 tick 重发）+ 日志侧就绪后主动握手请求主题
+- **M3 journal_alive 健康端点异常复测一次再判死**（DEV_LOG 假 200 教训），单探宽判会白屏
+- **M4 launch.py 显式固定 8501**：不传端口遇占用顺延 8502 撞日志服务
+- **M5 日志拉起失败分支补 proc.terminate**，不遗留半死进程占 8502
+- **M6 OHLCV 磁盘缓存原子写**（临时文件 + os.replace）：并行分析师下写者读者交错会读到半截 CSV
+- **M7 _build_name_code_map 加锁**：无锁 check-then-set 会并发重复全市场 TCP 拉取 + 写坏磁盘缓存
+- **L13 LLM 默认超时 120s**：SDK 默认 600s × 3 重试，单点可挂约 30 分钟
+- **L1 删除死代码 web/chart_utils.py**（321 行，全仓零引用、依赖未声明的 matplotlib、美股配色陷阱）
+- L2 _TTLCache docstring LRU→FIFO 如实；L3 版本回退值/banner 日期去硬编码；L4 CLAUDE.md 启动命令更正（launch.py 会二次 spawn）；L9 scan_sectors 字符串冒充注释转真注释 + akshare 声明为 [scripts] extra；L10 generate_report 硬编码桌面路径改环境变量；L12 蜡烛图涨跌色跟随主题；M12 audit job 注明 2026-12 复评期限
+
 ## [0.2.19] — 2026-09-28
 
 求职级打磨批次：看板搜索框与 OHLC 蜡烛图、交易日志主题联动、实验设施入仓、CI 首次全矩阵绿。

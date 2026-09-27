@@ -80,7 +80,11 @@ def _candlestick_chart(
     if display_tail:
         k = k.tail(display_tail)
     up = (k["close"] >= k["open"]).tolist()
-    up_c, dn_c = "#e03131", "#2f9e44"
+    # L12: 跟随当前主题的 --up/--down（亮 #e03131/#2f9e44, 暗 #ff6b6b/#51cf66）
+    if st.session_state.get("theme") == "dark":
+        up_c, dn_c = "#ff6b6b", "#51cf66"
+    else:
+        up_c, dn_c = "#e03131", "#2f9e44"
 
     fig = make_subplots(
         rows=2, cols=1, shared_xaxes=True,

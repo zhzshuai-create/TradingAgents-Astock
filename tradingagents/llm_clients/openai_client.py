@@ -150,6 +150,8 @@ class OpenAIClient(BaseLLMClient):
         # Default retry: 3 attempts with exponential backoff on 429/5xx/timeout.
         # Prevents a single transient provider error from killing the whole pipeline.
         llm_kwargs.setdefault("max_retries", 3)
+        # L13: 无默认超时时 SDK 走 600s, 3 次重试单点可挂约 30 分钟
+        llm_kwargs.setdefault("timeout", 120)
 
         # Provider-specific base URL and auth. An explicit base_url on the
         # client (e.g. a corporate proxy) takes precedence over the

@@ -287,7 +287,8 @@ def _get_mootdx_client():
 # ---------------------------------------------------------------------------
 
 class _TTLCache:
-    """Thread-safe TTL cache with LRU eviction.
+    """Thread-safe TTL cache with FIFO eviction (按插入时间逐出, 非 LRU —
+    get() 不刷新时间戳).
 
     Designed for caching API responses that are stable within a time window
     (e.g. quotes for 60s, EPS consensus for 1h, financial statements for 24h).

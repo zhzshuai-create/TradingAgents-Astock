@@ -47,6 +47,7 @@ AstockFork = "https://github.com/simonlin1212/TradingAgents-astock"
 
 [project.optional-dependencies]
 google = ["langchain-google-genai>=4.0.0"]
+scripts = ["akshare"]  # 仅 scan_sectors.py 独立脚本使用
 
 [project.scripts]
 tradingagents = "cli.main:app"

@@ -63,7 +63,7 @@ deepseek-v4-flash 等模型在 tool call 时可能返回中文股票名而非 6 
 - 改动前先跑 `python -m pytest tests/ -v` 确保不破坏现有测试
 - `safe_ticker_component` 是安全边界，任何绕过路径校验的改动必须慎重评估
 - 数据层新增接口遵循 `tradingagents/dataflows/interface.py` 的 vendor 路由模式
-- Web UI 改动在 `web/` 目录，用 `streamlit run web/launch.py` 本地测试
+- Web UI 改动在 `web/` 目录，用 `streamlit run web/app.py` 本地测试（launch.py 是会二次 spawn 的启动器，别在 streamlit 下跑它）
 
 ## 相关项目
 - [a-stock-data](https://github.com/simonlin1212/a-stock-data) — A 股 MCP 数据服务（Claude Code 用的 skill）

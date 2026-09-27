@@ -535,7 +535,7 @@ def _render_analysis_mode() -> None:
         st.markdown("""
         <div class="banner">
             <div class="banner__title">TradingAgents-Astock</div>
-            <div style="color:var(--muted);font-size:var(--font-sm);margin-top:2px;">v2026-05-22 · 7位AI分析师 → 多空辩论 → 风控评估 → 投资决策</div>
+            <div style="color:var(--muted);font-size:var(--font-sm);margin-top:2px;">v0.2.19 · 7位AI分析师 → 多空辩论 → 风控评估 → 投资决策</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -658,7 +658,7 @@ def _render_analysis_mode() -> None:
                 from importlib.metadata import version as _pkg_version
                 _ver = _pkg_version("tradingagents-astock")
             except Exception:
-                _ver = "0.2.18"
+                _ver = "unknown"  # 回退不硬写版本号, 防漂移 (L3)
             _prov = (st.session_state.get("llm_provider")
                      or _os.getenv("LLM_PROVIDER", "deepseek")).upper()
             _model = (st.session_state.get("deep_think_llm")

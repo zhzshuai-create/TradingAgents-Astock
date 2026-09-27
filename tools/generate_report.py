@@ -1,3 +1,4 @@
+import os
 import sys
 import io
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
@@ -333,6 +334,6 @@ run.font.color.rgb = RGBColor(0x99, 0x99, 0x99)
 add_para('本报告由AI辅助生成，仅供学习研究与个人决策参考，不构成任何投资建议。投资有风险，入市需谨慎。投资者应独立判断并承担投资风险。', size=9, color=(0x99, 0x99, 0x99))
 
 # Save
-output_path = 'C:/Users/zhzsh/Desktop/A股科技板块投资分析报告.docx'
+output_path = os.environ.get('ASTOCK_REPORT_OUT', 'A股科技板块投资分析报告.docx')  # L10: 不硬编码本机路径
 doc.save(output_path)
 print('Done: ' + output_path)

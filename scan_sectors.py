@@ -1,5 +1,5 @@
 """A股行业板块近一月涨跌幅排名"""
-"# 独立脚本：需自行 pip install akshare（不在 pyproject 依赖中）"
+# 独立脚本：需自行 pip install akshare（或 pip install -e ".[scripts]"）
 import time
 import sys
 from datetime import datetime, timedelta
