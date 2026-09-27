@@ -35,7 +35,8 @@ def main() -> None:
     # 日志早已监听; 即便探空也有 warning 引导 + iframe 重连兜底, 下次 rerun 自愈.
     app_path = Path(__file__).parent / "app.py"
     try:
-        subprocess.run([sys.executable, "-m", "streamlit", "run", str(app_path)])
+        # M4: 显式固定 8501 — 不传端口时 Streamlit 遇占用会顺延到 8502, 撞上同命令刚拉起的日志服务
+        subprocess.run([sys.executable, "-m", "streamlit", "run", str(app_path), "--server.port", "8501"])
     finally:
         if journal_proc and journal_proc.poll() is None:
             journal_proc.terminate()

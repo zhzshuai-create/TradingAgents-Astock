@@ -15,6 +15,12 @@ from web import journal_service
 # 主题联动桥：轮询平台父页的实时主题（rope 切换只改 html class，不触发 rerun），
 # 变化即 postMessage 给 8502 日志 iframe。srcdoc 桥 iframe 与父页同源，
 # 可读父文档 html class（与 app.py 主题加载器同一访问模式）。
+#
+# M1 修复要点：日志 iframe 元素虽先于本桥挂载，但其内部 Streamlit 冷启动需数秒、
+# 监听器注册更晚 —— 首帧消息必然丢失。对策双管：
+#   a) send() 失败（iframe 未就绪）不更新 last，下个 tick 继续重发；
+#   b) 握手：日志侧就绪后主动发 astock-theme-request，桥立即回送当前主题
+#      （桥监听挂在 window.parent 即平台主窗口上，与 postMessage 目标同层）。
 _THEME_BRIDGE_JS = """
 <script>
 (function(){
@@ -26,15 +32,29 @@ _THEME_BRIDGE_JS = """
     } catch (e) {}
     try { return localStorage.getItem('astock-theme') || 'light'; } catch (e) { return 'light'; }
   }
+  function findJournal() {
+    return window.parent.document.querySelector('iframe[src*=":8502"]');
+  }
   function send(theme) {
-    var f = window.parent.document.querySelector('iframe[src*=":8502"]');
-    if (f && f.contentWindow) f.contentWindow.postMessage({type: 'astock-theme', theme: theme}, '*');
+    var f = findJournal();
+    if (f && f.contentWindow) {
+      f.contentWindow.postMessage({type: 'astock-theme', theme: theme}, '*');
+      return true;
+    }
+    return false;
   }
   var last = null;
   setInterval(function() {
     var t = currentTheme();
-    if (t !== last) { last = t; send(t); }
+    if (t !== last) { if (send(t)) { last = t; } }
   }, 600);
+  // 握手：日志侧就绪后发 astock-theme-request，立即回送当前主题
+  try {
+    window.parent.addEventListener('message', function(ev){
+      var d = ev.data || {};
+      if (d.type === 'astock-theme-request') send(currentTheme());
+    });
+  } catch (e) {}
 })();
 </script>
 """
@@ -51,6 +71,9 @@ def render_journal_mode() -> None:
         with st.spinner("首次打开, 正在启动交易日志服务…"):
             proc = journal_service.start_journal()
             if proc is None or not journal_service.wait_ready():
+                # M5: 拉起失败不遗留半死进程占住 8502, 先回收再提示
+                if proc is not None:
+                    proc.terminate()
                 st.warning(
                     f"⚠️ 交易日志服务自动启动失败 ({journal_service.JOURNAL_URL})。\n\n"
                     "请手动启动后回到本页刷新：\n"

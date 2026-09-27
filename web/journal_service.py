@@ -26,12 +26,16 @@ def journal_alive() -> bool:
             pass
     except OSError:
         return False
-    try:
-        with urllib.request.urlopen(f"{JOURNAL_URL}/_stcore/health", timeout=1.0) as r:
-            return r.status == 200
-    except Exception:
-        # TCP 通了但健康端点没回 200, 仍认为进程在 (可能刚启动), 交给 iframe 重连
-        return True
+    # M3: DEV_LOG:553 记录过本机 loopback 假 200/假失败怪象 — 健康端点异常时
+    # 间隔复测一次再下结论, 单探宽判会跳过启动直接嵌 iframe 得白屏
+    for _ in range(2):
+        try:
+            with urllib.request.urlopen(f"{JOURNAL_URL}/_stcore/health", timeout=1.0) as r:
+                return r.status == 200
+        except Exception:
+            time.sleep(1.5)
+    # 两次都拿不到 200: TCP 却通 — 进程在但服务未就绪, 让调用方走拉起/等待路径
+    return False
 
 
 def start_journal() -> subprocess.Popen | None:
