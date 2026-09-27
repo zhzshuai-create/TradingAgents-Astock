@@ -497,6 +497,7 @@ def get_dragon_tiger_board(
     # 被裸 except 无声吞掉 (H3: 机构动向整节消失且日志无痕)
     buy_data: list | None = None
     sell_data: list | None = None
+    list_failed = False
 
     # 1. 上榜记录 — eastmoney datacenter direct HTTP
     try:
@@ -528,6 +529,7 @@ def get_dragon_tiger_board(
     except Exception as e:
         logger.warning("Dragon-tiger list failed for %s: %s", code, e)
         lines.append(f"龙虎榜列表查询失败: {e}")
+        list_failed = True
 
     # 2. 最近上榜的买卖席位 — eastmoney datacenter direct HTTP
     try:
@@ -579,22 +581,26 @@ def get_dragon_tiger_board(
 
     # 3. 机构动向 — 从买卖席位明细筛选机构专用席位 (OPERATEDEPT_CODE="0")
     try:
-        inst_buy = 0.0
-        inst_sell = 0.0
-        for detail, side in [(buy_data, "buy"), (sell_data, "sell")]:
-            for row in (detail or []):
-                if str(row.get("OPERATEDEPT_CODE", "")) == "0":
-                    if side == "buy":
-                        inst_buy += (row.get("BUY") or 0)
-                    else:
-                        inst_sell += (row.get("SELL") or 0)
-        if inst_buy > 0 or inst_sell > 0:
-            lines.append("\n## 机构动向")
-            lines.append(
-                f"  机构买入 {inst_buy/1e4:.0f} 万 "
-                f"| 卖出 {inst_sell/1e4:.0f} 万 "
-                f"| 净额 {(inst_buy - inst_sell)/1e4:.0f} 万"
-            )
+        if list_failed:
+            # 上游列表失败时机构动向无从统计 — 显式可见, 不许整节无声消失 (H3)
+            lines.append("\n## 机构动向\n  数据获取失败（龙虎榜接口异常），本次无法统计。")
+        else:
+            inst_buy = 0.0
+            inst_sell = 0.0
+            for detail, side in [(buy_data, "buy"), (sell_data, "sell")]:
+                for row in (detail or []):
+                    if str(row.get("OPERATEDEPT_CODE", "")) == "0":
+                        if side == "buy":
+                            inst_buy += (row.get("BUY") or 0)
+                        else:
+                            inst_sell += (row.get("SELL") or 0)
+            if inst_buy > 0 or inst_sell > 0:
+                lines.append("\n## 机构动向")
+                lines.append(
+                    f"  机构买入 {inst_buy/1e4:.0f} 万 "
+                    f"| 卖出 {inst_sell/1e4:.0f} 万 "
+                    f"| 净额 {(inst_buy - inst_sell)/1e4:.0f} 万"
+                )
     except Exception as e:
         logger.warning("Institutional flow aggregation failed for %s: %s", code, e)
         lines.append("\n机构动向：数据获取失败（席位明细接口异常），本次无法统计。")

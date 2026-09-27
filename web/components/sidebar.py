@@ -292,7 +292,9 @@ def render_sidebar() -> None:
                 "error": "出错",
                 "paused": "已暂停",
                 "running": "进行中",
-            }.get(entry.get("status"), "可继续")
+                # checkpoint_enabled 在 Web 路径从未开启(H2), 点「可继续」实际是
+                # 从零全额重跑 — 文案必须如实, 待续跑真正打通后再改回。
+            }.get(entry.get("status"), "重新分析")
             step = entry.get("checkpoint_step")
             step_label = f" · step {step}" if step is not None else ""
             label = f"{t}  ·  {d}  ·  {status_label}{step_label}"
