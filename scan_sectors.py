@@ -61,7 +61,8 @@ for i, (_, row) in enumerate(df_ind.iterrows()):
     time.sleep(1.5)
 
 if not sector_data:
-    print("未获取到数据"); sys.exit(1)
+    print("未获取到数据")
+    sys.exit(1)
 
 # ---- 排名 ----
 sorted_all = sorted(sector_data.items(), key=lambda x: x[1]["ret"], reverse=True)

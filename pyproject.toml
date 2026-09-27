@@ -69,3 +69,18 @@ markers = [
 filterwarnings = [
     "ignore::DeprecationWarning",
 ]
+
+[tool.ruff.lint.per-file-ignores]
+# 刻意的 E402（import 顺序是功能性的，勿"修复"）：
+# - cli/main.py: load_dotenv() 必须先于 langchain/tradingagents 导入（读取环境变量）
+# - web/app.py: 启动性能优化，重导入刻意下沉到 set_page_config/遮罩之后
+# - 各入口/工具脚本: sys.path 注入先于包导入
+"cli/main.py" = ["E402"]
+"web/app.py" = ["E402"]
+"run_deepseek.py" = ["E402"]
+"scan_sectors.py" = ["E402"]
+"test_data_quality.py" = ["E402"]
+"examples/*" = ["E402"]
+"tools/*" = ["E402"]
+"experiments/*" = ["E402"]
+"scripts/*" = ["E402"]

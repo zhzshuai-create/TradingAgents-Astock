@@ -74,7 +74,7 @@ def _setup_cjk_font() -> str:
     for name in _CJK_CANDIDATES:
         try:
             from matplotlib.font_manager import FontProperties
-            fp = FontProperties(family=name)
+            _fp = FontProperties(family=name)  # 构造即校验字体可用性
             return name
         except Exception:
             continue

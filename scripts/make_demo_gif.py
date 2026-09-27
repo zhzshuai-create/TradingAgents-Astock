@@ -22,7 +22,6 @@ import io
 import subprocess
 import sys
 import time
-from datetime import datetime
 from pathlib import Path
 
 PROJ = Path(__file__).resolve().parents[1]
