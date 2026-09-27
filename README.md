@@ -6,7 +6,7 @@
   <img src="https://img.shields.io/badge/license-Apache%202.0-orange?logo=apache" alt="Apache 2.0">
   <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey" alt="Platform">
   <a href="https://github.com/zhzshuai-create/TradingAgents-Astock/actions/workflows/ci.yml"><img src="https://github.com/zhzshuai-create/TradingAgents-Astock/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <img src="https://img.shields.io/badge/tests-164%20passed-brightgreen" alt="Tests">
+  <img src="https://img.shields.io/badge/tests-171%20passed-brightgreen" alt="Tests">
 </p>
 
 AI 多智能体 A 股投资研究平台，集成实时数据看板。基于 [TauricResearch/TradingAgents](https://github.com/TauricResearch/TradingAgents)（65K+ Stars）的深度定制版。
@@ -118,6 +118,36 @@ K 线（分时/5日/30日/全部）· 实时估值指标 · 概念板块 · 强�
 
 ---
 
+## 性能与实验
+
+以下均为 2026-09-13 基准实验的原始结果（模型：小米 MiMo `mimo-v2.5`，OpenAI 兼容协议直连；完整 7 分析师 pipeline）。复现脚本与原始数据见 [experiments/](experiments/)。
+
+### T1 · 分析师并行加速
+
+`TA_PARALLEL_ANALYSTS=1` 后 7 个分析师 fan-out 并发执行，墙钟时间约等于最慢的一个：
+
+| 标的 | 串行 | 并行 | 降幅 |
+|------|------|------|------|
+| 000858 五粮液 | 694.4s | 559.3s | **-19.5%** |
+| 601318 中国平安 | 684.3s | 508.2s | **-25.7%** |
+| 300750 宁德时代 | 8001.7s* | 466.7s | **-94.2%** |
+
+\* 300750 串行 8002s 为 LLM 服务商当日延迟方差异常（同配置其余串行约 690s）；并行 467s 恰好体现 fan-out 对单点延迟的天然免疫——最慢的分析师不再拖累整体。
+
+### T2 · 信号方向回测
+
+信号日 2026-08-13 产出 6 只标的的分析信号，以评估日 2026-09-11 收盘验证：
+
+- 方向性信号 **2 / 2 全部命中**（000001、601899 的 Overweight，区间分别 +4.36% / +0.16%）
+- 其余 4 条为 Hold（中性信号不参与方向命中，体现风控偏保守）
+- ⚠️ 样本量小（6 只 / 1 个月），仅用于验证系统能产出可回溯、可评估的方向性输出，不构成投资建议
+
+### 启动性能优化
+
+冷启动顶部 spinner 的"裸暴露"时长（用户看到加载圈但无内容的时间）从 **2.80s 降至 0.15s**（各 3 次取中位数，证据数据在 [docs/boot-splash/evidence/](docs/boot-splash/evidence/)）：启动过渡动画遮罩首帧 0.69s 盖住空白期，主内容就绪从 3.32s 提前到 2.13s。
+
+---
+
 ## 项目结构
 
 ```
@@ -149,7 +179,8 @@ TradingAgents-Astock/
 ├── examples/               # 示例脚本
 │   └── run_cases.py        # 批量分析样例
 ├── scripts/                # 工具脚本
-├── tests/                  # 测试（164+，含数据解析离线单测与图拓扑测试）
+├── experiments/            # 性能/回测实验脚本 + 基准原始数据（见 experiments/README.md）
+├── tests/                  # 测试（171，含数据解析离线单测与图拓扑测试）
 ├── .github/workflows/      # CI（ubuntu/windows × py3.10/3.13 测试矩阵）
 ├── assets/                 # 截图等静态资源
 ├── issues/                 # Issue 归档记录
