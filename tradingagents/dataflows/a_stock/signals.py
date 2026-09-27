@@ -8,7 +8,6 @@ from datetime import datetime
 
 import pandas as pd
 
-from ..utils import safe_ticker_component
 from . import _common
 from ._common import logger
 
@@ -489,11 +488,15 @@ def get_dragon_tiger_board(
         Formatted text with LHB appearances, top buyer/seller seats,
         and institutional activity.
     """
-    code = safe_ticker_component(ticker)
+    code = _common._normalize_ticker(ticker)
     end_dt = datetime.strptime(trade_date, "%Y-%m-%d")
     start_dt = end_dt - pd.Timedelta(days=look_back_days)
     start_date_str = start_dt.strftime("%Y-%m-%d")
     lines = [f"# 龙虎榜数据 | {code} | {trade_date} (近{look_back_days}日)"]
+    # 席位明细在后续 try 块内赋值; 预置 None 防止第 1 节失败后第 3 节 NameError
+    # 被裸 except 无声吞掉 (H3: 机构动向整节消失且日志无痕)
+    buy_data: list | None = None
+    sell_data: list | None = None
 
     # 1. 上榜记录 — eastmoney datacenter direct HTTP
     try:
@@ -592,8 +595,9 @@ def get_dragon_tiger_board(
                 f"| 卖出 {inst_sell/1e4:.0f} 万 "
                 f"| 净额 {(inst_buy - inst_sell)/1e4:.0f} 万"
             )
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("Institutional flow aggregation failed for %s: %s", code, e)
+        lines.append("\n机构动向：数据获取失败（席位明细接口异常），本次无法统计。")
 
     return "\n".join(lines)
 
@@ -618,7 +622,7 @@ def get_lockup_expiry(
         Formatted text with historical unlock records and upcoming
         expiry calendar with impact metrics.
     """
-    code = safe_ticker_component(ticker)
+    code = _common._normalize_ticker(ticker)
     lines = [f"# 限售解禁日历 | {code} | {trade_date}"]
 
     # 1. 历史解禁记录 — eastmoney datacenter direct HTTP
@@ -701,7 +705,7 @@ def get_industry_comparison(
         Formatted text with sector performance ranking, highlighting
         the sector the target stock belongs to.
     """
-    code = safe_ticker_component(ticker)
+    code = _common._normalize_ticker(ticker)
     lines = [
         _common._realtime_disclaimer(trade_date, "行业板块排名"),
         f"# 行业横向对比 | {code} | {trade_date}",
