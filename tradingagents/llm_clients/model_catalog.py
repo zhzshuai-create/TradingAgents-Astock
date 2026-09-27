@@ -96,6 +96,8 @@ MODEL_OPTIONS: ProviderModeOptions = {
             ("Custom model ID", "custom"),
         ],
         "deep": [
+            ("GLM-5.3", "glm-5.3"),
+            ("GLM-5.2", "glm-5.2"),
             ("GLM-5.1", "glm-5.1"),
             ("GLM-5", "glm-5"),
             ("Custom model ID", "custom"),

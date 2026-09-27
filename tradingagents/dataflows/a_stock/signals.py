@@ -289,12 +289,12 @@ def get_concept_blocks(
     code = _common._normalize_ticker(ticker)
 
     try:
-        url = (
-            "https://finance.pae.baidu.com/api/getrelatedblock"
-            f'?stock=[{{"code":"{code}","market":"ab","type":"stock"}}]'
-            "&finClientType=pc"
-        )
-        r = requests.get(url, headers=_BAIDU_PAE_HEADERS, timeout=10)
+        url = "https://finance.pae.baidu.com/api/getrelatedblock"
+        params = {
+            "stock": f'[{{"code":"{code}","market":"ab","type":"stock"}}]',
+            "finClientType": "pc",
+        }
+        r = requests.get(url, params=params, headers=_BAIDU_PAE_HEADERS, timeout=10)
         d = r.json()
 
         if str(d.get("ResultCode", -1)) != "0":
@@ -304,6 +304,16 @@ def get_concept_blocks(
             )
 
         result = d.get("Result", {})
+        # 百度风控会回 HTTP 200 + {"ResultCode": 0(整数), "Result": {"code": 403,
+        # "isCaptchaEnabled": true, "msg": "hit risk"}}。外层 str() 比较放它过关，
+        # 于是被风控当成"该股没有概念板块"——把错的事实喂给模型。必须单独识别。
+        # （移植自上游 a13f336）
+        if isinstance(result, dict) and result.get("code") == 403:
+            return (
+                f"Baidu PAE 风控拦截（hit risk），{code} 的概念板块本次取不到。"
+                "该接口会对 python-requests 的 TLS 指纹做风控，"
+                "稍后重试或人工核实。"
+            )
         categories = result.get(code, [])
         if not categories:
             return f"No concept/block data for {code}"
