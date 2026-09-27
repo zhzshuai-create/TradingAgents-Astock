@@ -4,11 +4,11 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/python-≥3.10-blue?logo=python" alt="Python >=3.10">
-  <img src="https://img.shields.io/badge/version-0.2.19-green" alt="Version 0.2.18">
+  <img src="https://img.shields.io/badge/version-0.2.19-green" alt="Version 0.2.19">
   <img src="https://img.shields.io/badge/license-Apache%202.0-orange?logo=apache" alt="Apache 2.0">
   <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey" alt="Platform">
   <a href="https://github.com/zhzshuai-create/TradingAgents-Astock/actions/workflows/ci.yml"><img src="https://img.shields.io/badge/CI-passing-brightgreen?logo=github" alt="CI"></a>
-  <img src="https://img.shields.io/badge/tests-171%20passed-brightgreen" alt="Tests">
+  <img src="https://img.shields.io/badge/tests-174%20passed-brightgreen" alt="Tests">
 </p>
 
 A multi-agent AI research platform for China A-shares, with a real-time market dashboard built in. A deep customization of [TauricResearch/TradingAgents](https://github.com/TauricResearch/TradingAgents) (65K+ Stars).
@@ -139,7 +139,7 @@ TradingAgents-Astock/
 ├── cli/                    # Interactive CLI
 ├── experiments/            # Benchmark scripts + raw results (see experiments/README.md)
 ├── scripts/                # Utilities (incl. make_demo_gif.py)
-├── tests/                  # 171 tests (offline unit + graph topology)
+├── tests/                  # 174 tests (offline unit + graph topology)
 ├── .github/workflows/      # CI (ubuntu/windows × py3.10/3.13)
 └── CHANGELOG.md
 ```

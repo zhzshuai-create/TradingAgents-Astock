@@ -4,11 +4,11 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/python-≥3.10-blue?logo=python" alt="Python >=3.10">
-  <img src="https://img.shields.io/badge/version-0.2.19-green" alt="Version 0.2.18">
+  <img src="https://img.shields.io/badge/version-0.2.19-green" alt="Version 0.2.19">
   <img src="https://img.shields.io/badge/license-Apache%202.0-orange?logo=apache" alt="Apache 2.0">
   <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey" alt="Platform">
   <a href="https://github.com/zhzshuai-create/TradingAgents-Astock/actions/workflows/ci.yml"><img src="https://github.com/zhzshuai-create/TradingAgents-Astock/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <img src="https://img.shields.io/badge/tests-171%20passed-brightgreen" alt="Tests">
+  <img src="https://img.shields.io/badge/tests-174%20passed-brightgreen" alt="Tests">
 </p>
 
 AI 多智能体 A 股投资研究平台，集成实时数据看板。基于 [TauricResearch/TradingAgents](https://github.com/TauricResearch/TradingAgents)（65K+ Stars）的深度定制版。
@@ -196,7 +196,7 @@ TradingAgents-Astock/
 │   └── run_cases.py        # 批量分析样例
 ├── scripts/                # 工具脚本
 ├── experiments/            # 性能/回测实验脚本 + 基准原始数据（见 experiments/README.md）
-├── tests/                  # 测试（171，含数据解析离线单测与图拓扑测试）
+├── tests/                  # 测试（174，含数据解析离线单测与图拓扑测试）
 ├── .github/workflows/      # CI（ubuntu/windows × py3.10/3.13 测试矩阵）
 ├── assets/                 # 截图等静态资源
 ├── issues/                 # Issue 归档记录

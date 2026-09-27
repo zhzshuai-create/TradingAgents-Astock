@@ -8,7 +8,15 @@ Breaking changes within the 0.x line are called out explicitly.
 
 ## [Unreleased]
 
-（暂无）
+### 修复（2026-09-28 审计批）
+- **H1 腾讯行情市值字段互换**：v[44]=流通市值、v[45]=总市值（工行实测确证），此前标反污染 LLM 提示词与看板卡片；夹具两值区分 + 方向断言钉死
+- **H5 看板「30日涨幅」实算约 50 日**：补 tail(30) 对齐显示窗口
+- **H4 龙虎榜/解禁/行业对比静默查空**：safe_ticker_component（路径安全边界）误当代码规范化器，带后缀代码原样进东财 filter——改 _normalize_ticker
+- **H3 机构动向双重静默**：席位明细失败后 NameError 被裸 except 吞掉、整节消失——预置 None + list_failed 显式失败行 + 兜底日志升级
+- **H2 防自欺**：Web 续跑未打通前，未完成任务文案「可继续」改「重新分析」
+
+### 测试
+- **M14 龙虎榜 fixture 钉子**（3 个离线 mock 测试）：规范化进 filter / 机构席位聚合 / 失败显式可见；171→174
 
 ## [0.2.19] — 2026-09-28
 
