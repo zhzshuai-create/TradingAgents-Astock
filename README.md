@@ -1,5 +1,7 @@
 # TradingAgents-Astock
 
+[English](README.en.md) | [简体中文](README.md)
+
 <p align="center">
   <img src="https://img.shields.io/badge/python-≥3.10-blue?logo=python" alt="Python >=3.10">
   <img src="https://img.shields.io/badge/version-0.2.18-green" alt="Version 0.2.18">
