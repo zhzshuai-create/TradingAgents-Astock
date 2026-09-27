@@ -452,6 +452,22 @@ COMBINATION_CSS = """
     .index-bar     { display: none; }
 }
 
+/* Streamlit 原生画布控件(st.dataframe/vega 图)不吃 CSS 暗色 — 画布像素
+   由前端库按亮色主题绘制。反色滤镜近似暗色(白底→深底, 红/绿经 hue-rotate
+   色相基本保持); plotly 蜡烛图由 restyle 桥精确换色, 不走此滤镜。 */
+html.dark [data-testid="stDataFrame"],
+html.dark [data-testid="stDataFrameResizable"],
+html.dark [data-testid="stVegaLiteChart"],
+html.dark [data-testid="stArrowVegaLiteChart"],
+/* 关键: glide-data-grid 的 canvas 是加速合成层, 会逃逸祖先元素的 filter
+   (实测: 容器 computed filter 已应用但画面不变) — 必须直接打在 canvas 上 */
+html.dark [data-testid="data-grid-canvas"] {
+    filter: invert(0.90) hue-rotate(180deg);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+
 /* ── 顶栏防溢出（修复 1440/1600 宽度下指数条与模式导航/主题开关重叠）──
    顶栏行 = 唯一含 .index-bar 的四列 horizontal block，用 :has 精确锁定。
    根因：指数条内容恒定 ~511px+，列宽随视口收缩（1920=596px → 1440=396px），

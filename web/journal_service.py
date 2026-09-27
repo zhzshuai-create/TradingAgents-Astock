@@ -14,7 +14,7 @@ import urllib.request
 from pathlib import Path
 
 JOURNAL_DIR = Path(__file__).resolve().parent.parent.parent / "trade-journal"
-JOURNAL_HOST = "localhost"
+JOURNAL_HOST = "127.0.0.1"  # 不用 localhost: 系统代理更可能劫持 localhost, 127.0.0.1 在绕过名单里更可靠
 JOURNAL_PORT = 8502
 JOURNAL_URL = f"http://{JOURNAL_HOST}:{JOURNAL_PORT}"
 
@@ -32,8 +32,15 @@ def journal_alive() -> bool:
     # 注: 本机 loopback 假 200 是 health 端点层面的怪象, TCP connect 不受影响。
     try:
         with socket.create_connection((JOURNAL_HOST, JOURNAL_PORT), timeout=0.5):
-            return True
+            pass
     except OSError:
+        return False
+    # 身份校验: TCP 通还不够 — 实际发生过端口被其它服务/代理占用时把垃圾响应
+    # 嵌进 iframe。Streamlit 的 health 端点固定返回纯文本 "ok", 以此确认身份。
+    try:
+        with urllib.request.urlopen(f"{JOURNAL_URL}/_stcore/health", timeout=1.0) as r:
+            return r.status == 200 and r.read() == b"ok"
+    except Exception:
         return False
 
 

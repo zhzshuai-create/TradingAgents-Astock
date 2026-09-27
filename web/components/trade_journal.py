@@ -66,6 +66,8 @@ def render_journal_mode() -> None:
         "这是独立运行的 trade-journal 应用 (localhost:8502), 以 iframe 嵌入。"
         "资金曲线点击联动、持仓周期/仓位集中度/收益分布等指标都在下方。"
         "亮/暗主题跟随平台自动同步。"
+        "⚠️ 若日志区出现乱码, 多为系统代理劫持了本地端口 — 请在代理软件中将"
+        " 127.0.0.1 / localhost 加入绕过名单。"
     )
     if not journal_service.journal_alive():
         with st.spinner("首次打开, 正在启动交易日志服务…"):
