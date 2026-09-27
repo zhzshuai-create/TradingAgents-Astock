@@ -60,6 +60,75 @@ def _vol_chart(series: pd.Series) -> alt.Chart:
     )
 
 
+def _candlestick_chart(
+    kdf: pd.DataFrame, display_tail: int | None = None, height: int = 480
+):
+    """OHLC 蜡烛图 + MA5/10/20 + 成交量副图（plotly，量价共享 x 轴联动缩放）。
+
+    涨红跌绿（A 股惯例，与主题 --up/--down 同色系）；背景透明适配亮暗主题；
+    周末 rangebreaks 去掉非交易日空隙。kdf 用于计算均线（建议 ≥25 根），
+    display_tail 控制实际只显示最近 N 根（如 5 日视图取 tail(25) 显示 5 根）。
+    """
+    import plotly.graph_objects as go
+    from plotly.subplots import make_subplots
+
+    k = kdf.copy()
+    k["datetime"] = pd.to_datetime(k["datetime"])
+    k["ma5"] = k["close"].rolling(5).mean()
+    k["ma10"] = k["close"].rolling(10).mean()
+    k["ma20"] = k["close"].rolling(20).mean()
+    if display_tail:
+        k = k.tail(display_tail)
+    up = (k["close"] >= k["open"]).tolist()
+    up_c, dn_c = "#e03131", "#2f9e44"
+
+    fig = make_subplots(
+        rows=2, cols=1, shared_xaxes=True,
+        row_heights=[0.74, 0.26], vertical_spacing=0.04,
+    )
+    fig.add_trace(go.Candlestick(
+        x=k["datetime"], open=k["open"], high=k["high"], low=k["low"], close=k["close"],
+        increasing_line_color=up_c, increasing_fillcolor=up_c,
+        decreasing_line_color=dn_c, decreasing_fillcolor=dn_c,
+        name="K线", showlegend=False,
+    ), row=1, col=1)
+    for name, color in (("ma5", "#f08c00"), ("ma10", "#1971c2"), ("ma20", "#9c36b5")):
+        fig.add_trace(go.Scatter(
+            x=k["datetime"], y=k[name], name=name.upper(),
+            line=dict(width=1.3, color=color),
+            hoverinfo="skip",
+        ), row=1, col=1)
+    fig.add_trace(go.Bar(
+        x=k["datetime"], y=k["vol"],
+        marker_color=[up_c if u else dn_c for u in up],
+        name="成交量", showlegend=False,
+    ), row=2, col=1)
+
+    fig.update_layout(
+        height=height, margin=dict(l=8, r=18, t=12, b=8),
+        hovermode="x unified",
+        legend=dict(orientation="h", yanchor="bottom", y=1.0, x=0),
+        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        font=dict(color="#888888", size=11),
+    )
+    fig.update_xaxes(
+        rangeslider_visible=False, gridcolor="rgba(128,128,128,0.18)",
+        rangebreaks=[dict(bounds=["sat", "mon"])],
+    )
+    fig.update_yaxes(gridcolor="rgba(128,128,128,0.18)", zeroline=False)
+    fig.update_yaxes(title_text="价格(元)", row=1, col=1)
+    fig.update_yaxes(title_text="成交量(手)", row=2, col=1)
+    return fig
+
+
+def _show_candles(kdf: pd.DataFrame, display_tail: int | None = None, height: int = 480) -> None:
+    st.plotly_chart(
+        _candlestick_chart(kdf, display_tail=display_tail, height=height),
+        use_container_width=True,
+        config={"displayModeBar": False, "scrollZoom": True},
+    )
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # Data Dashboard Mode
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -247,12 +316,9 @@ def render_data_mode() -> None:
                     # ── 5日 ───────────────────────────────────────
                     elif kline_period == "5日":
                         if not klines.empty:
-                            k5 = klines.tail(5).copy()
-                            close_s = k5.set_index("datetime")["close"]
-                            vol_s = k5.set_index("datetime")["vol"]
-                            st.altair_chart(_price_chart(close_s), use_container_width=True)
-                            st.altair_chart(_vol_chart(vol_s), use_container_width=True)
-                            closes5 = k5["close"]
+                            k5 = klines.tail(25).copy()   # 25 根算 MA，只显示最近 5 根
+                            _show_candles(k5, display_tail=5, height=420)
+                            closes5 = klines.tail(5)["close"]
                             chg5 = (closes5.iloc[-1] / closes5.iloc[0] - 1) * 100 if len(closes5) >= 2 else 0
                             chg5_color = "var(--up)" if chg5 > 0 else "var(--down)"
                             st.markdown(f'5日变动: <span style="color:{chg5_color};font-weight:700">{chg5:+.2f}%</span>', unsafe_allow_html=True)
@@ -262,14 +328,11 @@ def render_data_mode() -> None:
                     # ── 30日 ──────────────────────────────────────
                     elif kline_period == "30日":
                         if not klines.empty:
-                            k30 = klines.tail(30).copy()
-                            close_s = k30.set_index("datetime")["close"]
-                            vol_s = k30.set_index("datetime")["vol"]
-                            st.altair_chart(_price_chart(close_s), use_container_width=True)
-                            st.altair_chart(_vol_chart(vol_s), use_container_width=True)
+                            k30 = klines.tail(50).copy()  # 50 根算 MA，只显示最近 30 根
+                            _show_candles(k30, display_tail=30, height=480)
                             closes = k30["close"]
                             chg = (closes.iloc[-1] / closes.iloc[0] - 1) * 100
-                            avg_vol = k30["vol"].mean()
+                            avg_vol = klines.tail(30)["vol"].mean()
                             chg_color = "var(--up)" if chg > 0 else "var(--down)"
                             st.markdown(f'30日涨幅: <span style="color:{chg_color};font-weight:700">{chg:+.2f}%</span>  |  日均成交量: {avg_vol/10000:.1f}万手', unsafe_allow_html=True)
                         else:
@@ -281,8 +344,7 @@ def render_data_mode() -> None:
                             from web.data_functions import _get_kline_full
                             all_k = _get_kline_full(code)
                         if not all_k.empty:
-                            close_s = all_k.set_index("datetime")["close"]
-                            st.altair_chart(_price_chart(close_s), use_container_width=True)
+                            _show_candles(all_k, height=520)
                             closes_all = all_k["close"]
                             chg_all = (closes_all.iloc[-1] / closes_all.iloc[0] - 1) * 100 if len(closes_all) >= 2 else 0
                             chga_color = "var(--up)" if chg_all > 0 else "var(--down)"

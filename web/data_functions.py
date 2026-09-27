@@ -188,15 +188,32 @@ def _tdx_client():
 
 @st.cache_data(ttl=300, show_spinner=False)
 def _get_kline_full(code: str) -> pd.DataFrame:
-    """一次性拉取 5000 根日 K（约上市以来全部数据），供各周期切片复用。"""
+    """一次性拉取日 K 供各周期切片复用（mootdx 5000 根 ≈ 上市以来全部）。
+
+    mootdx（TCP 7709）不可达时静默返回空会导致看板 K 线全空，
+    因此回落核心数据层 `_load_ohlcv_astock`（800 根，mootdx 失败时
+    内部再走新浪 HTTP 兜底 + 本地 CSV 缓存），并把列名映射回看板
+    schema（datetime/open/high/low/close/vol）。
+    """
     try:
         client = _tdx_client()
         klines = client.bars(symbol=code, category=4, offset=5000)
-        if klines is None or klines.empty:
-            return pd.DataFrame()
-        return klines
+        if klines is not None and not klines.empty:
+            return klines
+    except Exception:
+        pass
+    from datetime import datetime as _dt
+
+    try:
+        df = _core._load_ohlcv_astock(code, _dt.now().strftime("%Y-%m-%d"))
     except Exception:
         return pd.DataFrame()
+    if df.empty:
+        return df
+    return df.rename(columns={
+        "Date": "datetime", "Open": "open", "High": "high",
+        "Low": "low", "Close": "close", "Volume": "vol",
+    })
 
 
 @st.cache_data(ttl=300, show_spinner=False)

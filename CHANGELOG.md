@@ -11,6 +11,7 @@ Breaking changes within the 0.x line are called out explicitly.
 启动体验改造：冷启动的空白等待改为品牌化过渡动画，首屏重导入下沉。
 
 ### 新增
+- **K 线升级为真蜡烛图（plotly）**：5日/30日/全部历史视图从收盘价折线升级为 OHLC 蜡烛图——MA5/10/20 均线叠加、成交量副图按当日涨跌着色、量价共享 x 轴联动缩放（滚轮缩放/平移）、`x unified` 十字光标提示、周末 rangebreaks 消除非交易日空隙；涨红跌绿与主题 `--up`/`--down` 同色系，背景透明适配亮暗主题。5日/30日 视图取 25/50 根计算均线后只显示最近 5/30 根，均线不再缺头。新增依赖 `plotly>=6.0`。
 - **看板顶部搜索框**：数据看板新增原生搜索输入（代码 / 中文名，如 "300750" 或 "宁德时代"，Enter 提交），解析与侧边栏同源（`resolve_ticker`），提交后自动切"个股估值"分区并显示面包屑；解析失败在框下给出错误提示。此前该入口仅存于提示文案（"在顶部搜索框输入…"），组件本体已在历史重构中丢失，用户只能从强势股列表间接进入个股视图，K 线区块在无搜索框时不可达。
 - **启动过渡动画（boot splash）**：双击启动到主界面呈现之间，全屏遮罩播放"7 个分析师节点逐个点亮 → 汇聚到投资决策节点 → 淡出"的过渡动画，盖住 Streamlit 冷启动 3~5s 的空白/转圈等待（遮罩自身 ~0.7s 上屏）。亮/暗主题自适应；`prefers-reduced-motion` 下自动跳过。
 - **每标签页播一次的门控**：`sessionStorage` 记录已播状态，同标签页刷新/切模式不重播，新标签页重播；URL 加 `?noboot=1` 完全跳过；脚本崩溃时看门狗 6s 兜底放行（经变异测试验证）。
@@ -24,6 +25,7 @@ Breaking changes within the 0.x line are called out explicitly.
 - `web/launch.py` 去掉串行 `sleep(2)`：平台与交易日志双服务并行拉起（实测自举各 ~1.0s），端到端再 −2.0s；探活失败路径原有 warning 引导 + iframe 重连兜底不变。
 
 ### 修复
+- **看板 K 线数据新浪兜底**：`_get_kline_full` 在 mootdx（TCP 7709）不可达时回落核心数据层 `_load_ohlcv_astock`（800 根 + 新浪 HTTP 兜底 + 本地 CSV 缓存），列名映射回看板 schema。此前 mootdx 故障期间看板 K 线/估值视图整块静默空白（实测当日 TDX 全网不可达，新浪通道出全量 OHLC 数据）。
 - **顶栏中等宽度重叠修复**：1440/1600 视口下指数条内容（恒定 ~511px）在收缩后的列宽（1440 时 396px）里以 flex nowrap 居中布局向两侧出血 119px，与模式导航、模型徽标、主题开关重叠，且模式导航自身被挤成两行。现 ≤1680px 指数条独占第二行居中展示，顶栏各列 `min-width:0`、模型徽标省略号收缩；1920px 布局不变。纯 CSS 实现（`:has` 锁定含指数条的顶栏行），前后对比图见 README「响应式顶栏」。
 - `web/components/report_viewer.py` 未定义变量 `icon` 的 NameError（历史遗留，打开报告页即崩）。
 - 静态守卫 `tests/test_static_undefined_names.py` 两处 `subprocess.run` 补 `encoding=utf-8`：Windows 中文（GBK）环境下 reader 线程对中文输出抛 UnicodeDecodeError 的潜伏缺陷（CI 含 windows-latest）。
