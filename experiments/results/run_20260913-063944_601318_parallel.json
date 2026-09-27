@@ -1,0 +1,21 @@
+{
+  "ticker": "601318",
+  "trade_date": "2026-09-11",
+  "mode": "parallel",
+  "wall_seconds": 508.2,
+  "llm_calls": 47,
+  "tool_calls": 41,
+  "tokens_in": 641269,
+  "tokens_out": 34705,
+  "signal": "Hold",
+  "error": null,
+  "git_head": "c5f7d6f3363fc77ede0e158628a9697f559f6a7f",
+  "repo_dirty_after": false,
+  "ran_at": "2026-09-13 06:39:44",
+  "models": {
+    "provider": "deepseek",
+    "deep_think_llm": "mimo-v2.5",
+    "quick_think_llm": "mimo-v2.5"
+  },
+  "parallel_analysts": true
+}

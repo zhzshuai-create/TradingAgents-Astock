@@ -1,0 +1,21 @@
+{
+  "ticker": "000858",
+  "trade_date": "2026-09-11",
+  "mode": "parallel",
+  "wall_seconds": 559.3,
+  "llm_calls": 40,
+  "tool_calls": 34,
+  "tokens_in": 344616,
+  "tokens_out": 36446,
+  "signal": "Hold",
+  "error": null,
+  "git_head": "c5f7d6f3363fc77ede0e158628a9697f559f6a7f",
+  "repo_dirty_after": false,
+  "ran_at": "2026-09-13 03:44:44",
+  "models": {
+    "provider": "deepseek",
+    "deep_think_llm": "mimo-v2.5",
+    "quick_think_llm": "mimo-v2.5"
+  },
+  "parallel_analysts": true
+}

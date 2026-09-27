@@ -1,0 +1,70 @@
+{
+  "signal_date": "2026-08-13",
+  "eval_date": "2026-09-11",
+  "n_total": 6,
+  "n_directional": 2,
+  "n_hit": 2,
+  "hit_rate_pct": 100.0,
+  "runs": [
+    {
+      "ticker": "000001",
+      "signal": "Overweight",
+      "direction": "bullish",
+      "close_signal_day": 11.25,
+      "close_eval_day": 11.74,
+      "change_pct": 4.36,
+      "hit": true,
+      "wall_seconds": 547.0
+    },
+    {
+      "ticker": "000333",
+      "signal": "Hold",
+      "direction": "neutral",
+      "close_signal_day": 84.19,
+      "close_eval_day": 86.26,
+      "change_pct": 2.46,
+      "hit": null,
+      "wall_seconds": 623.5
+    },
+    {
+      "ticker": "002594",
+      "signal": "Hold",
+      "direction": "neutral",
+      "close_signal_day": 89.71,
+      "close_eval_day": 84.0,
+      "change_pct": -6.36,
+      "hit": null,
+      "wall_seconds": 579.4
+    },
+    {
+      "ticker": "600036",
+      "signal": "Hold",
+      "direction": "neutral",
+      "close_signal_day": 38.77,
+      "close_eval_day": 41.35,
+      "change_pct": 6.65,
+      "hit": null,
+      "wall_seconds": 531.8
+    },
+    {
+      "ticker": "600519",
+      "signal": "Hold",
+      "direction": "neutral",
+      "close_signal_day": 1355.29,
+      "close_eval_day": 1275.16,
+      "change_pct": -5.91,
+      "hit": null,
+      "wall_seconds": 583.6
+    },
+    {
+      "ticker": "601899",
+      "signal": "Overweight",
+      "direction": "bullish",
+      "close_signal_day": 32.21,
+      "close_eval_day": 32.26,
+      "change_pct": 0.16,
+      "hit": true,
+      "wall_seconds": 684.0
+    }
+  ]
+}

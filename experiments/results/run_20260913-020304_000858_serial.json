@@ -1,0 +1,21 @@
+{
+  "ticker": "000858",
+  "trade_date": "2026-09-11",
+  "mode": "serial",
+  "wall_seconds": 697.2,
+  "llm_calls": 29,
+  "tool_calls": 46,
+  "tokens_in": 335797,
+  "tokens_out": 97669,
+  "signal": "Hold",
+  "error": null,
+  "git_head": "a506ac4c5adc8d3733c83a4c40ba9ef75ae5b601",
+  "repo_dirty_after": false,
+  "ran_at": "2026-09-13 02:03:04",
+  "models": {
+    "provider": "deepseek",
+    "deep_think_llm": "deepseek-v4-pro",
+    "quick_think_llm": "deepseek-v4-flash"
+  },
+  "parallel_analysts": false
+}

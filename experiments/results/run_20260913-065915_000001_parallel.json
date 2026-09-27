@@ -1,0 +1,21 @@
+{
+  "ticker": "000001",
+  "trade_date": "2026-08-13",
+  "mode": "parallel",
+  "wall_seconds": 547.0,
+  "llm_calls": 54,
+  "tool_calls": 43,
+  "tokens_in": 498838,
+  "tokens_out": 37414,
+  "signal": "Overweight",
+  "error": null,
+  "git_head": "c5f7d6f3363fc77ede0e158628a9697f559f6a7f",
+  "repo_dirty_after": false,
+  "ran_at": "2026-09-13 06:59:15",
+  "models": {
+    "provider": "deepseek",
+    "deep_think_llm": "mimo-v2.5",
+    "quick_think_llm": "mimo-v2.5"
+  },
+  "parallel_analysts": true
+}
