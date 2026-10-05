@@ -13,6 +13,7 @@ Breaking changes within the 0.x line are called out explicitly.
 - **历史分时超窗自动回退 5 分钟K线**：新增 `get_minute_history`（mootdx 历史分时，TTL 1h，实测保留期长达数年）+ `_em_5min_bars`（东财 push2his klt=5，服务端仅保留近约 31 个交易日，定位为 TDX 故障时的近端兜底；fqt=0 与日K口径一致）+ `get_intraday_view` 路由（m1 优先/m5 回退/双空提示）
 - **单日分时 x 轴修正**：mootdx 分时无时间戳（RangeIndex），旧视图把整数索引塞进 altair `:T`；新增 `minute_timeline`（09:30–11:30 + 13:00–15:00 共 240 刻度）今日/历史视图共用
 - **修复主题桥潜在竞态（验证期发现的既有缺陷）**：首次 apply 跑在 plotly newPlot 之前时 `last` 已置位、暗色永不生效——轮询中校验蜡烛填充色与当前主题不符则补一次 restyle，并把 `last = t` 挪到 apply 成功路径之后（apply 抛异常不再吞掉重试机会）
+- **规范与边界加固（二次提交通过）**：周期选项/隐藏载体 placeholder 提为常量（radio、回调、CSS、桥 JS 单一真相源）；`_normalize_pick_date` 提为纯函数（垃圾/未来日期拒绝，NaT 设防）并补单测；`minute_timeline` n≤0 返回空索引（原负数会走 `[:n]` 从尾部裁剪）；东财 klines 逐行容错（脏行跳过告警，不再炸穿渲染）；mootdx 分钟列名别名（close/volume）就近映射，列名完全不符时降级 5 分钟回退；历史单日指标 NaN 显示 "-"、昨收为 0/NaN 不算涨跌；桥 JS 字符串日期直取 YYYY-MM-DD 前缀（绕开 Date 解析的时区歧义），正则反斜杠改 raw string 消 SyntaxWarning
 - 测试 174→184：时间轴、数据路由、东财解析夹具、AppTest 全链路（桥回调切视图/回到今日/换股不串台）
 
 ### 修复（2026-09-28 审计批）

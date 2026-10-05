@@ -269,8 +269,11 @@ def minute_timeline(date_str: str, n: int) -> pd.DatetimeIndex:
 
     mootdx 历史分时只有 price/vol 两列、无时间戳（RangeIndex 0..239），旧单日
     视图把整数索引直接塞进 altair ``:T`` 导致 x 轴无意义——统一在这里构造
-    规范刻度，今日/历史单日视图共用。n>240 时下午刻度顺延兜底。
+    规范刻度，今日/历史单日视图共用。n>240 时下午刻度顺延兜底；n<=0 返回空
+    索引（负数不能交给切片，``[:n]`` 会从尾部裁）。
     """
+    if n <= 0:
+        return pd.DatetimeIndex([])
     day = pd.Timestamp(date_str).normalize()
     am = pd.date_range(day + pd.Timedelta(hours=9, minutes=30), periods=120, freq="min")
     pm = pd.date_range(day + pd.Timedelta(hours=13), periods=max(120, n), freq="min")
@@ -322,11 +325,15 @@ def _em_5min_bars(code: str, date_str: str) -> pd.DataFrame:
         parts = line.split(",")
         if len(parts) < 6:
             continue
-        rows.append({
-            "datetime": pd.to_datetime(parts[0]),
-            "open": float(parts[1]), "close": float(parts[2]),
-            "high": float(parts[3]), "low": float(parts[4]), "vol": float(parts[5]),
-        })
+        try:
+            rows.append({
+                "datetime": pd.to_datetime(parts[0]),
+                "open": float(parts[1]), "close": float(parts[2]),
+                "high": float(parts[3]), "low": float(parts[4]), "vol": float(parts[5]),
+            })
+        except (ValueError, TypeError):
+            logger.warning("_em_5min_bars(%s, %s): skip malformed kline %r", code, date_str, line)
+            continue
     df = pd.DataFrame(rows)
     if df.empty:
         return df
@@ -342,9 +349,18 @@ def get_intraday_view(code: str, date_str: str) -> tuple[pd.DataFrame, str]:
     """
     m1 = get_minute_history(code, date_str)
     if not m1.empty:
-        m1 = m1.copy()
-        m1.index = minute_timeline(date_str, len(m1))
-        return m1[["price", "vol"]], "m1"
+        # mootdx 列名存在版本差异（close/volume 别名），缺 price/vol 时就近映射
+        for src, dst in (("close", "price"), ("volume", "vol")):
+            if dst not in m1.columns and src in m1.columns:
+                m1[dst] = m1[src]
+        if {"price", "vol"}.issubset(m1.columns):
+            m1 = m1.copy()
+            m1.index = minute_timeline(date_str, len(m1))
+            return m1[["price", "vol"]], "m1"
+        logger.warning(
+            "get_intraday_view(%s, %s): mootdx minutes unexpected columns %s",
+            code, date_str, list(m1.columns),
+        )
     m5 = _em_5min_bars(code, date_str)
     if not m5.empty:
         return m5, "m5"

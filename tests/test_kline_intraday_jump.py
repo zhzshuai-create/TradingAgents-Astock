@@ -51,6 +51,14 @@ def test_minute_timeline_partial_and_overflow():
     assert len(overflow) == 242
 
 
+def test_minute_timeline_zero_and_negative():
+    """n<=0 必须返回空索引——负数交给切片会变成从尾部裁剪（历史 bug）。"""
+    from web.data_functions import minute_timeline
+
+    assert len(minute_timeline("2026-08-27", 0)) == 0
+    assert len(minute_timeline("2026-08-27", -3)) == 0
+
+
 # ── 单元: get_intraday_view 数据路由 ──────────────────────────────────────
 
 @pytest.fixture(autouse=True)
@@ -142,6 +150,63 @@ def test_em_5min_bars_empty_and_error(monkeypatch):
 
     monkeypatch.setattr(df._core, "_em_get", _raise)
     assert df._em_5min_bars("600519", "2026-08-27").empty
+
+
+def test_em_5min_bars_skips_malformed_rows(monkeypatch):
+    """脏行（缺列/非数值）跳过并告警，不能炸穿看板渲染。"""
+    import web.data_functions as df
+
+    payload = {"data": {"klines": [
+        "2026-08-27 09:35,4.60,4.64,4.66,4.59,12300,5698800.00",
+        "2026-08-27 09:40,4.64,4.70",                        # 列数不足
+        "2026-08-27 09:45,4.64,4.70,4.72,4.63,N/A,7000000",  # 非数值
+        "2026-08-27 09:50,4.70,4.71,4.73,4.69,13100,6800000",
+    ]}}
+    monkeypatch.setattr(df._core, "_em_get", lambda *a, **k: _FakeResp(payload))
+    out = df._em_5min_bars("600519", "2026-08-27")
+    assert len(out) == 2
+    assert out.index[0] == pd.Timestamp("2026-08-27 09:35")
+    assert out.index[-1] == pd.Timestamp("2026-08-27 09:50")
+
+
+def test_normalize_pick_date():
+    """双击桥日期归一化：格式收敛、垃圾/未来日期拒绝（纯函数直测）。"""
+    from web.components.data_dashboard import _normalize_pick_date
+
+    assert _normalize_pick_date("2026-08-27") == "2026-08-27"
+    assert _normalize_pick_date("20260827") == "2026-08-27"
+    assert _normalize_pick_date("2026-8-7") == "2026-08-07"
+    assert _normalize_pick_date(" 2026-08-27 ") == "2026-08-27"
+    assert _normalize_pick_date("garbage") is None
+    assert _normalize_pick_date("") is None
+    assert _normalize_pick_date(None) is None
+    assert _normalize_pick_date("2999-01-01") is None  # 未来日期无行情可显示
+
+
+def test_intraday_view_maps_alias_columns(monkeypatch):
+    """mootdx 分钟列名的版本差异（close/volume 别名）就近映射，不炸看板。"""
+    import web.data_functions as df
+
+    m1 = pd.DataFrame({"close": range(240), "volume": [1] * 240})
+    monkeypatch.setattr(df, "get_minute_history", lambda code, d: m1)
+    out, kind = df.get_intraday_view(CODE, "2026-08-27")
+    assert kind == "m1"
+    assert list(out.columns) == ["price", "vol"]
+    assert out["price"].iloc[0] == 0  # close → price
+
+
+def test_intraday_view_rejects_unknown_columns(monkeypatch):
+    """列名完全对不上时降级走 5 分钟回退，而不是 KeyError 炸渲染。"""
+    import web.data_functions as df
+
+    m1 = pd.DataFrame({"junk_a": [1], "junk_b": [2]})
+    monkeypatch.setattr(df, "get_minute_history", lambda code, d: m1)
+    m5 = pd.DataFrame({"price": [1.0], "vol": [10]},
+                      index=pd.DatetimeIndex(["2026-08-27 09:35"]))
+    monkeypatch.setattr(df, "_em_5min_bars", lambda code, d: m5)
+    out, kind = df.get_intraday_view(CODE, "2026-08-27")
+    assert kind == "m5"
+    assert len(out) == 1
 
 
 # ── 冒烟: AppTest 全链路 (桥回调 → 切视图 → 历史渲染 → 回到今日) ────────────

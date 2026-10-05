@@ -21,6 +21,12 @@ from web.data_functions import (
     get_intraday_view, minute_timeline, _get_kline_full,
 )
 
+# K 线周期选项：radio 与双击跳转共用同一份字面量，防两处漂移
+KLINE_PERIODS = ["单日详情", "5日", "30日", "全部历史"]
+PERIOD_SINGLE_DAY = KLINE_PERIODS[0]
+# 双击桥隐藏日期载体的 placeholder：text_input / 隐藏 CSS / 桥 JS 三处共用
+_KLINE_PICK_PLACEHOLDER = "kline-pick-date-carrier"
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Chart helpers
@@ -138,12 +144,22 @@ def _show_candles(kdf: pd.DataFrame, display_tail: int | None = None, height: in
     components.html(_KLINE_DBLCLICK_BRIDGE_JS, height=0)
 
 
+def _fmt_px(v) -> str:
+    """价格展示：NaN（停牌/缺数据行）显示为 "-"，避免 metric 出现 "nan"。"""
+    return f"{v:.2f}" if pd.notna(v) else "-"
+
+
 def _render_single_day_history(code: str, picked: str) -> None:
     """双击K线进入的历史单日行情：分时（或 5 分钟K线回退）+ 当日开高低收。
 
     与今日视图（实时 q 指标）分开渲染：历史日的开高低收从日K行取，
     昨收 = 前一交易日 close，顺带给出当日涨跌幅。
     """
+    picked = _normalize_pick_date(picked)
+    if picked is None:
+        st.info("选中日期无效，请重新双击K线蜡烛")
+        return
+
     hdr_l, hdr_r = st.columns([3, 1])
     with hdr_l:
         st.caption(f"📅 {picked} 行情 · 双击K线蜡烛可切换日期")
@@ -174,15 +190,16 @@ def _render_single_day_history(code: str, picked: str) -> None:
     row = f.iloc[pos]
     mc1, mc2, mc3, mc4 = st.columns(4)
     with mc1:
-        st.metric("开盘", f"{row['open']:.2f}")
+        st.metric("开盘", _fmt_px(row["open"]))
     with mc2:
-        st.metric("最高", f"{row['high']:.2f}")
+        st.metric("最高", _fmt_px(row["high"]))
     with mc3:
-        st.metric("最低", f"{row['low']:.2f}")
+        st.metric("最低", _fmt_px(row["low"]))
     with mc4:
-        st.metric("收盘", f"{row['close']:.2f}")
-    if pos > 0:
-        chg = (float(row["close"]) / float(f.iloc[pos - 1]["close"]) - 1) * 100
+        st.metric("收盘", _fmt_px(row["close"]))
+    prev_close = float(f.iloc[pos - 1]["close"]) if pos > 0 else float("nan")
+    if pd.notna(row["close"]) and pd.notna(prev_close) and prev_close != 0:
+        chg = (float(row["close"]) / prev_close - 1) * 100
         clr = "var(--up)" if chg >= 0 else "var(--down)"
         st.markdown(f'当日涨跌: <span style="color:{clr};font-weight:700">{chg:+.2f}%</span>', unsafe_allow_html=True)
 
@@ -272,11 +289,18 @@ _CHART_THEME_BRIDGE_JS = """
 # （双击前必 hover；x unified 模式下蜡烛/成交量的 x 相同）拿到蜡烛日期，写入
 # 父文档的隐藏 text_input(kline_pick_date) 触发服务端回调切到该日单日详情。
 # Streamlit 原生 on_select 只支持单击且会改拖拽行为，双击必须走此桥。
-_KLINE_DBLCLICK_BRIDGE_JS = """
+# raw string：JS 内含 \d 正则，不能让 Python 吃掉反斜杠
+_KLINE_DBLCLICK_BRIDGE_JS = r"""
 <script>
 (function(){
   function pickDate(x) {
-    // 日期轴的 x 可能是 Date 对象 / ms 时间戳 / ISO 字符串，统一转本地 YYYY-MM-DD
+    // 字符串优先直取 YYYY-MM-DD 前缀——绕开 Date 解析的时区歧义
+    //（"2026-09-23" 按 UTC 解析，负时区机器上会退一天）；数值/Date 对象
+    // 按本地时区取日期（plotly 日期轴存的是本地日历日）。
+    if (typeof x === 'string') {
+      var mMatch = /^(\d{4}-\d{2}-\d{2})/.exec(x);
+      return mMatch ? mMatch[1] : null;
+    }
     var d = (x instanceof Date) ? x : new Date(x);
     if (isNaN(d.getTime())) return null;
     var m = d.getMonth() + 1, day = d.getDate();
@@ -285,7 +309,7 @@ _KLINE_DBLCLICK_BRIDGE_JS = """
   function commit(dateStr) {
     try {
       var doc = window.parent.document;
-      var input = doc.querySelector('input[placeholder="kline-pick-date-carrier"]');
+      var input = doc.querySelector('input[placeholder="__KLINE_PICK_PLACEHOLDER__"]');
       // Streamlit 1.57 的 st.form 不渲染 <form> 标签，容器是 div[data-testid=stForm]
       var form = input ? input.closest('div[data-testid="stForm"]') || input.closest('form') : null;
       if (!input || !form) return;
@@ -325,6 +349,9 @@ _KLINE_DBLCLICK_BRIDGE_JS = """
 })();
 </script>
 """
+_KLINE_DBLCLICK_BRIDGE_JS = _KLINE_DBLCLICK_BRIDGE_JS.replace(
+    "__KLINE_PICK_PLACEHOLDER__", _KLINE_PICK_PLACEHOLDER
+)
 
 
 # 个股估值首载骨架屏：模拟 标题 + 6 估值卡 + 左右两栏 + K线图 的版式。
@@ -390,23 +417,36 @@ def _dash_search_callback() -> None:
     # 新代码 → 自动切个股估值分区，复用 render_data_mode 开头的 _last_data_code 门控
 
 
+def _normalize_pick_date(raw: str | None) -> str | None:
+    """双击桥带回的日期归一化：转 "YYYY-MM-DD"；非法/未来日期返回 None。
+
+    纯函数（单元测试直测）。未来日期没有行情可显示——正常双击只会产生
+    图表里存在的交易日，出现未来日期只可能是会话被手工改过。
+    """
+    if not raw:
+        return None
+    try:
+        ts = pd.Timestamp(str(raw).strip())
+    except (ValueError, TypeError):
+        return None
+    if pd.isna(ts) or ts > pd.Timestamp.now():
+        return None
+    return ts.strftime("%Y-%m-%d")
+
+
 def _kline_pick_callback() -> None:
     """双击桥回调：隐藏输入框带回的蜡烛日期 → 记入 single_day_date 并切单日详情。
 
     提交后清空输入框，避免下一次 rerun 重复触发；日期归一化失败静默丢弃。
     """
-    picked = (st.session_state.get("kline_pick_date") or "").strip()
+    picked = _normalize_pick_date(st.session_state.get("kline_pick_date"))
     st.session_state["kline_pick_date"] = ""
     if not picked:
-        return
-    try:
-        picked = pd.Timestamp(picked).strftime("%Y-%m-%d")
-    except (ValueError, TypeError):
         return
     st.session_state["single_day_date"] = picked
     code = st.session_state.get("data_code", "")
     if code:
-        st.session_state[f"kperiod_{code}"] = "单日详情"
+        st.session_state[f"kperiod_{code}"] = PERIOD_SINGLE_DAY
 
 
 def render_data_mode() -> None:
@@ -554,7 +594,7 @@ def render_data_mode() -> None:
 
                     st.markdown("#### K 线走势")
                     kline_period = st.radio(
-                        "周期", ["单日详情", "5日", "30日", "全部历史"],
+                        "周期", KLINE_PERIODS,
                         horizontal=True, key=f"kperiod_{code}",
                         index=2,  # default to 30-day
                     )
@@ -567,18 +607,18 @@ def render_data_mode() -> None:
                         st.text_input(
                             "双击K线日期", key="kline_pick_date",
                             label_visibility="collapsed",
-                            placeholder="kline-pick-date-carrier",
+                            placeholder=_KLINE_PICK_PLACEHOLDER,
                         )
                         st.form_submit_button("提交双击日期", key="kline_pick_submit", on_click=_kline_pick_callback)
                     st.markdown(
                         '<style>div[data-testid="stForm"]:has('
-                        'input[placeholder="kline-pick-date-carrier"])'
+                        f'input[placeholder="{_KLINE_PICK_PLACEHOLDER}"])'
                         '{position:absolute;opacity:0;pointer-events:none;height:0;margin:0;overflow:hidden;}</style>',
                         unsafe_allow_html=True,
                     )
 
                     # ── 单日详情 ──────────────────────────────────
-                    if kline_period == "单日详情":
+                    if kline_period == PERIOD_SINGLE_DAY:
                         picked = st.session_state.get("single_day_date")
                         if picked:
                             _render_single_day_history(code, picked)
