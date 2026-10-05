@@ -183,6 +183,38 @@ def test_normalize_pick_date():
     assert _normalize_pick_date("2999-01-01") is None  # 未来日期无行情可显示
 
 
+def test_candlestick_chart_collapses_suspended_days():
+    """停牌日（区间内工作日但无数据行）必须从 x 轴剔除，不留空槽。"""
+    from web.components.data_dashboard import _candlestick_chart
+
+    days = pd.bdate_range("2026-09-21", periods=6)  # 周一~下周一，含周末压缩
+    kdf = pd.DataFrame({
+        "datetime": days, "open": 1.0, "high": 2.0,
+        "low": 0.5, "close": 1.5, "vol": 100.0,
+    })
+    kdf = kdf.drop(kdf.index[3])  # 停牌 2026-09-24（周四，索引是 RangeIndex）
+    fig = _candlestick_chart(kdf)
+    rbs = fig.layout.xaxis.rangebreaks
+    assert any(tuple(rb.bounds) == ("sat", "mon") for rb in rbs)  # 周末剔除仍在
+    value_breaks = [d for rb in rbs if rb.values for d in rb.values]
+    assert pd.Timestamp("2026-09-24") in value_breaks
+
+
+def test_candlestick_chart_no_suspension_keeps_bounds_only():
+    """数据连续（无停牌）时不应引入 values 剔除——避免多余计算与行为漂移。"""
+    from web.components.data_dashboard import _candlestick_chart
+
+    days = pd.bdate_range("2026-09-21", periods=6)
+    kdf = pd.DataFrame({
+        "datetime": days, "open": 1.0, "high": 2.0,
+        "low": 0.5, "close": 1.5, "vol": 100.0,
+    })
+    fig = _candlestick_chart(kdf)
+    rbs = fig.layout.xaxis.rangebreaks
+    assert any(tuple(rb.bounds) == ("sat", "mon") for rb in rbs)
+    assert not any(rb.values for rb in rbs)
+
+
 def test_intraday_view_maps_alias_columns(monkeypatch):
     """mootdx 分钟列名的版本差异（close/volume 别名）就近映射，不炸看板。"""
     import web.data_functions as df

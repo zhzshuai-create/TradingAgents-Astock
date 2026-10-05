@@ -8,6 +8,9 @@ Breaking changes within the 0.x line are called out explicitly.
 
 ## [Unreleased]
 
+### 修复（2026-10-05 五日K线停牌空槽）
+- **个股停牌日在 K 线图上留空槽**（用户报障：002694 五日视图 9/25 停牌出现整段空白）：原 rangebreaks 只按周末 bounds 剔除，停牌日/法定节假日（区间内工作日但无数据行）留在轴上——5日视图里一天占 1/5 宽度。现按展示区间计算缺失工作日追加 `values` 剔除，蜡烛等距（同通达信/同花顺惯例）；下周起 30 日视图跨国庆假期时所有股票的假日空档也一并消除。测试 190→192（停牌剔除 + 连续数据不引入 values 两枚钉）
+
 ### 修复（2026-10-05 强势股跳转报错）
 - **强势股归因「📊 查看」按钮 / 总览 hot_pick 表选中跳转必抛 StreamlitAPIException**：两处 inline 写 `st.session_state["dash_tab"]`，而 `dash_tab` 是分区 radio 的 widget key 且在本轮早已实例化（`cannot be modified after the widget with key dash_tab is instantiated`；截图低分辨率曾被误读为 data_code）。改为 pending 模式：handler 只落普通 key `_pending_jump_code`，render_data_mode 顶部（radio 实例化前）统一消费，同时顺带清 `single_day_date`、补发跳转 toast；AppTest 回归钉死（test_hot_view_button_jump_does_not_raise），测试 189→190
 

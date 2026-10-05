@@ -124,9 +124,20 @@ def _candlestick_chart(
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
         font=dict(color="#888888", size=11),
     )
+    # rangebreaks 两件套：周末用 bounds 剔除；区间内"工作日但无数据行"的
+    # 停牌日/法定节假日用 values 剔除——只剔周末会把停牌日留成空槽
+    # （5日视图里一天占 1/5 宽度，*ST 之类常停牌的票尤其明显）。
+    disp = k["datetime"].dropna()
+    rangebreaks = [dict(bounds=["sat", "mon"])]
+    if len(disp) >= 2:
+        span = pd.date_range(disp.min().normalize(), disp.max().normalize(), freq="D")
+        have = set(disp.dt.normalize())
+        suspended = [d for d in span if d.dayofweek < 5 and d not in have]
+        if suspended:
+            rangebreaks.append(dict(values=suspended))
     fig.update_xaxes(
         rangeslider_visible=False, gridcolor="rgba(128,128,128,0.18)",
-        rangebreaks=[dict(bounds=["sat", "mon"])],
+        rangebreaks=rangebreaks,
     )
     fig.update_yaxes(gridcolor="rgba(128,128,128,0.18)", zeroline=False)
     fig.update_yaxes(title_text="价格(元)", row=1, col=1)

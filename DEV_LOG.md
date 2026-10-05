@@ -572,6 +572,8 @@ pyproject.toml:
 
 ### 轮 6(2026-10-05)：看板双击K线蜡烛 → 直接进入该交易日行情
 
+**附2：五日K线停牌空槽修复(同日用户报障)**：002694 五日视图 9/25 出现整段空白——该股 9/25(周五)停牌，日K无该行；rangebreaks 只按周末 bounds 剔除，工作日停牌留在轴上成空槽(5日视图占 1/5 宽度)。修法=按**展示区间**(`display_tail` 切片后的 k)计算"工作日但无数据行"的日期追加 `values` 剔除。**额外收益：下周起 30日/全部历史视图跨国庆假期，所有股票 10/1-10/5 的假日空档也一并自动压缩**。注意计算要用切片后的展示数据而不是全量 kdf(展示区间外的停牌日无害但徒增 values 长度)；测试里 kdf.drop 要用 RangeIndex 位置而非日期标签(踩过一次)。
+
 **附：强势股跳转报错修复(同日用户报障)**：归因「📊 查看」/总览 hot_pick 表选中跳转必抛 `StreamlitAPIException: st.session_state.dash_tab cannot be modified after the widget with key dash_tab is instantiated`——两处 inline 写 `dash_tab`(分区 radio 的 widget key, 本轮已实例化)，用户截图低分辨率曾被误读成 data_code(data_code 并非任何 widget 的 key, 全仓 grep 零命中)。修法=跳转改 pending 模式：handler 只落 `_pending_jump_code`(普通 key), render_data_mode 顶部在 radio 实例化前统一消费(合法预置), 顺带清 single_day_date + 补 toast。**通用教训：Streamlit 里凡是「点击后改 widget 的 session key 再 rerun」的 inline handler, 只要那个 widget 在本轮更早实例化就必炸——一律走 pending/回调, 别 inline 写**。AppTest 回归钉死, 测试 189→190, 浏览器实测归因 tab 56 个查看按钮点击跳转无异常。
 
 动机：看K线时想看某天的分时, 得手动切「单日详情」且只能看今日——历史日期没有入口。目标交互: 双击任意蜡烛 → 自动切到该日的单日行情。
