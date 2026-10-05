@@ -263,6 +263,93 @@ def get_minute_data(code: str, date_str: str | None = None) -> pd.DataFrame:
         logger.warning("get_minute_data failed: %s", e, exc_info=True)
         return pd.DataFrame()
 
+
+def minute_timeline(date_str: str, n: int) -> pd.DatetimeIndex:
+    """A 股分时时间轴：09:30–11:30 + 13:00–15:00 共 240 分钟，取前 n 个刻度。
+
+    mootdx 历史分时只有 price/vol 两列、无时间戳（RangeIndex 0..239），旧单日
+    视图把整数索引直接塞进 altair ``:T`` 导致 x 轴无意义——统一在这里构造
+    规范刻度，今日/历史单日视图共用。n>240 时下午刻度顺延兜底。
+    """
+    day = pd.Timestamp(date_str).normalize()
+    am = pd.date_range(day + pd.Timedelta(hours=9, minutes=30), periods=120, freq="min")
+    pm = pd.date_range(day + pd.Timedelta(hours=13), periods=max(120, n), freq="min")
+    return am.append(pm)[:n]
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def get_minute_history(code: str, date_str: str) -> pd.DataFrame:
+    """指定历史交易日的 1 分钟分时（mootdx），超出服务器保留期返回空 DataFrame。
+
+    与 get_minute_data（今日/昨日自动回退，TTL 30s）不同：历史分时不可变，
+    用长 TTL 缓存。date_str 接受 "YYYY-MM-DD" 或 "YYYYMMDD"。
+    """
+    try:
+        client = _tdx_client()
+        df = client.minutes(symbol=code, date=date_str.replace("-", ""))
+        if df is None or df.empty:
+            return pd.DataFrame()
+        return df
+    except Exception as e:
+        logger.warning("get_minute_history(%s, %s) failed: %s", code, date_str, e, exc_info=True)
+        return pd.DataFrame()
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def _em_5min_bars(code: str, date_str: str) -> pd.DataFrame:
+    """东财 5 分钟K线（klt=5，beg=end=当日）——历史分时取不到时的回退源。
+
+    实测 push2his 的 5 分钟线只保留近约 31 个交易日（远端日期返回空），
+    而 mootdx 分时保留期长达数年——本回退的真实角色是 TDX 服务器故障/
+    个别日期缺失时的近端兜底。fqt=0 不复权，与 mootdx 日K口径一致。
+    失败返回空 DataFrame。
+    """
+    clean = date_str.replace("-", "")
+    secid = f"1.{code}" if code.startswith("6") else f"0.{code}"
+    url = "https://push2his.eastmoney.com/api/qt/stock/kline/get"
+    params = {"secid": secid, "klt": "5", "fqt": "0", "beg": clean, "end": clean,
+              "fields1": "f1,f2,f3,f4,f5,f6",
+              "fields2": "f51,f52,f53,f54,f55,f56,f57"}
+    headers = {"User-Agent": UA, "Referer": "https://quote.eastmoney.com/"}
+    try:
+        r = _core._em_get(url, params=params, headers=headers, timeout=10)
+        klines = (r.json().get("data") or {}).get("klines") or []
+    except Exception as e:
+        logger.warning("_em_5min_bars(%s, %s) failed: %s", code, date_str, e, exc_info=True)
+        return pd.DataFrame()
+    rows = []
+    for line in klines:
+        parts = line.split(",")
+        if len(parts) < 6:
+            continue
+        rows.append({
+            "datetime": pd.to_datetime(parts[0]),
+            "open": float(parts[1]), "close": float(parts[2]),
+            "high": float(parts[3]), "low": float(parts[4]), "vol": float(parts[5]),
+        })
+    df = pd.DataFrame(rows)
+    if df.empty:
+        return df
+    return df.set_index("datetime").assign(price=lambda d: d["close"])
+
+
+def get_intraday_view(code: str, date_str: str) -> tuple[pd.DataFrame, str]:
+    """指定交易日的日内行情数据，供"双击K线 → 单日详情"使用。返回 (df, kind)。
+
+    kind="m1"：mootdx 历史分时（price/vol，已挂 minute_timeline 规范时间轴）；
+    kind="m5"：分时超出保留期时回退的东财 5 分钟K线（datetime 索引）；
+    两者皆空返回 (空 DataFrame, "")。本身不加缓存——两个内部数据源各自带长 TTL 缓存。
+    """
+    m1 = get_minute_history(code, date_str)
+    if not m1.empty:
+        m1 = m1.copy()
+        m1.index = minute_timeline(date_str, len(m1))
+        return m1[["price", "vol"]], "m1"
+    m5 = _em_5min_bars(code, date_str)
+    if not m5.empty:
+        return m5, "m5"
+    return pd.DataFrame(), ""
+
 def eastmoney_fund_flow_minute(code: str) -> list[dict]:
     secid = f"1.{code}" if code.startswith("6") else f"0.{code}"
     url = "https://push2.eastmoney.com/api/qt/stock/fflow/kline/get"

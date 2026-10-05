@@ -570,6 +570,18 @@ pyproject.toml:
 
 **留存清单(2026-09-27)**：`docs/boot-splash/evidence/topbar_logo.png`(顶栏 logo 实测截图); 审计清单本体在会话外路径 `D:\Documents\qwen-agent\...\AStock-待修问题清单.md`(未入库, 属外部输入)。接续入口: 本节 + 清单 P5 起步建议(signals.py 的 get_dragon_tiger_board / get_lockup_expiry fixture)。
 
+### 轮 6(2026-10-05)：看板双击K线蜡烛 → 直接进入该交易日行情
+
+动机：看K线时想看某天的分时, 得手动切「单日详情」且只能看今日——历史日期没有入口。目标交互: 双击任意蜡烛 → 自动切到该日的单日行情。
+
+- **交互选型(关键前提)**：实测(读 Streamlit 1.57 前端 bundle 源码确证) `st.plotly_chart(on_select="rerun")` 的 selection 事件链是 `clickmode='event+select' → selectOnClick → plotly_selected`, **单击蜡烛即可拿回日期但双击不行**(双击只写空 selection 清选择), 且启用 on_select 会把 dragmode 强改 pan、改变现有缩放交互——与需求(双击)不符, 放弃原生路线。
+- **实现走 JS 桥(复用 L12 主题桥的信任模型)**：Plotly 在主文档, srcdoc 子 iframe 同源可及——`_KLINE_DBLCLICK_BRIDGE_JS` 每 600ms 给未打标的 `div.js-plotly-plot` 挂 `plotly_doubleclick` 监听, 读 `gd._hoverdata`(双击前必 hover; x unified 下蜡烛/成交量 x 相同, MA 是 hoverinfo=skip 不进 hoverdata)取日期, 写进**隐藏载体触发服务端**：隐藏 text_input(`kline_pick_date`, 原生 setter + 合成 input 事件更新 React 状态)放在 `st.form` 里, 等 40ms(React 对合成 input 的状态刷新是异步的, 同步块里提交会送旧值)后 **JS click 隐藏的 form_submit_button** 提交——form 提交不依赖 focus/blur。三连坑全靠浏览器插桩实锤: ①合成 Enter 键不触发提交(Streamlit 只认真实 keydown); ②程序化 focus/blur 在内嵌 WebView 里是空操作(仅真实用户失焦可靠); ③**Streamlit 1.57 的 st.form 不渲染 `<form>` 标签**, 容器是 `div[data-testid=stForm]`, `closest('form')` 永远 null(隔离探针页抓出)。另: 合成 `FocusEvent('focusout')` 能触发 React onBlur 委托——这是自动化测试里唯一可靠的 text_input 提交路径, 但真实功能不依赖它。
+- **数据层**：`get_minute_history`(mootdx 历史分时, TTL 1h; **实测保留期长达数年**——2024-06-03 的 240 点分时都能取到, 与"近几十个交易日"的预判相反) → 空则回退 `_em_5min_bars`(东财 push2his klt=5, **实测服务端只留近约 31 个交易日**/1488 根, "可回溯数年"的假设被原始响应打脸——回退的真实角色是 TDX 故障时的近端兜底) → 双空给 info 提示。`get_intraday_view` 统一路由返回 (df, kind)。顺带修了旧 quirk: mootdx 分时只有 price/vol 无时间戳, 旧视图把 RangeIndex 塞 altair `:T`; 新 `minute_timeline()` 构造 09:30–11:30+13:00–15:00 共 240 刻度, 今日/历史视图共用(x 轴只显 %H:%M, 日期错位不可见)。
+- **主题桥竞态修复(验证期发现的既有缺陷)**：L12 主题桥的首次 apply 若跑在 plotly newPlot 之前(`gd.data` 未挂), `last` 已置位导致暗色永不生效且永不重试——轮询中校验蜡烛填充色与当前主题不符则补一次 restyle + `last=t` 挪到 apply 之后(抛异常可重试)。IAB 节流环境下必现, 真实浏览器是低概率竞态。
+- **状态卫生**：`single_day_date` 在换股(`_last_data_code` 门控)与返回总览两处 pop, 防跨股串台; 历史单日的开高低收从 `_get_kline_full` 日K行取(昨收=前一行 close), 与今日视图(实时 q)分开渲染。
+- **测试**：174→184。AppTest 全链路三场景(隐藏输入+表单提交带回日期→radio 切单日详情+metric 渲染 / 回到今日清日期 / 换股不串台) + 时间轴/路由/东财解析单测, 全部离线打桩。坑: AppTest 的 `at.session_state` 代理不支持 `.get()`/`in`, 只能下标访问 try/KeyError; `form_submit_button` 的回调参数是 `on_click` 不是 `on_submit`; 回调里改其他 widget 的 session key 是合法预置模式(仅一条无害 warning)。
+- **浏览器实测(IAB, 全部真数据)**：双击事件→切视图链路实证(plotly_doubleclick + hoverdata → 单日详情, 亮/暗双模式都过); 2026-09-23 真实分时 240 点 + 开高低收与日K行一致 + 当日涨跌幅正确(截图留存); 分时时间轴午休断档可见; 国庆假期空态(info+指标正常); 回到今日恢复实时视图; 暗色 restyle 自愈生效; 换股/回总览清日期。无法自然触发的分支(m1 超窗回退)由单测+东财真 API 双覆盖。IAB 自动化的坑(后续测试必读): Enter 键/程序化 focus/blur/CUA 双击全部不可靠且随会话随机失效, `vis.set(true)` 唤起后有数秒可用窗口; 可靠路径=JS click(widget 按钮)+合成 focusout(text_input 提交)+iframe 内 rope click。
+
 ---
 
 ## 风险与开放问题

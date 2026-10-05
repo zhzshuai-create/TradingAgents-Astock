@@ -8,6 +8,13 @@ Breaking changes within the 0.x line are called out explicitly.
 
 ## [Unreleased]
 
+### 功能（2026-10-05 双击K线进当日行情）
+- **看板 K线双击蜡烛 → 直接进入该交易日行情**（5日/30日/全部历史三视图生效）：Streamlit 原生 on_select 只支持单击且会改拖拽行为，故走与主题桥同套路的 **plotly_doubleclick JS 桥**——srcdoc 脚本读 `_hoverdata` 拿蜡烛日期，写进隐藏 text_input 触发回调切「单日详情」并挂 `single_day_date`；历史单日渲染分时价/量 + 日K行开高低收与当日涨跌 + 「回到今日」按钮；换股/返回总览自动清选中日期
+- **历史分时超窗自动回退 5 分钟K线**：新增 `get_minute_history`（mootdx 历史分时，TTL 1h，实测保留期长达数年）+ `_em_5min_bars`（东财 push2his klt=5，服务端仅保留近约 31 个交易日，定位为 TDX 故障时的近端兜底；fqt=0 与日K口径一致）+ `get_intraday_view` 路由（m1 优先/m5 回退/双空提示）
+- **单日分时 x 轴修正**：mootdx 分时无时间戳（RangeIndex），旧视图把整数索引塞进 altair `:T`；新增 `minute_timeline`（09:30–11:30 + 13:00–15:00 共 240 刻度）今日/历史视图共用
+- **修复主题桥潜在竞态（验证期发现的既有缺陷）**：首次 apply 跑在 plotly newPlot 之前时 `last` 已置位、暗色永不生效——轮询中校验蜡烛填充色与当前主题不符则补一次 restyle，并把 `last = t` 挪到 apply 成功路径之后（apply 抛异常不再吞掉重试机会）
+- 测试 174→184：时间轴、数据路由、东财解析夹具、AppTest 全链路（桥回调切视图/回到今日/换股不串台）
+
 ### 修复（2026-09-28 审计批）
 - **H1 腾讯行情市值字段互换**：v[44]=流通市值、v[45]=总市值（工行实测确证），此前标反污染 LLM 提示词与看板卡片；夹具两值区分 + 方向断言钉死
 - **H5 看板「30日涨幅」实算约 50 日**：补 tail(30) 对齐显示窗口

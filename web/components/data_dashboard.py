@@ -18,6 +18,7 @@ from web.data_functions import (
     load_northbound_history, get_kline_data, get_minute_data, industry_comparison,
     cls_telegraph, eastmoney_stock_news,
     forward_pe, calc_peg, pe_digestion,
+    get_intraday_view, minute_timeline, _get_kline_full,
 )
 
 
@@ -25,7 +26,7 @@ from web.data_functions import (
 # Chart helpers
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def _price_chart(series: pd.Series, y_label: str = "价格(元)") -> alt.Chart:
+def _price_chart(series: pd.Series, y_label: str = "价格(元)", x_format: str = "%m/%d") -> alt.Chart:
     """Line chart with y‑axis anchored tightly to price range so oscillations are visible."""
     y_min = float(series.min())
     y_max = float(series.max())
@@ -36,7 +37,7 @@ def _price_chart(series: pd.Series, y_label: str = "价格(元)") -> alt.Chart:
         alt.Chart(chart_df)
         .mark_line(color="#ff5a1f")
         .encode(
-            x=alt.X("x:T", title="", axis=alt.Axis(format="%m/%d")),
+            x=alt.X("x:T", title="", axis=alt.Axis(format=x_format)),
             y=alt.Y("y:Q", title=y_label,
                     scale=alt.Scale(domain=[y_min - padding, y_max + padding])),
         )
@@ -45,7 +46,7 @@ def _price_chart(series: pd.Series, y_label: str = "价格(元)") -> alt.Chart:
     )
 
 
-def _vol_chart(series: pd.Series) -> alt.Chart:
+def _vol_chart(series: pd.Series, x_format: str = "%m/%d") -> alt.Chart:
     """Volume bar chart."""
     chart_df = series.reset_index()
     chart_df.columns = ["x", "y"]
@@ -53,7 +54,7 @@ def _vol_chart(series: pd.Series) -> alt.Chart:
         alt.Chart(chart_df)
         .mark_bar(color="#999", opacity=0.6)
         .encode(
-            x=alt.X("x:T", title="", axis=alt.Axis(format="%m/%d")),
+            x=alt.X("x:T", title="", axis=alt.Axis(format=x_format)),
             y=alt.Y("y:Q", title="成交量(手)", axis=alt.Axis(format="~s")),
         )
         .properties(width='container')
@@ -134,6 +135,56 @@ def _show_candles(kdf: pd.DataFrame, display_tail: int | None = None, height: in
         config={"displayModeBar": False, "scrollZoom": True},
     )
     components.html(_CHART_THEME_BRIDGE_JS, height=0)
+    components.html(_KLINE_DBLCLICK_BRIDGE_JS, height=0)
+
+
+def _render_single_day_history(code: str, picked: str) -> None:
+    """双击K线进入的历史单日行情：分时（或 5 分钟K线回退）+ 当日开高低收。
+
+    与今日视图（实时 q 指标）分开渲染：历史日的开高低收从日K行取，
+    昨收 = 前一交易日 close，顺带给出当日涨跌幅。
+    """
+    hdr_l, hdr_r = st.columns([3, 1])
+    with hdr_l:
+        st.caption(f"📅 {picked} 行情 · 双击K线蜡烛可切换日期")
+    with hdr_r:
+        if st.button("↩ 回到今日", key="back_to_today", use_container_width=True):
+            st.session_state.pop("single_day_date", None)
+            st.rerun()
+
+    intraday, kind = get_intraday_view(code, picked)
+    if not intraday.empty:
+        if kind == "m5":
+            st.caption("分时数据超出保留期，已用当日 5 分钟K线替代")
+        st.altair_chart(_price_chart(intraday["price"], "价格(元)", x_format="%H:%M"), use_container_width=True)
+        st.altair_chart(_vol_chart(intraday["vol"], x_format="%H:%M"), use_container_width=True)
+        st.caption(f"共 {len(intraday)} 个数据点（{'1分钟分时' if kind == 'm1' else '5分钟K线'}）")
+    else:
+        st.info(f"{picked} 的分时/分钟数据暂不可用（可能超出数据源保留期或为非交易日）")
+
+    full = _get_kline_full(code)
+    if full.empty:
+        return
+    f = full.copy()
+    f["datetime"] = pd.to_datetime(f["datetime"])
+    f = f.set_index("datetime").sort_index()
+    pos = f.index.searchsorted(pd.Timestamp(picked))
+    if pos >= len(f) or f.index[pos].strftime("%Y-%m-%d") != picked:
+        return
+    row = f.iloc[pos]
+    mc1, mc2, mc3, mc4 = st.columns(4)
+    with mc1:
+        st.metric("开盘", f"{row['open']:.2f}")
+    with mc2:
+        st.metric("最高", f"{row['high']:.2f}")
+    with mc3:
+        st.metric("最低", f"{row['low']:.2f}")
+    with mc4:
+        st.metric("收盘", f"{row['close']:.2f}")
+    if pos > 0:
+        chg = (float(row["close"]) / float(f.iloc[pos - 1]["close"]) - 1) * 100
+        clr = "var(--up)" if chg >= 0 else "var(--down)"
+        st.markdown(f'当日涨跌: <span style="color:{clr};font-weight:700">{chg:+.2f}%</span>', unsafe_allow_html=True)
 
 
 # 图表主题桥（L12 真正生效的修法）: Plotly 暴露在主文档（已实证
@@ -185,9 +236,92 @@ _CHART_THEME_BRIDGE_JS = """
   var last = null;
   setInterval(function() {
     var t = currentTheme();
-    if (t !== last) { last = t; apply(t); }
+    if (t === last) {
+      // 自愈：首次 apply 可能跑在 plotly newPlot 之前（rerun 重建图表的时序
+      // 竞态），当时 last 已置位导致永不重试。轮询校验蜡烛色，不匹配就补一次。
+      try {
+        var P0 = window.parent;
+        if (!P0 || !P0.Plotly) return;
+        var divs0 = P0.document.querySelectorAll('div.js-plotly-plot');
+        var pal0 = PALETTE[t] || PALETTE.light;
+        for (var k = 0; k < divs0.length; k++) {
+          var gd0 = divs0[k];
+          if (!gd0.data) continue;
+          for (var j2 = 0; j2 < gd0.data.length; j2++) {
+            var tr0 = gd0.data[j2];
+            if (tr0.type === 'candlestick' && tr0.increasing
+                && String(tr0.increasing.fillcolor || '').indexOf(pal0.up) < 0) {
+              apply(t);
+              return;
+            }
+          }
+        }
+      } catch (e) {}
+      return;
+    }
+    apply(t);   // 先 apply 再置位：apply 抛异常时下一 tick 重试（幂等）
+    last = t;
   }, 600);
   apply(currentTheme());   // 首帧立即对齐
+})();
+</script>
+"""
+
+# K线双击桥（与主题桥同套路）: Plotly 在主文档（非 iframe），本 srcdoc 脚本
+# 访问 window.parent 的图表 div 挂 plotly_doubleclick 监听，读 _hoverdata
+# （双击前必 hover；x unified 模式下蜡烛/成交量的 x 相同）拿到蜡烛日期，写入
+# 父文档的隐藏 text_input(kline_pick_date) 触发服务端回调切到该日单日详情。
+# Streamlit 原生 on_select 只支持单击且会改拖拽行为，双击必须走此桥。
+_KLINE_DBLCLICK_BRIDGE_JS = """
+<script>
+(function(){
+  function pickDate(x) {
+    // 日期轴的 x 可能是 Date 对象 / ms 时间戳 / ISO 字符串，统一转本地 YYYY-MM-DD
+    var d = (x instanceof Date) ? x : new Date(x);
+    if (isNaN(d.getTime())) return null;
+    var m = d.getMonth() + 1, day = d.getDate();
+    return d.getFullYear() + '-' + (m < 10 ? '0' + m : m) + '-' + (day < 10 ? '0' + day : day);
+  }
+  function commit(dateStr) {
+    try {
+      var doc = window.parent.document;
+      var input = doc.querySelector('input[placeholder="kline-pick-date-carrier"]');
+      // Streamlit 1.57 的 st.form 不渲染 <form> 标签，容器是 div[data-testid=stForm]
+      var form = input ? input.closest('div[data-testid="stForm"]') || input.closest('form') : null;
+      if (!input || !form) return;
+      var setter = Object.getOwnPropertyDescriptor(window.parent.HTMLInputElement.prototype, 'value').set;
+      setter.call(input, dateStr);
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      // 提交走表单按钮的 JS click——不依赖 focus/blur（内嵌 WebView 里
+      // 程序化 focus/blur 可能是空操作，按钮 click 始终触发 React 回调）。
+      // 必须等一个 tick 再点：合成 input 事件的 React 状态刷新是异步的，
+      // 同步块里立即提交会送出刷新前的旧值。
+      setTimeout(function () {
+        var submit = form.querySelector('button');
+        if (submit) submit.click();
+      }, 40);
+    } catch (e) {}
+  }
+  function hook(gd) {
+    if (!gd || gd.__kline_dblclick_hooked) return;
+    gd.__kline_dblclick_hooked = true;
+    gd.on('plotly_doubleclick', function () {
+      try {
+        var pts = gd._hoverdata;
+        if (!pts || !pts.length) return;   // 双击空白处：保留默认的坐标轴重置
+        var d = pickDate(pts[0].x);
+        if (d) commit(d);
+      } catch (e) {}
+    });
+  }
+  setInterval(function () {
+    try {
+      var P = window.parent;
+      if (!P || !P.Plotly) return;
+      var divs = P.document.querySelectorAll('div.js-plotly-plot');
+      for (var i = 0; i < divs.length; i++) hook(divs[i]);
+    } catch (e) {}
+  }, 600);
 })();
 </script>
 """
@@ -256,6 +390,25 @@ def _dash_search_callback() -> None:
     # 新代码 → 自动切个股估值分区，复用 render_data_mode 开头的 _last_data_code 门控
 
 
+def _kline_pick_callback() -> None:
+    """双击桥回调：隐藏输入框带回的蜡烛日期 → 记入 single_day_date 并切单日详情。
+
+    提交后清空输入框，避免下一次 rerun 重复触发；日期归一化失败静默丢弃。
+    """
+    picked = (st.session_state.get("kline_pick_date") or "").strip()
+    st.session_state["kline_pick_date"] = ""
+    if not picked:
+        return
+    try:
+        picked = pd.Timestamp(picked).strftime("%Y-%m-%d")
+    except (ValueError, TypeError):
+        return
+    st.session_state["single_day_date"] = picked
+    code = st.session_state.get("data_code", "")
+    if code:
+        st.session_state[f"kperiod_{code}"] = "单日详情"
+
+
 def render_data_mode() -> None:
     code = st.session_state.get("data_code", "")
 
@@ -275,6 +428,8 @@ def render_data_mode() -> None:
         st.session_state["_last_data_code"] = code
         if code:
             st.session_state["dash_tab"] = "📈 个股估值"
+        # 换股后上一只股票选中的日期不得串台
+        st.session_state.pop("single_day_date", None)
 
     if code:
         bc1, bc2 = st.columns([6, 1])
@@ -288,6 +443,7 @@ def render_data_mode() -> None:
         with bc2:
             if st.button("← 返回总览", key="clear_stock_top", use_container_width=True):
                 st.session_state.pop("data_code", None)
+                st.session_state.pop("single_day_date", None)
                 st.rerun()
 
     DASH_TABS = ["📈 个股估值", "🔥 强势股归因", "💰 资金流向", "📰 资讯"]
@@ -402,26 +558,56 @@ def render_data_mode() -> None:
                         horizontal=True, key=f"kperiod_{code}",
                         index=2,  # default to 30-day
                     )
+                    # 双击桥的日期载体：桥 JS 把双击蜡烛的日期写进隐藏输入框，
+                    # 再点击隐藏的表单提交按钮——form 提交不依赖 focus/blur
+                    # （程序化 focus/blur 在部分内嵌 WebView 里是空操作，只有
+                    # 真实用户失焦才生效；按钮的 JS click 则始终可靠）。
+                    # CSS 折叠成零尺寸；pointer-events:none 不影响 JS click。
+                    with st.form("kline_pick_form"):
+                        st.text_input(
+                            "双击K线日期", key="kline_pick_date",
+                            label_visibility="collapsed",
+                            placeholder="kline-pick-date-carrier",
+                        )
+                        st.form_submit_button("提交双击日期", key="kline_pick_submit", on_click=_kline_pick_callback)
+                    st.markdown(
+                        '<style>div[data-testid="stForm"]:has('
+                        'input[placeholder="kline-pick-date-carrier"])'
+                        '{position:absolute;opacity:0;pointer-events:none;height:0;margin:0;overflow:hidden;}</style>',
+                        unsafe_allow_html=True,
+                    )
 
                     # ── 单日详情 ──────────────────────────────────
                     if kline_period == "单日详情":
-                        minute_df = get_minute_data(code)
-                        if not minute_df.empty:
-                            st.altair_chart(_price_chart(minute_df["price"], "价格(元)"), use_container_width=True)
-                            st.altair_chart(_vol_chart(minute_df["vol"]), use_container_width=True)
-                            st.caption(f"共 {len(minute_df)} 个1分钟数据点")
+                        picked = st.session_state.get("single_day_date")
+                        if picked:
+                            _render_single_day_history(code, picked)
                         else:
-                            st.info("暂无日内分钟数据（可能为非交易日）")
-                        # Key stats from daily quote
-                        mc1, mc2, mc3, mc4 = st.columns(4)
-                        with mc1:
-                            st.metric("今开", f"{q['open']:.2f}")
-                        with mc2:
-                            st.metric("最高", f"{q['high']:.2f}")
-                        with mc3:
-                            st.metric("最低", f"{q['low']:.2f}")
-                        with mc4:
-                            st.metric("昨收", f"{q['last_close']:.2f}")
+                            minute_df = get_minute_data(code)
+                            if not minute_df.empty:
+                                # 分时数据无时间戳（RangeIndex），挂规范时间轴修正 x 轴
+                                try:
+                                    if not klines.empty:
+                                        _day = pd.Timestamp(klines["datetime"].iloc[-1]).strftime("%Y-%m-%d")
+                                        minute_df = minute_df.copy()
+                                        minute_df.index = minute_timeline(_day, len(minute_df))
+                                except Exception:
+                                    pass
+                                st.altair_chart(_price_chart(minute_df["price"], "价格(元)", x_format="%H:%M"), use_container_width=True)
+                                st.altair_chart(_vol_chart(minute_df["vol"], x_format="%H:%M"), use_container_width=True)
+                                st.caption(f"共 {len(minute_df)} 个1分钟数据点")
+                            else:
+                                st.info("暂无日内分钟数据（可能为非交易日）")
+                            # Key stats from daily quote
+                            mc1, mc2, mc3, mc4 = st.columns(4)
+                            with mc1:
+                                st.metric("今开", f"{q['open']:.2f}")
+                            with mc2:
+                                st.metric("最高", f"{q['high']:.2f}")
+                            with mc3:
+                                st.metric("最低", f"{q['low']:.2f}")
+                            with mc4:
+                                st.metric("昨收", f"{q['last_close']:.2f}")
 
                     # ── 5日 ───────────────────────────────────────
                     elif kline_period == "5日":
@@ -451,7 +637,6 @@ def render_data_mode() -> None:
                     # ── 全部历史 ──────────────────────────────────
                     else:
                         with st.spinner("加载全部历史K线..."):
-                            from web.data_functions import _get_kline_full
                             all_k = _get_kline_full(code)
                         if not all_k.empty:
                             _show_candles(all_k, height=520)
