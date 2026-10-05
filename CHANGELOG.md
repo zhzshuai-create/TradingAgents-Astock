@@ -8,6 +8,9 @@ Breaking changes within the 0.x line are called out explicitly.
 
 ## [Unreleased]
 
+### 修复（2026-10-05 强势股跳转报错）
+- **强势股归因「📊 查看」按钮 / 总览 hot_pick 表选中跳转必抛 StreamlitAPIException**：两处 inline 写 `st.session_state["dash_tab"]`，而 `dash_tab` 是分区 radio 的 widget key 且在本轮早已实例化（`cannot be modified after the widget with key dash_tab is instantiated`；截图低分辨率曾被误读为 data_code）。改为 pending 模式：handler 只落普通 key `_pending_jump_code`，render_data_mode 顶部（radio 实例化前）统一消费，同时顺带清 `single_day_date`、补发跳转 toast；AppTest 回归钉死（test_hot_view_button_jump_does_not_raise），测试 189→190
+
 ### 功能（2026-10-05 双击K线进当日行情）
 - **看板 K线双击蜡烛 → 直接进入该交易日行情**（5日/30日/全部历史三视图生效）：Streamlit 原生 on_select 只支持单击且会改拖拽行为，故走与主题桥同套路的 **plotly_doubleclick JS 桥**——srcdoc 脚本读 `_hoverdata` 拿蜡烛日期，写进隐藏 text_input 触发回调切「单日详情」并挂 `single_day_date`；历史单日渲染分时价/量 + 日K行开高低收与当日涨跌 + 「回到今日」按钮；换股/返回总览自动清选中日期
 - **历史分时超窗自动回退 5 分钟K线**：新增 `get_minute_history`（mootdx 历史分时，TTL 1h，实测保留期长达数年）+ `_em_5min_bars`（东财 push2his klt=5，服务端仅保留近约 31 个交易日，定位为 TDX 故障时的近端兜底；fqt=0 与日K口径一致）+ `get_intraday_view` 路由（m1 优先/m5 回退/双空提示）

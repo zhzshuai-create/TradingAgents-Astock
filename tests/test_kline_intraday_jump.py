@@ -318,3 +318,30 @@ def test_switching_stock_clears_picked_date(_stub_dashboard):
     at.run()
     assert not at.exception
     assert not _ss_has(at.session_state, "single_day_date")
+
+
+def test_hot_view_button_jump_does_not_raise(_stub_dashboard, monkeypatch):
+    """回归：强势股归因「📊 查看」按钮曾 inline 写 dash_tab（分区 radio 已在
+    本轮实例化）→ StreamlitAPIException。跳转改为 pending 模式后必须无异常、
+    落到个股估值分区且 data_code 正确。"""
+    import web.components.data_dashboard as dash
+
+    hot = pd.DataFrame([{
+        "代码": "002694", "名称": "瀛通通讯", "涨幅%": -0.98,
+        "题材归因": "军工+消费电子", "连板数": 1, "流通市值": 30.0,
+    }])
+    monkeypatch.setattr(dash, "ths_hot_reason", lambda *a, **k: hot)
+
+    at = _run_data_mode()
+    assert not at.exception
+    at.radio(key="dash_tab").set_value("🔥 强势股归因")
+    at.run()
+    assert not at.exception
+
+    btn = next(b for b in at.button if b.key and b.key.startswith("hot_"))
+    btn.click()
+    at.run()
+
+    assert not at.exception
+    assert at.session_state["data_code"] == "002694"
+    assert at.radio(key="dash_tab").value == "📈 个股估值"

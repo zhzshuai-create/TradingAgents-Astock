@@ -572,6 +572,8 @@ pyproject.toml:
 
 ### 轮 6(2026-10-05)：看板双击K线蜡烛 → 直接进入该交易日行情
 
+**附：强势股跳转报错修复(同日用户报障)**：归因「📊 查看」/总览 hot_pick 表选中跳转必抛 `StreamlitAPIException: st.session_state.dash_tab cannot be modified after the widget with key dash_tab is instantiated`——两处 inline 写 `dash_tab`(分区 radio 的 widget key, 本轮已实例化)，用户截图低分辨率曾被误读成 data_code(data_code 并非任何 widget 的 key, 全仓 grep 零命中)。修法=跳转改 pending 模式：handler 只落 `_pending_jump_code`(普通 key), render_data_mode 顶部在 radio 实例化前统一消费(合法预置), 顺带清 single_day_date + 补 toast。**通用教训：Streamlit 里凡是「点击后改 widget 的 session key 再 rerun」的 inline handler, 只要那个 widget 在本轮更早实例化就必炸——一律走 pending/回调, 别 inline 写**。AppTest 回归钉死, 测试 189→190, 浏览器实测归因 tab 56 个查看按钮点击跳转无异常。
+
 动机：看K线时想看某天的分时, 得手动切「单日详情」且只能看今日——历史日期没有入口。目标交互: 双击任意蜡烛 → 自动切到该日的单日行情。
 
 - **交互选型(关键前提)**：实测(读 Streamlit 1.57 前端 bundle 源码确证) `st.plotly_chart(on_select="rerun")` 的 selection 事件链是 `clickmode='event+select' → selectOnClick → plotly_selected`, **单击蜡烛即可拿回日期但双击不行**(双击只写空 selection 清选择), 且启用 on_select 会把 dragmode 强改 pan、改变现有缩放交互——与需求(双击)不符, 放弃原生路线。

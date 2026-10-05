@@ -450,6 +450,18 @@ def _kline_pick_callback() -> None:
 
 
 def render_data_mode() -> None:
+    # 跳转请求统一消费点：「查看」按钮/hot_pick 表选中都在 dash_tab radio
+    # 实例化之后才执行，inline 写 widget key 必抛 StreamlitAPIException——
+    # 先落普通 key（_pending_jump_code），这里在 radio 实例化前消费（合法预置）。
+    pending_jump = st.session_state.pop("_pending_jump_code", None)
+    if pending_jump:
+        pending_name = st.session_state.pop("_pending_jump_name", "")
+        st.session_state["data_code"] = pending_jump
+        st.session_state["dash_tab"] = "📈 个股估值"
+        st.session_state.pop("single_day_date", None)
+        if pending_name:
+            st.toast(f"已选择 {pending_name}({pending_jump})，正在跳转个股估值", icon="📊")
+
     code = st.session_state.get("data_code", "")
 
     # ── 顶部搜索框（代码或中文名，Enter 提交）──
@@ -729,9 +741,10 @@ def render_data_mode() -> None:
                     st.markdown(f'<div style="padding-top:var(--space-xs);color:var(--muted);font-size:var(--font-md);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{reason_text}</div>', unsafe_allow_html=True)
                 with c_cols[4]:
                     if st.button("📊 查看", key=f"hot_{code}", use_container_width=True):
-                        st.session_state["data_code"] = normalize_code(code)
-                        st.session_state["dash_tab"] = "📈 个股估值"
-                        st.toast(f"已选择 {name}({code})，正在跳转个股估值", icon="📊")
+                        # dash_tab 是 radio 的 widget key 且本轮已实例化，
+                        # 不能在这里 inline 写——落 pending key 交顶部消费
+                        st.session_state["_pending_jump_code"] = normalize_code(code)
+                        st.session_state["_pending_jump_name"] = name
                         st.rerun()
 
     # ── Tab 3: 资金流向 ──
@@ -874,9 +887,9 @@ def _render_market_overview() -> None:
         )
         sel_rows = event.selection.rows
         if sel_rows:
-            picked = str(hot_display.iloc[sel_rows[0]]["代码"])
-            st.session_state["data_code"] = normalize_code(picked)
-            st.session_state["dash_tab"] = "📈 个股估值"
+            picked_row = hot_display.iloc[sel_rows[0]]
+            st.session_state["_pending_jump_code"] = normalize_code(str(picked_row["代码"]))
+            st.session_state["_pending_jump_name"] = str(picked_row.get("名称", ""))
             st.rerun()
     else:
         st.caption("暂无今日数据")
