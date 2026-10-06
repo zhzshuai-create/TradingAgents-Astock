@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from datetime import date
 
 import streamlit as st
@@ -20,6 +21,7 @@ from web.history import (
 
 # Provider display names in recommended order
 _PROVIDERS: list[tuple[str, str]] = [
+    ("小米 MiMo（国内直连）", "mimo"),
     ("NVIDIA NIM（免费·国内直连）", "nvidia"),
     ("MiniMax（推荐·国内直连）", "minimax"),
     ("DeepSeek", "deepseek"),
@@ -148,9 +150,18 @@ def _render_llm_config() -> None:
     """Render LLM provider and model selection controls."""
     from tradingagents.llm_clients.model_catalog import MODEL_OPTIONS
 
+    # 默认选中跟随 .env 的 LLM_PROVIDER（未收录的供应商回退第 0 项），
+    # 避免下拉框默认值把 .env 配置悄悄覆盖掉
+    try:
+        _env_default_idx = _PROVIDER_KEYS.index(
+            os.getenv("LLM_PROVIDER", "").strip().lower()
+        )
+    except ValueError:
+        _env_default_idx = 0
     provider_idx = st.selectbox(
         "LLM 供应商",
         range(len(_PROVIDERS)),
+        index=_env_default_idx,
         format_func=lambda i: _PROVIDER_DISPLAY[i],
         key="llm_provider_idx",
         help="选择你配置了 API Key 的供应商",
@@ -200,6 +211,7 @@ def _render_llm_config() -> None:
             "且每个供应商用各自的环境变量——"
             "NVIDIA=NVIDIA_API_KEY、OpenAI=OPENAI_API_KEY、DeepSeek=DEEPSEEK_API_KEY、"
             "通义=DASHSCOPE_API_KEY、智谱=ZHIPU_API_KEY、MiniMax=MINIMAX_API_KEY、"
+            "小米MiMo=MIMO_API_KEY、"
             "Claude=ANTHROPIC_API_KEY、OpenRouter=OPENROUTER_API_KEY、xAI=XAI_API_KEY。"
             "也可在 .env 里设 BACKEND_URL 代替此处。"
         ),
