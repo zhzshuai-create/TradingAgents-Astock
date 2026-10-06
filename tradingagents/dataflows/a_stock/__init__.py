@@ -11,6 +11,7 @@ Data sources:
 - 同花顺 (direct HTTP): consensus EPS, hot stocks, northbound capital flow
 - 财联社 (direct HTTP): global news wire
 - 巨潮资讯网 (direct HTTP): 公告列表 + 公告 PDF 全文 (markitdown 可选依赖)
+- 东方财富股吧 (direct HTTP): 散户讨论样本 (crawl4ai 渲染兜底可选依赖)
 
 Submodules (split from the former monolithic a_stock.py):
 - _common: shared infrastructure (ticker resolution, mootdx client, throttled
@@ -20,6 +21,7 @@ Submodules (split from the former monolithic a_stock.py):
   get_insider_transactions
 - news: get_news / get_global_news
 - announcements: get_announcements (巨潮公告列表 + 公告 PDF 全文转 Markdown)
+- community: get_community_sentiment (股吧散户讨论样本 → 情绪判断素材)
 - signals: get_hot_stocks / get_northbound_flow / get_concept_blocks /
   get_fund_flow / get_dragon_tiger_board / get_lockup_expiry /
   get_industry_comparison
@@ -55,6 +57,7 @@ from .fundamentals import _sina_stock_code, _get_financial_report_sina  # noqa: 
 from .news import *  # noqa: F401,F403
 from .news import _fetch_news_eastmoney, _fetch_news_sina  # noqa: F401
 from .announcements import *  # noqa: F401,F403
+from .community import *  # noqa: F401,F403
 from .signals import *  # noqa: F401,F403
 from .signals import (  # noqa: F401
     _northbound_cache_path,

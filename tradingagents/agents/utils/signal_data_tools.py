@@ -153,3 +153,26 @@ def get_industry_comparison(
         str: Industry performance ranking with key metrics
     """
     return route_to_vendor("get_industry_comparison", ticker, curr_date)
+
+
+@tool
+def get_community_sentiment(
+    ticker: Annotated[str, "A-stock code (e.g. 600379). Must be numeric, NOT company name or Chinese text"],
+    curr_date: Annotated[str, "Date in YYYY-MM-DD format, empty string for today"] = "",
+    look_back_days: Annotated[int, "Days of discussions to sample (default 5)"] = 5,
+) -> str:
+    """
+    Retrieve real retail-investor discussions (散户讨论) from East Money Guba
+    (东方财富股吧): recent post samples with timestamps, read counts, and reply
+    counts. PRIMARY evidence base for retail sentiment analysis — base sentiment
+    judgments on this sample; when unavailable, report [数据缺失] instead of
+    inferring sentiment. Sentiment scoring is the caller's job, not this tool's.
+    Uses the configured signal_data vendor (a_stock only).
+    Args:
+        ticker (str): 6-digit A-stock code, e.g. 600379. Must be the numeric code, not the company name.
+        curr_date (str): Date in YYYY-MM-DD format, empty string for today (drives data-freshness disclaimer)
+        look_back_days (int): Days of discussions to sample (default 5, max 30)
+    Returns:
+        str: Post sample table with aggregates in Markdown
+    """
+    return route_to_vendor("get_community_sentiment", ticker, curr_date, look_back_days)

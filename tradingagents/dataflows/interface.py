@@ -32,6 +32,7 @@ from .a_stock import (
     get_news as get_astock_news,
     get_global_news as get_astock_global_news,
     get_announcements as get_astock_announcements,
+    get_community_sentiment as get_astock_community_sentiment,
     get_insider_transactions as get_astock_insider_transactions,
     get_profit_forecast as get_astock_profit_forecast,
     get_hot_stocks as get_astock_hot_stocks,
@@ -89,6 +90,7 @@ TOOLS_CATEGORIES = {
             "get_dragon_tiger_board",
             "get_lockup_expiry",
             "get_industry_comparison",
+            "get_community_sentiment",
         ]
     }
 }
@@ -177,6 +179,9 @@ VENDOR_METHODS = {
     },
     "get_industry_comparison": {
         "a_stock": get_astock_industry_comparison,
+    },
+    "get_community_sentiment": {
+        "a_stock": get_astock_community_sentiment,
     },
 }
 
