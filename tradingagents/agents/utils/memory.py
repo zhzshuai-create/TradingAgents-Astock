@@ -34,15 +34,46 @@ class TradingMemoryLog:
         trade_date: str,
         final_trade_decision: str,
     ) -> None:
-        """Append pending entry at end of propagate(). No LLM call."""
+        """Append pending entry at end of propagate(). No LLM call.
+
+        同一 (trade_date, ticker) 重跑的语义：决策文本相同 → 幂等跳过；
+        决策文本变化 → 原位替换旧 pending 条目。否则重跑会留下被后续运行
+        推翻的旧决策，get_past_context 会把旧结论注入未来分析（2026-10-06
+        601208 实测：首跑 Buy 被 MiMo 重跑 Underweight 推翻，记忆仍留 Buy）。
+        """
         if not self._log_path:
             return
-        # Idempotency guard: fast raw-text scan instead of full parse
+        pending_prefix = f"[{trade_date} | {ticker} |"
         if self._log_path.exists():
-            raw = self._log_path.read_text(encoding="utf-8")
-            for line in raw.splitlines():
-                if line.startswith(f"[{trade_date} | {ticker} |") and line.endswith("| pending]"):
+            blocks = self._log_path.read_text(encoding="utf-8").split(self._SEPARATOR)
+            new_tag = (
+                f"[{trade_date} | {ticker} | "
+                f"{parse_rating(final_trade_decision)} | pending]"
+            )
+            new_block = f"{new_tag}\n\nDECISION:\n{final_trade_decision}"
+            replaced = False
+            for idx, block in enumerate(blocks):
+                stripped = block.strip()
+                if not stripped:
+                    continue
+                tag_line = stripped.splitlines()[0].strip()
+                if not (
+                    tag_line.startswith(pending_prefix)
+                    and tag_line.endswith("| pending]")
+                ):
+                    continue
+                # 同键 pending 条目已存在：文本相同则幂等返回，不同则替换
+                body = stripped.split("DECISION:\n", 1)[-1]
+                if body.strip() == final_trade_decision.strip():
                     return
+                blocks[idx] = block.replace(stripped, new_block)
+                replaced = True
+                break
+            if replaced:
+                tmp_path = self._log_path.with_suffix(".tmp")
+                tmp_path.write_text(self._SEPARATOR.join(blocks), encoding="utf-8")
+                tmp_path.replace(self._log_path)
+                return
         rating = parse_rating(final_trade_decision)
         tag = f"[{trade_date} | {ticker} | {rating} | pending]"
         entry = f"{tag}\n\nDECISION:\n{final_trade_decision}{self._SEPARATOR}"

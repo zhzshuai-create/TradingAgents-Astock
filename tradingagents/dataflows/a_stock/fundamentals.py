@@ -37,7 +37,7 @@ def get_fundamentals(
                         f"Name: {q['name']}",
                         f"Price: {q['price']}",
                         f"PE (TTM): {q['pe_ttm']}",
-                        f"PE (Static): {q['pe_static']}",
+                        f"PE (Interim-annualized): {q['pe_static']}",
                         f"PB: {q['pb']}",
                         f"Market Cap (100M CNY): {q['mcap_yi']}",
                         f"Float Market Cap (100M CNY): {q['float_mcap_yi']}",
@@ -45,6 +45,13 @@ def get_fundamentals(
                         f"Change: {q['change_pct']}%",
                         f"Limit Up: {q['limit_up']}",
                         f"Limit Down: {q['limit_down']}",
+                        # 口径警示：腾讯该字段并非上年报静态 PE。2026-10-06
+                        # 601208 实测 78.13 = 市值/(中报归母×2)，两个模型都曾
+                        # 把它当上年报口径反推出"TTM 利润下滑 30%"的假叙事。
+                        "Note: PE (Interim-annualized) is annualized from the "
+                        "latest interim report, NOT a last-fiscal-year static "
+                        "PE. Do NOT infer YoY profit changes from the PE gap; "
+                        "use get_income_statement instead.",
                     ]
                 )
         except Exception as e:
@@ -200,12 +207,67 @@ def _sina_stock_code(code: str) -> str:
     return f"{_common._get_prefix(code)}{code}"
 
 
+# 新浪 getFinanceReport2022 返回的科目字段码（拼音缩写）→ 可读列名。
+# 仅映射分析高频科目；未映射的非空列保留原始字段码输出，映射错了不会
+# 产生错误数据（rename 对不存在的键是 no-op）。
+_SINA_FIELD_LABELS = {
+    # 利润表 (lrb)
+    "BIZTOTINCO": "营业总收入",
+    "BIZINCO": "营业收入",
+    "BIZTOTCOST": "营业总成本",
+    "BIZCOST": "营业成本",
+    "SALESEXPE": "销售费用",
+    "MANAEXPE": "管理费用",
+    "FINEXPE": "财务费用",
+    "DEVEEXPE": "研发费用",
+    "OTHERINCO": "其他收益",
+    "INVEINCO": "投资收益",
+    "PERPROFIT": "营业利润",
+    "TOTPROFIT": "利润总额",
+    "NETPROFIT": "净利润",
+    "PARENETP": "归母净利润",
+    "MINYSHARRIGH": "少数股东损益",
+    "BASICEPS": "基本每股收益",
+    "DILUTEDEPS": "稀释每股收益",
+    # 资产负债表 (fzb)
+    "CURFDS": "货币资金",
+    "NOTESACCORECE": "应收票据及应收账款",
+    "ACCORECE": "应收账款",
+    "INVE": "存货",
+    "TOTCURRASSET": "流动资产合计",
+    "TOTASSET": "总资产",
+    "TOTALCURRLIAB": "流动负债合计",
+    "TOTLIAB": "总负债",
+    "RIGHAGGR": "所有者权益合计",
+    "PAIDINCAPI": "实收资本",
+    "UNDIPROF": "未分配利润",
+    # 现金流量表 (llb)
+    "BIZCASHINFL": "经营活动现金流入",
+    "BIZCASHOUTF": "经营活动现金流出",
+    "MANANETR": "经营活动现金流净额",
+}
+
+
 def _get_financial_report_sina(
     code: str, report_type: str, freq: str, curr_date: str = None,
 ) -> pd.DataFrame:
     """Shared helper: fetch financial report via Sina direct HTTP API.
 
     report_type: '资产负债表' | '利润表' | '现金流量表'
+
+    Returns a wide DataFrame: one row per report period (报告期)，one column
+    per financial item（高频科目已重命名为可读列名，全空列剔除）；接口无
+    数据或结构不符时返回空 DataFrame，由调用方统一走 "No ... data found"。
+
+    接口实际结构（2026-10 实测，旧版按 ``data.<source>`` 行列表解析永远
+    落空，是三大报表工具长期返回 "No data found" 的根因）::
+
+        result.data.report_list = {
+            "20260630": {"publish_date": "20260821",
+                         "data": [{"item_field": "PARENETP",
+                                   "item_value": "311714541.87"}, ...]},
+            ...
+        }
     """
     _report_type_map = {
         "资产负债表": "fzb",
@@ -214,11 +276,9 @@ def _get_financial_report_sina(
     }
     source_type = _report_type_map.get(report_type, "lrb")
 
-    prefix = "sh" if code.startswith("6") else "sz"
-    paper_code = f"{prefix}{code}"
     url = "https://quotes.sina.cn/cn/api/openapi.php/CompanyFinanceService.getFinanceReport2022"
     params = {
-        "paperCode": paper_code,
+        "paperCode": _sina_stock_code(code),
         "source": source_type,
         "type": "0",
         "page": "1",
@@ -232,24 +292,64 @@ def _get_financial_report_sina(
     )
     d = r.json()
 
-    result = d.get("result", {}).get("data", {})
-    items = result.get(source_type, [])
-    if not isinstance(items, list) or not items:
+    report_list = ((d.get("result") or {}).get("data") or {}).get("report_list")
+    if not isinstance(report_list, dict):
         return pd.DataFrame()
 
-    df = pd.DataFrame(items)
+    # 展平: 行=报告期, 列=科目字段码
+    rows: dict[str, dict[str, float]] = {}
+    publish: dict[str, str] = {}
+    for period, payload in report_list.items():
+        if not isinstance(payload, dict):
+            continue
+        fields = {
+            item.get("item_field"): item.get("item_value")
+            for item in (payload.get("data") or [])
+            if item.get("item_field")
+        }
+        if fields:
+            rows[period] = fields
+            publish[period] = str(payload.get("publish_date") or "")
+    if not rows:
+        return pd.DataFrame()
 
-    # Filter by curr_date
-    if curr_date and "报告日" in df.columns:
-        df["报告日"] = pd.to_datetime(df["报告日"], errors="coerce")
+    df = pd.DataFrame.from_dict(rows, orient="index")
+    df.index = pd.to_datetime(df.index, format="%Y%m%d", errors="coerce")
+    df = df[df.index.notna()].sort_index(ascending=False)
+    df.index.name = "报告期"
+    if df.empty:
+        return pd.DataFrame()
+
+    # 科目值统一转数值：无法解析的置 NaN，随全空列一并剔除
+    df = df.apply(pd.to_numeric, errors="coerce")
+
+    # 披露日列：报告期早 ≠ 已披露（年报报告期 12-31，4 月才披露），
+    # curr_date 的语义是"数据可见截止日"，必须按披露日过滤防未来函数；
+    # 披露日缺失的期退回报告期判断。
+    df["披露日"] = pd.to_datetime(
+        [publish.get(p.strftime("%Y%m%d"), "") for p in df.index],
+        format="%Y%m%d",
+        errors="coerce",
+    )
+    if curr_date:
         cutoff = pd.to_datetime(curr_date)
-        df = df[df["报告日"] <= cutoff]
+        pub = df["披露日"]
+        visible = (pub.notna() & (pub <= cutoff)) | (
+            pub.isna() & (df.index <= cutoff)
+        )
+        df = df[visible]
 
-    # Filter by frequency (annual = month 12 reports only)
-    if freq.lower() == "annual" and "报告日" in df.columns:
-        months = pd.to_datetime(df["报告日"], errors="coerce").dt.month
-        df = df[months == 12]
+    # 年报口径 = 报告期 12-31
+    if freq.lower() == "annual":
+        df = df[df.index.month == 12]
 
+    if df.empty:
+        return pd.DataFrame()
+
+    df = df.dropna(axis=1, how="all").rename(columns=_SINA_FIELD_LABELS)
+    df = df.reset_index()
+    df["报告期"] = df["报告期"].dt.strftime("%Y-%m-%d")
+    df["披露日"] = df["披露日"].dt.strftime("%Y-%m-%d").fillna("")
     return df.head(8)
 
 
@@ -271,6 +371,7 @@ def get_balance_sheet(
 
         header = f"# Balance Sheet for {code} (A-stock, {freq})\n"
         header += "# Data source: sina direct HTTP\n"
+        header += "# Units: CNY yuan (元)\n"
         header += (
             f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
         )
@@ -303,6 +404,7 @@ def get_cashflow(
 
         header = f"# Cash Flow for {code} (A-stock, {freq})\n"
         header += "# Data source: sina direct HTTP\n"
+        header += "# Units: CNY yuan (元)\n"
         header += (
             f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
         )
@@ -335,6 +437,7 @@ def get_income_statement(
 
         header = f"# Income Statement for {code} (A-stock, {freq})\n"
         header += "# Data source: sina direct HTTP\n"
+        header += "# Units: CNY yuan (元)\n"
         header += (
             f"# Data retrieved on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
         )

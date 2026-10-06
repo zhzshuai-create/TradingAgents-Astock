@@ -179,6 +179,10 @@ def get_northbound_flow(
         _common._realtime_disclaimer(curr_date, "北向资金实时数据"),
         f"# Northbound Capital Flow ({curr_date})",
         "# Source: 同花顺 hsgtApi (沪深股通) + local cache",
+        # 停发警示：北向逐日净买额自 2024-08 起交易所不再披露，接口返回值
+        # 可能是停发前缓存；冻结值检测见下方 Realtime 段。
+        "# ⚠ 数据停发警示：交易所自 2024-08 起停止披露北向逐日净买额，"
+        "下方数值可能为停发前缓存或非当日数据，不得作为当日资金面结论的独立证据。",
         "",
     ]
 
@@ -213,7 +217,26 @@ def get_northbound_flow(
                 f"SGT(深股通)={sgt_close:.2f}亿 "
                 f"Total={total:.2f}亿"
             )
-            if total > 0:
+            # 冻结值检测：返回值与最近缓存快照完全一致且快照非今日 →
+            # 大概率是上游停发后的缓存回放（2026-10-06 假日实测返回上一
+            # 交易日冻结值，曾被当作当日数据写进结论）。不给方向信号。
+            from zoneinfo import ZoneInfo
+
+            now_cn = datetime.now(ZoneInfo("Asia/Shanghai"))
+            today_str = now_cn.strftime("%Y-%m-%d")
+            history_tail = _load_northbound_history(1)
+            frozen = bool(history_tail) and history_tail[0][0] != today_str and (
+                abs(history_tail[0][1] - hgt_close) < 1e-9
+                and abs(history_tail[0][2] - sgt_close) < 1e-9
+            )
+            if frozen:
+                lines.append(
+                    "⚠ 冻结值警告：本次 HGT/SGT 返回值与最近缓存快照"
+                    f"({history_tail[0][0]}) 完全一致，疑似停发缓存回放，"
+                    "非当日数据。"
+                )
+                lines.append("Signal: unavailable (冻结缓存值，方向信号不可用)")
+            elif total > 0:
                 lines.append("Signal: Net northbound INFLOW (bullish)")
             elif total < 0:
                 lines.append("Signal: Net northbound OUTFLOW (bearish)")
@@ -226,11 +249,9 @@ def get_northbound_flow(
             # 累计值当当日 close 写进 northbound_daily.csv, 而该 CSV 是北向
             # 历史唯一来源, 脏一次永久留。显式北京时间: UTC 容器里本地时区
             # 会让这条守卫变成真 bug。
-            from zoneinfo import ZoneInfo
-
-            now_cn = datetime.now(ZoneInfo("Asia/Shanghai"))
-            if now_cn.strftime("%H%M") >= "1505":
-                _save_northbound_snapshot(now_cn.strftime("%Y-%m-%d"), hgt_close, sgt_close)
+            # 冻结值不落盘：给今日日期挂昨日数值，会让历史缓存出现重复假数据。
+            if not frozen and now_cn.strftime("%H%M") >= "1505":
+                _save_northbound_snapshot(today_str, hgt_close, sgt_close)
 
         if include_history:
             history = _load_northbound_history(20)

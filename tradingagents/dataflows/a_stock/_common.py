@@ -407,6 +407,10 @@ def _tencent_quote(codes: list[str]) -> dict[str, dict]:
             "limit_up": float(vals[47]) if vals[47] else 0,
             "limit_down": float(vals[48]) if vals[48] else 0,
             "vol_ratio": float(vals[49]) if vals[49] else 0,
+            # 腾讯 v52 界面叫"静态 PE"，实测是最新一期定期报告年化口径
+            # （2026-10-06 601208: 78.13 = 市值/(中报归母 3.117 亿×2)），
+            # 不是上年报静态 PE。字段名保留 pe_static 兼容现有调用方，
+            # 语义警示已写进 get_fundamentals 输出与基本面分析师 prompt。
             "pe_static": float(vals[52]) if vals[52] else 0,
         }
         result[code] = parsed
