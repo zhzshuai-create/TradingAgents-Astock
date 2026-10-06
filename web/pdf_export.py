@@ -318,6 +318,17 @@ _REPORT_SECTIONS = [
     ("lockup_report", "解禁/减持报告"),
 ]
 
+# 章节名 → 数据图表图注（与 report_charts._CHART_BUILDERS 的章节键对应）
+_CHART_CAPTIONS = {
+    "技术分析报告": "图1 近90个交易日日K蜡烛、均线与成交量（来源：通达信/新浪）",
+    "市场情绪报告": "图4 融资余额日度变化与杠杆资金动向（来源：东方财富）",
+    "新闻舆情报告": "图5 个股新闻关注度分布（近30个自然日，来源：东方财富）",
+    "基本面报告": "图2 估值路径：TTM 与一致预期前向 PE（来源：腾讯/同花顺）",
+    "游资追踪报告": "图3 近20个交易日主力/超大单净流入（来源：东方财富）",
+    "解禁/减持报告": "图6 限售解禁批次时间轴与占比（来源：东方财富）",
+    "最终决策": "图7 关键价位地图：现价/MA50/布林带/涨跌停（来源：通达信/腾讯）",
+}
+
 
 class _ReportPDF(FPDF):
     def __init__(
@@ -430,6 +441,35 @@ class _ReportPDF(FPDF):
 
         cleaned = strip_think_tags(content)
         self._render_markdown(cleaned)
+
+    def add_chart(self, image_path: Path, caption: str) -> None:
+        """在章节文字后插入数据图表（等比缩放，需要时自动换页）。"""
+        try:
+            from PIL import Image  # fpdf2 依赖链自带 pillow
+
+            with Image.open(image_path) as im:
+                w_px, h_px = im.size
+        except Exception as exc:  # noqa: BLE001 — 图插入失败只跳过不阻塞
+            import logging
+
+            logging.getLogger(__name__).warning("图表插入失败，跳过: %s", exc)
+            return
+
+        max_w = self._text_block_width()
+        max_h = self.h - self.t_margin - self.b_margin - 20  # 预留标题行
+        w = max_w
+        h = w * h_px / w_px
+        if h > max_h:
+            h = max_h
+            w = h * w_px / h_px
+        if self.will_page_break(h + 14):
+            self.add_page()
+        self._use_font("", 8)
+        self.set_text_color(110, 110, 110)
+        self.cell(0, 6, caption, align="C")
+        self.ln(8)
+        self.image(str(image_path), x=(self.w - w) / 2, w=w, h=h)
+        self.ln(2)
 
     def _render_markdown(self, text: str) -> None:
         """Render markdown-formatted text with basic styling."""
@@ -610,15 +650,38 @@ def generate_pdf(final_state: dict[str, Any], ticker: str, trade_date: str, sign
     to Markdown export.
     """
     _ensure_fpdf2()
-    pdf = _ReportPDF(ticker, trade_date, signal, final_state)
-    pdf.alias_nb_pages()
-    pdf.set_auto_page_break(auto=True, margin=20)
 
-    pdf.add_cover()
-    for title, content in _collect_sections(final_state, ticker):
-        pdf.add_section(title, content)
+    # 数据图表是增强项：生成/插入的任何失败都不阻塞导出（report_charts
+    # 内部已按单图降级，这里再兜底导入/调度层的意外）。
+    charts: dict[str, Path] = {}
+    chart_dir: Path | None = None
+    try:
+        from web.report_charts import cleanup_chart_dir, generate_report_charts
 
-    return bytes(pdf.output())
+        charts, chart_dir = generate_report_charts(ticker, trade_date)
+    except Exception as exc:  # noqa: BLE001
+        import logging
+
+        logging.getLogger(__name__).warning("报告图表生成整体跳过: %s", exc)
+
+    try:
+        pdf = _ReportPDF(ticker, trade_date, signal, final_state)
+        pdf.alias_nb_pages()
+        pdf.set_auto_page_break(auto=True, margin=20)
+
+        pdf.add_cover()
+        for title, content in _collect_sections(final_state, ticker):
+            pdf.add_section(title, content)
+            chart_path = charts.get(title)
+            if chart_path:
+                pdf.add_chart(chart_path, _CHART_CAPTIONS.get(title, "数据可视化"))
+
+        return bytes(pdf.output())
+    finally:
+        if chart_dir is not None:
+            from web.report_charts import cleanup_chart_dir
+
+            cleanup_chart_dir(chart_dir)
 
 
 def generate_markdown(final_state: dict[str, Any], ticker: str, trade_date: str, signal: str) -> str:
