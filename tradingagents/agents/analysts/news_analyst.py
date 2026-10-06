@@ -1,6 +1,7 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from tradingagents.agents.utils.agent_utils import (
     build_instrument_context,
+    get_announcements,
     get_global_news,
     get_language_instruction,
     get_news,
@@ -15,6 +16,7 @@ def create_news_analyst(llm):
         tools = [
             get_news,
             get_global_news,
+            get_announcements,
         ]
 
         system_message = (
@@ -27,6 +29,7 @@ def create_news_analyst(llm):
             "\n\n请使用以下工具："
             "\n- `get_news(query, start_date, end_date)`：获取公司相关的个股新闻"
             "\n- `get_global_news(curr_date, look_back_days, limit)`：获取宏观经济和市场整体新闻"
+            "\n- `get_announcements(ticker, start_date, end_date)`：获取巨潮公司公告列表及最近公告 PDF 全文摘录（业绩预告、股东会决议、重大合同、权益分派等公司层面事件的一手来源，引用时注明公告日期）"
             "\n\n撰写全面的新闻分析报告，区分利好/利空/中性消息，评估影响程度和持续时间。报告末尾附 Markdown 表格汇总关键新闻事件及其影响评级。"
             "\n\n📋 必采清单 — 以下数据点必须出现在报告中，无法获取时标注 [数据缺失: xxx]："
             "\n1. 个股新闻条数和时间范围"
