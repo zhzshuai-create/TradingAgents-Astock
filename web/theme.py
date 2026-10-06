@@ -380,6 +380,15 @@ COMBINATION_CSS = """
     font-size: var(--font-sm);
     color: var(--muted);
 }
+.banner__line .brand-dot {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--brand-grad);
+    margin-right: var(--space-sm);
+    vertical-align: 0;
+    box-shadow: 0 0 0 3px var(--brand-soft);
+}
 
 /* ── 品牌 Logo 文字 ── */
 .brand-logo {
@@ -1122,16 +1131,31 @@ div[data-testid=stHorizontalBlock]:has(> div[data-testid=stColumn] .index-bar) {
     background: var(--surface-glass);
     backdrop-filter: blur(14px) saturate(1.35);
     -webkit-backdrop-filter: blur(14px) saturate(1.35);
-    padding-top: var(--space-xs);
-    padding-bottom: var(--space-xs);
+    border: var(--hairline) solid var(--line);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-card);
+    padding: var(--space-xs) var(--space-md);
+    margin-bottom: var(--space-sm);
 }
 div[data-testid=stHorizontalBlock]:has(> div[data-testid=stColumn] .index-bar)::after {
     content: "";
     position: absolute;
-    left: 0; right: 0; bottom: 0;
-    height: 1px;
+    left: var(--space-md); right: var(--space-md); bottom: -1px;
+    height: 2px;
     background: var(--topbar-accent);
     pointer-events: none;
+    border-radius: 2px;
+}
+
+/* ── 快捷标的 / 次级按钮：悬浮上浮 + 品牌描边 ── */
+.stApp button[kind="secondary"],
+.stApp button[kind="secondaryFormSubmit"] {
+    transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.2s ease;
+}
+.stApp button[kind="secondary"]:hover:not(:disabled) {
+    border-color: var(--brand);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-hover);
 }
 
 /* ── 主按钮：品牌渐变 + 悬浮辉光 ── */

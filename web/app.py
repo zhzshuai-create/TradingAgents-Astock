@@ -534,7 +534,7 @@ def _render_analysis_mode() -> None:
         # Banner（单行 caption：品牌名由顶栏 Logo 承担，避免重复大标题）
         st.markdown("""
         <div class="banner">
-            <div class="banner__line">v0.2.19 · 7位AI分析师 → 多空辩论 → 风控评估 → 投资决策</div>
+            <div class="banner__line"><span class="brand-dot"></span>v0.2.19 · 7位AI分析师 → 多空辩论 → 风控评估 → 投资决策</div>
         </div>
         """, unsafe_allow_html=True)
 
