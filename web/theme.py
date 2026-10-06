@@ -105,6 +105,12 @@ LIGHT_TOKENS = """
 
 /* ===== Streamlit dark header background ===== */
 --st-header-dark: #1c1816;
+
+/* ===== PREMIUM — 玻璃质感与品牌辉光 ===== */
+--surface-glass: rgba(255,255,255,0.72);
+--selection-bg:  rgba(232,93,4,0.16);
+--glow-brand:    0 4px 14px rgba(232,93,4,0.30);
+--topbar-accent: linear-gradient(90deg, var(--brand) 0%, rgba(232,93,4,0.18) 45%, transparent 80%);
 """
 
 # ============================================================================
@@ -198,6 +204,12 @@ DARK_TOKENS = """
 /* THEME TOGGLE — 主题切换按钮文字色 */
 --theme-btn-light-text: #333333;
 --theme-btn-dark-text:  #ffffff;
+
+/* ===== PREMIUM — 暗色玻璃与辉光 ===== */
+--surface-glass: rgba(30,26,23,0.74);
+--selection-bg:  rgba(240,136,62,0.30);
+--glow-brand:    0 4px 14px rgba(240,136,62,0.22);
+--topbar-accent: linear-gradient(90deg, var(--brand) 0%, rgba(240,136,62,0.20) 45%, transparent 80%);
 """
 
 # ============================================================================
@@ -1100,6 +1112,53 @@ PREMIUM_CSS = """
 .stApp [data-testid="stMetric"] {
     transition: box-shadow 0.22s ease, transform 0.22s ease,
                 border-color 0.22s ease, background-color 0.15s ease, color 0.15s ease;
+}
+
+/* ── 吸附玻璃顶栏：滚动吸附 + 毛玻璃 + 底部品牌发丝线 ── */
+div[data-testid=stHorizontalBlock]:has(> div[data-testid=stColumn] .index-bar) {
+    position: sticky;
+    top: 0;
+    z-index: 60;
+    background: var(--surface-glass);
+    backdrop-filter: blur(14px) saturate(1.35);
+    -webkit-backdrop-filter: blur(14px) saturate(1.35);
+    padding-top: var(--space-xs);
+    padding-bottom: var(--space-xs);
+}
+div[data-testid=stHorizontalBlock]:has(> div[data-testid=stColumn] .index-bar)::after {
+    content: "";
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    height: 1px;
+    background: var(--topbar-accent);
+    pointer-events: none;
+}
+
+/* ── 主按钮：品牌渐变 + 悬浮辉光 ── */
+.stApp button[kind="primary"] {
+    background: var(--brand-grad);
+    border: none;
+}
+.stApp button[kind="primary"]:hover:not(:disabled) {
+    filter: saturate(1.08) brightness(1.04);
+    box-shadow: var(--glow-brand);
+}
+.stApp button[kind="primary"]:active:not(:disabled) {
+    transform: translateY(1px);
+}
+
+/* ── 可复用卡片悬浮上浮（metric/expander 已有，此处补齐其余卡片）── */
+.card, .stock-card {
+    transition: box-shadow 0.22s ease, transform 0.22s ease;
+}
+.card:hover, .stock-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-hover);
+}
+
+/* ── 文本选区品牌化 ── */
+.stApp ::selection {
+    background: var(--selection-bg);
 }
 """
 
