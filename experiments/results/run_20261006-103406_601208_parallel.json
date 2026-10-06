@@ -1,0 +1,21 @@
+{
+  "ticker": "601208",
+  "trade_date": "2026-10-06",
+  "mode": "parallel",
+  "wall_seconds": 480.7,
+  "llm_calls": 34,
+  "tool_calls": 58,
+  "tokens_in": 255849,
+  "tokens_out": 84981,
+  "signal": "Underweight",
+  "error": null,
+  "git_head": "cd91a72d7a8d5ebb5cae5900bc827a421321d589",
+  "repo_dirty_after": true,
+  "ran_at": "2026-10-06 10:34:06",
+  "models": {
+    "provider": "deepseek",
+    "deep_think_llm": "deepseek-v4-pro",
+    "quick_think_llm": "deepseek-flash"
+  },
+  "parallel_analysts": true
+}

@@ -1,0 +1,2 @@
+ticker,date,mode,wall_seconds,llm_calls,tool_calls,tokens_in,tokens_out,signal,git_head,result_file,ran_at
+601208,2026-10-06,parallel,480.7,34,58,255849,84981,Underweight,cd91a72d7a8d5ebb5cae5900bc827a421321d589,run_20261006-103406_601208_parallel.json,2026-10-06 10:34:06
