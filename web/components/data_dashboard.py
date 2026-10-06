@@ -881,9 +881,22 @@ def _render_market_overview() -> None:
         _chg = pd.to_numeric(hot_display["涨幅%"], errors="coerce").fillna(0)
         hot_display["涨幅%"] = _chg.map(lambda v: f"{v:+.2f}%")
 
+        # A股语义着色：涨红跌绿。glide 画布吃不到 CSS 变量，取亮色主题
+        # --up/--down 同值（双主题底色下均可读）
+        def _pct_style(v):
+            try:
+                val = float(str(v).rstrip("%"))
+            except ValueError:
+                return ""
+            if val > 0:
+                return "color: #e03131; font-weight: 600;"
+            if val < 0:
+                return "color: #2f9e44; font-weight: 600;"
+            return ""
+
         # 整行可点：点击任意一行直接跳转到该股的个股估值页
         event = st.dataframe(
-            hot_display,
+            hot_display.style.map(_pct_style, subset=["涨幅%"]),
             hide_index=True,
             use_container_width=True,
             on_select="rerun",

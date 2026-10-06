@@ -223,3 +223,4 @@ wx_key_output.txt
 output_leaders.csv
 *.egg-info/
 proxy_debug.log
+ui_shots_*/

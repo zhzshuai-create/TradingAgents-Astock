@@ -531,11 +531,10 @@ def _render_analysis_mode() -> None:
             tag_cls = _TAG_CLASS.get(s, "tag--na")
             return f'<span class="tag {tag_cls}">{label}</span>'
 
-        # Banner
+        # Banner（单行 caption：品牌名由顶栏 Logo 承担，避免重复大标题）
         st.markdown("""
         <div class="banner">
-            <div class="banner__title">TradingAgents-Astock</div>
-            <div style="color:var(--muted);font-size:var(--font-sm);margin-top:2px;">v0.2.19 · 7位AI分析师 → 多空辩论 → 风控评估 → 投资决策</div>
+            <div class="banner__line">v0.2.19 · 7位AI分析师 → 多空辩论 → 风控评估 → 投资决策</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -581,24 +580,11 @@ def _render_analysis_mode() -> None:
                         with c2:
                             st.markdown(f'<div>{badge_html}</div>', unsafe_allow_html=True)
 
-        # Right: new analysis
+        # Right: quick start（表单唯一入口在侧边栏：跨标签页常驻 + 中文名解析 + 模型配置；
+        # 此处只保留快捷回填与信号分布，避免双份"新建分析"表单）
         with right:
-            st.markdown('<div class="card__title">新建分析</div>', unsafe_allow_html=True)
-            c_code, c_date = st.columns([2, 1])
-            with c_code:
-                ticker = st.text_input("代码", placeholder="输入 6 位代码如 000636",
-                                       max_chars=6, label_visibility="collapsed",
-                                       key="idle_ticker")
-            with c_date:
-                trade_date = st.date_input("分析日期", label_visibility="collapsed")
-            can_start = bool(ticker and len(ticker.strip()) >= 4)
-            st.button("开始分析", type="primary", disabled=not can_start,
-                      on_click=lambda: st.session_state.update({
-                          "start_analysis": {"ticker": ticker.strip(), "trade_date": trade_date.strftime("%Y-%m-%d")},
-                          "viewing_history": None,
-                      }))
-
-            # ── 快捷标的：历史标的一键回填 ──
+            st.markdown('<div class="card__title">快速开始</div>', unsafe_allow_html=True)
+            st.caption("在左侧边栏输入代码，点「开始分析」")
             quick_codes = []
             seen = set()
             for e in full_history:
@@ -617,7 +603,8 @@ def _render_analysis_mode() -> None:
                 for i, qcode in enumerate(quick_codes):
                     with qc[i % min(len(quick_codes), 3)]:
                         if st.button(qcode, key=f"quick_{qcode}", use_container_width=True):
-                            st.session_state["idle_ticker"] = qcode
+                            st.session_state["input_ticker"] = qcode
+                            st.toast(f"已填入侧边栏：{qcode}，点「开始分析」即启动", icon="⚡")
                             st.rerun()
 
             # ── 历史信号分布 ──

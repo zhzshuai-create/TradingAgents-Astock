@@ -235,9 +235,9 @@ def render_sidebar() -> None:
     st.markdown(
         """
         <div style="text-align:center; margin-bottom:1.5rem;">
-            <span style="font-size:2rem; font-weight:800; color:var(--brand);">Trading</span><span style="font-size:2rem; font-weight:800; color:var(--brand);">Agents</span><span style="font-size:2rem; font-weight:800; color:var(--text);">-</span><span style="font-size:2rem; font-weight:800; color:var(--brand);">Astock</span>
+            <span style="font-size:1.6rem; font-weight:800; color:var(--brand);">AStock</span><span style="font-size:1.6rem; font-weight:800; color:var(--text);"> Pro</span>
             <div style="font-size:var(--font-md); color:var(--muted); margin-top:var(--space-xs);">
-                A股多Agent投研系统
+                A股多智能体投研系统
             </div>
             <div style="font-size:var(--font-xs); color:var(--muted); margin-top:var(--space-xs);">
                 by <a href="https://github.com/zhzshuai-create" style="color:var(--brand); text-decoration:none;">zhzshuai-create</a>

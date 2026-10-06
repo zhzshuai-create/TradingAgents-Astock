@@ -358,20 +358,15 @@ COMBINATION_CSS = """
     flex: 1;
 }
 
-/* ── Banner 区域容器 ── */
+/* ── Banner 区域容器（单行 caption 化：品牌已在顶栏，不再重复大标题）── */
 .banner {
     text-align: left;
-    margin-top: var(--space-md);
-    margin-bottom: var(--space-lg);
-    padding: var(--space-md) 0;
+    margin: 0 0 var(--space-md);
+    padding: 0;
 }
-
-/* ── Banner 主标题 ── */
-.banner__title {
-    font-size: var(--font-2xl);
-    font-weight: 900;
-    color: var(--text);
-    margin-bottom: var(--space-xs);
+.banner__line {
+    font-size: var(--font-sm);
+    color: var(--muted);
 }
 
 /* ── 品牌 Logo 文字 ── */
@@ -536,12 +531,19 @@ html, body, [class*="css"] {
     background: var(--bg);
 }
 
-/* ── 主内容区间距收敛 ── */
+/* ── 主内容区间距收敛 ──
+   Streamlit 1.57 主容器 testid=stMainBlockContainer（旧 .block-container 选择器
+   在 1.57 已失灵，96px 默认顶部 padding 曾因此从未收敛） */
+[data-testid="stHeader"] {
+    display: none; /* 空白 header 占 60px 且无可交互元素；运行中状态由侧栏与主区指示 */
+}
+[data-testid="stAppViewContainer"] [data-testid="stMainBlockContainer"],
 [data-testid="stAppViewContainer"] > .block-container {
-    padding-top: var(--space-md) !important;
+    padding-top: var(--space-sm) !important;
     padding-bottom: var(--space-md) !important;
 }
 /* 仅顶层垂直 block 收敛间距，避免波及卡片/表单内部 */
+[data-testid="stAppViewContainer"] [data-testid="stMainBlockContainer"] > [data-testid="stVerticalBlock"],
 [data-testid="stAppViewContainer"] > .block-container > [data-testid="stVerticalBlock"] {
     gap: var(--space-sm) !important;
 }
