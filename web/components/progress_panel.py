@@ -5,6 +5,7 @@ from __future__ import annotations
 import streamlit as st
 
 from web.progress import PIPELINE_STAGES, ProgressTracker
+from web.components.icons import icon
 
 _CSS = """
 <style>
@@ -74,7 +75,8 @@ def render_progress(tracker: ProgressTracker, parallel: bool = False) -> None:
 
     st.markdown(_CSS, unsafe_allow_html=True)
 
-    parallel_badge = '<span class="pp-parallel">⚡ 并行模式</span>' if parallel else ""
+    parallel_badge = (f'<span class="pp-parallel">{icon("bolt", 11)} 并行模式</span>'
+                      if parallel else "")
     st.markdown(
         f"""
         <div style="text-align:center; margin:1rem 0 0.5rem;">
@@ -130,7 +132,7 @@ def render_progress(tracker: ProgressTracker, parallel: bool = False) -> None:
 
     stage_reports = snap["stage_reports"]
     completed_reports = [
-        (stage["name"], stage["icon"], stage_reports[stage["id"]])
+        (stage["name"], stage_reports[stage["id"]])
         for stage in PIPELINE_STAGES
         if stage["id"] in stage_reports
     ]
@@ -141,7 +143,7 @@ def render_progress(tracker: ProgressTracker, parallel: bool = False) -> None:
             f"REPORTS ({len(completed_reports)})</div>",
             unsafe_allow_html=True,
         )
-        for name, icon, report in reversed(completed_reports):
+        for name, report in reversed(completed_reports):
             is_latest = (name == completed_reports[-1][0])
-            with st.expander(f"{icon} {name}", expanded=is_latest):
+            with st.expander(name, expanded=is_latest):
                 st.markdown(report[:3000])

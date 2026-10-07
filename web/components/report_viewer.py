@@ -23,13 +23,13 @@ def _signal_style(signal: str) -> tuple[str, str]:
 
 
 _ANALYST_SECTIONS = [
-    ("market_report", "📊 技术分析"),
-    ("sentiment_report", "💬 市场情绪"),
-    ("news_report", "📰 新闻舆情"),
-    ("fundamentals_report", "📋 基本面"),
-    ("policy_report", "🏛️ 政策分析"),
-    ("hot_money_report", "🔥 游资追踪"),
-    ("lockup_report", "🔒 解禁/减持"),
+    ("market_report", "技术分析"),
+    ("sentiment_report", "市场情绪"),
+    ("news_report", "新闻舆情"),
+    ("fundamentals_report", "基本面"),
+    ("policy_report", "政策分析"),
+    ("hot_money_report", "游资追踪"),
+    ("lockup_report", "解禁/减持"),
 ]
 
 
@@ -83,7 +83,7 @@ def render_report(
         unsafe_allow_html=True,
     )
 
-    st.caption("⚠️ 本报告由 AI 自动生成，仅供学习研究，不构成投资建议。")
+    st.caption("本报告由 AI 自动生成，仅供学习研究，不构成投资建议。")
 
     # Markdown export always works (no font dependency); PDF is generated
     # lazily and guarded so a PDF/font failure never crashes the results page.
@@ -142,20 +142,20 @@ def render_report(
 
     sections: list[tuple[str, str]] = []
     if inv_plan:
-        sections.append(("sec-decision", "👔 最终投资建议"))
+        sections.append(("sec-decision", "最终投资建议"))
     sections += [
         (f"sec-{key}", title)
         for key, title in _ANALYST_SECTIONS
         if final_state.get(key, "")
     ]
     if debate and isinstance(debate, dict):
-        sections.append(("sec-debate", "⚔️ 多空辩论"))
+        sections.append(("sec-debate", "多空辩论"))
     if trader_decision:
-        sections.append(("sec-trader", "💹 交易员决策"))
+        sections.append(("sec-trader", "交易员决策"))
     if risk and isinstance(risk, dict):
-        sections.append(("sec-risk", "🛡️ 风控评估"))
+        sections.append(("sec-risk", "风控评估"))
     if dqs:
-        sections.append(("sec-quality", "✅ 数据质量"))
+        sections.append(("sec-quality", "数据质量"))
 
     main_col, nav_col = st.columns([4, 1.15])
     with nav_col:
@@ -170,7 +170,7 @@ def render_report(
     with main_col:
         if inv_plan:
             st.markdown('<div id="sec-decision"></div>', unsafe_allow_html=True)
-            st.markdown("### 👔 最终投资建议")
+            st.markdown("### 最终投资建议")
             st.markdown(_display_report_text(inv_plan, ticker, final_state))
             st.markdown("---")
 
@@ -185,7 +185,7 @@ def render_report(
 
         if debate and isinstance(debate, dict):
             st.markdown('<div id="sec-debate"></div>', unsafe_allow_html=True)
-            st.markdown("### ⚔️ 多空辩论")
+            st.markdown("### 多空辩论")
             tab_bull, tab_bear, tab_judge = st.tabs(["多方", "空方", "研究经理"])
             with tab_bull:
                 st.markdown(_display_report_text(debate.get("bull_history", "") or "无数据", ticker, final_state))
@@ -197,13 +197,13 @@ def render_report(
 
         if trader_decision:
             st.markdown('<div id="sec-trader"></div>', unsafe_allow_html=True)
-            st.markdown("### 💹 交易员决策")
+            st.markdown("### 交易员决策")
             st.markdown(_display_report_text(trader_decision, ticker, final_state))
             st.markdown("---")
 
         if risk and isinstance(risk, dict):
             st.markdown('<div id="sec-risk"></div>', unsafe_allow_html=True)
-            st.markdown("### 🛡️ 风控评估")
+            st.markdown("### 风控评估")
             tab_agg, tab_con, tab_neu, tab_rj = st.tabs(["激进", "保守", "中性", "风控决策"])
             with tab_agg:
                 st.markdown(_display_report_text(risk.get("aggressive_history", "") or "无数据", ticker, final_state))
@@ -217,5 +217,5 @@ def render_report(
 
         if dqs:
             st.markdown('<div id="sec-quality"></div>', unsafe_allow_html=True)
-            st.markdown("### ✅ 数据质量")
+            st.markdown("### 数据质量")
             st.markdown(_display_report_text(dqs, ticker, final_state))

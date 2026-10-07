@@ -9,18 +9,18 @@ from typing import Any, Optional
 
 
 PIPELINE_STAGES: list[dict[str, str]] = [
-    {"id": "market", "name": "技术分析", "icon": "📊", "report_key": "market_report"},
-    {"id": "social", "name": "情绪分析", "icon": "💬", "report_key": "sentiment_report"},
-    {"id": "news", "name": "新闻舆情", "icon": "📰", "report_key": "news_report"},
-    {"id": "fundamentals", "name": "基本面", "icon": "📋", "report_key": "fundamentals_report"},
-    {"id": "policy", "name": "政策分析", "icon": "🏛️", "report_key": "policy_report"},
-    {"id": "hot_money", "name": "游资追踪", "icon": "🔥", "report_key": "hot_money_report"},
-    {"id": "lockup", "name": "解禁监控", "icon": "🔒", "report_key": "lockup_report"},
-    {"id": "quality_gate", "name": "质量门控", "icon": "✅", "report_key": "data_quality_summary"},
-    {"id": "debate", "name": "多空辩论", "icon": "⚔️", "report_key": "investment_plan"},
-    {"id": "trader", "name": "交易决策", "icon": "💹", "report_key": "trader_investment_plan"},
-    {"id": "risk", "name": "风控评估", "icon": "🛡️", "report_key": "risk_debate_state"},
-    {"id": "pm", "name": "最终决策", "icon": "👔", "report_key": "final_trade_decision"},
+    {"id": "market", "name": "技术分析", "report_key": "market_report"},
+    {"id": "social", "name": "情绪分析", "report_key": "sentiment_report"},
+    {"id": "news", "name": "新闻舆情", "report_key": "news_report"},
+    {"id": "fundamentals", "name": "基本面", "report_key": "fundamentals_report"},
+    {"id": "policy", "name": "政策分析", "report_key": "policy_report"},
+    {"id": "hot_money", "name": "游资追踪", "report_key": "hot_money_report"},
+    {"id": "lockup", "name": "解禁监控", "report_key": "lockup_report"},
+    {"id": "quality_gate", "name": "质量门控", "report_key": "data_quality_summary"},
+    {"id": "debate", "name": "多空辩论", "report_key": "investment_plan"},
+    {"id": "trader", "name": "交易决策", "report_key": "trader_investment_plan"},
+    {"id": "risk", "name": "风控评估", "report_key": "risk_debate_state"},
+    {"id": "pm", "name": "最终决策", "report_key": "final_trade_decision"},
 ]
 
 STAGE_IDS = [s["id"] for s in PIPELINE_STAGES]

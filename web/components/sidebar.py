@@ -104,7 +104,7 @@ def _render_analysis_controls(raw_ticker: str, trade_date_value: date) -> None:
     if not can_stop:
         st.session_state.pop("confirm_stop", None)
     confirm_stop = bool(st.session_state.get("confirm_stop")) and can_stop
-    stop_label = "⚠ 确认停止？" if confirm_stop else "停止"
+    stop_label = "确认停止？" if confirm_stop else "停止"
     if stop_col.button(
         stop_label,
         key="sidebar_stop_analysis",
@@ -126,7 +126,7 @@ def _render_analysis_controls(raw_ticker: str, trade_date_value: date) -> None:
         if not target_ticker:
             target_ticker, err = _resolve_user_input(raw_ticker)
             if err:
-                st.error(f"❌ {err}")
+                st.error(err)
                 return
 
         if tracker is not None and tracker.is_running:
@@ -263,7 +263,7 @@ def render_sidebar() -> None:
         key="input_date",
     )
 
-    with st.expander("⚙️ 模型配置", expanded=False):
+    with st.expander("模型配置", expanded=False):
         _render_llm_config()
 
     tracker = st.session_state.get("tracker")
@@ -278,10 +278,10 @@ def render_sidebar() -> None:
     ):
         resolved_code, err = _resolve_user_input(ticker)
         if err:
-            st.error(f"❌ {err}")
+            st.error(err)
         else:
             if resolved_code != ticker.strip():
-                st.success(f"✅ {ticker.strip()} → {resolved_code}")
+                st.success(f"{ticker.strip()} → {resolved_code}")
             st.session_state["start_analysis"] = {
                 "ticker": resolved_code,
                 "trade_date": trade_date.strftime("%Y-%m-%d"),
@@ -338,4 +338,4 @@ def render_sidebar() -> None:
             st.session_state["start_analysis"] = None
 
     st.markdown("---")
-    st.caption("⚠️ 仅供学习研究，不构成投资建议")
+    st.caption("仅供学习研究，不构成投资建议")

@@ -26,6 +26,17 @@ _LOGO_URI = "data:image/png;base64," + base64.b64encode(
 
 load_dotenv(_PROJECT_ROOT / ".env")
 
+from web.components.icons import icon  # noqa: E402  纯字符串模块, 零依赖零启动成本
+
+
+def _app_version() -> str:
+    """版本号单一来源（pip 元数据）；banner 与系统状态卡共用，防双处漂移。"""
+    try:
+        from importlib.metadata import version as _pkg_version
+        return _pkg_version("tradingagents-astock")
+    except Exception:
+        return "unknown"  # 回退不硬写版本号, 防漂移 (L3)
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # Page config
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -218,7 +229,7 @@ with col_logo:
     _model = _model or "未配置"
     _par = " · 并行" if st.session_state.get("parallel_analysts") else ""
     st.markdown(
-        f'<span class="model-badge">⚡ {_prov} · {_model}{_par}</span>',
+        f'<span class="model-badge">{icon("bolt", 12)} {_prov} · {_model}{_par}</span>',
         unsafe_allow_html=True,
     )
     st.markdown("""
@@ -397,12 +408,23 @@ _quotes_json = _json.dumps(_QUOTES, ensure_ascii=False)
 components.html("""
 <style>
   html, body { background: transparent; margin: 0; }
+  /* iframe 沙箱看不见主窗口的 CSS 变量，色值按亮暗各写死（主题桥切换 class） */
   #quote-bar {
-    text-align: center; font-size: var(--font-md); color: #8a8a8a;
-    padding: 0.1rem 0; letter-spacing: 0.02em; cursor: pointer;
-    transition: color 0.15s ease; user-select: none;
+    font-family: 'Noto Serif SC', 'Source Han Serif SC', 'STZhongsong', 'SimSun', serif;
+    text-align: center; font-size: 14px; color: #8a8a8a;
+    padding: 0; letter-spacing: 0.05em; cursor: pointer;
+    transition: color 0.15s ease; user-select: none; line-height: 1.8;
   }
-  #quote-bar:hover { color: #e85d04; }
+  #quote-bar .q-mark {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 19px; font-weight: 700; color: #e85d04; opacity: 0.55;
+    margin: 0 3px; vertical-align: -0.08em;
+  }
+  #quote-bar .q-author { font-size: 12.5px; letter-spacing: 0.08em; margin-left: 10px; }
+  #quote-bar:hover { color: #d9480f; }
+  #quote-bar:hover .q-mark { opacity: 0.9; }
+  #quote-bar.dark { color: #9a938b; }
+  #quote-bar.dark:hover { color: #f08c00; }
 </style>
 <div id="quote-bar" title="点击换一句"></div>
 <script>
@@ -412,16 +434,27 @@ components.html("""
   var idx = daily;
   var el = document.getElementById('quote-bar');
   function show() {
-    el.innerHTML = '“' + AQ[idx][0] + '”　—— ' + AQ[idx][1];
+    el.innerHTML = '<span class="q-mark">“</span>' + AQ[idx][0] +
+      '<span class="q-mark">”</span><span class="q-author">—— ' + AQ[idx][1] + '</span>';
+  }
+  function syncTheme() {
+    var dark = false;
+    try { dark = window.parent.document.documentElement.classList.contains('dark'); } catch (e) {}
+    el.classList.toggle('dark', dark);
   }
   show();
+  syncTheme();
+  try {
+    new MutationObserver(syncTheme).observe(
+      window.parent.document.documentElement, {attributes: true, attributeFilter: ['class']});
+  } catch (e) {}
   el.addEventListener('click', function() {
     idx = (idx + 1) % AQ.length;
     show();
   });
 })();
 </script>
-""".replace("__QUOTES_JSON__", _quotes_json).replace("__TODAY_IDX__", str(_q_date % len(_QUOTES))), height=44)
+""".replace("__QUOTES_JSON__", _quotes_json).replace("__TODAY_IDX__", str(_q_date % len(_QUOTES))), height=48)
 
 
 
@@ -503,18 +536,18 @@ def _render_analysis_mode() -> None:
 
     # State 0: idle
     else:
-        # 结构批：信号→标签文案（class 映射见 _TAG_CLASS）
+        # 结构批：信号→标签文案（class 映射见 _TAG_CLASS）；色彩由 .tag--* 承担，不再叠 emoji
         _SIG = {
-            "Buy": "🟢 买入",
-            "Sell": "🔴 卖出",
-            "Hold": "🟡 持有",
+            "Buy": "买入",
+            "Sell": "卖出",
+            "Hold": "持有",
         }
 
-        # 结构批：标签 class 映射——Buy→tag--buy, Sell→tag--sell, Hold→tag--na(TODO), N/A→tag--na
+        # 结构批：标签 class 映射——Buy→tag--buy, Sell→tag--sell, Hold→tag--hold, N/A→tag--na
         _TAG_CLASS = {
             "Buy": "tag--buy",
             "Sell": "tag--sell",
-            "Hold": "tag--na",   # TODO: 第二批新增 .tag--hold 后改为 tag--hold
+            "Hold": "tag--hold",
             "N/A": "tag--na",
         }
 
@@ -527,14 +560,14 @@ def _render_analysis_mode() -> None:
 
         def _badge(s: str) -> str:
             """结构批：返回 class 化标签 HTML，零内联样式 → 引用 .tag .tag--*"""
-            label = _SIG.get(s, f"⚪ {s}")
+            label = _SIG.get(s, s)
             tag_cls = _TAG_CLASS.get(s, "tag--na")
             return f'<span class="tag {tag_cls}">{label}</span>'
 
         # Banner（单行 caption：品牌名由顶栏 Logo 承担，避免重复大标题）
-        st.markdown("""
+        st.markdown(f"""
         <div class="banner">
-            <div class="banner__line"><span class="brand-dot"></span>v0.2.19 · 7位AI分析师 → 多空辩论 → 风控评估 → 投资决策</div>
+            <div class="banner__line"><span class="brand-dot"></span>v{_app_version()} · 7位AI分析师 → 多空辩论 → 风控评估 → 投资决策</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -545,7 +578,7 @@ def _render_analysis_mode() -> None:
         with left:
             st.markdown('<div class="card__title">历史记录</div>', unsafe_allow_html=True)
             full_history = get_history()
-            with st.expander(f"📜 历史分析记录（{len(full_history)} 条）", expanded=False):
+            with st.expander(f"历史分析记录（{len(full_history)} 条）", expanded=False):
                 history_search = st.text_input(
                     "历史", placeholder="筛选历史",
                     label_visibility="collapsed", key="main_history_search",
@@ -596,7 +629,8 @@ def _render_analysis_mode() -> None:
             if quick_codes:
                 st.markdown(
                     '<div style="font-size:var(--font-sm);color:var(--muted);'
-                    'margin:var(--space-md) 0 var(--space-xs);">⚡ 快捷标的</div>',
+                    'margin:var(--space-md) 0 var(--space-xs);">'
+                    f'{icon("bolt")} 快捷标的</div>',
                     unsafe_allow_html=True,
                 )
                 qc = st.columns(min(len(quick_codes), 3))
@@ -604,7 +638,8 @@ def _render_analysis_mode() -> None:
                     with qc[i % min(len(quick_codes), 3)]:
                         if st.button(qcode, key=f"quick_{qcode}", use_container_width=True):
                             st.session_state["input_ticker"] = qcode
-                            st.toast(f"已填入侧边栏：{qcode}，点「开始分析」即启动", icon="⚡")
+                            st.toast(f"已填入侧边栏：{qcode}，点「开始分析」即启动",
+                                     icon=":material/bolt:")
                             st.rerun()
 
             # ── 历史信号分布 ──
@@ -621,7 +656,8 @@ def _render_analysis_mode() -> None:
                 if total_sig:
                     st.markdown(
                         '<div style="font-size:var(--font-sm);color:var(--muted);'
-                        'margin:var(--space-md) 0 var(--space-xs);">📊 历史信号分布（近 '
+                        'margin:var(--space-md) 0 var(--space-xs);">'
+                        f'{icon("bar-chart")} 历史信号分布（近 '
                         f'{min(len(full_history), 50)} 次）</div>',
                         unsafe_allow_html=True,
                     )
@@ -641,20 +677,17 @@ def _render_analysis_mode() -> None:
 
             # ── 系统状态 ──
             import os as _os
-            try:
-                from importlib.metadata import version as _pkg_version
-                _ver = _pkg_version("tradingagents-astock")
-            except Exception:
-                _ver = "unknown"  # 回退不硬写版本号, 防漂移 (L3)
+            _ver = _app_version()
             _prov = (st.session_state.get("llm_provider")
                      or _os.getenv("LLM_PROVIDER", "deepseek")).upper()
             _model = (st.session_state.get("deep_think_llm")
                       or _os.getenv("DEEP_THINK_LLM", "")).split("/")[-1] or "未配置"
-            _par = "并行 ⚡" if st.session_state.get("parallel_analysts") else "串行"
+            _par = "并行" if st.session_state.get("parallel_analysts") else "串行"
             _mode_color = "var(--brand)" if st.session_state.get("parallel_analysts") else "var(--muted)"
             st.markdown(
                 '<div style="font-size:var(--font-sm);color:var(--muted);'
-                'margin:var(--space-md) 0 var(--space-xs);">🖥️ 系统状态</div>',
+                'margin:var(--space-md) 0 var(--space-xs);">'
+                f'{icon("monitor")} 系统状态</div>',
                 unsafe_allow_html=True,
             )
             st.markdown(

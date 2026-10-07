@@ -699,7 +699,7 @@ def generate_markdown(final_state: dict[str, Any], ticker: str, trade_date: str,
         f"- **生成时间**：{datetime.now().strftime('%Y-%m-%d %H:%M')}",
         f"- **交易信号**：**{signal.upper()}**",
         "",
-        "> ⚠️ 本报告由 AI 多 Agent 系统自动生成，仅供学习研究与技术演示，"
+        "> 本报告由 AI 多 Agent 系统自动生成，仅供学习研究与技术演示，"
         "不构成任何投资建议。投资决策请咨询持牌专业机构，使用本报告所产生的"
         "任何损失由使用者自行承担。",
         "",

@@ -550,6 +550,8 @@ html, body, [class*="css"] {
 /* ── 页面底色 ── */
 .stApp {
     background: var(--bg);
+    /* 数字等宽对齐（价格/代码/日期列），金融界面专业底线；对非数字文本无副作用 */
+    font-variant-numeric: tabular-nums;
 }
 
 /* ── 主内容区间距收敛 ──
@@ -576,6 +578,19 @@ html, body, [class*="css"] {
 }
 [data-testid="stAppViewContainer"] [data-testid="stMainBlockContainer"] > [data-testid="stVerticalBlock"] > [data-testid="stLayoutWrapper"]:has(.footer-note) {
     margin-top: auto;
+}
+
+/* ── 键盘焦点环 ──
+   只打 :focus-visible（键盘导航才显示，鼠标点击不打扰）；品牌色随亮暗主题 */
+.stApp a:focus-visible,
+.stApp button:focus-visible,
+.stApp [role="button"]:focus-visible,
+.stApp input:focus-visible,
+.stApp textarea:focus-visible,
+.stApp [data-testid="stExpander"] summary:focus-visible,
+.stApp [tabindex="0"]:focus-visible {
+    outline: 2px solid var(--brand) !important;
+    outline-offset: 2px !important;
 }
 
 /* ── 侧栏 ── */

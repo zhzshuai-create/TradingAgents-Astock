@@ -61,12 +61,12 @@ _THEME_BRIDGE_JS = """
 
 
 def render_journal_mode() -> None:
-    st.subheader("📖 交易日志 · 复盘看板")
+    st.subheader("交易日志 · 复盘看板")
     st.caption(
         "这是独立运行的 trade-journal 应用 (localhost:8502), 以 iframe 嵌入。"
         "资金曲线点击联动、持仓周期/仓位集中度/收益分布等指标都在下方。"
         "亮/暗主题跟随平台自动同步。"
-        "⚠️ 若日志区出现乱码, 多为系统代理劫持了本地端口 — 请在代理软件中将"
+        "若日志区出现乱码, 多为系统代理劫持了本地端口 — 请在代理软件中将"
         " 127.0.0.1 / localhost 加入绕过名单。"
     )
     if not journal_service.journal_alive():
@@ -77,7 +77,7 @@ def render_journal_mode() -> None:
                 if proc is not None:
                     proc.terminate()
                 st.warning(
-                    f"⚠️ 交易日志服务自动启动失败 ({journal_service.JOURNAL_URL})。\n\n"
+                    f"交易日志服务自动启动失败 ({journal_service.JOURNAL_URL})。\n\n"
                     "请手动启动后回到本页刷新：\n"
                     "- 一键同时启动平台+日志: 运行平台根目录的 `run_all.bat`\n"
                     "- 或单独启动日志: 在 `trade-journal/` 下运行 `run.bat` (已固定 8502 端口)"

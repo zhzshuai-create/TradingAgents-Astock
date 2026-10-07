@@ -25,6 +25,8 @@ from pathlib import Path
 import streamlit as st
 import streamlit.components.v1 as components
 
+from web.components.icons import icon  # 纯字符串模块, 满足本模块"零重依赖"约束
+
 # logo 以 data URI 内联: 遮罩必须在任何静态资源请求之前自包含上屏.
 # 192px 透明底 PNG (~15KB), 亮暗主题通用; 读盘发生在模块导入期, 亚毫秒级.
 _LOGO_PATH = Path(__file__).resolve().parents[2] / "assets" / "logo-dragon-192.png"
@@ -217,23 +219,39 @@ _MASK_HTML = """
   <div class="boot-wordmark">AStock <span>Pro</span></div>
   <div class="boot-sub">AI MULTI-AGENT</div>
   <div class="boot-nodes">
-    <div class="boot-node" style="--i:0"><span class="boot-node-ico">📊</span><span class="boot-node-name">技术</span></div>
-    <div class="boot-node" style="--i:1"><span class="boot-node-ico">💬</span><span class="boot-node-name">情绪</span></div>
-    <div class="boot-node" style="--i:2"><span class="boot-node-ico">📰</span><span class="boot-node-name">舆情</span></div>
-    <div class="boot-node" style="--i:3"><span class="boot-node-ico">📋</span><span class="boot-node-name">基本面</span></div>
-    <div class="boot-node" style="--i:4"><span class="boot-node-ico">🏛️</span><span class="boot-node-name">政策</span></div>
-    <div class="boot-node" style="--i:5"><span class="boot-node-ico">🔥</span><span class="boot-node-name">游资</span></div>
-    <div class="boot-node" style="--i:6"><span class="boot-node-ico">🔒</span><span class="boot-node-name">解禁</span></div>
+__BOOT_NODES__
   </div>
   <div class="boot-decision">
     <span class="boot-ring"></span>
-    <span class="boot-node-ico">👔</span>
+    <span class="boot-node-ico">__BOOT_DECISION_ICO__</span>
     <span class="boot-node-name">投资决策</span>
   </div>
   <div class="boot-track"><div class="boot-bar"></div></div>
 </div>
 """
-_MASK_HTML = _MASK_HTML.replace("__BOOT_LOGO_URI__", _LOGO_URI)
+
+# 流水线节点图标: 与主界面同一套线性 SVG(web/components/icons.py), 替代各平台渲染
+# 不一的 emoji. (--i 交错入场延迟由 CSS 读取)
+_BOOT_NODES = [
+    ("candlestick", "技术"),
+    ("message-circle", "情绪"),
+    ("newspaper", "舆情"),
+    ("clipboard-list", "基本面"),
+    ("landmark", "政策"),
+    ("flame", "游资"),
+    ("lock", "解禁"),
+]
+_NODES_HTML = "".join(
+    f'    <div class="boot-node" style="--i:{i}">'
+    f'<span class="boot-node-ico">{icon(name, 16)}</span>'
+    f'<span class="boot-node-name">{label}</span></div>'
+    for i, (name, label) in enumerate(_BOOT_NODES)
+)
+
+_MASK_HTML = (_MASK_HTML
+              .replace("__BOOT_LOGO_URI__", _LOGO_URI)
+              .replace("__BOOT_NODES__", _NODES_HTML)
+              .replace("__BOOT_DECISION_ICO__", icon("briefcase", 16)))
 
 # 每个 components.html 都是独立沙箱 iframe, 看不见主窗口的变量, 所以共享状态挂在
 # window.parent 上.

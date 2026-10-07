@@ -468,10 +468,11 @@ def render_data_mode() -> None:
     if pending_jump:
         pending_name = st.session_state.pop("_pending_jump_name", "")
         st.session_state["data_code"] = pending_jump
-        st.session_state["dash_tab"] = "📈 个股估值"
+        st.session_state["dash_tab"] = "个股估值"
         st.session_state.pop("single_day_date", None)
         if pending_name:
-            st.toast(f"已选择 {pending_name}({pending_jump})，正在跳转个股估值", icon="📊")
+            st.toast(f"已选择 {pending_name}({pending_jump})，正在跳转个股估值",
+                     icon=":material/insights:")
 
     code = st.session_state.get("data_code", "")
 
@@ -490,7 +491,7 @@ def render_data_mode() -> None:
     if st.session_state.get("_last_data_code") != code:
         st.session_state["_last_data_code"] = code
         if code:
-            st.session_state["dash_tab"] = "📈 个股估值"
+            st.session_state["dash_tab"] = "个股估值"
         # 换股后上一只股票选中的日期不得串台
         st.session_state.pop("single_day_date", None)
 
@@ -509,14 +510,14 @@ def render_data_mode() -> None:
                 st.session_state.pop("single_day_date", None)
                 st.rerun()
 
-    DASH_TABS = ["📈 个股估值", "🔥 强势股归因", "💰 资金流向", "📰 资讯"]
+    DASH_TABS = ["个股估值", "强势股归因", "资金流向", "资讯"]
     selected_tab = st.radio(
         "看板分区", DASH_TABS, key="dash_tab",
         horizontal=True, label_visibility="collapsed",
     )
 
     # ── Tab 1: 个股估值 ──
-    if selected_tab == "📈 个股估值":
+    if selected_tab == "个股估值":
         if not code:
             _render_market_overview()
         else:
@@ -717,7 +718,7 @@ def render_data_mode() -> None:
                         st.markdown(f"- **{n['time']}** {n['title']} `{n['source']}`")
 
     # ── Tab 2: 强势股归因 ──
-    elif selected_tab == "🔥 强势股归因":
+    elif selected_tab == "强势股归因":
         st.markdown("#### 当日强势股 · 题材归因")
         with st.spinner("加载强势股数据..."):
             df_hot = ths_hot_reason()
@@ -733,7 +734,7 @@ def render_data_mode() -> None:
                 top_tags = cnt.most_common(8)
                 tag_html = " ".join([f'<span class="tag" style="font-size:var(--font-md);margin:var(--space-xs);">{t}({n})</span>' for t, n in top_tags])
                 st.markdown(f"**题材热度 TOP 8:** {tag_html}", unsafe_allow_html=True)
-            st.caption(f"共 {len(df_hot)} 只强势股  |  点击 📊 查看股票详情")
+            st.caption(f"共 {len(df_hot)} 只强势股  |  点击「查看」进入个股估值")
             for _, row in df_hot.iterrows():
                 code = str(row.get("代码", ""))
                 name = str(row.get("名称", ""))
@@ -751,7 +752,8 @@ def render_data_mode() -> None:
                 with c_cols[3]:
                     st.markdown(f'<div style="padding-top:var(--space-xs);color:var(--muted);font-size:var(--font-md);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{reason_text}</div>', unsafe_allow_html=True)
                 with c_cols[4]:
-                    if st.button("📊 查看", key=f"hot_{code}", use_container_width=True):
+                    if st.button("查看", key=f"hot_{code}", icon=":material/visibility:",
+                                 use_container_width=True):
                         # dash_tab 是 radio 的 widget key 且本轮已实例化，
                         # 不能在这里 inline 写——落 pending key 交顶部消费
                         st.session_state["_pending_jump_code"] = normalize_code(code)
@@ -759,7 +761,7 @@ def render_data_mode() -> None:
                         st.rerun()
 
     # ── Tab 3: 资金流向 ──
-    elif selected_tab == "💰 资金流向":
+    elif selected_tab == "资金流向":
         sub_a, sub_b = st.tabs(["北向资金", "行业资金"])
         with sub_a:
             st.markdown("#### 北向资金（沪股通 + 深股通）")
@@ -820,7 +822,7 @@ def render_data_mode() -> None:
                 st.info("在上方输入股票代码可查看个股K线")
 
     # ── Tab 4: 资讯 ──
-    elif selected_tab == "📰 资讯":
+    elif selected_tab == "资讯":
         st.markdown("#### 财联社快讯")
         with st.spinner("加载快讯..."):
             telegrams = cls_telegraph(30)
@@ -848,19 +850,19 @@ def render_data_mode() -> None:
 
 def _render_market_overview() -> None:
     """Market overview shown when no stock code entered."""
-    st.caption("💡 在顶部搜索框输入股票代码，查看完整估值分析")
+    st.caption("在顶部搜索框输入股票代码，查看完整估值分析")
     with st.spinner("加载行业数据..."):
         comp = industry_comparison(10)
     if comp["top"]:
         c1, c2 = st.columns(2)
         with c1:
-            st.markdown("**📈 涨幅 TOP 10**")
+            st.markdown("**涨幅 TOP 10**")
             for r in comp["top"][:10]:
                 pct = r["change_pct"]
                 clr = "var(--up)" if pct >= 0 else "var(--down)"
                 st.markdown(f"<span style='color:{clr};font-weight:600'>{pct:+.2f}%</span> {r['name']} 涨{r['up_count']}跌{r['down_count']}", unsafe_allow_html=True)
         with c2:
-            st.markdown("**📉 跌幅 TOP 10**")
+            st.markdown("**跌幅 TOP 10**")
             for r in comp["bottom"][:10]:
                 pct = r["change_pct"]
                 clr = "var(--up)" if pct >= 0 else "var(--down)"
