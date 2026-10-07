@@ -137,8 +137,8 @@ DARK_TOKENS = """
 
 /* ===== SURFACE ===== */
 --bg:      #1c1816;
---surface: #252120;
---line:    #383330;
+--surface: #2a2523;  /* 卡片面：比 bg 亮一档（暗色层次靠表面亮度而非阴影） */
+--line:    #453e3a;  /* 边框同步提亮，卡片轮廓可辨 */
 --track:   rgba(255,255,255,0.09);  /* 进度/分布条轨道底 */
 
 /* ===== TEXT ===== */
@@ -191,8 +191,10 @@ DARK_TOKENS = """
 --st-header-dark: #1c1816;
 
 /* ===== 暗色模式补全：亮色已定义的变量（保持同值） ===== */
---shadow-card:  0 1px 2px rgba(0,0,0,0.30), 0 6px 16px rgba(0,0,0,0.28);
---shadow-hover: 0 2px 6px rgba(0,0,0,0.35), 0 14px 32px rgba(0,0,0,0.45);
+/* 阴影二轮：黑底上纯黑投影不可见 —— 改为「inset 顶缘高光 + 收敛暗投影」
+   表达层次，与提亮后的 surface/line 配合 */
+--shadow-card:  inset 0 1px 0 rgba(255,255,255,0.05), 0 2px 10px rgba(0,0,0,0.35);
+--shadow-hover: inset 0 1px 0 rgba(255,255,255,0.08), 0 12px 32px rgba(0,0,0,0.55);
 --brand-grad:   linear-gradient(135deg, #f0883e 0%, #ffc078 100%);
 --bg-grad:      linear-gradient(180deg, #1e1a17 0%, #171412 100%);
 --hairline: 1px;
@@ -731,6 +733,35 @@ html, body, [class*="css"] {
 }
 @media (prefers-reduced-motion: reduce) {
     .status-dot--running { animation: none; }
+}
+
+/* ── 首屏入场动画 ──
+   仅会话首帧生效：html.enter-anim 由 app.py 门控脚本按 sessionStorage 置一次，
+   在启动遮罩放行(data-boot-done)时才挂上 → 动画从遮罩掀开那一刻起扑面；
+   rerun 的门控脚本会立即移除该类，元素重插不重播。
+   主区顶层元素 60-90ms 级差 fade-up（backwards 填充让延迟段保持透明）。 */
+@keyframes enter-fade-up {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: none; }
+}
+html.enter-anim [data-testid="stAppViewContainer"] [data-testid="stMainBlockContainer"] > [data-testid="stVerticalBlock"] > [data-testid="stElementContainer"],
+html.enter-anim [data-testid="stAppViewContainer"] [data-testid="stMainBlockContainer"] > [data-testid="stVerticalBlock"] > [data-testid="stLayoutWrapper"] {
+    animation: enter-fade-up 0.45s cubic-bezier(0.22, 0.61, 0.36, 1) backwards;
+}
+html.enter-anim [data-testid="stAppViewContainer"] [data-testid="stMainBlockContainer"] > [data-testid="stVerticalBlock"] > :nth-child(1) { animation-delay: 0.05s; }
+html.enter-anim [data-testid="stAppViewContainer"] [data-testid="stMainBlockContainer"] > [data-testid="stVerticalBlock"] > :nth-child(2) { animation-delay: 0.13s; }
+html.enter-anim [data-testid="stAppViewContainer"] [data-testid="stMainBlockContainer"] > [data-testid="stVerticalBlock"] > :nth-child(3) { animation-delay: 0.21s; }
+html.enter-anim [data-testid="stAppViewContainer"] [data-testid="stMainBlockContainer"] > [data-testid="stVerticalBlock"] > :nth-child(4) { animation-delay: 0.29s; }
+html.enter-anim [data-testid="stAppViewContainer"] [data-testid="stMainBlockContainer"] > [data-testid="stVerticalBlock"] > :nth-child(5) { animation-delay: 0.37s; }
+html.enter-anim [data-testid="stAppViewContainer"] [data-testid="stMainBlockContainer"] > [data-testid="stVerticalBlock"] > :nth-child(6) { animation-delay: 0.45s; }
+html.enter-anim [data-testid="stAppViewContainer"] [data-testid="stMainBlockContainer"] > [data-testid="stVerticalBlock"] > :nth-child(7) { animation-delay: 0.53s; }
+html.enter-anim [data-testid="stAppViewContainer"] [data-testid="stMainBlockContainer"] > [data-testid="stVerticalBlock"] > :nth-child(8) { animation-delay: 0.61s; }
+html.enter-anim [data-testid="stAppViewContainer"] [data-testid="stMainBlockContainer"] > [data-testid="stVerticalBlock"] > :nth-child(n+9) { animation-delay: 0.69s; }
+@media (prefers-reduced-motion: reduce) {
+    html.enter-anim [data-testid="stAppViewContainer"] [data-testid="stMainBlockContainer"] > [data-testid="stVerticalBlock"] > [data-testid="stElementContainer"],
+    html.enter-anim [data-testid="stAppViewContainer"] [data-testid="stMainBlockContainer"] > [data-testid="stVerticalBlock"] > [data-testid="stLayoutWrapper"] {
+        animation: none;
+    }
 }
 
 /* ── 侧栏 ── */

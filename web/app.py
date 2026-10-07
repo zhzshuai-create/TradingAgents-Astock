@@ -43,6 +43,74 @@ def _app_version() -> str:
         return "unknown"  # 回退不硬写版本号, 防漂移 (L3)
 
 
+def _wire_index_countup() -> None:
+    """指数条现价 count-up 桥（srcdoc iframe 轮询 parent，同源操作）。
+
+    上一帧价格存挂在 window.parent.__astockIdx（父文档不随 rerun 重建，
+    状态可跨 rerun 累积）；自动刷新带来新价时 600ms ease-out 滚动到位。
+    首次见到某指数直接落定（不从 0 滚）；非数字("--")跳过；
+    prefers-reduced-motion 用户直接落定不播动画。
+    """
+    components.html("""
+<script>
+(function(){
+  var D = window.parent.document;
+  var S = window.parent;
+  var store = S.__astockIdx || (S.__astockIdx = {});
+  var REDUCE = false;
+  try { REDUCE = S.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}
+
+  function tick() {
+    /* 全函数用 let（块级作用域）：动画回调是循环内创建的闭包，
+       var 的函数级共享绑定会让它读到"最后一项"的 key/priceEl/from/v ——
+       实测后果：滚动写错元素、animMap 键永不清理、该指数被永久跳过 */
+    const items = D.querySelectorAll('.index-bar .index-item');
+    const anims = S.__astockIdxAnim || {};
+    for (let i = 0; i < items.length; i++) {
+      const nameEl = items[i].querySelector('.index-name');
+      const priceEl = items[i].querySelector('.index-price');
+      if (!nameEl || !priceEl) continue;
+      const key = nameEl.textContent.trim();
+      /* 动画进行中跳过：否则 tick 会把中间帧文本当新目标反复重建动画（反馈振荡）；
+         条目带时间戳，2s 未完成视为僵尸（所属 iframe 已被替换）过期回收 */
+      const anim = anims[key];
+      if (anim) {
+        if (Date.now() - anim.ts < 2000) continue;
+        clearInterval(anim.id);
+        delete S.__astockIdxAnim[key];
+      }
+      const txt = priceEl.textContent.trim();
+      const v = parseFloat(txt);
+      if (!isFinite(v)) { delete store[key]; continue; }
+      const prev = store[key];
+      if (prev === undefined || prev === v) { store[key] = v; continue; }
+      store[key] = v;
+      if (REDUCE) { priceEl.textContent = txt; continue; }
+      /* 动画循环挂本桥 iframe 自己的 timer（同 realm 已证可派发；跨 realm
+         parent.setInterval 的回调实测不派发）。写 parent DOM 走同源直接操作 */
+      const from = prev;
+      let t0 = null;
+      const id = setInterval(function() {
+        if (t0 === null) t0 = Date.now();
+        const k = Math.min((Date.now() - t0) / 600, 1);
+        const eased = 1 - Math.pow(1 - k, 3);
+        priceEl.textContent = (from + (v - from) * eased).toFixed(2);
+        if (k >= 1) {
+          clearInterval(id);
+          delete S.__astockIdxAnim[key];
+        }
+      }, 16);
+      S.__astockIdxAnim = S.__astockIdxAnim || {};
+      S.__astockIdxAnim[key] = {id: id, ts: Date.now()};
+    }
+  }
+  setInterval(tick, 350);
+  setTimeout(tick, 600);
+})();
+</script>
+""", height=0)
+
+
 def _wire_quick_cards() -> None:
     """快捷行情卡 → 隐藏回填按钮 的点击转发桥（同源 srcdoc iframe 操作 parent）。
 
@@ -136,6 +204,40 @@ components.html("""
     var theme = localStorage.getItem('astock-theme') === 'dark' ? 'dark' : 'light';
     document.documentElement.className = theme;
     window.parent.document.documentElement.className = theme;
+})();
+</script>
+""", height=0)
+
+# ── 首屏入场动画门控 ──
+# sessionStorage 每标签页会话置一次位：首帧等到启动遮罩放行(data-boot-done)
+# 才给 <html> 挂 enter-anim —— theme 的级差 fade-up 从遮罩掀开那一刻起扑面
+# （否则动画在遮罩底下播完，用户什么都看不到）。
+# 挂类 1.8s 后（级差 0.69s+时长 0.45s+余量）自动摘类：rerun 时 Streamlit 对
+# 相同 srcdoc 的 iframe 是复用不重载，本脚本不会重跑，靠自摘保证元素重插
+# 不重播。CSS 见 theme.py「首屏入场动画」。
+components.html("""
+<script>
+(function(){
+  var doc = window.parent.document.documentElement;
+  try {
+    if (window.parent.sessionStorage.getItem('astock-entered')) {
+      doc.classList.remove('enter-anim');
+      return;
+    }
+    window.parent.sessionStorage.setItem('astock-entered', '1');
+  } catch (e) { return; }
+  function enter() {
+    doc.classList.add('enter-anim');
+    setTimeout(function(){ doc.classList.remove('enter-anim'); }, 1800);
+  }
+  if (doc.getAttribute('data-boot-done') === '1') { enter(); return; }
+  try {
+    var obs = new MutationObserver(function(){
+      if (doc.getAttribute('data-boot-done') === '1') { obs.disconnect(); enter(); }
+    });
+    obs.observe(doc, {attributes: true, attributeFilter: ['data-boot-done']});
+  } catch (e) { enter(); }
+  setTimeout(function(){ if (!doc.classList.contains('enter-anim')) enter(); }, 3000);
 })();
 </script>
 """, height=0)
@@ -346,6 +448,8 @@ with col_index:
     if not _is_trading_time():
         _parts.append('<span class="index-closed-tag">已收盘</span>')
     st.markdown(f'<div class="index-bar">{"".join(_parts)}</div>', unsafe_allow_html=True)
+
+    _wire_index_countup()
 
 with col_theme:
     components.html("""
