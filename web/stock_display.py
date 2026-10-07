@@ -299,3 +299,31 @@ def quick_card_html(code: str, name: str, price: Any, pct: Any) -> str:
         f'<span class="qc-pct {pct_cls}">{pct_text}</span></div>'
         '</div>'
     )
+
+
+def signal_bar_html(buy: int, hold: int, sell: int) -> str:
+    """历史信号分布条（纯 HTML，无 IO、无 streamlit 依赖，可直接单测）。
+
+    浅灰轨道底（--track 令牌）+ 圆角端头；占比 >=15% 的分段内嵌"买入 12"式
+    图例，太窄的分段只有悬停 title；全部为 0 时只渲染空轨道。
+    颜色只给语义 class（sig-seg--buy/hold/sell），色值由 theme.py 令牌承担。
+    """
+    total = buy + hold + sell
+    if total <= 0:
+        return '<div class="sig-bar"></div>'
+
+    specs = (("Buy", "买入", buy, "sig-seg--buy"),
+             ("Hold", "持有", hold, "sig-seg--hold"),
+             ("Sell", "卖出", sell, "sig-seg--sell"))
+    segs = []
+    for _key, label, n, cls in specs:
+        if n <= 0:
+            continue
+        share = n / total
+        label_html = (f'<span class="sig-seg-label">{label} {n}</span>'
+                      if share >= 0.15 else "")
+        segs.append(
+            f'<div class="sig-seg {cls}" style="flex:{n};" '
+            f'title="{label} {n}">{label_html}</div>'
+        )
+    return f'<div class="sig-bar">{"".join(segs)}</div>'

@@ -36,6 +36,7 @@ LIGHT_TOKENS = """
 --bg:      #f8f9fa;
 --surface: #ffffff;
 --line:    #dee2e6;
+--track:   #edf0f3;  /* 进度/分布条轨道底 */
 
 /* ===== TEXT — 文字层级 ===== */
 --text:  #1a1a1a;
@@ -137,6 +138,7 @@ DARK_TOKENS = """
 --bg:      #1c1816;
 --surface: #252120;
 --line:    #383330;
+--track:   rgba(255,255,255,0.09);  /* 进度/分布条轨道底 */
 
 /* ===== TEXT ===== */
 --text:  #ede4dc;
@@ -299,6 +301,40 @@ COMBINATION_CSS = """
 div[data-testid="stColumn"]:has(.quick-card) button[data-testid^="stBaseButton"] {
     display: none;
 }
+
+/* ── 历史信号分布条 ──
+   HTML 由 stock_display.signal_bar_html 生成；
+   浅灰轨道底 + 圆角端头 + 分段间隙，宽段内嵌图例、窄段悬停 title */
+.sig-bar {
+    display: flex;
+    gap: 2px;
+    height: 16px;
+    border-radius: 999px;
+    background: var(--track);
+    overflow: hidden;
+}
+.sig-seg {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 6px;
+    border-radius: 3px;
+    overflow: hidden;
+    transition: filter 0.15s ease;
+}
+.sig-bar:hover .sig-seg {
+    filter: saturate(1.1) brightness(1.05);
+}
+.sig-seg-label {
+    font-size: var(--font-xs);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    padding: 0 6px;
+}
+.sig-seg--buy  { background: var(--up);   color: #ffffff; }
+.sig-seg--hold { background: var(--hold); color: #241a00; }
+.sig-seg--sell { background: var(--sell); color: #ffffff; }
 
 /* ── KPI 卡片（紧凑）── */
 .metric-card {

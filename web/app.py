@@ -27,7 +27,7 @@ _LOGO_URI = "data:image/png;base64," + base64.b64encode(
 load_dotenv(_PROJECT_ROOT / ".env")
 
 from web.components.icons import icon  # noqa: E402  纯字符串模块, 零依赖零启动成本
-from web.stock_display import quick_card_html  # noqa: E402  纯函数模块(无 streamlit 依赖)
+from web.stock_display import quick_card_html, signal_bar_html  # noqa: E402  纯函数模块(无 streamlit 依赖)
 
 
 def _app_version() -> str:
@@ -732,19 +732,14 @@ def _render_analysis_mode() -> None:
                         f'{min(len(full_history), 50)} 次）</div>',
                         unsafe_allow_html=True,
                     )
-                    seg = []
-                    colors = {"Buy": "var(--up)", "Hold": "var(--hold)", "Sell": "var(--sell)"}
-                    for k in ("Buy", "Hold", "Sell"):
-                        if dist[k]:
-                            seg.append(f'<div style="flex:{dist[k]};background:{colors[k]};" '
-                                       f'title="{k}: {dist[k]}"></div>')
+                    # 轨道底/圆角/段内图例由 builder+theme 承担；
+                    # 图例已在段内标注，caption 仅在存在"其他"信号时补充
                     st.markdown(
-                        f'<div style="display:flex;height:10px;border-radius:999px;overflow:hidden;'
-                        f'border:1px solid var(--line);">{"".join(seg)}</div>',
+                        signal_bar_html(dist["Buy"], dist["Hold"], dist["Sell"]),
                         unsafe_allow_html=True,
                     )
-                    st.caption(f"买入 {dist['Buy']} · 持有 {dist['Hold']} · 卖出 {dist['Sell']}"
-                               + (f" · 其他 {other}" if other else ""))
+                    if other:
+                        st.caption(f"其他信号 {other} 次")
 
             # ── 系统状态 ──
             import os as _os
