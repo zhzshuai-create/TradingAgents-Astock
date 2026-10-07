@@ -368,6 +368,46 @@ div[data-testid="stColumn"]:has(.quick-card) button[data-testid^="stBaseButton"]
 .sector-stock-row .pc--down { color: var(--down); }
 .sector-stock-row .pc--flat { color: var(--muted); }
 
+/* ── 板块行（看板总览，可点击）──
+   HTML 由 stock_display.sector_rows_html 生成；点击经 JS 桥转发到同列
+   隐藏按钮。网格对齐：方向色箭头 / 名称 / 涨跌幅 / 涨跌家数 */
+.sector-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.sector-row {
+    display: grid;
+    grid-template-columns: 16px minmax(0, 1fr) 62px 92px;
+    align-items: baseline;
+    gap: var(--space-sm);
+    padding: 5px var(--space-sm);
+    border-radius: var(--radius-sm);
+    border: var(--hairline) solid transparent;
+    cursor: pointer;
+    user-select: none;
+    font-size: var(--font-sm);
+    transition: border-color 0.15s ease, background 0.15s ease;
+}
+.sector-row:hover,
+.sector-row--active {
+    border-color: var(--brand);
+    background: var(--brand-soft);
+}
+.sector-row .sr-dir   { font-size: var(--font-xs); }
+.sector-row .sr-dir--up   { color: var(--up); }
+.sector-row .sr-dir--down { color: var(--down); }
+.sector-row .sr-name  { color: var(--text); font-weight: 600;
+                        overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sector-row .sr-pct   { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+.sector-row .sr-pct--up   { color: var(--up); }
+.sector-row .sr-pct--down { color: var(--down); }
+.sector-row .sr-counts { color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+/* 板块行同列的原生隐藏按钮（桥转发点击）从首帧起隐藏 */
+div[data-testid="stColumn"]:has(.sector-row) button[data-testid^="stBaseButton"] {
+    display: none;
+}
+
 /* ── KPI 卡片（紧凑）── */
 .metric-card {
     background: var(--surface);

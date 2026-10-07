@@ -27,6 +27,7 @@ _LOGO_URI = "data:image/png;base64," + base64.b64encode(
 load_dotenv(_PROJECT_ROOT / ".env")
 
 from web.components.icons import icon  # noqa: E402  纯字符串模块, 零依赖零启动成本
+from web.components.click_bridge import wire_clickable_cards  # noqa: E402  纯字符串模块
 from web.stock_display import (  # noqa: E402  纯函数模块(无 streamlit 依赖)
     quick_card_html,
     signal_bar_html,
@@ -111,37 +112,7 @@ def _wire_index_countup() -> None:
 """, height=0)
 
 
-def _wire_quick_cards() -> None:
-    """快捷行情卡 → 隐藏回填按钮 的点击转发桥（同源 srcdoc iframe 操作 parent）。
 
-    卡片是纯 HTML（信息丰富但非交互元素），真正的 Streamlit 按钮按 code
-    精确匹配按钮文本后 JS click —— widget 按钮 JS click 一向可靠。
-    """
-    components.html("""
-<script>
-(function(){
-  var D = window.parent.document;
-  function wire() {
-    var cards = D.querySelectorAll('.quick-card:not([data-wired])');
-    for (var i = 0; i < cards.length; i++) {
-      var c = cards[i];
-      c.setAttribute('data-wired', '1');
-      c.addEventListener('click', function() {
-        var code = this.getAttribute('data-code');
-        if (!code) return;
-        var btns = D.querySelectorAll('[data-testid="stMain"] button');
-        for (var j = 0; j < btns.length; j++) {
-          if (btns[j].textContent.trim() === code) { btns[j].click(); return; }
-        }
-      });
-    }
-  }
-  wire();
-  setTimeout(wire, 500);
-  setTimeout(wire, 1500);
-})();
-</script>
-""", height=0)
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Page config
@@ -814,12 +785,12 @@ def _render_analysis_mode() -> None:
                             unsafe_allow_html=True,
                         )
                         # 隐藏回填按钮：CSS 按同列 :has(.quick-card) 隐藏，
-                        # 卡片点击经 JS 桥(_wire_quick_cards)转发到本按钮
+                        # 卡片点击经 JS 桥(wire_clickable_cards)转发到本按钮
                         if st.button(qcode, key=f"quick_{qcode}", use_container_width=True):
                             # pending key 非 widget key，直写合法；消费点在脚本顶部
                             st.session_state["_pending_ticker_fill"] = qcode
                             st.rerun()
-                _wire_quick_cards()
+                wire_clickable_cards()
 
             # ── 历史信号分布 ──
             if full_history:

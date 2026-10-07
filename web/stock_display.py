@@ -368,3 +368,31 @@ def sector_stock_rows_html(stocks: list) -> str:
             '</div>'
         )
     return f'<div class="sector-stocks">{"".join(rows)}</div>'
+
+
+def sector_rows_html(rows: list, active_code: str | None = None) -> str:
+    """板块行网格 HTML（可点击，点击经 JS 桥转发到同列隐藏按钮）。
+
+    每行 data-code=板块代码；active_code 命中的行加 --active 态（品牌描边）。
+    颜色只给语义 class，色值归 theme 令牌。
+    """
+    out = []
+    for r in rows:
+        try:
+            pct_f = float(r["change_pct"])
+        except (TypeError, ValueError):
+            pct_f = 0.0
+        up = pct_f >= 0
+        code = escape(str(r.get("code", "")))
+        active_cls = " sector-row--active" if r.get("code") == active_code else ""
+        out.append(
+            f'<div class="sector-row{active_cls}" data-code="{code}">'
+            f'<span class="sr-dir {"sr-dir--up" if up else "sr-dir--down"}">'
+            f'{"▲" if up else "▼"}</span>'
+            f'<span class="sr-name">{escape(str(r.get("name", "")))}</span>'
+            f'<span class="sr-pct {"sr-pct--up" if up else "sr-pct--down"}">{pct_f:+.2f}%</span>'
+            f'<span class="sr-counts">涨{escape(str(r.get("up_count", 0)))}'
+            f' · 跌{escape(str(r.get("down_count", 0)))}</span>'
+            '</div>'
+        )
+    return f'<div class="sector-list">{"".join(out)}</div>'

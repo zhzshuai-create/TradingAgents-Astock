@@ -21,7 +21,8 @@ from web.data_functions import (
     forward_pe, calc_peg, pe_digestion,
     get_intraday_view, minute_timeline, _get_kline_full,
 )
-from web.stock_display import sector_stock_rows_html
+from web.stock_display import sector_rows_html, sector_stock_rows_html
+from web.components.click_bridge import wire_clickable_cards
 
 # K 线周期选项：radio 与双击跳转共用同一份字面量，防两处漂移
 KLINE_PERIODS = ["单日详情", "5日", "30日", "全部历史"]
@@ -851,21 +852,12 @@ def render_data_mode() -> None:
 
 
 def _render_sector_rows(rows: list, active: str | None) -> None:
-    """板块行：tertiary 按钮（紧凑链接观感，▲▼表达涨跌方向），点击切换详情区。
-
-    sector_detail 为普通 session key（非 widget key），直写合法；
-    再点同一板块收起。"""
+    """板块行：网格 HTML（方向/名称/涨跌幅/家数对齐），点击经 JS 桥转发到
+    同列隐藏按钮（label=板块代码）。sector_detail 为普通 session key，
+    直写合法；再点同一板块收起。"""
+    st.markdown(sector_rows_html(rows, active), unsafe_allow_html=True)
     for r in rows:
-        try:
-            pct_f = float(r["change_pct"])
-        except (TypeError, ValueError):
-            pct_f = 0.0
-        arrow = "▲" if pct_f >= 0 else "▼"
-        prefix = "▸ " if active == r["code"] else ""
-        if st.button(
-            f"{prefix}{arrow} {r['name']}  {pct_f:+.2f}%  涨{r['up_count']}跌{r['down_count']}",
-            key=f"sector_{r['code']}", type="tertiary", use_container_width=True,
-        ):
+        if st.button(r["code"], key=f"sector_{r['code']}", use_container_width=True):
             st.session_state["sector_detail"] = None if active == r["code"] else r["code"]
             st.rerun()
 
@@ -911,6 +903,7 @@ def _render_market_overview() -> None:
         # 详情区：点击板块行展开该板块涨跌幅前十（再点收起）
         if active and active in board_by_code:
             _render_sector_detail(board_by_code[active])
+        wire_clickable_cards()  # 板块行点击 → 同列隐藏按钮 的转发桥
     else:
         st.caption("暂无行业数据")
 
