@@ -6,6 +6,7 @@ import streamlit as st
 
 from web.progress import PIPELINE_STAGES, ProgressTracker
 from web.components.icons import icon
+from web.stock_display import status_html
 
 _CSS = """
 <style>
@@ -24,6 +25,9 @@ _CSS = """
 .pp-pending{ border: 1.6px solid var(--muted); color: var(--muted); }
 .pp-name { font-size: 0.78rem; }
 .pp-name-done { color: var(--up); }
+@media (prefers-reduced-motion: reduce) {
+  .pp-active { animation: none; }  /* 减弱动效用户不播脉冲 */
+}
 .pp-name-active { color: var(--text); font-weight: 700; }
 .pp-name-pending { color: var(--muted); }
 .pp-parallel {
@@ -69,6 +73,25 @@ def _format_time(seconds: float) -> str:
     return f"{m}:{s:02d}"
 
 
+def progress_header_html(ticker: str, parallel_badge: str = "") -> str:
+    """运行态头部 HTML（纯函数便于单测）：绿色脉冲点 + 标题 + 代码 + 并行徽章。
+
+    状态点复用 theme.py 全局 .status-dot--running（含 prefers-reduced-motion 降级）。
+    """
+    return f"""
+        <div style="text-align:center; margin:1rem 0 0.5rem;">
+            {status_html("running")}
+            <span style="font-size:1.6rem; font-weight:700; color:var(--text); margin-left:0.4rem;">
+                分析进行中
+            </span>
+            <span style="font-size:1.1rem; color:var(--muted); margin-left:0.8rem;">
+                {ticker}
+            </span>
+            {parallel_badge}
+        </div>
+        """
+
+
 def render_progress(tracker: ProgressTracker, parallel: bool = False) -> None:
     """Render the pipeline progress panel."""
     snap = tracker.snapshot()
@@ -77,20 +100,8 @@ def render_progress(tracker: ProgressTracker, parallel: bool = False) -> None:
 
     parallel_badge = (f'<span class="pp-parallel">{icon("bolt", 11)} 并行模式</span>'
                       if parallel else "")
-    st.markdown(
-        f"""
-        <div style="text-align:center; margin:1rem 0 0.5rem;">
-            <span style="font-size:1.6rem; font-weight:700; color:var(--text);">
-                分析进行中
-            </span>
-            <span style="font-size:1.1rem; color:var(--muted); margin-left:0.8rem;">
-                {tracker.ticker}
-            </span>
-            {parallel_badge}
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    st.markdown(progress_header_html(tracker.ticker, parallel_badge),
+                unsafe_allow_html=True)
 
     if snap["stop_requested"]:
         st.caption("正在停止当前分析并清空内容；收尾完成后可重新开始。")

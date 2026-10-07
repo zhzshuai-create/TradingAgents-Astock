@@ -327,3 +327,14 @@ def signal_bar_html(buy: int, hold: int, sell: int) -> str:
             f'title="{label} {n}">{label_html}</div>'
         )
     return f'<div class="sig-bar">{"".join(segs)}</div>'
+
+
+def status_html(state: str = "idle") -> str:
+    """状态点 HTML（系统状态卡/运行态头部共用，样式在 theme.py .status-dot）。
+
+    state: "running"（绿色脉冲，分析进行中）| "idle"（琥珀静态，待命/编辑中）。
+    """
+    if state == "running":
+        return ('<span class="status-dot status-dot--running" '
+                'title="分析运行中"></span>')
+    return '<span class="status-dot status-dot--idle" title="待命 · 可发起分析"></span>'

@@ -27,7 +27,11 @@ _LOGO_URI = "data:image/png;base64," + base64.b64encode(
 load_dotenv(_PROJECT_ROOT / ".env")
 
 from web.components.icons import icon  # noqa: E402  纯字符串模块, 零依赖零启动成本
-from web.stock_display import quick_card_html, signal_bar_html  # noqa: E402  纯函数模块(无 streamlit 依赖)
+from web.stock_display import (  # noqa: E402  纯函数模块(无 streamlit 依赖)
+    quick_card_html,
+    signal_bar_html,
+    status_html,
+)
 
 
 def _app_version() -> str:
@@ -753,7 +757,7 @@ def _render_analysis_mode() -> None:
             st.markdown(
                 '<div style="font-size:var(--font-sm);color:var(--muted);'
                 'margin:var(--space-md) 0 var(--space-xs);">'
-                f'{icon("monitor")} 系统状态</div>',
+                f'{status_html("idle")}{icon("monitor")} 系统状态</div>',
                 unsafe_allow_html=True,
             )
             st.markdown(

@@ -45,6 +45,7 @@ LIGHT_TOKENS = """
 /* ===== UP / DOWN / WARN — 涨跌警示 ===== */
 --up:   #e03131;
 --down: #2f9e44;
+--ok:   #2f9e44;  /* 成功/运行中语义（值同 --down，语义解耦：跌色≠状态色） */
 --warn: #f08c00;
 
 /* ===== SPACING — 8px 网格 ===== */
@@ -147,6 +148,7 @@ DARK_TOKENS = """
 /* ===== UP / DOWN / WARN ===== */
 --up:   #ff6b6b;
 --down: #51cf66;
+--ok:   #51cf66;  /* 成功/运行中语义（值同 --down，语义解耦：跌色≠状态色） */
 --warn: #fbbf24;
 
 /* ===== SPACING — 与亮色一致 ===== */
@@ -704,6 +706,31 @@ html, body, [class*="css"] {
 .stApp [tabindex="0"]:focus-visible {
     outline: 2px solid var(--brand) !important;
     outline-offset: 2px !important;
+}
+
+/* ── 状态点 ──
+   运行中=绿色脉冲；待命/编辑中=琥珀色静态。HTML 方由 status_html() 生成 */
+@keyframes status-pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(47, 158, 68, 0.45); }
+    70%  { box-shadow: 0 0 0 6px rgba(47, 158, 68, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(47, 158, 68, 0); }
+}
+.status-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    vertical-align: middle;
+}
+.status-dot--running {
+    background: var(--ok);
+    animation: status-pulse 1.6s infinite;
+}
+.status-dot--idle {
+    background: var(--hold);
+}
+@media (prefers-reduced-motion: reduce) {
+    .status-dot--running { animation: none; }
 }
 
 /* ── 侧栏 ── */
