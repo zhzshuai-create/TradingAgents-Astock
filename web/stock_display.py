@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from functools import lru_cache
+from html import escape
 from typing import Any
 
 
@@ -263,3 +264,38 @@ def normalize_report_state_mentions(final_state: dict[str, Any], ticker: str) ->
             final_state[key] = _normalize_report_value(final_state[key], ticker, final_state)
 
     return final_state
+
+
+def quick_card_html(code: str, name: str, price: Any, pct: Any) -> str:
+    """快速标的迷你行情卡（纯 HTML，无 IO、无 streamlit 依赖，可直接单测）。
+
+    颜色只给语义 class（pct--up/down/flat），色值由 theme.py 令牌承担；
+    price/pct 缺失（停牌/退市/行情源失败）降级 "--"，卡片仍可点击回填。
+    """
+    def _fmt_price(v: Any) -> str:
+        try:
+            f = float(v)
+        except (TypeError, ValueError):
+            return "--"
+        return f"{f:.2f}" if f > 0 else "--"
+
+    def _fmt_pct(v: Any) -> tuple[str, str]:
+        try:
+            f = float(v)
+        except (TypeError, ValueError):
+            return "--", "pct--flat"
+        if f > 0:
+            return f"+{f:.2f}%", "pct--up"
+        if f < 0:
+            return f"{f:.2f}%", "pct--down"
+        return "0.00%", "pct--flat"
+
+    pct_text, pct_cls = _fmt_pct(pct)
+    return (
+        f'<div class="quick-card" data-code="{escape(str(code))}">'
+        f'<div class="qc-head"><span class="qc-code">{escape(str(code))}</span>'
+        f'<span class="qc-name">{escape(str(name or ""))}</span></div>'
+        f'<div class="qc-quote"><span class="qc-price">{_fmt_price(price)}</span>'
+        f'<span class="qc-pct {pct_cls}">{pct_text}</span></div>'
+        '</div>'
+    )

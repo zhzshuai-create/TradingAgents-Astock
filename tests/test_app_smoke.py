@@ -31,6 +31,9 @@ def _stub_network(monkeypatch):
     import web.journal_service as js
 
     monkeypatch.setattr(df, "index_spot", lambda: {}, raising=True)
+    # 快捷标的迷你行情卡会批量拉腾讯实时行情 —— 不打桩会真联网, 且 60s 进程级
+    # _data_cache 会灌入真实数据, 污染后续 test_astock_parsing 的离线解析断言
+    monkeypatch.setattr(df, "tencent_quote", lambda codes: {}, raising=True)
     # 日志页懒加载不得在测试期间真拉起 trade-journal 子进程
     monkeypatch.setattr(js, "start_journal", lambda: None, raising=True)
 

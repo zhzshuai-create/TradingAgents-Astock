@@ -27,6 +27,7 @@ _LOGO_URI = "data:image/png;base64," + base64.b64encode(
 load_dotenv(_PROJECT_ROOT / ".env")
 
 from web.components.icons import icon  # noqa: E402  纯字符串模块, 零依赖零启动成本
+from web.stock_display import quick_card_html  # noqa: E402  纯函数模块(无 streamlit 依赖)
 
 
 def _app_version() -> str:
@@ -36,6 +37,39 @@ def _app_version() -> str:
         return _pkg_version("tradingagents-astock")
     except Exception:
         return "unknown"  # 回退不硬写版本号, 防漂移 (L3)
+
+
+def _wire_quick_cards() -> None:
+    """快捷行情卡 → 隐藏回填按钮 的点击转发桥（同源 srcdoc iframe 操作 parent）。
+
+    卡片是纯 HTML（信息丰富但非交互元素），真正的 Streamlit 按钮按 code
+    精确匹配按钮文本后 JS click —— widget 按钮 JS click 一向可靠。
+    """
+    components.html("""
+<script>
+(function(){
+  var D = window.parent.document;
+  function wire() {
+    var cards = D.querySelectorAll('.quick-card:not([data-wired])');
+    for (var i = 0; i < cards.length; i++) {
+      var c = cards[i];
+      c.setAttribute('data-wired', '1');
+      c.addEventListener('click', function() {
+        var code = this.getAttribute('data-code');
+        if (!code) return;
+        var btns = D.querySelectorAll('[data-testid="stMain"] button');
+        for (var j = 0; j < btns.length; j++) {
+          if (btns[j].textContent.trim() === code) { btns[j].click(); return; }
+        }
+      });
+    }
+  }
+  wire();
+  setTimeout(wire, 500);
+  setTimeout(wire, 1500);
+})();
+</script>
+""", height=0)
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Page config
@@ -68,6 +102,7 @@ import streamlit.components.v1 as components  # noqa: E402
 from web.components.sidebar import render_sidebar  # noqa: E402
 from web.data_functions import (  # noqa: E402
     index_spot,
+    tencent_quote,
 )
 
 # ── Session state ────────────────────────────────────────────────────────────
@@ -658,13 +693,25 @@ def _render_analysis_mode() -> None:
                     f'{icon("bolt")} 快捷标的</div>',
                     unsafe_allow_html=True,
                 )
+                # 批量实时行情：tencent_quote 自带 10s 缓存且失败返回 {}，
+                # 单股缺失时卡片降级 code + "--"，绝不阻塞/炸掉首页
+                quotes = tencent_quote(quick_codes) or {}
                 qc = st.columns(min(len(quick_codes), 3))
                 for i, qcode in enumerate(quick_codes):
                     with qc[i % min(len(quick_codes), 3)]:
+                        q = quotes.get(qcode, {})
+                        st.markdown(
+                            quick_card_html(qcode, q.get("name", ""),
+                                            q.get("price"), q.get("change_pct")),
+                            unsafe_allow_html=True,
+                        )
+                        # 隐藏回填按钮：CSS 按同列 :has(.quick-card) 隐藏，
+                        # 卡片点击经 JS 桥(_wire_quick_cards)转发到本按钮
                         if st.button(qcode, key=f"quick_{qcode}", use_container_width=True):
                             # pending key 非 widget key，直写合法；消费点在脚本顶部
                             st.session_state["_pending_ticker_fill"] = qcode
                             st.rerun()
+                _wire_quick_cards()
 
             # ── 历史信号分布 ──
             if full_history:

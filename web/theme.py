@@ -240,6 +240,66 @@ COMBINATION_CSS = """
     margin-bottom: var(--space-sm);
 }
 
+/* ── 快速标的迷你行情卡 ──
+   纯 HTML 展示（HTML 由 stock_display.quick_card_html 生成），
+   点击经 JS 桥转发到同列隐藏的原生回填按钮 */
+.quick-card {
+    background: var(--surface);
+    border: var(--hairline) solid var(--line);
+    border-radius: var(--radius-md);
+    padding: var(--space-sm) var(--space-md);
+    box-shadow: var(--shadow-card);
+    cursor: pointer;
+    user-select: none;
+    transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.2s ease;
+}
+.quick-card:hover {
+    border-color: var(--brand);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-hover);
+}
+.quick-card .qc-head {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-sm);
+    min-width: 0;
+}
+.quick-card .qc-code {
+    font-weight: 700;
+    color: var(--text);
+    font-size: var(--font-md);
+}
+.quick-card .qc-name {
+    color: var(--muted);
+    font-size: var(--font-sm);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.quick-card .qc-quote {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-top: 2px;
+}
+.quick-card .qc-price {
+    font-weight: 700;
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+}
+.quick-card .qc-pct {
+    font-weight: 700;
+    font-size: var(--font-sm);
+    font-variant-numeric: tabular-nums;
+}
+.quick-card .pct--up   { color: var(--up); }
+.quick-card .pct--down { color: var(--down); }
+.quick-card .pct--flat { color: var(--muted); }
+/* 卡片同列的原生回填按钮从首帧起隐藏（无闪烁）：列内含 .quick-card 即命中 */
+div[data-testid="stColumn"]:has(.quick-card) button[data-testid^="stBaseButton"] {
+    display: none;
+}
+
 /* ── KPI 卡片（紧凑）── */
 .metric-card {
     background: var(--surface);

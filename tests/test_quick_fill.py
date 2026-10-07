@@ -31,13 +31,25 @@ def _run_home():
     return at
 
 
+def _stub_quotes(monkeypatch):
+    """AppTest 用例全程离线：快捷卡批量行情打桩返回空（卡片降级 "--"）。
+
+    不打桩会真联网, 且 _tencent_quote 的 60s 进程级 _data_cache 会被真实
+    数据灌热, 污染其他离线断言（test_astock_parsing 曾因此翻车）。
+    """
+    import web.data_functions as dfacade
+
+    monkeypatch.setattr(dfacade, "tencent_quote", lambda codes: {}, raising=True)
+
+
 def _sidebar_ticker(at):
     return [t for t in at.text_input if t.key == "input_ticker"]
 
 
-def test_quick_button_fills_sidebar_without_exception():
+def test_quick_button_fills_sidebar_without_exception(monkeypatch):
     """回归：快捷标的按钮点击曾必抛 StreamlitAPIException（inline 写已实例化的
     input_ticker）。pending 模式下必须无异常且侧栏拿到代码。"""
+    _stub_quotes(monkeypatch)
     at = _run_home()
     assert not at.exception
 
@@ -55,8 +67,9 @@ def test_quick_button_fills_sidebar_without_exception():
     assert ti and ti[0].value == code
 
 
-def test_quick_fill_input_fills_sidebar_without_exception():
+def test_quick_fill_input_fills_sidebar_without_exception(monkeypatch):
     """「快速开始」输入框回车 → on_change 清空自身+落 pending → 消费点预置侧栏。"""
+    _stub_quotes(monkeypatch)
     at = _run_home()
     assert not at.exception
 
@@ -69,3 +82,54 @@ def test_quick_fill_input_fills_sidebar_without_exception():
     assert ti and ti[0].value == "300750"
     box2 = next(w for w in at.text_input if w.key == "quick_fill_input")
     assert box2.value == ""  # 回填后输入框自身清空
+
+
+# ── 迷你行情卡 builder（纯函数，无 IO）──
+
+def test_quick_card_html_up_down_flat_and_missing():
+    from web.stock_display import quick_card_html
+
+    up = quick_card_html("300750", "宁德时代", 291.11, 1.5)
+    assert 'data-code="300750"' in up
+    assert "pct--up" in up and "+1.50%" in up and "291.11" in up
+
+    down = quick_card_html("601208", "东材科技", 48.22, -4.57)
+    assert "pct--down" in down and "-4.57%" in down
+
+    flat = quick_card_html("000001", "平安银行", 0, 0)
+    assert "pct--flat" in flat and "0.00%" in flat and '"qc-price">--' in flat  # price<=0 → "--"
+
+    missing = quick_card_html("000001", "", None, None)
+    assert '"qc-price">--' in missing and "pct--flat" in missing
+
+
+def test_quick_cards_render_with_stubbed_quotes(monkeypatch):
+    """卡片网格带行情渲染 + 隐藏回填按钮点击链路。
+
+    打桩在 web.data_functions 命名空间（app.py 脚本每轮 from-import 在此解析），
+    返回任意请求 code 的罐头行情 → 用例不依赖本机历史记录内容。
+    """
+    import web.data_functions as dfacade
+
+    monkeypatch.setattr(
+        dfacade, "tencent_quote",
+        lambda codes: {c: {"name": f"测试股{c}", "price": 10.0, "change_pct": 2.5}
+                       for c in codes},
+    )
+
+    at = _run_home()
+    assert not at.exception
+
+    cards = [m.value for m in at.markdown if 'class="quick-card"' in m.value]
+    if not cards:
+        pytest.skip("无历史分析记录，快捷卡不渲染")
+    assert all("pct--up" in c and "测试股" in c for c in cards)
+
+    btn = next(b for b in at.button if b.key and b.key.startswith("quick_"))
+    code = btn.label
+    btn.click()
+    at.run()
+
+    assert not at.exception
+    ti = [t for t in at.text_input if t.key == "input_ticker"]
+    assert ti and ti[0].value == code
