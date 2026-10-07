@@ -557,8 +557,25 @@ html, body, [class*="css"] {
 /* ── 主内容区间距收敛 ──
    Streamlit 1.57 主容器 testid=stMainBlockContainer（旧 .block-container 选择器
    在 1.57 已失灵，96px 默认顶部 padding 曾因此从未收敛） */
+/* ── 顶栏处理 ──
+   空白 header（本地模式无业务元素）做成透明+不可点击，视觉上等于隐藏；
+   但不能用 display:none / 高度归零 —— 1.57 侧栏收起态的拉出按钮
+   stExpandSidebarButton 就住在 header 的 stToolbar 里，整条链被隐藏后
+   子树不渲染（rect 归零），侧栏收起后永远拉不回来（线上事故复现过） */
 [data-testid="stHeader"] {
-    display: none; /* 空白 header 占 60px 且无可交互元素；运行中状态由侧栏与主区指示 */
+    background: transparent;
+    pointer-events: none; /* header 本体不拦截点击；拉出按钮单独放行 */
+    box-shadow: none;
+}
+[data-testid="stHeader"] [data-testid="stStatusWidget"] {
+    display: none; /* 运行中状态指示由侧栏与主区承担，不与顶栏图标抢占右上角 */
+}
+[data-testid="stExpandSidebarButton"] {
+    pointer-events: auto;
+    background: var(--surface);
+    border: var(--hairline) solid var(--line);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-card);
 }
 [data-testid="stAppViewContainer"] [data-testid="stMainBlockContainer"],
 [data-testid="stAppViewContainer"] > .block-container {
