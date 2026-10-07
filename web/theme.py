@@ -340,6 +340,34 @@ div[data-testid="stColumn"]:has(.quick-card) button[data-testid^="stBaseButton"]
 .sig-seg--hold { background: var(--hold); color: #241a00; }
 .sig-seg--sell { background: var(--sell); color: #ffffff; }
 
+/* ── 板块成分股明细行 ──
+   HTML 由 stock_display.sector_stock_rows_html 生成，点击板块行后展开 */
+.sector-stocks {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin: var(--space-xs) 0 var(--space-sm);
+}
+.sector-stock-row {
+    display: grid;
+    grid-template-columns: 26px 78px minmax(0, 1fr) 78px 74px;
+    align-items: baseline;
+    gap: var(--space-sm);
+    padding: 3px var(--space-sm);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    border: var(--hairline) solid var(--line);
+    font-size: var(--font-sm);
+}
+.sector-stock-row .idx  { color: var(--muted); }
+.sector-stock-row .code { font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+.sector-stock-row .nm   { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sector-stock-row .px   { color: var(--text); text-align: right; font-variant-numeric: tabular-nums; }
+.sector-stock-row .pc   { font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+.sector-stock-row .pc--up   { color: var(--up); }
+.sector-stock-row .pc--down { color: var(--down); }
+.sector-stock-row .pc--flat { color: var(--muted); }
+
 /* ── KPI 卡片（紧凑）── */
 .metric-card {
     background: var(--surface);

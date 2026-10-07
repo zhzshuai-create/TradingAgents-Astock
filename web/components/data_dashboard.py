@@ -16,10 +16,12 @@ from web.data_functions import (
     normalize_code, tencent_quote, ths_eps_forecast,
     ths_hot_reason, baidu_concept_blocks, hsgt_realtime,
     load_northbound_history, get_kline_data, get_minute_data, industry_comparison,
+    industry_stocks,
     cls_telegraph, eastmoney_stock_news,
     forward_pe, calc_peg, pe_digestion,
     get_intraday_view, minute_timeline, _get_kline_full,
 )
+from web.stock_display import sector_stock_rows_html
 
 # K 线周期选项：radio 与双击跳转共用同一份字面量，防两处漂移
 KLINE_PERIODS = ["单日详情", "5日", "30日", "全部历史"]
@@ -848,25 +850,67 @@ def render_data_mode() -> None:
     st.markdown('<div class="footer-note">AStock Pro · <a href="https://github.com/zhzshuai-create" target="_blank">github.com/zhzshuai-create</a> | a-stock-data V3.1 | 数据仅供参考，不构成投资建议</div>', unsafe_allow_html=True)
 
 
+def _render_sector_rows(rows: list, active: str | None) -> None:
+    """板块行：tertiary 按钮（紧凑链接观感，▲▼表达涨跌方向），点击切换详情区。
+
+    sector_detail 为普通 session key（非 widget key），直写合法；
+    再点同一板块收起。"""
+    for r in rows:
+        try:
+            pct_f = float(r["change_pct"])
+        except (TypeError, ValueError):
+            pct_f = 0.0
+        arrow = "▲" if pct_f >= 0 else "▼"
+        prefix = "▸ " if active == r["code"] else ""
+        if st.button(
+            f"{prefix}{arrow} {r['name']}  {pct_f:+.2f}%  涨{r['up_count']}跌{r['down_count']}",
+            key=f"sector_{r['code']}", type="tertiary", use_container_width=True,
+        ):
+            st.session_state["sector_detail"] = None if active == r["code"] else r["code"]
+            st.rerun()
+
+
+def _render_sector_detail(row: dict) -> None:
+    """板块详情：成分股涨跌幅前十（点击板块行展开，再点收起）。"""
+    leader = ""
+    if row.get("leader"):
+        try:
+            leader = (f'　领涨：{row["leader"]}'
+                      f'<span style="color:var(--up);">{float(row["leader_change"]):+.2f}%</span>')
+        except (TypeError, ValueError):
+            leader = f'　领涨：{row["leader"]}'
+    st.markdown(
+        '<div style="font-size:var(--font-md);color:var(--muted);'
+        'margin:var(--space-sm) 0 var(--space-xs);">'
+        f'▾ <b style="color:var(--text);">{row["name"]}</b> · 涨跌幅前十{leader}</div>',
+        unsafe_allow_html=True,
+    )
+    with st.spinner(f"加载 {row['name']} 成分股..."):
+        stocks = industry_stocks(row["code"], 10)
+    if not stocks:
+        st.caption("暂无成分股数据（行情源暂不可用，稍后再试）")
+        return
+    st.markdown(sector_stock_rows_html(stocks), unsafe_allow_html=True)
+
+
 def _render_market_overview() -> None:
     """Market overview shown when no stock code entered."""
     st.caption("在顶部搜索框输入股票代码，查看完整估值分析")
     with st.spinner("加载行业数据..."):
         comp = industry_comparison(10)
     if comp["top"]:
+        board_by_code = {r["code"]: r for r in comp["top"] + comp["bottom"]}
+        active = st.session_state.get("sector_detail")
         c1, c2 = st.columns(2)
         with c1:
             st.markdown("**涨幅 TOP 10**")
-            for r in comp["top"][:10]:
-                pct = r["change_pct"]
-                clr = "var(--up)" if pct >= 0 else "var(--down)"
-                st.markdown(f"<span style='color:{clr};font-weight:600'>{pct:+.2f}%</span> {r['name']} 涨{r['up_count']}跌{r['down_count']}", unsafe_allow_html=True)
+            _render_sector_rows(comp["top"][:10], active)
         with c2:
             st.markdown("**跌幅 TOP 10**")
-            for r in comp["bottom"][:10]:
-                pct = r["change_pct"]
-                clr = "var(--up)" if pct >= 0 else "var(--down)"
-                st.markdown(f"<span style='color:{clr};font-weight:600'>{pct:+.2f}%</span> {r['name']}", unsafe_allow_html=True)
+            _render_sector_rows(comp["bottom"][:10], active)
+        # 详情区：点击板块行展开该板块涨跌幅前十（再点收起）
+        if active and active in board_by_code:
+            _render_sector_detail(board_by_code[active])
     else:
         st.caption("暂无行业数据")
 

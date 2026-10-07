@@ -338,3 +338,33 @@ def status_html(state: str = "idle") -> str:
         return ('<span class="status-dot status-dot--running" '
                 'title="分析运行中"></span>')
     return '<span class="status-dot status-dot--idle" title="待命 · 可发起分析"></span>'
+
+
+def sector_stock_rows_html(stocks: list) -> str:
+    """板块成分股前十行 HTML（.sector-stock-row 网格行，纯函数可单测）。
+
+    每项 {code, name, price, change_pct}；price/change_pct 缺失或停牌 "-"
+    降级 "--"，涨跌着色走 pc--up/down/flat 语义 class（色值归 theme 令牌）。
+    """
+    rows = []
+    for i, s in enumerate(stocks, start=1):
+        try:
+            price_s = f"{float(s.get('price')):.2f}"
+        except (TypeError, ValueError):
+            price_s = "--"
+        try:
+            cf = float(s.get("change_pct"))
+            pct_s = f"{cf:+.2f}%"
+            pc_cls = "pc--up" if cf > 0 else ("pc--down" if cf < 0 else "pc--flat")
+        except (TypeError, ValueError):
+            pct_s, pc_cls = "--", "pc--flat"
+        rows.append(
+            '<div class="sector-stock-row">'
+            f'<span class="idx">{i}</span>'
+            f'<span class="code">{escape(str(s.get("code", "")))}</span>'
+            f'<span class="nm">{escape(str(s.get("name", "")))}</span>'
+            f'<span class="px">{price_s}</span>'
+            f'<span class="pc {pc_cls}">{pct_s}</span>'
+            '</div>'
+        )
+    return f'<div class="sector-stocks">{"".join(rows)}</div>'

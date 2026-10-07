@@ -424,6 +424,32 @@ def industry_comparison(top_n: int = 20) -> dict:
         logger.warning("industry_comparison failed: %s", e, exc_info=True)
         return {"top": [], "bottom": [], "total": 0}
 
+@st.cache_data(ttl=120, show_spinner=False)
+def industry_stocks(board_code: str, top_n: int = 10) -> list:
+    """东财行业板块成分股（按涨跌幅降序前 top_n）。失败返回 []。
+
+    board_code 来自 industry_comparison 行的板块代码（f12, 如 BK0475）。
+    price/change_pct 为东财原始值（fltt=2 已是数字, 停牌可能为 "-"），UI 容错降级。
+    """
+    url = "https://push2.eastmoney.com/api/qt/clist/get"
+    params = {
+        "pn": "1", "pz": str(top_n), "po": "1", "np": "1",
+        "fltt": "2", "invt": "2", "fs": f"b:{board_code}",
+        "fields": "f2,f3,f12,f14",
+    }
+    headers = {"User-Agent": UA}
+    try:
+        r = _core._em_get(url, params=params, headers=headers, timeout=15)
+        items = (r.json().get("data") or {}).get("diff") or []
+        return [
+            {"code": str(it.get("f12", "")), "name": str(it.get("f14", "")),
+             "price": it.get("f2"), "change_pct": it.get("f3")}
+            for it in items
+        ]
+    except Exception as e:
+        logger.warning("industry_stocks failed: %s", e, exc_info=True)
+        return []
+
 # ── 新闻层 ────────────────────────────────────────────────
 
 @st.cache_data(ttl=120, show_spinner=False)
