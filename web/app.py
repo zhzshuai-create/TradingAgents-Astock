@@ -78,6 +78,16 @@ if "data_code" not in st.session_state:
 if "theme" not in st.session_state:
     st.session_state["theme"] = "light"
 
+# ── 快速回填消费点 ──
+# 快捷标的按钮 / 快速开始输入框都只落 pending key（直写已实例化的 widget key 必抛
+# StreamlitAPIException，AppTest 实测）。此处先于 render_sidebar() 消费：
+# input_ticker 尚未实例化，预置合法。与看板 _pending_jump_code 同一模式。
+_pending_ticker_fill = st.session_state.pop("_pending_ticker_fill", None)
+if _pending_ticker_fill:
+    st.session_state["input_ticker"] = _pending_ticker_fill
+    st.toast(f"已填入侧边栏：{_pending_ticker_fill}，点「开始分析」即启动",
+             icon=":material/bolt:")
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # JS: Load saved theme + WebSocket auto-reconnect
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -613,11 +623,26 @@ def _render_analysis_mode() -> None:
                         with c2:
                             st.markdown(f'<div>{badge_html}</div>', unsafe_allow_html=True)
 
-        # Right: quick start（表单唯一入口在侧边栏：跨标签页常驻 + 中文名解析 + 模型配置；
-        # 此处只保留快捷回填与信号分布，避免双份"新建分析"表单）
+        # Right: quick start（分析表单唯一入口在侧边栏：跨标签页常驻 + 中文名解析 +
+        # 模型配置；这里只做"回填"——输入框和快捷标的都只落 pending key，
+        # 由脚本顶部的消费点预置侧栏 input_ticker，避免双份表单）
         with right:
             st.markdown('<div class="card__title">快速开始</div>', unsafe_allow_html=True)
-            st.caption("在左侧边栏输入代码，点「开始分析」")
+            st.caption("输入代码或名称，回车回填侧边栏；或点下方快捷标的")
+
+            def _quick_fill_change() -> None:
+                """on_change 回调期写 widget key 合法（新一轮 widgets 未实例化）；
+                清空自身 + 落 pending，消费点在脚本顶部。"""
+                val = (st.session_state.get("quick_fill_input") or "").strip()
+                st.session_state["quick_fill_input"] = ""
+                if val:
+                    st.session_state["_pending_ticker_fill"] = val
+
+            st.text_input(
+                "快速回填", key="quick_fill_input", on_change=_quick_fill_change,
+                placeholder="如 601208 或 东材科技", label_visibility="collapsed",
+            )
+
             quick_codes = []
             seen = set()
             for e in full_history:
@@ -637,9 +662,8 @@ def _render_analysis_mode() -> None:
                 for i, qcode in enumerate(quick_codes):
                     with qc[i % min(len(quick_codes), 3)]:
                         if st.button(qcode, key=f"quick_{qcode}", use_container_width=True):
-                            st.session_state["input_ticker"] = qcode
-                            st.toast(f"已填入侧边栏：{qcode}，点「开始分析」即启动",
-                                     icon=":material/bolt:")
+                            # pending key 非 widget key，直写合法；消费点在脚本顶部
+                            st.session_state["_pending_ticker_fill"] = qcode
                             st.rerun()
 
             # ── 历史信号分布 ──
