@@ -488,9 +488,12 @@ def _em_get(url, params=None, headers=None, timeout=15, **kwargs):
     限流：请求发起间隔 ≥ EM_MIN_INTERVAL + 随机抖动，但网络 I/O 不持锁（并发安全）。
     重试：连接错误/超时/5xx 自动重试 1 次（约 1s 退避），4xx 直接返回。
     传入的 headers 会覆盖 session 默认 UA（用于保留各端点自己的 Referer/Origin）。
+    兜底：requests 两连败（东财按 python TLS 指纹断连, 同头 curl 可通）时换
+    curl_cffi 模拟浏览器指纹重发；未安装 curl_cffi 则维持原报错行为。
     """
     _em_limiter.acquire()
 
+    last_exc = None
     for attempt in range(2):
         try:
             resp = _EM_SESSION.get(
@@ -503,12 +506,36 @@ def _em_get(url, params=None, headers=None, timeout=15, **kwargs):
                 continue
             return resp
         except (_requests.ConnectionError, _requests.Timeout) as e:
+            last_exc = e
             if attempt == 0:
                 logger.warning("EM %s network error (%s), retrying once", url, e)
                 _em_limiter.acquire()
                 continue
-            raise
-    raise RuntimeError("unreachable")
+            break
+    return _em_get_via_curl(url, params=params, headers=headers,
+                            timeout=timeout, _prev_exc=last_exc)
+
+
+def _em_get_via_curl(url, params=None, headers=None, timeout=15,
+                     _prev_exc=None, **kwargs):
+    """curl_cffi 浏览器指纹兜底（_em_get 专用）。
+
+    2026-10-07: 东财 push2 对 python-requests 的 TLS 握手指纹直接断连
+    （同头 curl 可通），impersonate="chrome" 过指纹。未安装 curl_cffi
+    时抛出原连接错误（与历史行为一致）。kwargs 里 curl_cffi 不支持的
+    参数会被丢弃（现有调用方只传 params/headers/timeout）。
+    """
+    try:
+        from curl_cffi import requests as _curl_req
+    except ImportError:
+        logger.warning("EM %s blocked and curl_cffi not installed; re-raising", url)
+        if _prev_exc is not None:
+            raise _prev_exc
+        raise RuntimeError(f"EM {url} failed and curl_cffi unavailable")
+    merged = {k: v for k, v in (headers or {}).items()
+              if k.lower() != "user-agent"}  # UA 交给 impersonate, 保指纹一致性
+    return _curl_req.get(url, params=params, headers=merged,
+                         timeout=timeout, impersonate="chrome")
 
 
 def _eastmoney_datacenter(

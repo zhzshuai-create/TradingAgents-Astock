@@ -416,7 +416,7 @@ def industry_comparison(top_n: int = 20) -> dict:
                 "code": item.get("f12", ""),
                 "up_count": item.get("f104", 0),
                 "down_count": item.get("f105", 0),
-                "leader": item.get("f140", ""),
+                "leader": item.get("f128", ""),  # f128=领涨股名称（f140 是代码）
                 "leader_change": item.get("f136", 0),
             })
         return {"top": rows[:top_n], "bottom": rows[-top_n:], "total": len(rows)}

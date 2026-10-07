@@ -774,7 +774,7 @@ def get_industry_comparison(
                 change_pct = item.get("f3", 0)
                 up_count = item.get("f104", 0)
                 down_count = item.get("f105", 0)
-                leader = item.get("f140", "")
+                leader = item.get("f128", "")  # f128=领涨股名称（f140 是代码）
                 lines.append(
                     f"  {i+1}. {name} "
                     f"| {change_pct}% "
