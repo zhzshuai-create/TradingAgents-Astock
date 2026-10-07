@@ -568,6 +568,15 @@ html, body, [class*="css"] {
 [data-testid="stAppViewContainer"] > .block-container > [data-testid="stVerticalBlock"] {
     gap: var(--space-sm) !important;
 }
+/* sticky footer：内容不足一屏时顶层 block 撑满视口剩余高度（扣除自身上下 padding），
+   页脚声明钉在视口底部，消除内容结束与页底之间的死空白；
+   内容超一屏时 margin-top:auto 归零，自然跟随流式布局 */
+[data-testid="stAppViewContainer"] [data-testid="stMainBlockContainer"] > [data-testid="stVerticalBlock"] {
+    min-height: calc(100vh - var(--space-sm) - var(--space-md));
+}
+[data-testid="stAppViewContainer"] [data-testid="stMainBlockContainer"] > [data-testid="stVerticalBlock"] > [data-testid="stLayoutWrapper"]:has(.footer-note) {
+    margin-top: auto;
+}
 
 /* ── 侧栏 ── */
 section[data-testid="stSidebar"] {
