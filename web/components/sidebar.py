@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import json
+import logging
 import os
 from datetime import date
+from pathlib import Path
 
 import streamlit as st
 
@@ -14,6 +17,8 @@ from web.history import (
     get_incomplete_history,
     record_incomplete_task,
 )
+
+logger = logging.getLogger(__name__)
 
 # 注意: checkpointer 与 model_catalog 不在这里导入 —— 它们会拉起整条 langgraph /
 # langsmith 依赖链(实测约 3.2s), 而首屏遮罩要在 sidebar 导入之前上屏.
@@ -37,6 +42,68 @@ _PROVIDERS: list[tuple[str, str]] = [
 
 _PROVIDER_DISPLAY = [name for name, _ in _PROVIDERS]
 _PROVIDER_KEYS = [key for _, key in _PROVIDERS]
+
+# 模型选择写用户目录，不进包目录/仓库：pip 装的 site-packages 常只读，git clone
+# 则会多出未跟踪文件。~/.tradingagents 已承载 logs/cache/memory。
+_DEFAULT_LLM_CONFIG_PATH = (
+    Path(os.path.expanduser("~")) / ".tradingagents" / "llm_config.json"
+)
+_LLM_CONFIG_PATH = _DEFAULT_LLM_CONFIG_PATH
+
+
+def _load_saved_llm_config() -> dict:
+    """把上次的模型选择填进 session_state 默认值；文件缺失/损坏时静默跳过。"""
+    try:
+        cfg = json.loads(_LLM_CONFIG_PATH.read_text(encoding="utf-8"))
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        return {}
+    if not isinstance(cfg, dict):
+        return {}
+
+    provider_key = str(cfg.get("llm_provider") or "")
+    if provider_key in _PROVIDER_KEYS:
+        st.session_state.setdefault("llm_provider_idx", _PROVIDER_KEYS.index(provider_key))
+    st.session_state.setdefault("llm_base_url", cfg.get("llm_base_url") or "")
+    st.session_state.setdefault("parallel_analysts", bool(cfg.get("parallel_analysts", False)))
+    for key in ("custom_quick_model", "custom_deep_model"):
+        if cfg.get(key):
+            st.session_state.setdefault(key, cfg[key])
+    return cfg
+
+
+def _saved_model_index(saved: dict, provider_key: str, key: str, values: list[str]) -> int:
+    """按模型 ID 而不是旧下拉框索引恢复，模型目录顺序变化时不会串档。"""
+    if str(saved.get("llm_provider") or "") != provider_key:
+        return 0
+    value = saved.get(key)
+    return values.index(value) if value in values else 0
+
+
+def _save_llm_config() -> None:
+    """当前选择写入用户目录；写失败只告警，不打断分析主流程。"""
+    cfg = {
+        "llm_provider": st.session_state.get("llm_provider", ""),
+        "quick_think_llm": st.session_state.get("quick_think_llm", ""),
+        "deep_think_llm": st.session_state.get("deep_think_llm", ""),
+        "llm_base_url": st.session_state.get("llm_base_url", ""),
+        "parallel_analysts": bool(st.session_state.get("parallel_analysts", False)),
+    }
+    for key in ("custom_quick_model", "custom_deep_model"):
+        val = st.session_state.get(key)
+        if val:
+            cfg[key] = val
+
+    # 看板 running 态每 2s rerun，不能每次全量重写文件。
+    if cfg == st.session_state.get("_llm_config_snapshot"):
+        return
+    try:
+        _LLM_CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        _LLM_CONFIG_PATH.write_text(
+            json.dumps(cfg, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        st.session_state["_llm_config_snapshot"] = cfg
+    except OSError as exc:
+        logger.warning("LLM 配置持久化失败（不影响本次分析）: %s", exc)
 
 
 def _resolve_user_input(raw: str) -> tuple[str, str | None]:
@@ -146,9 +213,11 @@ def _render_analysis_controls(raw_ticker: str, trade_date_value: date) -> None:
         st.caption("正在停止并清空，收尾完成后可重新开始。")
 
 
-def _render_llm_config() -> None:
+def _render_llm_config(saved: dict | None = None) -> None:
     """Render LLM provider and model selection controls."""
     from tradingagents.llm_clients.model_catalog import MODEL_OPTIONS
+
+    saved = saved or {}
 
     # 默认选中跟随 .env 的 LLM_PROVIDER（未收录的供应商回退第 0 项），
     # 避免下拉框默认值把 .env 配置悄悄覆盖掉
@@ -181,6 +250,7 @@ def _render_llm_config() -> None:
         quick_idx = st.selectbox(
             "快速思考模型",
             range(len(quick_options)),
+            index=_saved_model_index(saved, provider_key, "quick_think_llm", quick_values),
             format_func=lambda i: quick_labels[i],
             key="quick_model_idx",
             help="用于常规分析任务，速度优先",
@@ -190,6 +260,7 @@ def _render_llm_config() -> None:
         deep_idx = st.selectbox(
             "深度思考模型",
             range(len(deep_options)),
+            index=_saved_model_index(saved, provider_key, "deep_think_llm", deep_values),
             format_func=lambda i: deep_labels[i],
             key="deep_model_idx",
             help="用于辩论/决策等需要深度推理的任务",
@@ -227,10 +298,13 @@ def _render_llm_config() -> None:
             "关闭则按传统链条串行执行。两个模式结论可能因模型随机性略有差异。"
         ),
     )
+    _save_llm_config()
 
 
 def render_sidebar() -> None:
     """Render the sidebar with input controls and history."""
+
+    saved_llm_config = _load_saved_llm_config()
 
     st.markdown(
         """
@@ -264,7 +338,7 @@ def render_sidebar() -> None:
     )
 
     with st.expander("模型配置", expanded=False):
-        _render_llm_config()
+        _render_llm_config(saved_llm_config)
 
     tracker = st.session_state.get("tracker")
     is_busy = tracker is not None and tracker.is_running

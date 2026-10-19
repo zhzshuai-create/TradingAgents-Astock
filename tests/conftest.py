@@ -31,6 +31,14 @@ def _dummy_api_keys(monkeypatch):
         monkeypatch.setenv(env_var, os.environ.get(env_var, "placeholder"))
 
 
+@pytest.fixture(autouse=True)
+def _isolate_llm_config(tmp_path, monkeypatch):
+    """侧栏渲染会写模型配置；测试不得覆盖真实的 ~/.tradingagents/llm_config.json。"""
+    from web.components import sidebar
+
+    monkeypatch.setattr(sidebar, "_LLM_CONFIG_PATH", tmp_path / "llm_config.json")
+
+
 @pytest.fixture()
 def mock_llm_client():
     client = MagicMock()
