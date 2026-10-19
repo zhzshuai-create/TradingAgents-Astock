@@ -8,6 +8,13 @@ Breaking changes within the 0.x line are called out explicitly.
 
 ## [Unreleased]
 
+### 变更（2026-10-19 依赖可复现性）
+- **新增 `constraints.txt`**：锁定 Python 3.13 上实测通过的版本组合（251 passed / 4 skipped / 58 subtests）；README 安装命令改为 `pip install -e . -c constraints.txt`，允许浮动时可直接去掉 `-c`。
+- **Python 下限 3.10 → 3.11**：pandas 3.x 不再支持 3.10；CI 矩阵同步改为 3.11 / 3.13。numpy 2.5 要求 3.12+，因此 constraints 用 marker 给 3.11 降到 2.4.6（已用 `pip --python-version 3.11` 验证可解析）。
+- **直接依赖下限对齐实测版本**：langchain-core 1.6.12、langgraph 1.2.16、streamlit 1.66.0、pandas 3.0.6、mootdx 0.11.7 等，并统一加主版本上界，避免下一次大版本静默破坏。
+- **移除 `[google]` extra**：langchain-google-genai 的 `httpx>=0.28.1` 与 mootdx 的 `httpx<0.26` 结构性冲突；Gemini 改为独立 venv 安装，README 与 CLAUDE.md 已同步。
+- **CI**：安装依赖带 constraints，并新增 `pip check` 校验环境一致性。
+
 ### 修复（2026-10-05 五日K线停牌空槽）
 - **个股停牌日在 K 线图上留空槽**（用户报障：002694 五日视图 9/25 停牌出现整段空白）：原 rangebreaks 只按周末 bounds 剔除，停牌日/法定节假日（区间内工作日但无数据行）留在轴上——5日视图里一天占 1/5 宽度。现按展示区间计算缺失工作日追加 `values` 剔除，蜡烛等距（同通达信/同花顺惯例）；下周起 30 日视图跨国庆假期时所有股票的假日空档也一并消除。测试 190→192（停牌剔除 + 连续数据不引入 values 两枚钉）
 
