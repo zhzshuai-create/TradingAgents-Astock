@@ -101,19 +101,41 @@ def _load_incomplete_index() -> list[dict[str, Any]]:
 
 
 def _save_incomplete_index(entries: list[dict[str, Any]]) -> None:
+    """原子写 incomplete_tasks.json，兼容 Windows 文件占用。
+
+    多实例 Web UI 或杀软扫描可能短暂占住目标文件，此时 ``tmp.replace`` 在
+    Windows 上抛 ``PermissionError``。先重试等待锁释放，仍失败则降级直接覆写
+    —— 读取端已容错损坏 JSON，索引写不进去不致命。
+    """
     parent = _INCOMPLETE_TASKS_FILE.parent
     parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.NamedTemporaryFile(
-        "w",
-        encoding="utf-8",
-        dir=parent,
-        prefix=f"{_INCOMPLETE_TASKS_FILE.stem}.",
-        suffix=".tmp",
-        delete=False,
-    ) as f:
-        json.dump(entries, f, ensure_ascii=False, indent=2)
-        tmp = Path(f.name)
-    tmp.replace(_INCOMPLETE_TASKS_FILE)
+    payload = json.dumps(entries, ensure_ascii=False, indent=2)
+
+    for attempt in range(3):
+        tmp: Path | None = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                "w",
+                encoding="utf-8",
+                dir=parent,
+                prefix=f"{_INCOMPLETE_TASKS_FILE.stem}.",
+                suffix=".tmp",
+                delete=False,
+            ) as f:
+                f.write(payload)
+                tmp = Path(f.name)
+            tmp.replace(_INCOMPLETE_TASKS_FILE)
+            return
+        except PermissionError:
+            if tmp is not None:
+                tmp.unlink(missing_ok=True)
+            if attempt < 2:
+                time.sleep(0.15 * (attempt + 1))
+
+    try:
+        _INCOMPLETE_TASKS_FILE.write_text(payload, encoding="utf-8")
+    except OSError:
+        pass
 
 
 def _checkpoint_step(ticker: str, trade_date: str) -> int | None:

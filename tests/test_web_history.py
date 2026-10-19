@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import threading
+from pathlib import Path
 
 from web import history
 
@@ -81,4 +82,43 @@ def test_incomplete_task_writes_are_thread_safe(tmp_path, monkeypatch):
 
     assert len(entries) == 10
     assert {entry["status"] for entry in entries} == {"running"}
+    assert not list(tmp_path.glob("*.tmp"))
+
+
+def test_incomplete_index_retries_when_file_is_locked(tmp_path, monkeypatch):
+    index = tmp_path / "incomplete_tasks.json"
+    monkeypatch.setattr(history, "_INCOMPLETE_TASKS_FILE", index)
+    monkeypatch.setattr(history.time, "sleep", lambda _seconds: None)
+
+    original_replace = Path.replace
+    attempts = {"count": 0}
+
+    def flaky_replace(self, target):
+        attempts["count"] += 1
+        if attempts["count"] <= 2:
+            raise PermissionError("file in use")
+        return original_replace(self, target)
+
+    monkeypatch.setattr(Path, "replace", flaky_replace)
+
+    history._save_incomplete_index([{"ticker": "600370"}])
+
+    assert attempts["count"] == 3
+    assert json.loads(index.read_text(encoding="utf-8")) == [{"ticker": "600370"}]
+    assert not list(tmp_path.glob("*.tmp"))
+
+
+def test_incomplete_index_falls_back_to_direct_write(tmp_path, monkeypatch):
+    index = tmp_path / "incomplete_tasks.json"
+    monkeypatch.setattr(history, "_INCOMPLETE_TASKS_FILE", index)
+    monkeypatch.setattr(history.time, "sleep", lambda _seconds: None)
+
+    def always_locked(self, target):
+        raise PermissionError("file in use")
+
+    monkeypatch.setattr(Path, "replace", always_locked)
+
+    history._save_incomplete_index([{"ticker": "600371"}])
+
+    assert json.loads(index.read_text(encoding="utf-8")) == [{"ticker": "600371"}]
     assert not list(tmp_path.glob("*.tmp"))
