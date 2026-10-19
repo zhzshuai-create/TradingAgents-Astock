@@ -133,12 +133,37 @@ def _candlestick_chart(
         x=k["datetime"], y=k["vol"],
         marker_color=[up_c if u else dn_c for u in up],
         customdata=[1 if u else 0 for u in up],  # 方向数组: 主题桥 restyle 用
+        hovertemplate="成交量 %{y:,.0f}<extra></extra>",
         name="成交量", showlegend=False,
     ), row=2, col=1)
 
+    # 最新价虚线 + 右侧价签（终端惯例）；颜色随最后一日涨跌，暗色由主题桥
+    # 按 annotation/shape 上的 name 识别后换成暗色调色板。
+    if len(k) and pd.notna(k["close"].iloc[-1]):
+        last_close = float(k["close"].iloc[-1])
+        last_up = bool(k["close"].iloc[-1] >= k["open"].iloc[-1])
+        last_c = up_c if last_up else dn_c
+        fig.add_shape(
+            type="line", x0=0, x1=1, xref="x domain",
+            y0=last_close, y1=last_close, yref="y",
+            line=dict(color=last_c, width=1, dash="dot"), opacity=0.6,
+            name="last-close",
+        )
+        fig.add_annotation(
+            x=1, xref="x domain", y=last_close, yref="y",
+            xanchor="left", yanchor="middle", xshift=6,
+            text=f"{last_close:.2f}", showarrow=False,
+            bgcolor=last_c, font=dict(color="#ffffff", size=10),
+            borderpad=3, name="last-tag-up" if last_up else "last-tag-down",
+        )
+
     fig.update_layout(
-        height=height, margin=dict(l=8, r=18, t=12, b=8),
+        height=height, margin=dict(l=8, r=56, t=12, b=8),
         hovermode="x unified",
+        hoverlabel=dict(
+            bgcolor="#ffffff", bordercolor="rgba(16,24,40,0.10)",
+            font=dict(color="#333333", size=11),
+        ),
         legend=dict(orientation="h", yanchor="bottom", y=1.0, x=0),
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
         font=dict(color="#888888", size=11),
@@ -154,11 +179,23 @@ def _candlestick_chart(
         suspended = [d for d in span if d.dayofweek < 5 and d not in have]
         if suspended:
             rangebreaks.append(dict(values=suspended))
+    # 十字光标：只给底部 x 轴和价格 y 轴开 across，避免上下两个 x 轴各画
+    # 一条竖线；点状细线比实线更接近行情终端，且不抢蜡烛的视觉重量。
     fig.update_xaxes(
         rangeslider_visible=False, gridcolor="rgba(128,128,128,0.18)",
-        rangebreaks=rangebreaks,
+        rangebreaks=rangebreaks, showspikes=False,
+    )
+    fig.update_xaxes(
+        row=2, col=1, showspikes=True, spikemode="across",
+        spikesnap="cursor", spikethickness=1, spikedash="dot",
+        spikecolor="rgba(120,120,120,0.55)",
     )
     fig.update_yaxes(gridcolor="rgba(128,128,128,0.18)", zeroline=False)
+    fig.update_yaxes(
+        row=1, col=1, showspikes=True, spikemode="across",
+        spikesnap="cursor", spikethickness=1, spikedash="dot",
+        spikecolor="rgba(120,120,120,0.45)",
+    )
     fig.update_yaxes(title_text="价格(元)", row=1, col=1)
     fig.update_yaxes(title_text="成交量(手)", row=2, col=1)
     return fig
@@ -243,8 +280,12 @@ _CHART_THEME_BRIDGE_JS = """
 <script>
 (function(){
   var PALETTE = {
-    light: { up:'#e03131', down:'#2f9e44', font:'#888888', grid:'rgba(128,128,128,0.18)' },
-    dark:  { up:'#ff6b6b', down:'#51cf66', font:'#aaaaaa', grid:'rgba(128,128,128,0.28)' }
+    light: { up:'#e03131', down:'#2f9e44', font:'#888888', grid:'rgba(128,128,128,0.18)',
+             spike:'rgba(120,120,120,0.55)', hoverBg:'#ffffff',
+             hoverBorder:'rgba(16,24,40,0.10)', hoverFont:'#333333' },
+    dark:  { up:'#ff6b6b', down:'#51cf66', font:'#aaaaaa', grid:'rgba(128,128,128,0.28)',
+             spike:'rgba(190,180,170,0.45)', hoverBg:'#2a2523',
+             hoverBorder:'#453e3a', hoverFont:'#ede4dc' }
   };
   function currentTheme() {
     try {
@@ -273,11 +314,33 @@ _CHART_THEME_BRIDGE_JS = """
         } else { continue; }
         P.Plotly.restyle(gd, up, [j]);
       }
-      P.Plotly.relayout(gd, {
+      var rel = {
         'font.color': pal.font,
         'xaxis.gridcolor': pal.grid, 'yaxis.gridcolor': pal.grid,
-        'xaxis2.gridcolor': pal.grid, 'yaxis2.gridcolor': pal.grid
-      });
+        'xaxis2.gridcolor': pal.grid, 'yaxis2.gridcolor': pal.grid,
+        'hoverlabel.bgcolor': pal.hoverBg,
+        'hoverlabel.bordercolor': pal.hoverBorder,
+        'hoverlabel.font.color': pal.hoverFont,
+        'xaxis.spikecolor': pal.spike, 'yaxis.spikecolor': pal.spike,
+        'xaxis2.spikecolor': pal.spike, 'yaxis2.spikecolor': pal.spike
+      };
+      // 最新价虚线与价签：按价签 name 判断最后一日方向，换成当前主题的涨跌色
+      var tagColor = pal.up, anns = gd.layout.annotations || [];
+      for (var a = 0; a < anns.length; a++) {
+        if (String(anns[a].name || '').indexOf('last-tag-down') === 0) tagColor = pal.down;
+      }
+      for (var a2 = 0; a2 < anns.length; a2++) {
+        if (String(anns[a2].name || '').indexOf('last-tag') === 0) {
+          rel['annotations[' + a2 + '].bgcolor'] = tagColor;
+        }
+      }
+      var shapes = gd.layout.shapes || [];
+      for (var s = 0; s < shapes.length; s++) {
+        if (String(shapes[s].name || '').indexOf('last-close') === 0) {
+          rel['shapes[' + s + '].line.color'] = tagColor;
+        }
+      }
+      P.Plotly.relayout(gd, rel);
     }
   }
   var last = null;

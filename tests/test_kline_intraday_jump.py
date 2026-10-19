@@ -245,6 +245,58 @@ def test_candlestick_hover_pct_uses_close_before_display_window():
     assert "涨跌幅 +3.45%" in hover[0]
 
 
+def test_candlestick_terminal_overlays():
+    """终端化细节：最新价虚线/价签、十字光标、暗色可复用的 hover 框配置。"""
+    from web.components.data_dashboard import _candlestick_chart
+
+    kdf = pd.DataFrame({
+        "datetime": pd.bdate_range("2026-09-21", periods=3),
+        "open": [10.0, 10.5, 10.0],
+        "high": [10.6, 10.8, 10.2],
+        "low": [9.8, 10.2, 9.9],
+        "close": [10.5, 10.0, 10.2],  # 最后一日收 10.2 > 开 10.0
+        "vol": [100.0, 120.0, 90.0],
+    })
+    fig = _candlestick_chart(kdf)
+
+    shape = fig.layout.shapes[0]
+    assert shape.name == "last-close"
+    assert shape.y0 == shape.y1 == 10.2
+    assert shape.line.dash == "dot"
+
+    tag = fig.layout.annotations[0]
+    assert tag.name == "last-tag-up"  # 最后一日收涨
+    assert tag.text == "10.20"
+    assert tag.bgcolor == "#e03131"
+
+    # 十字光标只在底部 x 轴与价格 y 轴上开启，避免上下两条重复竖线
+    assert fig.layout.xaxis2.showspikes is True
+    assert fig.layout.xaxis2.spikemode == "across"
+    assert not fig.layout.xaxis.showspikes
+    assert fig.layout.yaxis.showspikes is True
+
+    assert fig.layout.hoverlabel.bgcolor == "#ffffff"
+    assert "成交" in fig.data[4].hovertemplate
+
+
+def test_candlestick_last_tag_turns_green_on_down_day():
+    from web.components.data_dashboard import _candlestick_chart
+
+    kdf = pd.DataFrame({
+        "datetime": pd.bdate_range("2026-09-21", periods=2),
+        "open": [10.0, 10.5],
+        "high": [10.6, 10.6],
+        "low": [9.8, 9.9],
+        "close": [10.5, 10.0],
+        "vol": [100.0, 90.0],
+    })
+    fig = _candlestick_chart(kdf)
+
+    assert fig.layout.annotations[0].name == "last-tag-down"
+    assert fig.layout.annotations[0].bgcolor == "#2f9e44"
+    assert fig.layout.shapes[0].line.color == "#2f9e44"
+
+
 def test_candlestick_chart_no_suspension_keeps_bounds_only():
     """数据连续（无停牌）时不应引入 values 剔除——避免多余计算与行为漂移。"""
     from web.components.data_dashboard import _candlestick_chart
