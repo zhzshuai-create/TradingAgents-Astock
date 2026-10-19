@@ -8,6 +8,9 @@ Breaking changes within the 0.x line are called out explicitly.
 
 ## [Unreleased]
 
+### 修复（2026-10-19 K线悬停缺涨跌幅）
+- **悬停蜡烛看不到当日涨跌幅**（用户报障）：hover 原来只有开高低收，现补「涨跌幅 ±x.xx%」，按前一交易日收盘计算（不是开盘）；5日/30日视图只显示窗口内蜡烛，但首根的昨收取自窗口外缓冲区，不会因切周期变成 0 或错日；全部历史首根无昨收时显示 "—"。测试 260→262
+
 ### 变更（2026-10-19 依赖可复现性）
 - **新增 `constraints.txt`**：锁定 Python 3.13 上实测通过的版本组合（251 passed / 4 skipped / 58 subtests）；README 安装命令改为 `pip install -e . -c constraints.txt`，允许浮动时可直接去掉 `-c`。
 - **Python 下限 3.10 → 3.11**：pandas 3.x 不再支持 3.10；CI 矩阵同步改为 3.11 / 3.13。numpy 2.5 要求 3.12+，因此 constraints 用 marker 给 3.11 降到 2.4.6（已用 `pip --python-version 3.11` 验证可解析）。

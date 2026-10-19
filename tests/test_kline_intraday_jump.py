@@ -200,6 +200,51 @@ def test_candlestick_chart_collapses_suspended_days():
     assert pd.Timestamp("2026-09-24") in value_breaks
 
 
+def test_candlestick_hover_includes_pct_change():
+    """悬停蜡烛必须给出当日涨跌幅，且按昨收（非开盘）计算。"""
+    from web.components.data_dashboard import _candlestick_chart
+
+    kdf = pd.DataFrame({
+        "datetime": pd.bdate_range("2026-09-21", periods=3),
+        "open": [10.0, 10.5, 10.0],
+        "high": [10.6, 10.8, 10.2],
+        "low": [9.8, 10.2, 9.9],
+        "close": [10.5, 10.0, 10.2],  # 第2天 -4.76%，第3天 +2.00%
+        "vol": [100.0, 120.0, 90.0],
+    })
+    fig = _candlestick_chart(kdf)
+    hover = fig.data[0].customdata
+    template = fig.data[0].hovertemplate
+
+    assert "%{customdata}" in template
+    assert "涨跌幅 +nan" not in hover[0].lower()
+    assert "涨跌幅 —" in hover[0]  # 首根没有昨收
+    assert "涨跌幅 -4.76%" in hover[1]
+    assert "涨跌幅 +2.00%" in hover[2]
+    assert "开 10.50" in hover[1] and "收 10.00" in hover[1]
+
+
+def test_candlestick_hover_pct_uses_close_before_display_window():
+    """5日视图只显示窗口内 5 根，但首根涨跌幅仍要用缓冲区里的前一日收盘。"""
+    from web.components.data_dashboard import _candlestick_chart
+
+    closes = [10.0 + i for i in range(25)]
+    kdf = pd.DataFrame({
+        "datetime": pd.bdate_range("2026-08-03", periods=25),
+        "open": closes,
+        "high": [c + 0.5 for c in closes],
+        "low": [c - 0.5 for c in closes],
+        "close": closes,
+        "vol": [100.0] * 25,
+    })
+    fig = _candlestick_chart(kdf, display_tail=5)
+    hover = fig.data[0].customdata
+
+    assert len(hover) == 5
+    # 展示首根是第 21 根（closes=30.0），昨收 29.0 → +3.45%
+    assert "涨跌幅 +3.45%" in hover[0]
+
+
 def test_candlestick_chart_no_suspension_keeps_bounds_only():
     """数据连续（无停牌）时不应引入 values 剔除——避免多余计算与行为漂移。"""
     from web.components.data_dashboard import _candlestick_chart

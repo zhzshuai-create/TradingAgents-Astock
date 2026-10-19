@@ -88,9 +88,23 @@ def _candlestick_chart(
     k["ma5"] = k["close"].rolling(5).mean()
     k["ma10"] = k["close"].rolling(10).mean()
     k["ma20"] = k["close"].rolling(20).mean()
+    # 涨跌幅按前一交易日收盘算；必须在切窗口前算，5日/30日视图靠缓冲区
+    # 才能给第一根蜡烛拿到窗口外的昨收。prev<=0 视为无效（停牌占位行）。
+    prev_close = k["close"].shift(1)
+    pct_chg = ((k["close"] / prev_close - 1) * 100).where(prev_close > 0)
     if display_tail:
         k = k.tail(display_tail)
+        pct_chg = pct_chg.tail(display_tail)
     up = (k["close"] >= k["open"]).tolist()
+    # hover 文本用预格式化字符串，避免 Plotly 对 NaN/方向格式的版本差异
+    candle_hover = [
+        f"开 {o:.2f}　高 {h:.2f}　低 {lo:.2f}　收 {c:.2f}<br>"
+        f"涨跌幅 {p:+.2f}%" if pd.notna(p) else
+        f"开 {o:.2f}　高 {h:.2f}　低 {lo:.2f}　收 {c:.2f}<br>涨跌幅 —"
+        for o, h, lo, c, p in zip(
+            k["open"], k["high"], k["low"], k["close"], pct_chg
+        )
+    ]
     # L12: 服务端拿不到 rope 切的实时主题（那是 localStorage+html class 的
     # 客户端状态, 不触发 rerun）——暗色换色由 _CHART_THEME_BRIDGE_JS 在
     # 客户端做 Plotly.restyle, 这里固定亮色基线并给 volume trace 带 customdata
@@ -105,6 +119,8 @@ def _candlestick_chart(
         x=k["datetime"], open=k["open"], high=k["high"], low=k["low"], close=k["close"],
         increasing_line_color=up_c, increasing_fillcolor=up_c,
         decreasing_line_color=dn_c, decreasing_fillcolor=dn_c,
+        customdata=candle_hover,
+        hovertemplate="%{customdata}<extra></extra>",
         name="K线", showlegend=False,
     ), row=1, col=1)
     for name, color in (("ma5", "#f08c00"), ("ma10", "#1971c2"), ("ma20", "#9c36b5")):
