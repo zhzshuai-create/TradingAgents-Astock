@@ -23,6 +23,7 @@ from web.data_functions import (
 )
 from web.stock_display import sector_rows_html, sector_stock_rows_html
 from web.components.click_bridge import wire_clickable_cards
+from web.components.empty_state import render_empty_state
 
 # K 线周期选项：radio 与双击跳转共用同一份字面量，防两处漂移
 KLINE_PERIODS = ["单日详情", "5日", "30日", "全部历史"]
@@ -268,7 +269,10 @@ def _render_single_day_history(code: str, picked: str) -> None:
         st.altair_chart(_vol_chart(intraday["vol"], x_format="%H:%M"), use_container_width=True)
         st.caption(f"共 {len(intraday)} 个数据点（{'1分钟分时' if kind == 'm1' else '5分钟K线'}）")
     else:
-        st.info(f"{picked} 的分时/分钟数据暂不可用（可能超出数据源保留期或为非交易日）")
+        render_empty_state(
+            f"{picked} 分时数据不可用",
+            "可能超出数据源保留期，或该日为非交易日",
+        )
 
     full = _get_kline_full(code)
     if full.empty:
@@ -686,7 +690,7 @@ def render_data_mode() -> None:
                 with col_left:
                     st.markdown("#### 机构一致预期 EPS")
                     if eps_df.empty:
-                        st.caption("暂无机构覆盖数据")
+                        render_empty_state("暂无机构覆盖数据", "尚未获得券商一致预期")
                     else:
                         st.dataframe(eps_df, width='stretch', hide_index=True)
                         eps_cur = eps_next = None
@@ -728,7 +732,7 @@ def render_data_mode() -> None:
                         tags_html = " ".join([f'<span class="tag">{t}</span>' for t in blocks["concept_tags"][:15]])
                         st.markdown(f"<div>{tags_html}</div>", unsafe_allow_html=True)
                     else:
-                        st.caption("暂无概念数据")
+                        render_empty_state("暂无概念数据", "未匹配到概念板块")
                     if blocks.get("industry"):
                         ind_names = [b["name"] for b in blocks["industry"][:3]]
                         st.markdown("**行业:** " + ", ".join(ind_names))
@@ -781,7 +785,7 @@ def render_data_mode() -> None:
                                 st.altair_chart(_vol_chart(minute_df["vol"], x_format="%H:%M"), use_container_width=True)
                                 st.caption(f"共 {len(minute_df)} 个1分钟数据点")
                             else:
-                                st.info("暂无日内分钟数据（可能为非交易日）")
+                                render_empty_state("暂无日内分钟数据", "可能为非交易日")
                             # Key stats from daily quote
                             mc1, mc2, mc3, mc4 = st.columns(4)
                             with mc1:
@@ -803,7 +807,7 @@ def render_data_mode() -> None:
                             chg5_color = "var(--up)" if chg5 > 0 else "var(--down)"
                             st.markdown(f'5日变动: <span style="color:{chg5_color};font-weight:700">{chg5:+.2f}%</span>', unsafe_allow_html=True)
                         else:
-                            st.caption("暂无数据")
+                            render_empty_state("暂无K线数据", "行情源暂不可用")
 
                     # ── 30日 ──────────────────────────────────────
                     elif kline_period == "30日":
@@ -816,7 +820,7 @@ def render_data_mode() -> None:
                             chg_color = "var(--up)" if chg > 0 else "var(--down)"
                             st.markdown(f'30日涨幅: <span style="color:{chg_color};font-weight:700">{chg:+.2f}%</span>  |  日均成交量: {avg_vol/10000:.1f}万手', unsafe_allow_html=True)
                         else:
-                            st.caption("暂无K线数据")
+                            render_empty_state("暂无K线数据", "行情源暂不可用")
 
                     # ── 全部历史 ──────────────────────────────────
                     else:
@@ -829,7 +833,7 @@ def render_data_mode() -> None:
                             chga_color = "var(--up)" if chg_all > 0 else "var(--down)"
                             st.markdown(f'上市至今: <span style="color:{chga_color};font-weight:700">{chg_all:+.2f}%</span>  |  共 {len(all_k)} 个交易日', unsafe_allow_html=True)
                         else:
-                            st.caption("暂无全部历史K线数据")
+                            render_empty_state("暂无全部历史K线数据", "行情源暂不可用或该股上市时间过短")
 
                 if news:
                     st.markdown("---")
@@ -843,7 +847,7 @@ def render_data_mode() -> None:
         with st.spinner("加载强势股数据..."):
             df_hot = ths_hot_reason()
         if df_hot.empty:
-            st.warning("暂无今日强势股数据（可能非交易日或盘后未更新）")
+            render_empty_state("暂无今日强势股数据", "可能非交易日或盘后未更新")
         else:
             all_tags = []
             reason_col = "题材归因" if "题材归因" in df_hot.columns else "reason"
@@ -901,7 +905,7 @@ def render_data_mode() -> None:
                         st.markdown(f'<div class="metric-card"><div class="label">深股通累计净买入</div><div class="value" style="color:{sgt_color}">{last["sgt_yi"]:.2f} 亿</div></div>', unsafe_allow_html=True)
                     st.line_chart(df_clean.set_index("time")[["hgt_yi", "sgt_yi"]], y_label="累计净买入(亿)", width='stretch')
             else:
-                st.warning("暂无北向实时数据（非交易时段）")
+                render_empty_state("暂无北向实时数据", "非交易时段或无可用数据")
             if not df_hist.empty:
                 st.markdown("#### 近 20 日北向历史")
                 st.dataframe(df_hist.set_index("date"), width='stretch')
@@ -937,7 +941,7 @@ def render_data_mode() -> None:
                     st.altair_chart(_vol_chart(vol_s), use_container_width=True)
                     st.caption(f"近30日涨幅: {(recent['close'].iloc[-1] / recent['close'].iloc[0] - 1)*100:+.2f}%")
                 else:
-                    st.caption("暂无K线数据")
+                    render_empty_state("暂无K线数据", "行情源暂不可用")
             else:
                 st.info("在上方输入股票代码可查看个股K线")
 
@@ -950,7 +954,7 @@ def render_data_mode() -> None:
             for item in telegrams[:20]:
                 st.markdown(f"- **{item['time']}** {item['title'][:80]}")
         else:
-            st.warning("暂无快讯数据")
+            render_empty_state("暂无快讯数据", "数据源暂未返回内容，稍后再试")
 
         if code:
             st.markdown("---")
@@ -961,7 +965,7 @@ def render_data_mode() -> None:
                 for n in s_news:
                     st.markdown(f"- **{n['time']}** [{n['title']}]({n['url']}) `{n['source']}`")
             else:
-                st.caption("暂无个股新闻")
+                render_empty_state("暂无个股新闻", "该股近期可能没有新闻")
         else:
             st.info("在上方输入股票代码可加载个股新闻")
 
@@ -997,7 +1001,7 @@ def _render_sector_detail(row: dict) -> None:
     with st.spinner(f"加载 {row['name']} 成分股..."):
         stocks = industry_stocks(row["code"], 10)
     if not stocks:
-        st.caption("暂无成分股数据（行情源暂不可用，稍后再试）")
+        render_empty_state("暂无成分股数据", "行情源暂不可用，稍后再试")
         return
     st.markdown(sector_stock_rows_html(stocks), unsafe_allow_html=True)
 
@@ -1022,7 +1026,7 @@ def _render_market_overview() -> None:
             _render_sector_detail(board_by_code[active])
         wire_clickable_cards()  # 板块行点击 → 同列隐藏按钮 的转发桥
     else:
-        st.caption("暂无行业数据")
+        render_empty_state("暂无行业数据", "行情源暂不可用，稍后再试")
 
     st.markdown("---")
     st.markdown("#### 当日强势股速览")
@@ -1072,6 +1076,6 @@ def _render_market_overview() -> None:
             st.session_state["_pending_jump_name"] = str(picked_row.get("名称", ""))
             st.rerun()
     else:
-        st.caption("暂无今日数据")
+        render_empty_state("暂无今日数据", "可能非交易日或盘后未更新")
 
 

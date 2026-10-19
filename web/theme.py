@@ -746,6 +746,113 @@ div[data-testid=stHorizontalBlock]:has(> div[data-testid=stColumn] .index-bar) .
     padding: var(--space-lg) 0 var(--space-sm) 0;
     border-top: var(--hairline) solid var(--line);
 }
+
+/* ── 空状态：面板无数据时的统一占位 ── */
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-xs);
+    padding: var(--space-xl) var(--space-md);
+    margin: var(--space-xs) 0;
+    border: 1px dashed var(--line);
+    border-radius: var(--radius-md);
+    background: var(--surface);
+    text-align: center;
+}
+.empty-state .empty-icon {
+    width: 30px;
+    height: 30px;
+    color: var(--muted);
+    opacity: 0.55;
+}
+.empty-state .empty-icon svg { display: block; width: 100%; height: 100%; }
+.empty-state .empty-title {
+    font-size: var(--font-md);
+    font-weight: 600;
+    color: var(--text);
+}
+.empty-state .empty-hint {
+    font-size: var(--font-sm);
+    color: var(--muted);
+    line-height: 1.6;
+}
+
+/* ── 报告正文：阅读排版（仅作用于 st.container(key="report_prose")）── */
+.st-key-report_prose h1,
+.st-key-report_prose h2,
+.st-key-report_prose h3 {
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin-top: 1.5em;
+    margin-bottom: 0.6em;
+}
+.st-key-report_prose h3 {
+    padding-left: var(--space-sm);
+    border-left: 3px solid var(--brand);
+    line-height: 1.4;
+}
+.st-key-report_prose h1:first-child,
+.st-key-report_prose h2:first-child,
+.st-key-report_prose h3:first-child { margin-top: 0; }
+.st-key-report_prose [data-testid="stMarkdownContainer"] p {
+    line-height: 1.85;
+    margin-bottom: 0.85em;
+}
+.st-key-report_prose [data-testid="stMarkdownContainer"] li {
+    line-height: 1.75;
+    margin-bottom: 0.25em;
+}
+.st-key-report_prose blockquote {
+    margin: 1em 0;
+    padding: var(--space-sm) var(--space-md);
+    border-left: 3px solid var(--brand);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    background: var(--brand-soft);
+    color: var(--text);
+}
+.st-key-report_prose blockquote p { margin-bottom: 0; }
+.st-key-report_prose table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1em 0;
+    font-size: var(--font-md);
+    font-variant-numeric: tabular-nums;
+}
+.st-key-report_prose th,
+.st-key-report_prose td {
+    padding: 6px 10px;
+    border: var(--hairline) solid var(--line);
+    text-align: left;
+}
+.st-key-report_prose th { background: var(--bg); font-weight: 700; }
+.st-key-report_prose tbody tr:nth-child(even) { background: var(--bg); }
+.st-key-report_prose code {
+    padding: 1px 5px;
+    font-size: 0.88em;
+    border: var(--hairline) solid var(--line);
+    border-radius: var(--radius-sm);
+    background: var(--bg);
+}
+.st-key-report_prose pre {
+    padding: var(--space-md);
+    border: var(--hairline) solid var(--line);
+    border-radius: var(--radius-md);
+    background: var(--bg);
+    overflow-x: auto;
+}
+.st-key-report_prose pre code {
+    padding: 0;
+    border: none;
+    background: transparent;
+}
+.st-key-report_prose hr {
+    height: 1px;
+    margin: var(--space-lg) 0;
+    border: none;
+    background: linear-gradient(90deg, var(--brand), transparent);
+}
 """
 
 # ============================================================================

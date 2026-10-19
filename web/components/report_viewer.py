@@ -9,6 +9,7 @@ import streamlit as st
 
 from web.text_utils import strip_think_tags
 
+from web.components.empty_state import render_empty_state
 from web.pdf_export import generate_markdown, generate_pdf
 from web.stock_display import normalize_stock_mentions, stock_display_label
 
@@ -41,6 +42,18 @@ def _safe_filename_label(label: str) -> str:
 def _display_report_text(text: Any, ticker: str, final_state: dict[str, Any]) -> str:
     cleaned = strip_think_tags(str(text))
     return normalize_stock_mentions(cleaned, ticker, final_state)
+
+
+def _render_report_block(
+    text: Any,
+    empty_title: str,
+    ticker: str,
+    final_state: dict[str, Any],
+) -> None:
+    if text:
+        st.markdown(_display_report_text(text, ticker, final_state))
+    else:
+        render_empty_state(empty_title, "本次分析未产出该部分内容")
 
 
 def render_report(
@@ -167,7 +180,7 @@ def render_report(
             unsafe_allow_html=True,
         )
 
-    with main_col:
+    with main_col, st.container(key="report_prose"):
         if inv_plan:
             st.markdown('<div id="sec-decision"></div>', unsafe_allow_html=True)
             st.markdown("### 最终投资建议")
@@ -188,11 +201,11 @@ def render_report(
             st.markdown("### 多空辩论")
             tab_bull, tab_bear, tab_judge = st.tabs(["多方", "空方", "研究经理"])
             with tab_bull:
-                st.markdown(_display_report_text(debate.get("bull_history", "") or "无数据", ticker, final_state))
+                _render_report_block(debate.get("bull_history", ""), "暂无多方观点", ticker, final_state)
             with tab_bear:
-                st.markdown(_display_report_text(debate.get("bear_history", "") or "无数据", ticker, final_state))
+                _render_report_block(debate.get("bear_history", ""), "暂无空方观点", ticker, final_state)
             with tab_judge:
-                st.markdown(_display_report_text(debate.get("judge_decision", "") or "无数据", ticker, final_state))
+                _render_report_block(debate.get("judge_decision", ""), "暂无研究经理结论", ticker, final_state)
             st.markdown("---")
 
         if trader_decision:
@@ -206,13 +219,13 @@ def render_report(
             st.markdown("### 风控评估")
             tab_agg, tab_con, tab_neu, tab_rj = st.tabs(["激进", "保守", "中性", "风控决策"])
             with tab_agg:
-                st.markdown(_display_report_text(risk.get("aggressive_history", "") or "无数据", ticker, final_state))
+                _render_report_block(risk.get("aggressive_history", ""), "暂无激进派观点", ticker, final_state)
             with tab_con:
-                st.markdown(_display_report_text(risk.get("conservative_history", "") or "无数据", ticker, final_state))
+                _render_report_block(risk.get("conservative_history", ""), "暂无保守派观点", ticker, final_state)
             with tab_neu:
-                st.markdown(_display_report_text(risk.get("neutral_history", "") or "无数据", ticker, final_state))
+                _render_report_block(risk.get("neutral_history", ""), "暂无中性派观点", ticker, final_state)
             with tab_rj:
-                st.markdown(_display_report_text(risk.get("judge_decision", "") or "无数据", ticker, final_state))
+                _render_report_block(risk.get("judge_decision", ""), "暂无风控决策", ticker, final_state)
             st.markdown("---")
 
         if dqs:
