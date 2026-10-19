@@ -3,7 +3,7 @@
 [English](README.en.md) | [简体中文](README.md)
 
 <p align="center">
-  <img src="https://img.shields.io/badge/python-≥3.10-blue?logo=python" alt="Python >=3.10">
+  <img src="https://img.shields.io/badge/python-≥3.11-blue?logo=python" alt="Python >=3.11">
   <img src="https://img.shields.io/badge/version-0.2.19-green" alt="Version 0.2.19">
   <img src="https://img.shields.io/badge/license-Apache%202.0-orange?logo=apache" alt="Apache 2.0">
   <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey" alt="Platform">
@@ -140,7 +140,7 @@ TradingAgents-Astock/
 ├── experiments/            # Benchmark scripts + raw results (see experiments/README.md)
 ├── scripts/                # Utilities (incl. make_demo_gif.py)
 ├── tests/                  # 174 tests (offline unit + graph topology)
-├── .github/workflows/      # CI (ubuntu/windows × py3.10/3.13)
+├── .github/workflows/      # CI (ubuntu/windows × py3.11/3.13)
 └── CHANGELOG.md
 ```
 
@@ -151,7 +151,7 @@ TradingAgents-Astock/
 ```bash
 git clone https://github.com/zhzshuai-create/TradingAgents-Astock.git
 cd TradingAgents-Astock
-pip install -e .
+pip install -e . -c constraints.txt   # reproduce the versions verified on Python 3.13
 ```
 
 Configure an LLM in `.env` (see `.env.example`), then:

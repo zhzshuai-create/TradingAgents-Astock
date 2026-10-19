@@ -3,7 +3,7 @@
 [English](README.en.md) | [简体中文](README.md)
 
 <p align="center">
-  <img src="https://img.shields.io/badge/python-≥3.10-blue?logo=python" alt="Python >=3.10">
+  <img src="https://img.shields.io/badge/python-≥3.11-blue?logo=python" alt="Python >=3.11">
   <img src="https://img.shields.io/badge/version-0.2.19-green" alt="Version 0.2.19">
   <img src="https://img.shields.io/badge/license-Apache%202.0-orange?logo=apache" alt="Apache 2.0">
   <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey" alt="Platform">
@@ -196,8 +196,8 @@ TradingAgents-Astock/
 │   └── run_cases.py        # 批量分析样例
 ├── scripts/                # 工具脚本
 ├── experiments/            # 性能/回测实验脚本 + 基准原始数据（见 experiments/README.md）
-├── tests/                  # 测试（174，含数据解析离线单测与图拓扑测试）
-├── .github/workflows/      # CI（ubuntu/windows × py3.10/3.13 测试矩阵）
+├── tests/                  # 测试（255，含数据解析离线单测与图拓扑测试）
+├── .github/workflows/      # CI（ubuntu/windows × py3.11/3.13 测试矩阵）
 ├── assets/                 # 截图等静态资源
 ├── issues/                 # Issue 归档记录
 ├── pyproject.toml          # 项目配置与依赖
@@ -210,7 +210,7 @@ TradingAgents-Astock/
 
 ### 环境要求
 
-- Python >= 3.10
+- Python >= 3.11
 - 无需 Docker（可选）
 
 ### 安装
@@ -218,14 +218,25 @@ TradingAgents-Astock/
 ```bash
 git clone https://github.com/zhzshuai-create/TradingAgents-Astock.git
 cd TradingAgents-Astock
-pip install -e .
+pip install -e . -c constraints.txt   # 复现在 Python 3.13 上验证过的版本
 ```
+
+如果想允许依赖自动升级，可去掉 `-c constraints.txt`，只按 `pyproject.toml` 的下限安装。
 
 如需使用 Google Gemini 模型（可选）：
 
+Gemini 依赖与 mootdx 的 httpx 约束结构性冲突（google-genai 要 `httpx>=0.28.1`，mootdx 要 `<0.26`），不能装在主环境。请单独建一个 venv：
+
 ```bash
-pip install -e ".[google]"
+python -m venv .venv-gemini
+# Windows: .venv-gemini\Scripts\activate
+# macOS/Linux: source .venv-gemini/bin/activate
+pip install -e .
+pip install --no-deps "langchain-google-genai>=4.0.0"
+pip install "google-genai>=1.53.0" "httpx>=0.28.1"
 ```
+
+mootdx 走 TCP 7709，运行时不调用 httpx，因此该环境里 `pip check` 的 httpx 警告可以忽略。
 
 ### 配置 LLM
 
@@ -299,17 +310,9 @@ mootdx · 腾讯财经 · 东方财富 · 新浪财经 · 同花顺 · 财联社
 
 ## 常见问题
 
-### pip install 报 httpx 依赖冲突？
+### Gemini / google-genai 的 httpx 冲突？
 
-`pip install -e .`（默认安装）不会触发冲突。仅当你额外安装 `[google]` 可选依赖时，mootdx（要求 `httpx<0.26`）与 `langchain-google-genai`（要求 `httpx>=0.28`）互斥。
-
-**解决方案**：
-- **推荐**：不用 Google 模型时不装 `[google]`，用 DeepSeek 等国内直连模型即可
-- **备选**：手动升级 httpx — mootdx 实际走 TCP 协议，运行时并不调用 httpx（0.11.7 在 httpx 0.28.1 下实测正常）：
-  ```bash
-  pip install --no-deps httpx>=0.28.1
-  ```
-- **最稳妥**：用 Google 模型时单独建一个 venv
+主安装不会触发冲突，因为 `langchain-google-genai` 不在主依赖里。它与 mootdx（要求 `httpx<0.26`）结构性互斥。需要 Gemini 时，按上面的说明单独建 venv；mootdx 走 TCP，运行时不调用 httpx，单独环境里的 `pip check` 警告可以忽略。
 
 ### 不用 Web 界面怎么批量跑？
 

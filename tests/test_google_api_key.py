@@ -3,9 +3,9 @@ from unittest.mock import patch
 
 import pytest
 
-# langchain_google_genai 只在可选依赖 [google] 中安装（mootdx 的 httpx 约束与之互斥），
-# CI 只装基础依赖 —— 缺包时跳过本模块而不是让收集阶段炸掉整个矩阵。
-pytest.importorskip("langchain_google_genai", reason="requires pip install -e '.[google]'")
+# langchain_google_genai 与 mootdx 的 httpx<0.26 约束结构性冲突，v0.3.0 起不进主安装，
+# Gemini 需单独 venv（见 README）—— CI 里缺包时跳过本模块，而不是让收集阶段炸掉整个矩阵。
+pytest.importorskip("langchain_google_genai", reason="Gemini 依赖需单独 venv，见 README「Google Gemini」")
 
 from tradingagents.llm_clients.google_client import GoogleClient
 

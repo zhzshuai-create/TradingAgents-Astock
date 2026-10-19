@@ -5,7 +5,7 @@
 
 - **仓库**: https://github.com/zhzshuai-create/TradingAgents-Astock
 - **协议**: Apache 2.0
-- **Python**: >=3.10
+- **Python**: >=3.11
 - **当前版本**: 以 `pyproject.toml` 的 `version` 字段为准（不在此硬写，防文档漂移）
 
 ## 架构
@@ -38,8 +38,8 @@
 
 ## 已知问题与注意事项
 
-### 依赖冲突（v0.2.6 已缓解）
-mootdx 锁死 httpx==0.25.2，与 langchain-google-genai 的 httpx>=0.28.1 冲突。v0.2.6 将 google-genai 移至可选依赖 `[google]`，`pip install -e .` 不再冲突。需要 Google 模型时 `pip install -e ".[google]"`。
+### 依赖冲突（v0.3.0 起隔离）
+mootdx 要求 httpx<0.26，与 langchain-google-genai 的 httpx>=0.28.1 结构性冲突。v0.3.0 移除了 `[google]` extra；主安装用 `constraints.txt` 锁定 httpx 0.25.2。需要 Gemini 时单独建 venv，见 README。
 
 ### akshare 已移除（v0.2.5）
 v0.2.5 起完全移除 akshare 依赖，所有数据通过直连 HTTP API 获取。
