@@ -216,6 +216,31 @@ def _fmt_px(v) -> str:
     return f"{v:.2f}" if pd.notna(v) else "-"
 
 
+def _sparkline_svg(closes, width: int = 120, height: int = 30) -> str:
+    """收盘价迷你走势（内联 SVG；涨跌色由 .metric-card 的 up/down class 走令牌）。
+
+    少于 2 个有效点返回空串——单点画不出趋势，留白比一条假线诚实。
+    """
+    vals = [float(v) for v in closes if pd.notna(v)]
+    if len(vals) < 2:
+        return ""
+    lo, hi = min(vals), max(vals)
+    span = (hi - lo) or 1.0
+    step = width / (len(vals) - 1)
+    pts = [
+        f"{i * step:.1f},{height - 2 - (v - lo) / span * (height - 4):.1f}"
+        for i, v in enumerate(vals)
+    ]
+    line = " ".join(pts)
+    area = f"0,{height} {line} {width},{height}"
+    return (
+        f'<svg class="spark" viewBox="0 0 {width} {height}" '
+        f'preserveAspectRatio="none" aria-hidden="true">'
+        f'<polygon class="spark-area" points="{area}"/>'
+        f'<polyline class="spark-line" points="{line}"/></svg>'
+    )
+
+
 def _render_single_day_history(code: str, picked: str) -> None:
     """双击K线进入的历史单日行情：分时（或 5 分钟K线回退）+ 当日开高低收。
 
@@ -626,9 +651,22 @@ def render_data_mode() -> None:
 
                 st.markdown(f"### {q['name']}({code})")
 
+                trend_cls = "up" if q["change_pct"] >= 0 else "down"
+                spark = (
+                    _sparkline_svg(klines["close"].tail(15))
+                    if "close" in klines.columns else ""
+                )
                 c1, c2, c3, c4, c5, c6 = st.columns(6)
                 with c1:
-                    st.markdown(f'<div class="metric-card"><div class="label">当前价</div><div class="value" style="color:{clr}">{q["price"]:.2f}</div><div class="sub">{q["change_amt"]:+.2f} ({q["change_pct"]:+.2f}%)</div></div>', unsafe_allow_html=True)
+                    st.markdown(
+                        f'<div class="metric-card {trend_cls}">'
+                        f'<div class="label">当前价</div>'
+                        f'<div class="value" style="color:{clr}">{q["price"]:.2f}</div>'
+                        f'<div class="sub">{q["change_amt"]:+.2f} '
+                        f'<span class="chip {trend_cls}">{q["change_pct"]:+.2f}%</span></div>'
+                        f'{spark}</div>',
+                        unsafe_allow_html=True,
+                    )
                 with c2:
                     st.markdown(f'<div class="metric-card"><div class="label">PE(TTM)</div><div class="value">{q["pe_ttm"]:.1f}</div><div class="sub">{"亏损" if q["pe_ttm"] <= 0 else "盈利"}</div></div>', unsafe_allow_html=True)
                 with c3:

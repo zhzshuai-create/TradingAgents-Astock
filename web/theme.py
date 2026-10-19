@@ -45,6 +45,8 @@ LIGHT_TOKENS = """
 /* ===== UP / DOWN / WARN — 涨跌警示 ===== */
 --up:   #e03131;
 --down: #2f9e44;
+--up-soft:   #fef2f2;
+--down-soft: #f0fdf4;
 --ok:   #2f9e44;  /* 成功/运行中语义（值同 --down，语义解耦：跌色≠状态色） */
 --warn: #f08c00;
 
@@ -148,6 +150,8 @@ DARK_TOKENS = """
 /* ===== UP / DOWN / WARN ===== */
 --up:   #ff6b6b;
 --down: #51cf66;
+--up-soft:   #2a0a0a;
+--down-soft: #0a2a12;
 --ok:   #51cf66;  /* 成功/运行中语义（值同 --down，语义解耦：跌色≠状态色） */
 --warn: #fbbf24;
 
@@ -408,28 +412,67 @@ div[data-testid="stColumn"]:has(.sector-row) button[data-testid^="stBaseButton"]
     display: none;
 }
 
-/* ── KPI 卡片（紧凑）── */
+/* ── KPI 卡片（紧凑，左对齐数字编排）── */
 .metric-card {
     background: var(--surface);
+    border: var(--hairline) solid var(--line);
     border-radius: var(--radius-md);
-    padding: var(--space-sm) var(--space-md);
+    padding: 10px 10px 12px;
     box-shadow: var(--shadow-card);
-    text-align: center;
+    text-align: left;
+    container-type: inline-size;  /* 卡片变窄时数字按容器宽度缩，不折行 */
+    transition: border-color 0.22s ease, box-shadow 0.22s ease, transform 0.22s ease;
+}
+.metric-card:hover {
+    border-color: var(--brand);
+    box-shadow: var(--shadow-hover);
+    transform: translateY(-1px);
 }
 .metric-card .label {
-    font-size: var(--font-sm);
+    font-size: var(--font-xs);
+    font-weight: 600;
+    letter-spacing: 0.08em;
     color: var(--muted);
-    margin-bottom: 4px;
+    margin-bottom: 6px;
 }
 .metric-card .value {
-    font-size: var(--font-xl);
+    font-size: clamp(0.95rem, 20cqi, var(--font-xl));
     font-weight: 700;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
     color: var(--text);
 }
 .metric-card .sub {
     font-size: var(--font-xs);
     color: var(--muted);
+    margin-top: 4px;
+    font-variant-numeric: tabular-nums;
 }
+.metric-card .chip {
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: 999px;
+    font-size: var(--font-xs);
+    font-weight: 700;
+    line-height: 1.6;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+.metric-card .chip.up   { color: var(--up);   background: var(--up-soft); }
+.metric-card .chip.down { color: var(--down); background: var(--down-soft); }
+.metric-card .spark { display: block; width: 100%; height: 24px; margin-top: 8px; }
+.metric-card .spark-line {
+    fill: none; stroke: var(--muted); stroke-width: 1.5;
+    vector-effect: non-scaling-stroke;
+    stroke-linecap: round; stroke-linejoin: round;
+}
+.metric-card .spark-area { fill: var(--muted); opacity: 0.08; }
+.metric-card.up .spark-line   { stroke: var(--up); }
+.metric-card.up .spark-area   { fill: var(--up); opacity: 0.10; }
+.metric-card.down .spark-line { stroke: var(--down); }
+.metric-card.down .spark-area { fill: var(--down); opacity: 0.10; }
 
 /* ── 状态标签：去框，色点+文字 ── */
 .tag {
