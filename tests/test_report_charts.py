@@ -212,7 +212,7 @@ def test_generate_pdf_embeds_chart_and_cleans_tmp(tmp_path, monkeypatch):
     pdf_bytes = generate_pdf(state, "601208", "2026-10-06", "Underweight")
 
     assert pdf_bytes.startswith(b"%PDF-")
-    import fitz
+    fitz = pytest.importorskip("fitz")  # fitz 仅用于验证产物, CI 基础依赖不含 PyMuPDF
 
     doc = fitz.open(stream=pdf_bytes, filetype="pdf")
     images = sum(len(page.get_images()) for page in doc)
