@@ -1,0 +1,57 @@
+# AStock Pro 已验证依赖约束
+# 生成日期：2026-10-19
+# 来源：.venv（Python 3.13.3）全新安装，251 passed, 4 skipped, 58 subtests
+# 用法：pip install -e . -c constraints.txt
+# 只锁直接依赖和关键传递依赖；新增或升级依赖后，重跑全量测试再更新本文件。
+
+# 核心框架
+langchain-core==1.6.12
+langchain-anthropic==1.7.6
+langchain-openai==1.7.2
+langgraph==1.2.16
+langgraph-checkpoint==4.3.0
+langgraph-checkpoint-sqlite==3.1.2
+
+# 数据与计算
+pandas==3.0.6
+numpy==2.5.4
+matplotlib==3.11.2
+parsel==1.12.1
+plotly==7.1.0
+pytz==2026.5
+stockstats==0.6.9
+yfinance==1.7.0
+
+# Web 与报告
+streamlit==1.66.0
+streamlit-autorefresh==1.0.1
+altair==6.3.0
+narwhals==2.27.1
+pyarrow==26.0.0
+fpdf2==2.8.9
+
+# 网络与运行时
+requests==2.34.2
+urllib3==2.8.0
+certifi==2026.10.18
+curl_cffi==0.16.3
+mootdx==0.11.7
+# mootdx 要求 httpx<0.26；不要单独升级到 0.28
+httpx==0.25.2
+python-dotenv==1.2.4
+pydantic==2.14.1
+pydantic-core==2.50.1
+openai==3.35.1
+anthropic==1.15.0
+langsmith==0.14.11
+
+# CLI 与工具
+rich==15.0.0
+typer==0.27.3
+questionary==2.1.1
+tqdm==4.70.1
+typing-extensions==4.16.0
+setuptools==84.0.0
+
+# 测试
+pytest==9.1.1
