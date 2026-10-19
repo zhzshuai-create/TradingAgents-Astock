@@ -14,7 +14,9 @@ langgraph-checkpoint-sqlite==3.1.2
 
 # 数据与计算
 pandas==3.0.6
-numpy==2.5.4
+# numpy 2.5 起要求 Python >=3.12；3.11 用 2.4.6（CI 3.11 leg 实际安装的版本）
+numpy==2.5.4; python_version >= "3.12"
+numpy==2.4.6; python_version < "3.12"
 matplotlib==3.11.2
 parsel==1.12.1
 plotly==7.1.0
