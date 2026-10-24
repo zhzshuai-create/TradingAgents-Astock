@@ -43,10 +43,31 @@ py -3.12 -m venv .venv-qlib
 ## 阶段进度
 
 - [x] 阶段 1：环境隔离与钉版（本文件）
-- [ ] 阶段 2：数据导出（东财前复权日K → qlib dump CSV）与 dump_bin 转换校验
+- [x] 阶段 2a：评估池管线打通——export_csv.py（EM fqt=2 / 腾讯 fqkline hfq 双引擎,
+  全池同源规则）→ dump_bin（`--data_path` 非 csv_path）→ verify_dump.py 读回
+  400 项数值比对 0 不符
+- [ ] 阶段 2b：宽池（评估 10 + 训练 300）全量导出与 dump（等 EM/腾讯限流解除;
+  `python experiments/qlib_baseline/export_csv.py --pool all --source auto`）
 - [ ] 阶段 3：四条基线（B1 B&H / B2 均线 / B3 动量 / B4 LGBM+Alpha158）
 - [ ] 阶段 4：对照汇总（compare.py，与 run_*.json 同表）
 - [ ] 阶段 5：论文 T3 接入
 
-注意：pyqlib wheel 不含 `scripts/dump_bin.py`，阶段 2 需从 microsoft/qlib 仓库
-**v0.9.7 tag** 取该脚本入本目录（钉版本防上游漂移）。
+### 阶段 2 数据口径决策（2026-10-24，实测驱动）
+
+- **后复权(hfq) 而非前复权**：EM fqt=1 前复权全历史 OHLC 实测损坏（600519
+  2016 段 close=25.6 vs 真实≈309, 比值漂移 12x→1x）——弃用。后复权锚定 IPO、
+  只乘不减, 收益忠实（验证: 腾讯 hfq 2015-08-24 千股跌停日 -7.99% 与真实一致）
+- **腾讯 hfq 为等比复权**（若等差, 高分红股收益会被稀释数倍, 实测无此现象）
+- **vwap 不导出**：EM amount 是原始口径与复权价不一致; 基础 Alpha158 只用
+  OHLCV（仅 Alpha158vwap 子类才要 $vwap）
+- **引擎统一**：--source auto 时 EM 任一失败即整池切腾讯, manifest 记录最终引擎
+- dump_bin 参数：`dump_all --data_path csv_data --qlib_dir qlib_data
+  --include_fields open,close,high,low,volume`（0.9.7 用 data_path 不是 csv_path）
+
+### 已知坑（Windows / 本机）
+
+- **qlib 脚本必须落成文件再跑**：stdin/heredoc 脚本会触发 Windows multiprocessing
+  spawn 挂死（__main__ 无文件可再导入）
+- `D.features(instruments)` 必须传**列表**; 逗号串会被当成单个 instrument 名
+- EM push2his 间歇拒连是常态（历史多案）; 腾讯 fqkline 高频抓取会触发 501
+  挑战页, 两家限流通常数小时内解除

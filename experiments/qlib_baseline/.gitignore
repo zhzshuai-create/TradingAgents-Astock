@@ -1,1 +1,5 @@
 main-env-3.13.snapshot.txt
+
+# 阶段2 数据产物（csv_data 全池约百MB 级, qlib_data 二进制, 均不入库; 由 export/dump 脚本可再生）
+csv_data/
+qlib_data/
