@@ -224,3 +224,6 @@ output_leaders.csv
 *.egg-info/
 proxy_debug.log
 ui_shots_*/
+
+# qlib 基线实验专用 venv（Python 3.12，与主环境物理隔离）
+.venv-qlib/
