@@ -3,3 +3,6 @@ main-env-3.13.snapshot.txt
 # 阶段2 数据产物（csv_data 全池约百MB 级, qlib_data 二进制, 均不入库; 由 export/dump 脚本可再生）
 csv_data/
 qlib_data/
+
+# mlflow 运行时产物(b4_ml.py 每次跑都会变, 结论已固化在 results/ 与 README)
+mlruns/
