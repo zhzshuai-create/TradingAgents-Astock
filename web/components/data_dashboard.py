@@ -21,7 +21,7 @@ from web.data_functions import (
     forward_pe, calc_peg, pe_digestion,
     get_intraday_view, minute_timeline, _get_kline_full,
 )
-from web.stock_display import sector_rows_html, sector_stock_rows_html
+from web.stock_display import sector_rows_html, sector_stock_rows_html, stock_rows_html
 from web.components.click_bridge import wire_clickable_cards
 from web.components.empty_state import render_empty_state
 
@@ -1034,47 +1034,29 @@ def _render_market_overview() -> None:
         df_hot = ths_hot_reason()
     if not df_hot.empty:
         reason_col = "题材归因" if "题材归因" in df_hot.columns else "reason"
-        hot_display = df_hot.head(10)[["代码", "名称", "涨幅%", reason_col]].rename(
-            columns={reason_col: "题材归因"}
-        )
-        hot_display["代码"] = hot_display["代码"].astype(str)
-        _chg = pd.to_numeric(hot_display["涨幅%"], errors="coerce").fillna(0)
-        hot_display["涨幅%"] = _chg.map(lambda v: f"{v:+.2f}%")
-
-        # A股语义着色：涨红跌绿。glide 画布吃不到 CSS 变量，取亮色主题
-        # --up/--down 同值（双主题底色下均可读）
-        def _pct_style(v):
+        hot_rows = []
+        for _, row in df_hot.head(10).iterrows():
             try:
-                val = float(str(v).rstrip("%"))
-            except ValueError:
-                return ""
-            if val > 0:
-                return "color: #e03131; font-weight: 600;"
-            if val < 0:
-                return "color: #2f9e44; font-weight: 600;"
-            return ""
-
-        # 整行可点：点击任意一行直接跳转到该股的个股估值页
-        event = st.dataframe(
-            hot_display.style.map(_pct_style, subset=["涨幅%"]),
-            hide_index=True,
-            use_container_width=True,
-            on_select="rerun",
-            selection_mode="single-row",
-            key="hot_pick",
-            column_config={
-                "代码": st.column_config.TextColumn("代码", width="small"),
-                "名称": st.column_config.TextColumn("名称", width="small"),
-                "涨幅%": st.column_config.TextColumn("涨幅%", width="small"),
-                "题材归因": st.column_config.TextColumn("题材归因", width="large"),
-            },
-        )
-        sel_rows = event.selection.rows
-        if sel_rows:
-            picked_row = hot_display.iloc[sel_rows[0]]
-            st.session_state["_pending_jump_code"] = normalize_code(str(picked_row["代码"]))
-            st.session_state["_pending_jump_name"] = str(picked_row.get("名称", ""))
-            st.rerun()
+                pct = float(row.get("涨幅%", 0) or 0)
+            except (TypeError, ValueError):
+                pct = 0.0
+            hot_rows.append({
+                "code": str(row.get("代码", "")),
+                "name": str(row.get("名称", "")),
+                "change_pct": pct,
+                "reason": str(row.get(reason_col, "") if reason_col in row.index else ""),
+            })
+        # HTML 行网格（表头/斑马纹/hover/强度条，与板块行同一点击桥）；
+        # 隐藏按钮与表格同列渲染 → :has(.stock-row) 首帧隐藏，行点击经桥转发
+        with st.columns(1)[0]:
+            st.markdown(stock_rows_html(hot_rows), unsafe_allow_html=True)
+            for r in hot_rows:
+                if st.button(r["code"], key=f"hotsel_{r['code']}",
+                             use_container_width=True):
+                    st.session_state["_pending_jump_code"] = normalize_code(r["code"])
+                    st.session_state["_pending_jump_name"] = r["name"]
+                    st.rerun()
+        wire_clickable_cards()
     else:
         render_empty_state("暂无今日数据", "可能非交易日或盘后未更新")
 

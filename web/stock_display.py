@@ -370,12 +370,34 @@ def sector_stock_rows_html(stocks: list) -> str:
     return f'<div class="sector-stocks">{"".join(rows)}</div>'
 
 
+def _pct_width(pct: float, max_abs: float) -> float:
+    """强度条宽度(%)：|pct| 相对传入最大绝对值，4% 下限防消失，封顶 100%。"""
+    if max_abs <= 0:
+        return 0.0
+    return round(min(abs(pct) / max_abs * 100, 100), 1) if abs(pct) > 0 else 0.0
+
+
+def _strength_bar(pct: float, max_abs: float, cls: str = "sr-bar") -> str:
+    """涨跌幅强度条（红涨绿跌语义 class，宽度∝|pct|），行底/格内通用。"""
+    up = pct >= 0
+    w = max(_pct_width(pct, max_abs), 4.0) if pct != 0 else 0.0
+    if w <= 0:
+        return ""
+    return (f'<i class="{cls} {"%s--up" % cls if up else "%s--down" % cls}" '
+            f'style="width:{w:.1f}%"></i>')
+
+
 def sector_rows_html(rows: list, active_code: str | None = None) -> str:
     """板块行网格 HTML（可点击，点击经 JS 桥转发到同列隐藏按钮）。
 
     每行 data-code=板块代码；active_code 命中的行加 --active 态（品牌描边）。
+    行底强度条宽度∝|涨跌幅|（以本批最大值为基准），一眼扫出最强主线。
     颜色只给语义 class，色值归 theme 令牌。
     """
+    try:
+        max_abs = max(abs(float(r.get("change_pct") or 0)) for r in rows) if rows else 0.0
+    except (TypeError, ValueError):
+        max_abs = 0.0
     out = []
     for r in rows:
         try:
@@ -393,6 +415,45 @@ def sector_rows_html(rows: list, active_code: str | None = None) -> str:
             f'<span class="sr-pct {"sr-pct--up" if up else "sr-pct--down"}">{pct_f:+.2f}%</span>'
             f'<span class="sr-counts">涨{escape(str(r.get("up_count", 0)))}'
             f' · 跌{escape(str(r.get("down_count", 0)))}</span>'
+            f'{_strength_bar(pct_f, max_abs)}'
             '</div>'
         )
     return f'<div class="sector-list">{"".join(out)}</div>'
+
+
+def stock_rows_html(rows: list) -> str:
+    """强势股速览行网格（表头 + 斑马纹 + hover + 涨跌幅强度条，可点击）。
+
+    rows: [{code, name, change_pct, reason}]；行 data-code 供 JS 桥转发到
+    同列隐藏按钮（与板块行同一桥）。颜色只给语义 class，色值归 theme 令牌。
+    """
+    try:
+        max_abs = max(abs(float(r.get("change_pct") or 0)) for r in rows) if rows else 0.0
+    except (TypeError, ValueError):
+        max_abs = 0.0
+    body = []
+    for r in rows:
+        try:
+            pct_f = float(r["change_pct"])
+        except (TypeError, ValueError):
+            pct_f = 0.0
+        up = pct_f >= 0
+        code = escape(str(r.get("code", "")))
+        body.append(
+            f'<div class="stock-row" data-code="{code}">'
+            f'<span class="st-code">{code}</span>'
+            f'<span class="st-name">{escape(str(r.get("name", "")))}</span>'
+            f'<span class="st-pct-wrap"><span class="st-pct '
+            f'{"st-pct--up" if up else "st-pct--down"}">{pct_f:+.2f}%</span>'
+            f'{_strength_bar(pct_f, max_abs, cls="st-bar")}</span>'
+            f'<span class="st-reason" title="{escape(str(r.get("reason", "")))}">'
+            f'{escape(str(r.get("reason", "")))}</span>'
+            '</div>'
+        )
+    head = (
+        '<div class="stock-row stock-row--head">'
+        '<span class="st-code">代码</span><span class="st-name">名称</span>'
+        '<span class="st-pct-wrap"><span class="st-pct">涨跌幅</span></span>'
+        '<span class="st-reason">题材归因</span></div>'
+    )
+    return f'<div class="stock-table">{head}{"".join(body)}</div>'

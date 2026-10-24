@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from html import escape
 from typing import Any
 
 import streamlit as st
@@ -42,6 +43,59 @@ def _safe_filename_label(label: str) -> str:
 def _display_report_text(text: Any, ticker: str, final_state: dict[str, Any]) -> str:
     cleaned = strip_think_tags(str(text))
     return normalize_stock_mentions(cleaned, ticker, final_state)
+
+
+def decision_facts(final_state: dict[str, Any]) -> dict[str, str | None]:
+    """从决策文本解析关键决策要素（报告页决策卡数据源）。
+
+    解析顺序：final_trade_decision 优先，investment_plan / 交易员决策兜底；
+    不同模型的字段格式有差（英文标记/中文标签/裸数字），正则兼容双格式；
+    缺失返回 None 由渲染层显示 "—"——宁可空格不编造。
+    """
+    texts = [
+        str(final_state.get("final_trade_decision") or ""),
+        str(final_state.get("investment_plan") or ""),
+        str(final_state.get("trader_investment_decision") or ""),
+    ]
+
+    def _find(patterns: list[str]) -> str | None:
+        for src in texts:
+            for pat in patterns:
+                m = re.search(pat, src, re.IGNORECASE)
+                if m:
+                    v = m.group(1).strip().rstrip("*").strip()
+                    if v:
+                        return v
+        return None
+
+    return {
+        "rating": _find([r"\*\*Rating\*\*[:：]\s*([^\n*]+)",
+                         r"评级[:：]\s*([^\n，。;；]+)",
+                         # 兜底: 无标签的裸评级词(如"维持增持评级，…")
+                         r"(增持|减持|买入|卖出|持有|清仓|Underweight|Overweight|Buy|Sell|Hold)"]),
+        "target": _find([r"\*\*Price Target\*\*[:：]\s*([0-9.]+)",
+                         r"目标价[^0-9{（(]{0,8}([0-9.]+)"]),
+        "stop": _find([r"(?:止损|止损位|硬止损)[^0-9{（(]{0,8}([0-9.]+)"]),
+        "horizon": _find([r"\*\*Time Horizon\*\*[:：]\s*([^\n*]+)",
+                          r"时间(?:范围|周期|跨度)[:：]\s*([^\n，。;；]+)"]),
+    }
+
+
+def _decision_strip_html(facts: dict[str, str | None], color: str,
+                         cn_signal: str) -> str:
+    cells = [
+        ("信号", cn_signal, f"color:{color}"),
+        ("目标价", facts["target"], None),
+        ("止损参考", facts["stop"], None),
+        ("时间范围", facts["horizon"], None),
+    ]
+    cell_html = "".join(
+        f'<div class="ds-cell"><div class="ds-label">{label}</div>'
+        f'<div class="ds-value"{" " + style if style else ""}>'
+        f'{escape(str(v)) if v not in (None, "") else "—"}</div></div>'
+        for label, v, style in cells
+    )
+    return f'<div class="decision-strip">{cell_html}</div>'
 
 
 def _render_report_block(
@@ -95,6 +149,10 @@ def render_report(
         """,
         unsafe_allow_html=True,
     )
+
+    # 决策四格卡：关键数字置顶（目标价/止损/时间从决策文本解析，缺项 "—"）
+    st.markdown(_decision_strip_html(decision_facts(final_state), color, cn_signal),
+                unsafe_allow_html=True)
 
     st.caption("本报告由 AI 自动生成，仅供学习研究，不构成投资建议。")
 

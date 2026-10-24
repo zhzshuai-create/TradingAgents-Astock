@@ -308,7 +308,8 @@ COMBINATION_CSS = """
 /* 卡片同列的原生回填按钮从首帧起隐藏（无闪烁）：列内含 .quick-card 即命中。
    :not(primary) —— :has 会命中含快捷卡的外层右栏列，把右栏真正的 primary
    按钮误藏（首页「开始分析」曾中招）；桥回填按钮全是 secondary，语义不冲突 */
-div[data-testid="stColumn"]:has(.quick-card) button[data-testid^="stBaseButton"]:not([data-testid="stBaseButton-primary"]) {
+div[data-testid="stColumn"]:has(.quick-card) button[data-testid^="stBaseButton"]:not([data-testid="stBaseButton-primary"]),
+div[data-testid="stColumn"]:has(.stock-row) button[data-testid^="stBaseButton"]:not([data-testid="stBaseButton-primary"]) {
     display: none;
 }
 
@@ -400,6 +401,14 @@ div[data-testid="stColumn"]:has(.quick-card) button[data-testid^="stBaseButton"]
     border-color: var(--brand);
     background: var(--brand-soft);
 }
+/* 行底强度条：宽度∝|涨跌幅|（相对本批最大值），一眼扫出最强主线 */
+.sector-row { position: relative; overflow: hidden; }
+.sr-bar {
+    position: absolute; left: 0; bottom: 0; height: 2.5px;
+    border-radius: 0 2px 2px 0; opacity: 0.55; pointer-events: none;
+}
+.sr-bar--up   { background: var(--up); }
+.sr-bar--down { background: var(--down); }
 .sector-row .sr-dir   { font-size: var(--font-xs); }
 .sector-row .sr-dir--up   { color: var(--up); }
 .sector-row .sr-dir--down { color: var(--down); }
@@ -408,6 +417,70 @@ div[data-testid="stColumn"]:has(.quick-card) button[data-testid^="stBaseButton"]
 .sector-row .sr-pct   { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
 .sector-row .sr-pct--up   { color: var(--up); }
 .sector-row .sr-pct--down { color: var(--down); }
+
+/* ── 强势股速览行网格（表头 + 斑马纹 + hover + 格内强度条）── */
+.stock-table { border: var(--hairline) solid var(--line);
+               border-radius: var(--radius-md); overflow: hidden;
+               font-size: var(--font-sm); }
+.stock-row {
+    display: grid;
+    grid-template-columns: 76px minmax(0, 1.1fr) 96px minmax(0, 3fr);
+    align-items: center;
+    gap: var(--space-sm);
+    padding: 7px var(--space-md);
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.15s ease;
+}
+.stock-row:nth-child(even) { background: var(--track); }
+.stock-row:not(.stock-row--head):hover { background: var(--brand-soft); }
+.stock-row--head {
+    font-size: var(--font-xs); color: var(--muted); font-weight: 700;
+    letter-spacing: 0.04em; background: var(--surface-2, var(--track));
+    border-bottom: var(--hairline) solid var(--line);
+    cursor: default;
+}
+.stock-row .st-code  { font-weight: 700; color: var(--text);
+                       font-variant-numeric: tabular-nums; }
+.stock-row .st-name  { color: var(--text); overflow: hidden;
+                       text-overflow: ellipsis; white-space: nowrap; }
+.stock-row .st-pct-wrap { position: relative; text-align: right;
+                          padding-bottom: 4px; }
+.stock-row .st-pct   { font-weight: 700; font-variant-numeric: tabular-nums; }
+.stock-row .st-pct--up   { color: var(--up); }
+.stock-row .st-pct--down { color: var(--down); }
+.stock-row .st-bar {
+    position: absolute; right: 0; bottom: 0; height: 3px;
+    border-radius: 2px 0 0 2px; opacity: 0.6; pointer-events: none;
+}
+.stock-row .st-bar--up   { background: var(--up); }
+.stock-row .st-bar--down { background: var(--down); }
+.stock-row .st-reason { color: var(--muted); overflow: hidden;
+                        text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── 报告页决策四格卡（信号/目标价/止损/时间，关键数字置顶）── */
+.decision-strip {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--space-sm);
+    margin: -1.2rem 0 1.6rem;
+}
+.ds-cell {
+    background: var(--surface);
+    border: var(--hairline) solid var(--line);
+    border-radius: var(--radius-md);
+    padding: var(--space-sm) var(--space-md);
+    text-align: center;
+}
+.ds-label {
+    font-size: var(--font-xs); color: var(--muted);
+    letter-spacing: 0.08em; margin-bottom: 2px;
+}
+.ds-value {
+    font-size: var(--font-lg); font-weight: 800; color: var(--text);
+    font-variant-numeric: tabular-nums;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 .sector-row .sr-counts { color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
 /* 板块行同列的原生隐藏按钮（桥转发点击）从首帧起隐藏；:not(primary) 防
    :has 命中外层列误藏真按钮（同 quick-card 规则的教训） */

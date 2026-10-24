@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 """可点击卡片 → 隐藏原生按钮 的点击转发桥（srcdoc iframe 同源操作 parent）。
 
-覆盖两类纯 HTML 卡片：首页快捷行情卡(.quick-card)与看板总览板块行(.sector-row)
-——信息丰富但非交互元素，真正的 Streamlit 隐藏按钮按 data-code 精确匹配
-按钮文本后 JS click（widget 按钮 JS click 一向可靠）。
+覆盖三类纯 HTML 卡片：首页快捷行情卡(.quick-card)、看板板块行(.sector-row)、
+看板强势股速览行(.stock-row)——信息丰富但非交互元素，真正的 Streamlit
+隐藏按钮按 data-code 精确匹配按钮文本后 JS click（widget 按钮 JS click 一向可靠）。
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ def wire_clickable_cards() -> None:
 (function(){
   var D = window.parent.document;
   function wire() {
-    var cards = D.querySelectorAll('.quick-card:not([data-wired]), .sector-row:not([data-wired])');
+    var cards = D.querySelectorAll('.quick-card:not([data-wired]), .sector-row:not([data-wired]), .stock-row:not([data-wired])');
     for (var i = 0; i < cards.length; i++) {
       var c = cards[i];
       c.setAttribute('data-wired', '1');
