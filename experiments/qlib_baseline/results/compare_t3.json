@@ -34,10 +34,12 @@
         "avg_net_f025": 0.020534
       },
       "b4_ml": {
-        "scored": 0,
-        "hits": 0,
-        "hit_rate": null,
-        "avg_directed_ret": null
+        "scored": 6,
+        "hits": 5,
+        "hit_rate": 0.8333,
+        "avg_directed_ret": 0.024025,
+        "avg_net_f001": 0.022025,
+        "avg_net_f025": 0.019025
       }
     },
     "2026-09-11→2026-10-23": {
@@ -74,10 +76,12 @@
         "avg_net_f025": 0.050398
       },
       "b4_ml": {
-        "scored": 0,
-        "hits": 0,
-        "hit_rate": null,
-        "avg_directed_ret": null
+        "scored": 3,
+        "hits": 1,
+        "hit_rate": 0.3333,
+        "avg_directed_ret": -0.092726,
+        "avg_net_f001": -0.094726,
+        "avg_net_f025": -0.097726
       }
     },
     "2026-10-06→2026-10-23": {
@@ -114,10 +118,12 @@
         "avg_net_f025": -0.194963
       },
       "b4_ml": {
-        "scored": 0,
+        "scored": 1,
         "hits": 0,
-        "hit_rate": null,
-        "avg_directed_ret": null
+        "hit_rate": 0.0,
+        "avg_directed_ret": -0.189963,
+        "avg_net_f001": -0.191963,
+        "avg_net_f025": -0.194963
       }
     }
   },
@@ -155,10 +161,12 @@
       "avg_net_f025": 0.007943
     },
     "b4_ml": {
-      "scored": 0,
-      "hits": 0,
-      "hit_rate": null,
-      "avg_directed_ret": null
+      "scored": 10,
+      "hits": 6,
+      "hit_rate": 0.6,
+      "avg_directed_ret": -0.032399,
+      "avg_net_f001": -0.034399,
+      "avg_net_f025": -0.037399
     }
   }
 }
