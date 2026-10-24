@@ -135,12 +135,14 @@ MODEL_OPTIONS: ProviderModeOptions = {
     },
     "mimo": {
         "quick": [
-            ("MiMo V2.5 - 小米快速模型", "mimo-v2.5"),
+            # v2.5 对话模型已被小米平台下架（仅存 v2.5-asr/tts 语音模型），2026-10-24 实查
+            ("MiMo V2.6 Flash - 小米快速模型", "mimo-v2.6-flash"),
             ("Custom model ID", "custom"),
         ],
         "deep": [
-            ("MiMo V2.5 Pro - 小米旗舰模型", "mimo-v2.5-pro"),
-            ("MiMo V2.5 - 小米快速模型", "mimo-v2.5"),
+            ("MiMo V2.6 Pro - 小米旗舰模型", "mimo-v2.6-pro"),
+            ("MiMo V2.6 Pro Ultraspeed - 小米极速模型", "mimo-v2.6-pro-ultraspeed"),
+            ("MiMo V2.6 Flash - 小米快速模型", "mimo-v2.6-flash"),
             ("Custom model ID", "custom"),
         ],
     },

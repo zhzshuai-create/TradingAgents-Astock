@@ -23,6 +23,8 @@ python experiments/backtest_eval.py
 
 模型配置从仓库根目录 `.env` 读取（`LLM_PROVIDER` / `DEEP_THINK_LLM` / `QUICK_THINK_LLM` / `BACKEND_URL`），与 Web UI 同一套配置入口。
 
+> **供应商口径变更（2026-10-24）**：小米 MiMo 平台已下架 `mimo-v2.5` / `mimo-v2.5-pro` 对话模型（仅保留 v2.5 语音模型），当前对话模型为 `mimo-v2.6-flash` / `mimo-v2.6-pro`。下述基准实验数据仍为 `mimo-v2.5` 口径；此后新跑的实验（含论文复现）均为 v2.6 口径，与基准数据对比时需注明。
+
 ## 基准实验结果（2026-09-13，results/ 为原始数据）
 
 环境：小米 MiMo `mimo-v2.5`（OpenAI 兼容协议直连），7 分析师完整 pipeline。
