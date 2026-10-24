@@ -84,6 +84,53 @@ def test_quick_fill_input_fills_sidebar_without_exception(monkeypatch):
     assert box2.value == ""  # 回填后输入框自身清空
 
 
+def test_quick_start_button_starts_analysis(monkeypatch):
+    """首页「开始分析」按钮：输入代码 → 点击 → start_analysis 消费、tracker 建立、
+    侧栏 input_ticker 同步预置、输入框清空、toast 不再引导去侧边栏。
+
+    run_analysis_in_thread 必须打桩（app.py 脚本轮 from-import 自 web.runner
+    命名空间解析，桩打在源模块上生效）；不打桩会真起分析线程。
+    """
+    import web.data_functions as df
+    import web.journal_service as js
+    import web.runner as runner
+
+    monkeypatch.setattr(df, "index_spot", lambda: {}, raising=True)
+    monkeypatch.setattr(df, "tencent_quote", lambda codes: {}, raising=True)
+    monkeypatch.setattr(js, "start_journal", lambda: None, raising=True)
+    started: list[dict] = []
+    monkeypatch.setattr(
+        runner, "run_analysis_in_thread",
+        lambda **kw: started.append(kw), raising=True,
+    )
+
+    at = _run_home()
+    assert not at.exception
+
+    btn = next(b for b in at.button if b.key == "home_start_btn")
+    assert btn.disabled  # 无输入时禁用
+
+    box = next(w for w in at.text_input if w.key == "quick_fill_input")
+    box.set_value("300750")
+    at.run()
+    btn = next(b for b in at.button if b.key == "home_start_btn")
+    assert not btn.disabled  # 有代码后解禁
+    btn.click()
+    at.run()  # 点击轮：if 体落 start_analysis/_pending（消费点在下一轮顶部）
+    at.run()  # 消费轮：预置侧栏 + 发起分析
+
+    assert not at.exception
+    # 分析已被发起（run 桩收到调用），且 start_analysis 被消费
+    assert started and started[0]["ticker"] == "300750"
+    # 侧栏同步预置 + 首页输入框清空（消费点行为）
+    ti = _sidebar_ticker(at)
+    assert ti and ti[0].value == "300750"
+    box2 = next(w for w in at.text_input if w.key == "quick_fill_input")
+    assert box2.value == ""
+    # toast 分流：直接启动，不再引导去侧边栏
+    assert any("开始分析" in t.value for t in at.toast)
+
+
 # ── 迷你行情卡 builder（纯函数，无 IO）──
 
 def test_quick_card_html_up_down_flat_and_missing():

@@ -8,7 +8,7 @@ from __future__ import annotations
 import base64
 import sys
 import time
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 
 import streamlit as st
@@ -142,7 +142,7 @@ start_boot_watchdog()
 # (langgraph/langsmith, 实测约 3.2s), index_spot 是阻塞网络调用. 任何要在首屏
 # 之前上屏的元素都得插在它们上面.
 import streamlit.components.v1 as components  # noqa: E402
-from web.components.sidebar import render_sidebar  # noqa: E402
+from web.components.sidebar import render_sidebar, _resolve_user_input  # noqa: E402
 from web.data_functions import (  # noqa: E402
     index_spot,
     tencent_quote,
@@ -163,8 +163,15 @@ if "theme" not in st.session_state:
 _pending_ticker_fill = st.session_state.pop("_pending_ticker_fill", None)
 if _pending_ticker_fill:
     st.session_state["input_ticker"] = _pending_ticker_fill
-    st.toast(f"已填入侧边栏：{_pending_ticker_fill}，点「开始分析」即启动",
-             icon=":material/bolt:")
+    # 首页「开始分析」按钮路径：输入框残留文本在此清掉（先于本轮实例化，合法）；
+    # Enter/快捷标的路径本就已空，此处为幂等 no-op
+    st.session_state["quick_fill_input"] = ""
+    if st.session_state.get("start_analysis"):
+        # 首页按钮直接发起分析，toast 不再引导去侧边栏
+        st.toast(f"开始分析：{_pending_ticker_fill}", icon=":material/rocket_launch:")
+    else:
+        st.toast(f"已填入侧边栏：{_pending_ticker_fill}，点「开始分析」即启动",
+                 icon=":material/bolt:")
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # JS: Load saved theme + WebSocket auto-reconnect
@@ -737,12 +744,12 @@ def _render_analysis_mode() -> None:
                         with c2:
                             st.markdown(f'<div>{badge_html}</div>', unsafe_allow_html=True)
 
-        # Right: quick start（分析表单唯一入口在侧边栏：跨标签页常驻 + 中文名解析 +
-        # 模型配置；这里只做"回填"——输入框和快捷标的都只落 pending key，
-        # 由脚本顶部的消费点预置侧栏 input_ticker，避免双份表单）
+        # Right: quick start（表单主入口在侧边栏：跨标签页常驻 + 中文名解析 + 模型
+        # 配置；首页输入框 Enter 仍是回填，但右侧「开始分析」按钮可直接发起——
+        # 两条路都只落 pending key，由脚本顶部的消费点预置侧栏 input_ticker）
         with right:
             st.markdown('<div class="card__title">快速开始</div>', unsafe_allow_html=True)
-            st.caption("输入代码或名称，回车回填侧边栏；或点下方快捷标的")
+            st.caption("输入代码或名称，点「开始分析」直接启动；或点下方快捷标的")
 
             def _quick_fill_change() -> None:
                 """on_change 回调期写 widget key 合法（新一轮 widgets 未实例化）；
@@ -752,10 +759,33 @@ def _render_analysis_mode() -> None:
                 if val:
                     st.session_state["_pending_ticker_fill"] = val
 
-            st.text_input(
-                "快速回填", key="quick_fill_input", on_change=_quick_fill_change,
-                placeholder="如 601208 或 东材科技", label_visibility="collapsed",
-            )
+            # 输入框 + 生成键同行：免开侧边栏，首页一步发起研讨报告
+            qin_col, qbtn_col = st.columns([3, 1])
+            with qin_col:
+                st.text_input(
+                    "快速回填", key="quick_fill_input", on_change=_quick_fill_change,
+                    placeholder="如 601208 或 东材科技", label_visibility="collapsed",
+                )
+            with qbtn_col:
+                # 输入框优先；为空时回退侧栏 input_ticker（快捷标的点击后即有值）
+                _quick_val = (st.session_state.get("quick_fill_input") or "").strip() \
+                    or (st.session_state.get("input_ticker") or "").strip()
+                if st.button("开始分析", key="home_start_btn", type="primary",
+                             use_container_width=True, disabled=not _quick_val):
+                    resolved_code, err = _resolve_user_input(_quick_val)
+                    if err:
+                        st.error(err)
+                    else:
+                        # pending key 非 widget key，直写合法；消费点在脚本顶部
+                        # 与 _render_analysis_mode 开头（start_analysis）
+                        st.session_state["_pending_ticker_fill"] = resolved_code
+                        st.session_state["start_analysis"] = {
+                            "ticker": resolved_code,
+                            "trade_date": (st.session_state.get("input_date")
+                                           or date.today()).strftime("%Y-%m-%d"),
+                            "fresh": True,
+                        }
+                        st.session_state["viewing_history"] = None
 
             quick_codes = []
             seen = set()

@@ -305,8 +305,10 @@ COMBINATION_CSS = """
 .quick-card .pct--up   { color: var(--up); }
 .quick-card .pct--down { color: var(--down); }
 .quick-card .pct--flat { color: var(--muted); }
-/* 卡片同列的原生回填按钮从首帧起隐藏（无闪烁）：列内含 .quick-card 即命中 */
-div[data-testid="stColumn"]:has(.quick-card) button[data-testid^="stBaseButton"] {
+/* 卡片同列的原生回填按钮从首帧起隐藏（无闪烁）：列内含 .quick-card 即命中。
+   :not(primary) —— :has 会命中含快捷卡的外层右栏列，把右栏真正的 primary
+   按钮误藏（首页「开始分析」曾中招）；桥回填按钮全是 secondary，语义不冲突 */
+div[data-testid="stColumn"]:has(.quick-card) button[data-testid^="stBaseButton"]:not([data-testid="stBaseButton-primary"]) {
     display: none;
 }
 
@@ -407,8 +409,9 @@ div[data-testid="stColumn"]:has(.quick-card) button[data-testid^="stBaseButton"]
 .sector-row .sr-pct--up   { color: var(--up); }
 .sector-row .sr-pct--down { color: var(--down); }
 .sector-row .sr-counts { color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
-/* 板块行同列的原生隐藏按钮（桥转发点击）从首帧起隐藏 */
-div[data-testid="stColumn"]:has(.sector-row) button[data-testid^="stBaseButton"] {
+/* 板块行同列的原生隐藏按钮（桥转发点击）从首帧起隐藏；:not(primary) 防
+   :has 命中外层列误藏真按钮（同 quick-card 规则的教训） */
+div[data-testid="stColumn"]:has(.sector-row) button[data-testid^="stBaseButton"]:not([data-testid="stBaseButton-primary"]) {
     display: none;
 }
 
