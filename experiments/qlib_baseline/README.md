@@ -48,9 +48,12 @@ py -3.12 -m venv .venv-qlib
   400 项数值比对 0 不符
 - [ ] 阶段 2b：宽池（评估 10 + 训练 300）全量导出与 dump（等 EM/腾讯限流解除;
   `python experiments/qlib_baseline/export_csv.py --pool all --source auto`）
-- [x] 阶段 3a：规则基线 B1/B2/B3（baselines_rule.py, 两个窗口已出结果）
+- [x] 阶段 3a：规则基线 B1/B2/B3（baselines_rule.py, 三个窗口已出结果,
+  含 09-11→10-23 窗口: 300750 区间 -26.34%, TA 唯一方向样本 Overweight 落空）
 - [ ] 阶段 3b：B4 LGBM+Alpha158（依赖阶段 2b 宽池）
-- [ ] 阶段 4：对照汇总（compare.py，与 run_*.json 同表）
+- [x] 阶段 4a：compare.py 跨窗汇总+成本敏感性（B4 槽位自动并入; 结果
+  compare_t3.md/json; 聚合口径: TA 3/4=75% · B1 5/10 · B2 4/10 · B3 6/10=60%）
+- [ ] 阶段 4b：B4 并入后的最终汇总（依赖阶段 2b/3b）
 - [ ] 阶段 5：论文 T3 接入
 
 ### 阶段 3a 初步结果（hfq 同源, T2 同口径方向判定）

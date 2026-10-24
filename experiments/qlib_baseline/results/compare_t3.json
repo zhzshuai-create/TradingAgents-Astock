@@ -1,0 +1,164 @@
+{
+  "per_window": {
+    "2026-08-13→2026-09-11": {
+      "ta": {
+        "scored": 2,
+        "hits": 2,
+        "hit_rate": 1.0,
+        "avg_directed_ret": 0.023318,
+        "avg_net_f001": 0.021318,
+        "avg_net_f025": 0.018318
+      },
+      "b1_buyhold": {
+        "scored": 6,
+        "hits": 4,
+        "hit_rate": 0.6667,
+        "avg_directed_ret": 0.00067,
+        "avg_net_f001": -0.00133,
+        "avg_net_f025": -0.00433
+      },
+      "b2_ma": {
+        "scored": 6,
+        "hits": 3,
+        "hit_rate": 0.5,
+        "avg_directed_ret": -0.001064,
+        "avg_net_f001": -0.003064,
+        "avg_net_f025": -0.006064
+      },
+      "b3_mom20": {
+        "scored": 6,
+        "hits": 5,
+        "hit_rate": 0.8333,
+        "avg_directed_ret": 0.021087,
+        "avg_net_f001": 0.019087,
+        "avg_net_f025": 0.016087
+      },
+      "b4_ml": {
+        "scored": 0,
+        "hits": 0,
+        "hit_rate": null,
+        "avg_directed_ret": null
+      }
+    },
+    "2026-09-11→2026-10-23": {
+      "ta": {
+        "scored": 1,
+        "hits": 0,
+        "hit_rate": 0.0,
+        "avg_directed_ret": -0.263429,
+        "avg_net_f001": -0.265429,
+        "avg_net_f025": -0.268429
+      },
+      "b1_buyhold": {
+        "scored": 3,
+        "hits": 1,
+        "hit_rate": 0.3333,
+        "avg_directed_ret": -0.087644,
+        "avg_net_f001": -0.089644,
+        "avg_net_f025": -0.092644
+      },
+      "b2_ma": {
+        "scored": 3,
+        "hits": 1,
+        "hit_rate": 0.3333,
+        "avg_directed_ret": 0.061833,
+        "avg_net_f001": 0.059833,
+        "avg_net_f025": 0.056833
+      },
+      "b3_mom20": {
+        "scored": 3,
+        "hits": 1,
+        "hit_rate": 0.3333,
+        "avg_directed_ret": 0.061833,
+        "avg_net_f001": 0.059833,
+        "avg_net_f025": 0.056833
+      },
+      "b4_ml": {
+        "scored": 0,
+        "hits": 0,
+        "hit_rate": null,
+        "avg_directed_ret": null
+      }
+    },
+    "2026-10-06→2026-10-23": {
+      "ta": {
+        "scored": 1,
+        "hits": 1,
+        "hit_rate": 1.0,
+        "avg_directed_ret": 0.183994,
+        "avg_net_f001": 0.181994,
+        "avg_net_f025": 0.178994
+      },
+      "b1_buyhold": {
+        "scored": 1,
+        "hits": 0,
+        "hit_rate": 0.0,
+        "avg_directed_ret": -0.183994,
+        "avg_net_f001": -0.185994,
+        "avg_net_f025": -0.188994
+      },
+      "b2_ma": {
+        "scored": 1,
+        "hits": 0,
+        "hit_rate": 0.0,
+        "avg_directed_ret": -0.183994,
+        "avg_net_f001": -0.185994,
+        "avg_net_f025": -0.188994
+      },
+      "b3_mom20": {
+        "scored": 1,
+        "hits": 0,
+        "hit_rate": 0.0,
+        "avg_directed_ret": -0.183994,
+        "avg_net_f001": -0.185994,
+        "avg_net_f025": -0.188994
+      },
+      "b4_ml": {
+        "scored": 0,
+        "hits": 0,
+        "hit_rate": null,
+        "avg_directed_ret": null
+      }
+    }
+  },
+  "total": {
+    "ta": {
+      "scored": 4,
+      "hits": 3,
+      "hit_rate": 0.75,
+      "avg_directed_ret": -0.0082,
+      "avg_net_f001": -0.0102,
+      "avg_net_f025": -0.0132
+    },
+    "b1_buyhold": {
+      "scored": 10,
+      "hits": 5,
+      "hit_rate": 0.5,
+      "avg_directed_ret": -0.04429,
+      "avg_net_f001": -0.04629,
+      "avg_net_f025": -0.04929
+    },
+    "b2_ma": {
+      "scored": 10,
+      "hits": 4,
+      "hit_rate": 0.4,
+      "avg_directed_ret": -0.000488,
+      "avg_net_f001": -0.002488,
+      "avg_net_f025": -0.005488
+    },
+    "b3_mom20": {
+      "scored": 10,
+      "hits": 6,
+      "hit_rate": 0.6,
+      "avg_directed_ret": 0.012803,
+      "avg_net_f001": 0.010803,
+      "avg_net_f025": 0.007803
+    },
+    "b4_ml": {
+      "scored": 0,
+      "hits": 0,
+      "hit_rate": null,
+      "avg_directed_ret": null
+    }
+  }
+}
