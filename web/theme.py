@@ -462,24 +462,25 @@ div[data-testid="stColumn"]:has(.stock-row) button[data-testid^="stBaseButton"]:
 .decision-strip {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: var(--space-sm);
-    margin: -1.2rem 0 1.6rem;
+    gap: var(--space-md);
+    margin: -1.2rem 0 2rem;
 }
 .ds-cell {
     background: var(--surface);
     border: var(--hairline) solid var(--line);
     border-radius: var(--radius-md);
-    padding: var(--space-sm) var(--space-md);
+    padding: 14px var(--space-md);
     text-align: center;
+    box-shadow: 0 1px 3px rgba(16, 24, 40, 0.06);
 }
 .ds-label {
-    font-size: var(--font-xs); color: var(--muted);
-    letter-spacing: 0.08em; margin-bottom: 2px;
+    font-size: var(--font-sm); color: var(--muted);
+    letter-spacing: 0.1em; margin-bottom: 6px;
 }
 .ds-value {
-    font-size: var(--font-lg); font-weight: 800; color: var(--text);
-    font-variant-numeric: tabular-nums;
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-size: 1.5rem; font-weight: 800; color: var(--text);
+    font-variant-numeric: tabular-nums; line-height: 1.3;
+    overflow-wrap: anywhere;         /* 长时间范围文本换行显示, 不截断 */
 }
 .sector-row .sr-counts { color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
 /* 板块行同列的原生隐藏按钮（桥转发点击）从首帧起隐藏；:not(primary) 防
