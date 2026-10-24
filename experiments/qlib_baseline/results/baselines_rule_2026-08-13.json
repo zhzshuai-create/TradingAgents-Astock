@@ -1,0 +1,127 @@
+{
+  "signal_date": "2026-08-13",
+  "eval_date": "2026-09-11",
+  "data": "csv_data hfq(后复权)",
+  "rows": [
+    {
+      "ticker": "000001",
+      "signal_date": "2026-08-13",
+      "price_date": "2026-08-13",
+      "eval_date": "2026-09-11",
+      "eval_price_date": "2026-09-11",
+      "ret": 0.033205,
+      "ta": "bullish",
+      "b1_buyhold": "bullish",
+      "b2_ma": "bullish",
+      "b3_mom20": "bullish",
+      "_ma5": 2221.149,
+      "_ma20": 2217.01,
+      "_mom20": 0.0336
+    },
+    {
+      "ticker": "000333",
+      "signal_date": "2026-08-13",
+      "price_date": "2026-08-13",
+      "eval_date": "2026-09-11",
+      "eval_price_date": "2026-09-11",
+      "ret": 0.019232,
+      "ta": "neutral",
+      "b1_buyhold": "bullish",
+      "b2_ma": "bearish",
+      "b3_mom20": "bullish",
+      "_ma5": 405.147,
+      "_ma20": 407.283,
+      "_mom20": 0.0227
+    },
+    {
+      "ticker": "002594",
+      "signal_date": "2026-08-13",
+      "price_date": "2026-08-13",
+      "eval_date": "2026-09-11",
+      "eval_price_date": "2026-09-11",
+      "ret": -0.061251,
+      "ta": "neutral",
+      "b1_buyhold": "bullish",
+      "b2_ma": "bearish",
+      "b3_mom20": "bearish",
+      "_ma5": 281.399,
+      "_ma20": 287.154,
+      "_mom20": -0.0419
+    },
+    {
+      "ticker": "600036",
+      "signal_date": "2026-08-13",
+      "price_date": "2026-08-13",
+      "eval_date": "2026-09-11",
+      "eval_price_date": "2026-09-11",
+      "ret": 0.047221,
+      "ta": "neutral",
+      "b1_buyhold": "bullish",
+      "b2_ma": "bearish",
+      "b3_mom20": "bullish",
+      "_ma5": 212.37,
+      "_ma20": 213.403,
+      "_mom20": 0.0206
+    },
+    {
+      "ticker": "600519",
+      "signal_date": "2026-08-13",
+      "price_date": "2026-08-13",
+      "eval_date": "2026-09-11",
+      "eval_price_date": "2026-09-11",
+      "ret": -0.047818,
+      "ta": "neutral",
+      "b1_buyhold": "bullish",
+      "b2_ma": "bullish",
+      "b3_mom20": "bullish",
+      "_ma5": 9347.754,
+      "_ma20": 9240.688,
+      "_mom20": 0.061
+    },
+    {
+      "ticker": "601899",
+      "signal_date": "2026-08-13",
+      "price_date": "2026-08-13",
+      "eval_date": "2026-09-11",
+      "eval_price_date": "2026-09-11",
+      "ret": 0.013432,
+      "ta": "bullish",
+      "b1_buyhold": "bullish",
+      "b2_ma": "bullish",
+      "b3_mom20": "bullish",
+      "_ma5": 55.041,
+      "_ma20": 52.829,
+      "_mom20": 0.0924
+    }
+  ],
+  "summary": {
+    "ta": {
+      "scored": 2,
+      "neutral": 4,
+      "hits": 2,
+      "hit_rate": 1.0,
+      "avg_directed_ret": 0.023318
+    },
+    "b1_buyhold": {
+      "scored": 6,
+      "neutral": 0,
+      "hits": 4,
+      "hit_rate": 0.6667,
+      "avg_directed_ret": 0.00067
+    },
+    "b2_ma": {
+      "scored": 6,
+      "neutral": 0,
+      "hits": 3,
+      "hit_rate": 0.5,
+      "avg_directed_ret": -0.001064
+    },
+    "b3_mom20": {
+      "scored": 6,
+      "neutral": 0,
+      "hits": 5,
+      "hit_rate": 0.8333,
+      "avg_directed_ret": 0.021087
+    }
+  }
+}
