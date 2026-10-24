@@ -17,9 +17,10 @@ volume 单位=手(EM 口径); vwap 不导出——EM 的 amount 是原始口径�
     python experiments/qlib_baseline/export_csv.py --pool all
     python experiments/qlib_baseline/export_csv.py --pool all --source tencent  # 强制腾讯引擎
 
-引擎: --source auto(默认)=EM 优先、全池任一失败则整池切腾讯（全池同源,
-杜绝混口径）; EM push2his 间歇拒连是常态, 腾讯 fqkline hfq 稳定（单次
-上限 800 根, 起点由 --start 控制, 默认 2010-01-01）。
+引擎: --source auto(默认)=新浪 raw × mootdx xdxr 自算乘法后复权（忠实口径,
+非除权日收益与 raw 严格一致, 10/10 验证 2.2e-16; 腾讯 hfq 已实锤等差复权
+收益被压低 P/(P+C), 仅 --source tencent 手动可用; EM fqt=2 复权类型未验证）。
+窗口=新浪 datalen 上限 1023 根(≈4.2年, LGBM 训练够用, 论文注明窗口限制)。
 """
 
 from __future__ import annotations
@@ -41,11 +42,15 @@ sys.path.insert(0, str(PROJ))
 
 from tradingagents.dataflows.a_stock._common import _em_get  # noqa: E402
 
+from experiments.qlib_baseline.tdx_adjust import faithful_hfq  # noqa: E402
+
 KLINE_URL = "https://push2his.eastmoney.com/api/qt/stock/kline/get"
 CLIST_URL = "https://push2.eastmoney.com/api/qt/clist/get"
 EM_HEADERS = {"Referer": "https://quote.eastmoney.com/"}
 TX_URL = "https://web.ifzq.gtimg.cn/appstock/app/fqkline/get"
 TX_HEADERS = {"Referer": "https://gu.qq.com/"}
+SINA_RANK = ("https://vip.stock.finance.sina.com.cn/quotes_service/api/json_v2.php/"
+             "Market_Center.getHQNodeData?page={p}&num=80&sort=amount&asc=0&node=hs_a")
 
 
 def exchange_prefix(code: str) -> str:
@@ -147,22 +152,19 @@ def train_pool() -> list[str]:
             source = "csi300"
     except Exception:
         codes = []
-    # 阶梯2: 成交额前300（与评估信号对照的训练池口径记录进 manifest）
+    # 阶梯2: 新浪成交额排序前300（新浪通道稳定, 不受 EM 限流影响）
     if not codes:
-        try:
-            for pn in (1, 2, 3):
-                params = {
-                    "pn": pn, "pz": "100", "po": "1", "np": "1",
-                    "fltt": "2", "invt": "2", "fid": "f6",
-                    "fs": "m:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23", "fields": "f12",
-                }
-                r = _em_get(CLIST_URL, params=params, headers=EM_HEADERS, timeout=15)
-                diff = (r.json().get("data") or {}).get("diff") or []
-                codes += [str(x.get("f12")) for x in diff if x.get("f12")]
-            source = "turnover-top300"
-        except Exception as e:
-            raise RuntimeError(
-                f"训练池两阶梯均失败(EM 拒连?): {e}; 限流通常数小时内解除后重试") from e
+        for p in (1, 2, 3, 4):
+            r = _requests.get(SINA_RANK.format(p=p), timeout=15,
+                              headers={"Referer": "https://finance.sina.com.cn/"})
+            try:
+                data = json.loads(r.text.strip())
+            except json.JSONDecodeError:
+                data = []
+            if not data:
+                break
+            codes += [str(x.get("code")) for x in data if x.get("code")]
+        source = "sina-amount-top300"
     seen, uniq = set(), []
     for c in codes:
         if c not in seen and c.startswith(("0", "3", "6")):
@@ -193,8 +195,12 @@ def main() -> None:
 
     def run_pass(engine: str, force: bool) -> tuple[list[str], list[tuple]]:
         done, failed = [], []
-        fetch = (em_daily if engine == "em"
-                 else lambda c: tencent_daily(c, args.start))
+        if engine == "em":
+            fetch = em_daily
+        elif engine == "tencent":
+            fetch = lambda c: tencent_daily(c, args.start)  # noqa: E731
+        else:  # sina: 忠实乘法复权(默认)
+            fetch = faithful_hfq
         for i, code in enumerate(pools, 1):
             sym = exchange_prefix(code) + code
             csv_path = out / f"{sym.lower()}.csv"
@@ -210,26 +216,23 @@ def main() -> None:
                           f"{df['date'].iloc[0]}~{df['date'].iloc[-1]}")
             except Exception as e:
                 failed.append((code, str(e)[:80]))
+                if i % 20 == 0 or i == len(pools):
+                    print(f"[{engine}] {i}/{len(pools)} failed={len(failed)}")
             if engine == "em" and i % 10 == 0:
                 time.sleep(0.5)  # _em_get 自带令牌桶, 批量再加一层保险
         return done, failed
 
-    if args.source == "auto":
-        # 全池同源规则: EM 先试, 任一失败(EM 间歇拒连常态)→整池切腾讯重跑
-        done, failed = run_pass("em", force=True)
-        engine = "em"
-        if failed:
-            print(f"[auto] EM {len(failed)} 失败 → 整池切腾讯(全池同源)")
-            engine = "tencent"
-            done, failed = run_pass("tencent", force=True)
-    else:
-        engine = args.source
-        done, failed = run_pass(engine, force=True)
+    # auto = 忠实自算口径(sina+xdxr): 确定性、三重验证; em/tencent 仅手动
+    engine = "sina" if args.source == "auto" else args.source
+    done, failed = run_pass(engine, force=True)
 
     manifest = {
         "pool": args.pool, "engine": engine,
-        "source_api": ("eastmoney push2his klt=101 fqt=2(后复权)" if engine == "em"
-                       else f"tencent fqkline hfq(后复权, start={args.start})"),
+        "source_api": {
+            "sina": "sina raw(未复权1023根) × mootdx xdxr 自算乘法后复权(忠实口径)",
+            "em": "eastmoney push2his klt=101 fqt=2(后复权, 复权类型未验证)",
+            "tencent": f"tencent fqkline hfq(等差复权! 收益被压低, start={args.start})",
+        }[engine],
         "exported_at": time.strftime("%Y-%m-%d %H:%M:%S"),
         "ok": len(done), "failed": len(failed), "failed_detail": failed,
     }

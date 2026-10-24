@@ -5,33 +5,33 @@
         "scored": 2,
         "hits": 2,
         "hit_rate": 1.0,
-        "avg_directed_ret": 0.023318,
-        "avg_net_f001": 0.021318,
-        "avg_net_f025": 0.018318
+        "avg_directed_ret": 0.028771,
+        "avg_net_f001": 0.026771,
+        "avg_net_f025": 0.023771
       },
       "b1_buyhold": {
         "scored": 6,
         "hits": 4,
         "hit_rate": 0.6667,
-        "avg_directed_ret": 0.00067,
-        "avg_net_f001": -0.00133,
-        "avg_net_f025": -0.00433
+        "avg_directed_ret": 0.004317,
+        "avg_net_f001": 0.002317,
+        "avg_net_f025": -0.000683
       },
       "b2_ma": {
         "scored": 6,
         "hits": 3,
         "hit_rate": 0.5,
-        "avg_directed_ret": -0.001064,
-        "avg_net_f001": -0.003064,
-        "avg_net_f025": -0.006064
+        "avg_directed_ret": -0.004844,
+        "avg_net_f001": -0.006844,
+        "avg_net_f025": -0.009844
       },
       "b3_mom20": {
         "scored": 6,
         "hits": 5,
         "hit_rate": 0.8333,
-        "avg_directed_ret": 0.021087,
-        "avg_net_f001": 0.019087,
-        "avg_net_f025": 0.016087
+        "avg_directed_ret": 0.025534,
+        "avg_net_f001": 0.023534,
+        "avg_net_f025": 0.020534
       },
       "b4_ml": {
         "scored": 0,
@@ -45,33 +45,33 @@
         "scored": 1,
         "hits": 0,
         "hit_rate": 0.0,
-        "avg_directed_ret": -0.263429,
-        "avg_net_f001": -0.265429,
-        "avg_net_f025": -0.268429
+        "avg_directed_ret": -0.281111,
+        "avg_net_f001": -0.283111,
+        "avg_net_f025": -0.286111
       },
       "b1_buyhold": {
         "scored": 3,
         "hits": 1,
         "hit_rate": 0.3333,
-        "avg_directed_ret": -0.087644,
-        "avg_net_f001": -0.089644,
-        "avg_net_f025": -0.092644
+        "avg_directed_ret": -0.092726,
+        "avg_net_f001": -0.094726,
+        "avg_net_f025": -0.097726
       },
       "b2_ma": {
         "scored": 3,
         "hits": 1,
         "hit_rate": 0.3333,
-        "avg_directed_ret": 0.061833,
-        "avg_net_f001": 0.059833,
-        "avg_net_f025": 0.056833
+        "avg_directed_ret": 0.055398,
+        "avg_net_f001": 0.053398,
+        "avg_net_f025": 0.050398
       },
       "b3_mom20": {
         "scored": 3,
         "hits": 1,
         "hit_rate": 0.3333,
-        "avg_directed_ret": 0.061833,
-        "avg_net_f001": 0.059833,
-        "avg_net_f025": 0.056833
+        "avg_directed_ret": 0.055398,
+        "avg_net_f001": 0.053398,
+        "avg_net_f025": 0.050398
       },
       "b4_ml": {
         "scored": 0,
@@ -85,33 +85,33 @@
         "scored": 1,
         "hits": 1,
         "hit_rate": 1.0,
-        "avg_directed_ret": 0.183994,
-        "avg_net_f001": 0.181994,
-        "avg_net_f025": 0.178994
+        "avg_directed_ret": 0.189963,
+        "avg_net_f001": 0.187963,
+        "avg_net_f025": 0.184963
       },
       "b1_buyhold": {
         "scored": 1,
         "hits": 0,
         "hit_rate": 0.0,
-        "avg_directed_ret": -0.183994,
-        "avg_net_f001": -0.185994,
-        "avg_net_f025": -0.188994
+        "avg_directed_ret": -0.189963,
+        "avg_net_f001": -0.191963,
+        "avg_net_f025": -0.194963
       },
       "b2_ma": {
         "scored": 1,
         "hits": 0,
         "hit_rate": 0.0,
-        "avg_directed_ret": -0.183994,
-        "avg_net_f001": -0.185994,
-        "avg_net_f025": -0.188994
+        "avg_directed_ret": -0.189963,
+        "avg_net_f001": -0.191963,
+        "avg_net_f025": -0.194963
       },
       "b3_mom20": {
         "scored": 1,
         "hits": 0,
         "hit_rate": 0.0,
-        "avg_directed_ret": -0.183994,
-        "avg_net_f001": -0.185994,
-        "avg_net_f025": -0.188994
+        "avg_directed_ret": -0.189963,
+        "avg_net_f001": -0.191963,
+        "avg_net_f025": -0.194963
       },
       "b4_ml": {
         "scored": 0,
@@ -126,33 +126,33 @@
       "scored": 4,
       "hits": 3,
       "hit_rate": 0.75,
-      "avg_directed_ret": -0.0082,
-      "avg_net_f001": -0.0102,
-      "avg_net_f025": -0.0132
+      "avg_directed_ret": -0.008401,
+      "avg_net_f001": -0.010401,
+      "avg_net_f025": -0.013401
     },
     "b1_buyhold": {
       "scored": 10,
       "hits": 5,
       "hit_rate": 0.5,
-      "avg_directed_ret": -0.04429,
-      "avg_net_f001": -0.04629,
-      "avg_net_f025": -0.04929
+      "avg_directed_ret": -0.044224,
+      "avg_net_f001": -0.046224,
+      "avg_net_f025": -0.049224
     },
     "b2_ma": {
       "scored": 10,
       "hits": 4,
       "hit_rate": 0.4,
-      "avg_directed_ret": -0.000488,
-      "avg_net_f001": -0.002488,
-      "avg_net_f025": -0.005488
+      "avg_directed_ret": -0.005283,
+      "avg_net_f001": -0.007283,
+      "avg_net_f025": -0.010283
     },
     "b3_mom20": {
       "scored": 10,
       "hits": 6,
       "hit_rate": 0.6,
-      "avg_directed_ret": 0.012803,
-      "avg_net_f001": 0.010803,
-      "avg_net_f025": 0.007803
+      "avg_directed_ret": 0.012943,
+      "avg_net_f001": 0.010943,
+      "avg_net_f025": 0.007943
     },
     "b4_ml": {
       "scored": 0,

@@ -9,14 +9,14 @@
       "price_date": "2026-09-30",
       "eval_date": "2026-10-23",
       "eval_price_date": "2026-10-23",
-      "ret": -0.183994,
+      "ret": -0.189963,
       "ta": "bearish",
       "b1_buyhold": "bullish",
       "b2_ma": "bullish",
       "b3_mom20": "bullish",
-      "_ma5": 139.198,
-      "_ma20": 133.656,
-      "_mom20": 0.0008
+      "_ma5": 54.579,
+      "_ma20": 52.346,
+      "_mom20": 0.0007
     }
   ],
   "summary": {
@@ -25,28 +25,28 @@
       "neutral": 0,
       "hits": 1,
       "hit_rate": 1.0,
-      "avg_directed_ret": 0.183994
+      "avg_directed_ret": 0.189963
     },
     "b1_buyhold": {
       "scored": 1,
       "neutral": 0,
       "hits": 0,
       "hit_rate": 0.0,
-      "avg_directed_ret": -0.183994
+      "avg_directed_ret": -0.189963
     },
     "b2_ma": {
       "scored": 1,
       "neutral": 0,
       "hits": 0,
       "hit_rate": 0.0,
-      "avg_directed_ret": -0.183994
+      "avg_directed_ret": -0.189963
     },
     "b3_mom20": {
       "scored": 1,
       "neutral": 0,
       "hits": 0,
       "hit_rate": 0.0,
-      "avg_directed_ret": -0.183994
+      "avg_directed_ret": -0.189963
     }
   }
 }

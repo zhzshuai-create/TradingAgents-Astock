@@ -9,14 +9,14 @@
       "price_date": "2026-08-13",
       "eval_date": "2026-09-11",
       "eval_price_date": "2026-09-11",
-      "ret": 0.033205,
+      "ret": 0.043556,
       "ta": "bullish",
       "b1_buyhold": "bullish",
       "b2_ma": "bullish",
       "b3_mom20": "bullish",
-      "_ma5": 2221.149,
-      "_ma20": 2217.01,
-      "_mom20": 0.0336
+      "_ma5": 13.721,
+      "_ma20": 13.687,
+      "_mom20": 0.0446
     },
     {
       "ticker": "000333",
@@ -24,14 +24,14 @@
       "price_date": "2026-08-13",
       "eval_date": "2026-09-11",
       "eval_price_date": "2026-09-11",
-      "ret": 0.019232,
+      "ret": 0.024587,
       "ta": "neutral",
       "b1_buyhold": "bullish",
       "b2_ma": "bearish",
       "b3_mom20": "bullish",
-      "_ma5": 405.147,
-      "_ma20": 407.283,
-      "_mom20": 0.0227
+      "_ma5": 102.974,
+      "_ma20": 103.667,
+      "_mom20": 0.0292
     },
     {
       "ticker": "002594",
@@ -39,14 +39,14 @@
       "price_date": "2026-08-13",
       "eval_date": "2026-09-11",
       "eval_price_date": "2026-09-11",
-      "ret": -0.061251,
+      "ret": -0.06365,
       "ta": "neutral",
       "b1_buyhold": "bullish",
       "b2_ma": "bearish",
       "b3_mom20": "bearish",
-      "_ma5": 281.399,
-      "_ma20": 287.154,
-      "_mom20": -0.0419
+      "_ma5": 279.719,
+      "_ma20": 285.678,
+      "_mom20": -0.0435
     },
     {
       "ticker": "600036",
@@ -54,14 +54,14 @@
       "price_date": "2026-08-13",
       "eval_date": "2026-09-11",
       "eval_price_date": "2026-09-11",
-      "ret": 0.047221,
+      "ret": 0.066546,
       "ta": "neutral",
       "b1_buyhold": "bullish",
       "b2_ma": "bearish",
       "b3_mom20": "bullish",
-      "_ma5": 212.37,
-      "_ma20": 213.403,
-      "_mom20": 0.0206
+      "_ma5": 47.77,
+      "_ma20": 48.097,
+      "_mom20": 0.0292
     },
     {
       "ticker": "600519",
@@ -69,14 +69,14 @@
       "price_date": "2026-08-13",
       "eval_date": "2026-09-11",
       "eval_price_date": "2026-09-11",
-      "ret": -0.047818,
+      "ret": -0.059124,
       "ta": "neutral",
       "b1_buyhold": "bullish",
       "b2_ma": "bullish",
       "b3_mom20": "bullish",
-      "_ma5": 9347.754,
-      "_ma20": 9240.688,
-      "_mom20": 0.061
+      "_ma5": 1534.52,
+      "_ma20": 1512.743,
+      "_mom20": 0.0765
     },
     {
       "ticker": "601899",
@@ -84,14 +84,14 @@
       "price_date": "2026-08-13",
       "eval_date": "2026-09-11",
       "eval_price_date": "2026-09-11",
-      "ret": 0.013432,
+      "ret": 0.013987,
       "ta": "bullish",
       "b1_buyhold": "bullish",
       "b2_ma": "bullish",
       "b3_mom20": "bullish",
-      "_ma5": 55.041,
-      "_ma20": 52.829,
-      "_mom20": 0.0924
+      "_ma5": 36.591,
+      "_ma20": 35.0,
+      "_mom20": 0.1012
     }
   ],
   "summary": {
@@ -100,28 +100,28 @@
       "neutral": 4,
       "hits": 2,
       "hit_rate": 1.0,
-      "avg_directed_ret": 0.023318
+      "avg_directed_ret": 0.028771
     },
     "b1_buyhold": {
       "scored": 6,
       "neutral": 0,
       "hits": 4,
       "hit_rate": 0.6667,
-      "avg_directed_ret": 0.00067
+      "avg_directed_ret": 0.004317
     },
     "b2_ma": {
       "scored": 6,
       "neutral": 0,
       "hits": 3,
       "hit_rate": 0.5,
-      "avg_directed_ret": -0.001064
+      "avg_directed_ret": -0.004844
     },
     "b3_mom20": {
       "scored": 6,
       "neutral": 0,
       "hits": 5,
       "hit_rate": 0.8333,
-      "avg_directed_ret": 0.021087
+      "avg_directed_ret": 0.025534
     }
   }
 }

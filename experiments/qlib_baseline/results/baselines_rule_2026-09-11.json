@@ -9,14 +9,14 @@
       "price_date": "2026-09-11",
       "eval_date": "2026-10-23",
       "eval_price_date": "2026-10-23",
-      "ret": 0.039213,
+      "ret": 0.058925,
       "ta": "neutral",
       "b1_buyhold": "bullish",
       "b2_ma": "bearish",
       "b3_mom20": "bearish",
-      "_ma5": 1470.65,
-      "_ma20": 1478.207,
-      "_mom20": -0.0368
+      "_ma5": 83.386,
+      "_ma20": 84.027,
+      "_mom20": -0.0542
     },
     {
       "ticker": "300750",
@@ -24,14 +24,14 @@
       "price_date": "2026-09-11",
       "eval_date": "2026-10-23",
       "eval_price_date": "2026-10-23",
-      "ret": -0.263429,
+      "ret": -0.281111,
       "ta": "bullish",
       "b1_buyhold": "bullish",
       "b2_ma": "bearish",
       "b3_mom20": "bearish",
-      "_ma5": 648.008,
-      "_ma20": 697.477,
-      "_mom20": -0.1524
+      "_ma5": 658.69,
+      "_ma20": 712.276,
+      "_mom20": -0.161
     },
     {
       "ticker": "601318",
@@ -39,14 +39,14 @@
       "price_date": "2026-09-11",
       "eval_date": "2026-10-23",
       "eval_price_date": "2026-10-23",
-      "ret": -0.038716,
+      "ret": -0.055991,
       "ta": "neutral",
       "b1_buyhold": "bullish",
       "b2_ma": "bullish",
       "b3_mom20": "bullish",
-      "_ma5": 159.224,
-      "_ma20": 157.474,
-      "_mom20": 0.054
+      "_ma5": 68.832,
+      "_ma20": 67.759,
+      "_mom20": 0.0783
     }
   ],
   "summary": {
@@ -55,28 +55,28 @@
       "neutral": 2,
       "hits": 0,
       "hit_rate": 0.0,
-      "avg_directed_ret": -0.263429
+      "avg_directed_ret": -0.281111
     },
     "b1_buyhold": {
       "scored": 3,
       "neutral": 0,
       "hits": 1,
       "hit_rate": 0.3333,
-      "avg_directed_ret": -0.087644
+      "avg_directed_ret": -0.092726
     },
     "b2_ma": {
       "scored": 3,
       "neutral": 0,
       "hits": 1,
       "hit_rate": 0.3333,
-      "avg_directed_ret": 0.061833
+      "avg_directed_ret": 0.055398
     },
     "b3_mom20": {
       "scored": 3,
       "neutral": 0,
       "hits": 1,
       "hit_rate": 0.3333,
-      "avg_directed_ret": 0.061833
+      "avg_directed_ret": 0.055398
     }
   }
 }

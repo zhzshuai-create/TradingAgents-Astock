@@ -34,22 +34,27 @@ def main() -> None:
     csv_dir = Path(args.csv)
     syms = sorted(p.stem.upper() for p in csv_dir.glob("*.csv"))
     # instruments 必须传列表; 逗号串会被当成单个 instrument 名返回空表
-    first = min(pd.read_csv(csv_dir / f"{s.lower()}.csv")["date"].iloc[0] for s in syms)
-    last = max(pd.read_csv(csv_dir / f"{s.lower()}.csv")["date"].iloc[-1] for s in syms)
-    df = D.features(syms, FIELDS, start_time=first, end_time=last,
-                    freq="day").dropna(how="all")
-    df.columns = [c.lstrip("$") for c in df.columns]
-    df.index = df.index.rename([None, None])
-
     n_checked = n_mismatch = 0
     problems: list[str] = []
+    # 分批读回: 300 只一次拉会 MemoryError(joblib 并行), 40 只/批
+    got_cache: dict[str, pd.DataFrame] = {}
+    BATCH = 40
+    for i in range(0, len(syms), BATCH):
+        chunk = syms[i:i + BATCH]
+        cfirst = min(pd.read_csv(csv_dir / f"{s.lower()}.csv")["date"].iloc[0] for s in chunk)
+        clast = max(pd.read_csv(csv_dir / f"{s.lower()}.csv")["date"].iloc[-1] for s in chunk)
+        df = D.features(chunk, FIELDS, start_time=cfirst, end_time=clast,
+                        freq="day").dropna(how="all")
+        df.columns = [c.lstrip("$") for c in df.columns]
+        df.index = df.index.rename([None, None])
+        for s in chunk:
+            got = df.loc[s]
+            got.index = pd.to_datetime(got.index).strftime("%Y-%m-%d")
+            got_cache[s] = got
+
     for sym in syms:
         src = pd.read_csv(csv_dir / f"{sym.lower()}.csv").set_index("date")
-        got = df.loc[sym]
-        got.index = pd.to_datetime(got.index).strftime("%Y-%m-%d")
-        # 行数: qlib 读回按全局日历对齐到该股 [首,末] 区间, 停牌日为 NaN —— 
-        # 行数应 >= 源行数(含停牌 NaN), 有效值行数应 == 源行数
-        got_valid = got.dropna(how="all")
+        got_valid = got_cache[sym].dropna(how="all")
         if len(got_valid) != len(src):
             problems.append(f"{sym}: 行数不一致 qlib={len(got_valid)} src={len(src)}")
         for probe in list(src.index[-args.tail:]) + list(src.index[:3]):

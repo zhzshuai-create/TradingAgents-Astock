@@ -46,13 +46,13 @@ py -3.12 -m venv .venv-qlib
 - [x] 阶段 2a：评估池管线打通——export_csv.py（EM fqt=2 / 腾讯 fqkline hfq 双引擎,
   全池同源规则）→ dump_bin（`--data_path` 非 csv_path）→ verify_dump.py 读回
   400 项数值比对 0 不符
-- [ ] 阶段 2b：宽池（评估 10 + 训练 300）全量导出与 dump（等 EM/腾讯限流解除;
-  `python experiments/qlib_baseline/export_csv.py --pool all --source auto`）
+- [x] 阶段 2b：宽池 300 只全量导出与 dump（sina+xdxr 忠实引擎, EM/腾讯限流
+  期间完全不依赖两家 HTTP; bin 解码双字段 29 万项比对 0 不符）
 - [x] 阶段 3a：规则基线 B1/B2/B3（baselines_rule.py, 三个窗口已出结果,
   含 09-11→10-23 窗口: 300750 区间 -26.34%, TA 唯一方向样本 Overweight 落空）
 - [ ] 阶段 3b：B4 LGBM+Alpha158（依赖阶段 2b 宽池）
 - [x] 阶段 4a：compare.py 跨窗汇总+成本敏感性（B4 槽位自动并入; 结果
-  compare_t3.md/json; 聚合口径: TA 3/4=75% · B1 5/10 · B2 4/10 · B3 6/10=60%）
+  compare_t3.md/json; 忠实口径聚合: TA 3/4=75% · B1 5/10 · B2 4/10 · B3 6/10=60%）
 - [ ] 阶段 4b：B4 并入后的最终汇总（依赖阶段 2b/3b）
 - [ ] 阶段 5：论文 T3 接入
 
@@ -64,17 +64,24 @@ B1 B&H 4/6=67% / B2 均线 3/6=50% / B3 动量 5/6=83%（该窗口普涨反弹�
 命中策略, 三条规则基线全部多头落空——多智能体捕获熊市案例的硬数据点。
 样本极小(n=7 方向样本), 论文表述必须带样本量, 禁止写成百分比排名结论。
 
-### 阶段 2 数据口径决策（2026-10-24，实测驱动）
+### 数据口径决策（2026-10-24 二次修订, 实测驱动）
 
-- **后复权(hfq) 而非前复权**：EM fqt=1 前复权全历史 OHLC 实测损坏（600519
-  2016 段 close=25.6 vs 真实≈309, 比值漂移 12x→1x）——弃用。后复权锚定 IPO、
-  只乘不减, 收益忠实（验证: 腾讯 hfq 2015-08-24 千股跌停日 -7.99% 与真实一致）
-- **腾讯 hfq 为等比复权**（若等差, 高分红股收益会被稀释数倍, 实测无此现象）
-- **vwap 不导出**：EM amount 是原始口径与复权价不一致; 基础 Alpha158 只用
-  OHLCV（仅 Alpha158vwap 子类才要 $vwap）
-- **引擎统一**：--source auto 时 EM 任一失败即整池切腾讯, manifest 记录最终引擎
+- **🔴 腾讯 fqkline hfq = 等差复权, 收益被压低 P/(P+C)**——10 只实测 damp 中位
+  0.73~0.99, 茅台 C(2023→2026)=156→302 恰等于期间累计分红; 此前"等比"判断是
+  巧合(2015-08-24 茅台 raw 实为 -10% 跌停, ×0.8 ≈ -8% 误似未失真)。等差保号
+  不保幅 → 早期用腾讯数据的命中率结论不受影响, 幅度已全部按忠实口径重出
+- **🔴 EM fqt=1 前复权全历史 OHLC 损坏**（茅台 2016 段 12 倍失真）——弃用;
+  EM fqt=2 复权类型未验证, 仅 --source em 手动可用
+- **默认引擎 = sina raw × mootdx xdxr 自算乘法后复权**（faithful_hfq）: 非除权日
+  收益与 raw 严格一致(10/10 验证 2.2e-16), 除权日按 F/S/P/Pg 标准公式调整;
+  窗口=新浪 datalen 上限 1023 根(≈4.2年, 论文注明窗口限制); 训练池=新浪成交额
+  排序前300(sina-amount-top300)
+- **vwap 不导出**：基础 Alpha158 只用 OHLCV
 - dump_bin 参数：`dump_all --data_path csv_data --qlib_dir qlib_data
   --include_fields open,close,high,low,volume`（0.9.7 用 data_path 不是 csv_path）
+- **验证走 bin 直接解码**（bin_check.py）: qlib D.features 在 Windows 全量读回
+  会 MemoryError/Errno22 死锁(joblib); bin 格式=首 float 起始索引+float32 数组,
+  纯 python 解码等价且全覆盖——close/volume 各 290,492 项 0 不符
 
 ### 已知坑（Windows / 本机）
 
