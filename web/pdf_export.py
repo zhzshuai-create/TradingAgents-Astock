@@ -293,6 +293,58 @@ def _compact_inline_text(text: str) -> str:
     return re.sub(r"[ \t\u3000]{2,}", " ", text).strip()
 
 
+# ── 导出文本清洗：框架解析标记 / 裸代码围栏 / 跨章节重复段落 ──
+# 2026-10-06 首份 MiMo 报告评审实锤的三处工程瑕疵，在导出层统一收口
+# （_collect_sections 是 PDF 与 Markdown 双格式共用源头，一次清洗两格式受益）
+
+_FINAL_PROPOSAL_RE = re.compile(
+    r"^\s*final\s+transaction\s+proposal\s*[:：].*$", re.IGNORECASE)
+_CODE_FENCE_RE = re.compile(r"^\s*```.*$")
+# 短于此(归一化后)的行是标题/标签行，不参与去重，避免误杀。
+# 中文信息密度高：30 字已是一行完整正文句，而标题/标签行通常 <10 字
+_DEDUP_MIN_CHARS = 30
+
+
+def strip_framework_markers(text: str) -> str:
+    """剥离框架信号解析标记行（FINAL TRANSACTION PROPOSAL: X）。
+
+    该标记是框架要求 agent 输出的信号解析锚点（信号值已在封面与章节
+    标题展示），属管道内部约定，不应出现在面向用户的报告正文里。
+    """
+    return "\n".join(
+        ln for ln in text.split("\n") if not _FINAL_PROPOSAL_RE.match(ln))
+
+
+def strip_code_fences(text: str) -> str:
+    """剥离裸 markdown 代码围栏行（``` 与 ```lang），围栏内文本保留。"""
+    return "\n".join(
+        ln for ln in text.split("\n") if not _CODE_FENCE_RE.match(ln))
+
+
+def _dedup_key(line: str) -> str:
+    """去重键：剥离空白与标点后小写——容忍导出重排造成的格式差异。"""
+    return re.sub(r"[\W_]+", "", line, flags=re.UNICODE).lower()
+
+
+def dedup_paragraphs(text: str, seen: set[str] | None = None) -> str:
+    """行级去重（文内 + 跨章节共用同一个 seen 集合）。
+
+    实测问题：决策文本在「交易员决策 / 最终投资建议 / 最终决策」三节
+    整段重复。归一化长度 >= _DEDUP_MIN_CHARS 的行第二次出现即丢弃；
+    整节重复清空后由调用方跳过空节。
+    """
+    seen = seen if seen is not None else set()
+    kept: list[str] = []
+    for para in text.split("\n"):
+        key = _dedup_key(para)
+        if len(key) >= _DEDUP_MIN_CHARS:
+            if key in seen:
+                continue
+            seen.add(key)
+        kept.append(para)
+    return re.sub(r"\n{3,}", "\n\n", "\n".join(kept)).strip()
+
+
 def _format_table_cells(cells: list[str]) -> str:
     cleaned = [_compact_inline_text(_strip_md_inline(cell)) for cell in cells]
     cleaned = [cell for cell in cleaned if cell]
@@ -578,6 +630,18 @@ def _collect_sections(
     Keeps both export formats in sync from a single source of truth.
     """
     sections: list[tuple[str, str]] = []
+    # 跨章节去重只在「决策族」章节间生效（交易员决策/最终投资建议/风控评估/
+    # 最终决策）——实测的整段重复发生在这四节之间。分析师报告/辩论内容被
+    # 决策章节复述是合法综合（10-24 v2.6 报告实测：合法复述被误删只剩孤壳），
+    # 不喂 seen；章节内去重对所有章节生效（同文内逐字重复恒为噪音）。
+    decision_seen: set[str] = set()
+
+    def _clean(text: str, cross: bool) -> str:
+        """导出统一清洗：框架标记 → 代码围栏 → 去重（cross=参与跨章节）。"""
+        cleaned = strip_code_fences(strip_framework_markers(text))
+        if cross:
+            return dedup_paragraphs(cleaned, decision_seen)
+        return dedup_paragraphs(cleaned)
 
     for key, title in _REPORT_SECTIONS:
         content = final_state.get(key, "")
@@ -585,7 +649,9 @@ def _collect_sections(
             text = strip_think_tags(str(content))
             if ticker:
                 text = normalize_stock_mentions(text, ticker, final_state)
-            sections.append((title, text))
+            text = _clean(text, cross=False)
+            if text:
+                sections.append((title, text))
 
     debate = final_state.get("investment_debate_state")
     if debate and isinstance(debate, dict):
@@ -600,21 +666,27 @@ def _collect_sections(
             text = strip_think_tags("\n".join(parts))
             if ticker:
                 text = normalize_stock_mentions(text, ticker, final_state)
-            sections.append(("多空辩论", text))
+            text = _clean(text, cross=False)
+            if text:
+                sections.append(("多空辩论", text))
 
     trader_decision = final_state.get("trader_investment_decision", "")
     if trader_decision:
         text = strip_think_tags(str(trader_decision))
         if ticker:
             text = normalize_stock_mentions(text, ticker, final_state)
-        sections.append(("交易员决策", text))
+        text = _clean(text, cross=True)
+        if text:
+            sections.append(("交易员决策", text))
 
     inv_plan = final_state.get("investment_plan", "")
     if inv_plan:
         text = strip_think_tags(str(inv_plan))
         if ticker:
             text = normalize_stock_mentions(text, ticker, final_state)
-        sections.append(("最终投资建议", text))
+        text = _clean(text, cross=True)
+        if text:
+            sections.append(("最终投资建议", text))
 
     risk = final_state.get("risk_debate_state")
     if risk and isinstance(risk, dict):
@@ -625,19 +697,29 @@ def _collect_sections(
             if risk.get(key_name):
                 parts.append(f"=== {label} ===\n{risk[key_name]}")
         if risk.get("judge_decision"):
-            parts.append(f"\n=== 风控决策 ===\n{risk['judge_decision']}")
+            # 框架把同一文本同时存进 risk.judge_decision 与 final_trade_decision
+            # （2026-10-06/10-24 两份真实报告实测逐字相同）——决策正文只在
+            # 「最终决策」节渲染一次，风控评估不重复带出
+            final_txt = str(final_state.get("final_trade_decision") or "")
+            judge_txt = str(risk.get("judge_decision") or "")
+            if not final_txt or _dedup_key(judge_txt) != _dedup_key(final_txt):
+                parts.append(f"\n=== 风控决策 ===\n{judge_txt}")
         if parts:
             text = strip_think_tags("\n".join(parts))
             if ticker:
                 text = normalize_stock_mentions(text, ticker, final_state)
-            sections.append(("风控评估", text))
+            text = _clean(text, cross=True)
+            if text:
+                sections.append(("风控评估", text))
 
     final_decision = final_state.get("final_trade_decision", "")
     if final_decision:
         text = strip_think_tags(str(final_decision))
         if ticker:
             text = normalize_stock_mentions(text, ticker, final_state)
-        sections.append(("最终决策", text))
+        text = _clean(text, cross=True)
+        if text:
+            sections.append(("最终决策", text))
 
     return sections
 
