@@ -6,6 +6,8 @@ Extracted from app.py: all Streamlit rendering for the real-time data report mod
 
 from __future__ import annotations
 
+from html import escape
+
 import streamlit as st
 import streamlit.components.v1 as components
 import pandas as pd
@@ -729,7 +731,10 @@ def render_data_mode() -> None:
                 with col_right:
                     st.markdown("#### 概念板块")
                     if blocks.get("concept_tags"):
-                        tags_html = " ".join([f'<span class="tag">{t}</span>' for t in blocks["concept_tags"][:15]])
+                        tags_html = " ".join(
+                            f'<span class="tag">{escape(str(t))}</span>'
+                            for t in blocks["concept_tags"][:15]
+                        )
                         st.markdown(f"<div>{tags_html}</div>", unsafe_allow_html=True)
                     else:
                         render_empty_state("暂无概念数据", "未匹配到概念板块")
@@ -856,7 +861,10 @@ def render_data_mode() -> None:
             cnt = Counter(all_tags)
             if cnt:
                 top_tags = cnt.most_common(8)
-                tag_html = " ".join([f'<span class="tag" style="font-size:var(--font-md);margin:var(--space-xs);">{t}({n})</span>' for t, n in top_tags])
+                tag_html = " ".join(
+                    f'<span class="tag" style="font-size:var(--font-md);margin:var(--space-xs);">{escape(t)}({n})</span>'
+                    for t, n in top_tags
+                )
                 st.markdown(f"**题材热度 TOP 8:** {tag_html}", unsafe_allow_html=True)
             st.caption(f"共 {len(df_hot)} 只强势股  |  点击「查看」进入个股估值")
             for _, row in df_hot.iterrows():
@@ -868,13 +876,13 @@ def render_data_mode() -> None:
 
                 c_cols = st.columns([1, 2, 1.5, 5, 1.2])
                 with c_cols[0]:
-                    st.markdown(f'<div style="padding-top:var(--space-xs);font-weight:700;color:var(--text);">{code}</div>', unsafe_allow_html=True)
+                    st.markdown(f'<div style="padding-top:var(--space-xs);font-weight:700;color:var(--text);">{escape(code)}</div>', unsafe_allow_html=True)
                 with c_cols[1]:
-                    st.markdown(f'<div style="padding-top:var(--space-xs);color:var(--muted);">{name}</div>', unsafe_allow_html=True)
+                    st.markdown(f'<div style="padding-top:var(--space-xs);color:var(--muted);">{escape(name)}</div>', unsafe_allow_html=True)
                 with c_cols[2]:
                     st.markdown(f'<div style="padding-top:var(--space-xs);font-weight:700;color:{pct_color};">{pct_val:+.2f}%</div>', unsafe_allow_html=True)
                 with c_cols[3]:
-                    st.markdown(f'<div style="padding-top:var(--space-xs);color:var(--muted);font-size:var(--font-md);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{reason_text}</div>', unsafe_allow_html=True)
+                    st.markdown(f'<div style="padding-top:var(--space-xs);color:var(--muted);font-size:var(--font-md);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{escape(reason_text)}</div>', unsafe_allow_html=True)
                 with c_cols[4]:
                     if st.button("查看", key=f"hot_{code}", icon=":material/visibility:",
                                  use_container_width=True):
@@ -921,13 +929,13 @@ def render_data_mode() -> None:
                     for r in comp["top"][:10]:
                         pct = r["change_pct"]
                         clr = "var(--up)" if pct >= 0 else "var(--down)"
-                        st.markdown(f"<span style='color:{clr}'>{pct:+.2f}%</span> {r['name']} 涨{r['up_count']}跌{r['down_count']}", unsafe_allow_html=True)
+                        st.markdown(f"<span style='color:{clr}'>{pct:+.2f}%</span> {escape(str(r['name']))} 涨{r['up_count']}跌{r['down_count']}", unsafe_allow_html=True)
                 with ct2:
                     st.markdown("**跌幅 TOP 10**")
                     for r in comp["bottom"][:10]:
                         pct = r["change_pct"]
                         clr = "var(--up)" if pct >= 0 else "var(--down)"
-                        st.markdown(f"<span style='color:{clr}'>{pct:+.2f}%</span> {r['name']}", unsafe_allow_html=True)
+                        st.markdown(f"<span style='color:{clr}'>{pct:+.2f}%</span> {escape(str(r['name']))}", unsafe_allow_html=True)
 
             if code:
                 st.markdown(f"#### {code} K线走势")
@@ -987,15 +995,16 @@ def _render_sector_detail(row: dict) -> None:
     """板块详情：成分股涨跌幅前十（点击板块行展开，再点收起）。"""
     leader = ""
     if row.get("leader"):
+        leader_name = escape(str(row["leader"]))
         try:
-            leader = (f'　领涨：{row["leader"]}'
+            leader = (f'　领涨：{leader_name}'
                       f'<span style="color:var(--up);">{float(row["leader_change"]):+.2f}%</span>')
         except (TypeError, ValueError):
-            leader = f'　领涨：{row["leader"]}'
+            leader = f'　领涨：{leader_name}'
     st.markdown(
         '<div style="font-size:var(--font-md);color:var(--muted);'
         'margin:var(--space-sm) 0 var(--space-xs);">'
-        f'▾ <b style="color:var(--text);">{row["name"]}</b> · 涨跌幅前十{leader}</div>',
+        f'▾ <b style="color:var(--text);">{escape(str(row["name"]))}</b> · 涨跌幅前十{leader}</div>',
         unsafe_allow_html=True,
     )
     with st.spinner(f"加载 {row['name']} 成分股..."):
