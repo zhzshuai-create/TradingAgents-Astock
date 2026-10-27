@@ -77,3 +77,10 @@ def test_decision_facts_chinese_labels_and_missing():
     assert f["stop"] is None          # 无止损 → None(渲染层显示 —, 不编造)
     empty = decision_facts({})
     assert all(v is None for v in empty.values())
+
+
+def test_decision_strip_has_mobile_two_column_layout():
+    css = (PROJECT_ROOT / "web" / "theme.py").read_text(encoding="utf-8")
+    mobile = css.split("@media (max-width: 768px)", 1)[1]
+    decision = mobile.split(".decision-strip", 1)[1].split("}", 1)[0]
+    assert "grid-template-columns: repeat(2, minmax(0, 1fr))" in decision

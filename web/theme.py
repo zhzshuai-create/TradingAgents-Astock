@@ -754,6 +754,14 @@ div[data-testid="stColumn"]:has(.sector-row) button[data-testid^="stBaseButton"]
 }
 @media (max-width: 768px) {
     .index-bar     { display: none; }
+    .decision-strip {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: var(--space-sm);
+        margin: 0.75rem 0 1.25rem;
+    }
+    .ds-cell { padding: 12px var(--space-sm); }
+    .ds-label { letter-spacing: 0.04em; }
+    .ds-value { font-size: clamp(1.05rem, 5vw, 1.35rem); }
 }
 
 /* Streamlit 原生画布控件(st.dataframe/vega 图)不吃 CSS 暗色 — 画布像素
