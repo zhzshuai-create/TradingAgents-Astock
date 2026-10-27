@@ -630,20 +630,42 @@ def _build_config() -> dict:
 # AI Analysis Mode
 # ═══════════════════════════════════════════════════════════════════════════════
 
+def _clear_report_binding() -> None:
+    st.session_state["viewing_history"] = None
+    st.session_state.pop("tracker", None)
+    if "job_id" in st.query_params:
+        del st.query_params["job_id"]
+
+
+def _render_report_navigation(ticker: str) -> None:
+    home_col, new_col = st.columns(2)
+    with home_col:
+        if st.button("返回首页", key="report_home", use_container_width=True):
+            _clear_report_binding()
+            st.rerun()
+    with new_col:
+        if st.button("新建分析", key="report_new_analysis", use_container_width=True):
+            _clear_report_binding()
+            st.session_state["_pending_ticker_fill"] = ticker
+            st.rerun()
+
+
 def _render_analysis_mode() -> None:
     """Full TradingAgents analysis workflow."""
     # Trigger handler
     start_req = st.session_state.pop("start_analysis", None)
     if start_req:
+        from copy import deepcopy
         from uuid import uuid4
 
-        run_config = _build_config()
+        run_config = start_req.get("config") or _build_config()
         job_id = str(uuid4())
 
         def _launch() -> ProgressTracker:
             new_tracker = ProgressTracker(
                 ticker=start_req["ticker"], trade_date=start_req["trade_date"],
             )
+            new_tracker.run_config = deepcopy(run_config)
             new_tracker.parallel = bool(run_config.get("parallel_analysts"))
             run_analysis_in_thread(
                 ticker=start_req["ticker"], trade_date=start_req["trade_date"],
@@ -665,6 +687,7 @@ def _render_analysis_mode() -> None:
             signal = extract_signal(state)
             ticker = Path(viewing_history).parent.parent.name
             trade_date = Path(viewing_history).stem.replace("full_states_log_", "")
+            _render_report_navigation(ticker)
             render_report(state, ticker, trade_date, signal)
         except Exception as exc:
             st.error(f"加载失败: {exc}")
@@ -677,16 +700,22 @@ def _render_analysis_mode() -> None:
 
     # State 3: complete
     elif tracker and tracker.is_complete:
+        _render_report_navigation(tracker.ticker)
         render_report(tracker.final_state, tracker.ticker, tracker.trade_date,
                       tracker.signal, elapsed=tracker.elapsed)
 
     # State 4: error
     elif tracker and tracker.error:
+        from copy import deepcopy
+
         st.error(f"分析失败: {tracker.error}")
-        if st.button("重试"):
-            st.session_state.pop("tracker", None)
-            if "job_id" in st.query_params:
-                del st.query_params["job_id"]
+        if st.button("使用相同参数重新分析", key="retry_analysis", type="primary"):
+            st.session_state["start_analysis"] = {
+                "ticker": tracker.ticker,
+                "trade_date": tracker.trade_date,
+                "config": deepcopy(tracker.run_config),
+            }
+            _clear_report_binding()
             st.rerun()
 
     # State 0: idle

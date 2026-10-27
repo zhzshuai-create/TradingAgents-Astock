@@ -46,6 +46,7 @@ class ProgressTracker:
 
     final_state: dict[str, Any] = field(default_factory=dict)
     signal: str = ""
+    run_config: dict[str, Any] = field(default_factory=dict, repr=False)
 
     llm_calls: int = 0
     tool_calls: int = 0
