@@ -1,0 +1,232 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AStock Pro 前端优化改造清单</title><style> :root{color-scheme:light;--ink:#17202a;--muted:#5d6875;--line:#dfe5eb;--accent:#9c2f2f;--soft:#f5f7f9}*{box-sizing:border-box}body{margin:0;background:#eef1f4;color:var(--ink);font:16px/1.75 -apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif}main{max-width:1080px;margin:32px auto;padding:52px 64px;background:#fff;box-shadow:0 8px 32px #18263412}h1{font-size:32px;line-height:1.3;margin:0 0 24px}h2{font-size:24px;margin:44px 0 18px;padding-bottom:10px;border-bottom:2px solid var(--accent)}h3{font-size:19px;margin:30px 0 12px;padding:12px 16px;background:var(--soft);border-left:4px solid var(--accent)}p{margin:10px 0}li{margin:6px 0}code{padding:2px 6px;border-radius:4px;background:#f0f2f4;font:14px/1.5 Consolas,monospace;overflow-wrap:anywhere}strong{font-weight:700}a{color:var(--accent)}@media(max-width:700px){body{background:#fff;font-size:15px}main{margin:0;padding:24px 18px;box-shadow:none}h1{font-size:26px}h2{font-size:21px;margin-top:34px}h3{font-size:17px;padding:10px 12px}}@media print{body{background:#fff;font-size:11pt}main{max-width:none;margin:0;padding:0;box-shadow:none}h2,h3{break-after:avoid}h3{background:#f5f5f5!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}p,li{orphans:3;widows:3}}</style></head><body><main><h1>AStock Pro 前端优化改造清单</h1>
+<p>日期：2026-10-27<br />
+范围：<code>web/</code>、报告完成与落盘链路、交易日志嵌入<br />
+技术路线：保留 Streamlit，不重写 React/Vue</p>
+<h2>先说结论</h2>
+<p>先修正确性，再修使用效率，最后做视觉精修。</p>
+<p>最优先的三件事：</p>
+<ol>
+<li>统一刚完成报告与历史报告的数据结构，避免同一次分析出现两种内容。</li>
+<li>给运行任务建立可恢复的 job id，刷新页面后重新连接，而不是丢失进度或重复调用模型。</li>
+<li>修复手机端首屏侧栏遮挡和报告四列挤压。</li>
+</ol>
+<p>当前桌面报告的信息结构已经清楚。首页、看板和报告在首轮浏览器检查中没有发现 console/pageerror。手机页面整体没有横向溢出，但局部组件仍存在明显挤压。此次不沿用旧审计中已经修复的主题桥、未完成任务文案等结论。</p>
+<h2>检查边界</h2>
+<p>浏览器实测：</p>
+<ul>
+<li>桌面视口：1440 × 1000。</li>
+<li>手机视口：390 × 844。</li>
+<li>页面：首页、数据看板、历史报告、侧栏展开与折叠。</li>
+<li>历史报告 <code>000629 · 2026-10-24</code> 从点击到 PDF 下载按钮可见约 7.19 秒。该时间包含整页渲染，不能全部归因于 PDF。</li>
+</ul>
+<p>本次没有启动真实模型分析，避免产生模型费用。因此，“刚完成报告与历史报告字段不同”和“刷新后无法可靠恢复原任务”来自完整代码链证据，不是本次付费实跑复现。</p>
+<p>优先级含义：</p>
+<ul>
+<li>P0：影响结果正确性、费用安全、基本移动体验或页面安全。</li>
+<li>P1：明显影响使用效率、状态可信度和可访问性。</li>
+<li>P2：影响规模化使用和长期维护，可在核心问题修复后实施。</li>
+</ul>
+<h2>P0：先修正确性与基本可用性</h2>
+<h3>P0-1 统一运行完成态与历史报告字段（已完成）</h3>
+<p><strong>现状</strong></p>
+<p>完成时，<code>web/runner.py:158-165</code> 先把原始 <code>last_chunk</code> 交给 <code>finalize_graph_run()</code>，随后把同一个对象交给 <code>tracker.mark_complete()</code>。历史落盘在 <code>tradingagents/graph/trading_graph.py:445-488</code> 另建字典，并在 <code>:468</code> 把 <code>trader_investment_plan</code> 改名为 <code>trader_investment_decision</code>，但没有把该别名写回运行态。</p>
+<p>报告阅读器只读取 <code>trader_investment_decision</code> 和 <code>data_quality_summary</code>，见 <code>web/components/report_viewer.py:192-194</code>。当前历史落盘字典没有保存 <code>data_quality_summary</code>。因此，交易员决策可能历史重开才出现，数据质量章节则可能两条路径都不完整。</p>
+<p><strong>改造动作</strong></p>
+<ul>
+<li>建立一个共享的报告状态归一化函数，统一字段别名和缺失值。</li>
+<li>在 <code>mark_complete()</code> 和 <code>_log_state()</code> 之前都调用同一函数。</li>
+<li>把 <code>data_quality_summary</code> 纳入历史落盘结构。</li>
+<li>报告阅读器只消费归一化后的结构，不再分别兼容两套字段。</li>
+</ul>
+<p><strong>涉及文件</strong></p>
+<p><code>web/runner.py</code>、<code>web/progress.py</code>、<code>tradingagents/graph/trading_graph.py</code>、<code>web/components/report_viewer.py</code>。</p>
+<p><strong>验收标准</strong></p>
+<p>用同一个模拟 final state 分别走“刚完成”和“保存后重开”两条路径，所有章节、字段和信号完全一致；交易员决策与数据质量章节均不丢失。</p>
+<h3>P0-2 建立任务 job id，支持刷新重连和幂等启动</h3>
+<p><strong>现状</strong></p>
+<p>运行状态只放在 <code>st.session_state["tracker"]</code>，见 <code>web/app.py:638</code>；分析由 daemon 后台线程启动，见 <code>web/runner.py:209-210</code>。当前没有面向浏览器的稳定 job id 和任务注册表。健康检查还存在整页 reload，见 <code>web/app.py:251</code>。</p>
+<p>这意味着刷新、重连或服务恢复后，页面没有可靠依据重新绑定原任务。若简单改成“重新开始”，还可能重复产生模型费用。</p>
+<p><strong>改造动作</strong></p>
+<ul>
+<li>启动时生成 job id，并建立服务端 job registry，保存参数、状态、进度、结果和错误。</li>
+<li>浏览器只保存 job id；刷新后按 job id 重新订阅状态。</li>
+<li>启动接口按“股票、日期、配置、未完成任务”做幂等检查，禁止同一任务被重复启动。</li>
+<li>页面明确区分“连接中断但任务仍运行”“任务失败”“结果已完成”。</li>
+<li>先支持进程内恢复，再评估是否需要跨重启持久化；不要把两件事绑成一次改造。</li>
+</ul>
+<p><strong>涉及文件</strong></p>
+<p><code>web/app.py</code>、<code>web/runner.py</code>、<code>web/progress.py</code>，以及新增的任务状态存储模块。</p>
+<p><strong>验收标准</strong></p>
+<p>用模拟分析运行任务，刷新页面后仍显示同一 job id 和连续进度，模型调用次数不增加；重复点击开始不会创建第二个相同任务；任务完成后刷新仍能打开同一结果。</p>
+<p><strong>实施提醒</strong></p>
+<p>这是整张清单里最难的一项。难点不在进度条，而在 Streamlit session 生命周期、后台线程归属、状态持久化和重复模型调用的防护。</p>
+<h3>P0-3 修复手机首屏与报告决策区（已完成）</h3>
+<p><strong>现状</strong></p>
+<p><code>web/app.py:125</code> 固定 <code>initial_sidebar_state="expanded"</code>。手机实测首屏侧栏展开并遮挡主内容，折叠后才正常。</p>
+<p>报告决策区在 <code>web/theme.py:462-465</code> 固定四列，现有手机媒体查询 <code>:755-757</code> 只隐藏指数条。390px 视口实测四个格子各约 77.5px 宽、511px 高，数字和说明被拉成狭长竖条。</p>
+<p><strong>改造动作</strong></p>
+<ul>
+<li>侧栏初始状态改为适合响应式布局的策略，手机首屏优先展示主任务。</li>
+<li>决策区在窄屏改为两列或单列，并缩小过大留白。</li>
+<li>同步检查报告导出按钮、报告导航和长标题的换行。</li>
+</ul>
+<p><strong>涉及文件</strong></p>
+<p><code>web/app.py</code>、<code>web/theme.py</code>、<code>web/components/report_viewer.py</code>。</p>
+<p><strong>验收标准</strong></p>
+<p>在 390 × 844 和 360 × 800 视口下，首屏无需先关侧栏即可看到主操作；决策区不再出现约 78px 宽的狭长卡片；页面无横向滚动，关键数字无需缩放即可阅读。</p>
+<h3>P0-4 外部数据进入 HTML 前统一转义（已完成）</h3>
+<p><strong>现状</strong></p>
+<p>强势股题材在 <code>web/components/data_dashboard.py:915-916</code> 直接拼入 <code>unsafe_allow_html</code>。股票代码、名称和题材正文在 <code>:927-933</code> 也直接插入 HTML。以上内容来自外部数据接口，不应被视为可信标记。</p>
+<p><strong>改造动作</strong></p>
+<ul>
+<li>对代码、名称、题材等纯文本统一使用 <code>html.escape()</code>。</li>
+<li>能用原生 Streamlit 文本组件展示的内容，不再拼 HTML。</li>
+<li>保留样式所需的静态 HTML，但把结构与外部文本分开。</li>
+<li>顺带检查其他 <code>unsafe_allow_html=True</code> 的外部数据插值点。</li>
+</ul>
+<p><strong>涉及文件</strong></p>
+<p><code>web/components/data_dashboard.py</code> 及同类自定义卡片组件。</p>
+<p><strong>验收标准</strong></p>
+<p>用 <code>&lt;img src=x onerror=...&gt;</code>、<code>&lt;script&gt;</code> 等字符串作为模拟股票名称和题材，页面只显示字面文本，不创建对应 DOM 元素，不执行脚本，原有样式不回归。</p>
+<h2>P1：提升效率、状态可信度与可访问性</h2>
+<h3>P1-1 让“重试”真正重试，并补报告返回导航</h3>
+<p><strong>现状</strong></p>
+<p>失败后的“重试”只删除 tracker 并 rerun，见 <code>web/app.py:670-674</code>，没有使用原参数重新启动。历史报告通过侧栏打开，见 <code>web/components/sidebar.py:410-412</code>，报告正文缺少明确的“返回首页/新建分析”入口。</p>
+<p><strong>改造动作</strong></p>
+<ul>
+<li>保存本次启动参数，失败页提供“使用相同参数重新分析”。</li>
+<li>重试前确认旧任务已经终止，避免与 P0-2 的幂等机制冲突。</li>
+<li>报告页增加返回首页和新建分析按钮，保留当前报告上下文。</li>
+</ul>
+<p><strong>验收标准</strong></p>
+<p>模拟失败后点击重试，相同参数只启动一次新任务；报告页可一键回到首页，浏览器刷新后不错误启动分析。</p>
+<h3>P1-2 区分“无数据、请求失败、缓存陈旧”，展示数据时间</h3>
+<p><strong>现状</strong></p>
+<p>行情失败返回 <code>{}</code>，EPS 失败返回空 DataFrame，见 <code>web/data_functions.py:55-73</code>。强势股失败也返回空表，页面只显示“暂无今日强势股数据”，见 <code>web/components/data_dashboard.py:904-906</code>。用户无法区分真实无数据和接口失败。</p>
+<p>强势股函数整体缓存一小时，见 <code>web/data_functions.py:77-78</code>，但函数内部同时补充实时涨幅，导致“实时”数据也可能随名单缓存变旧。</p>
+<p><strong>改造动作</strong></p>
+<ul>
+<li>在 UI 边界返回带状态的数据结果，至少区分 ok、empty、error、stale。</li>
+<li>将强势股名单与实时行情拆成不同 TTL 的缓存。</li>
+<li>看板展示数据来源、更新时间和失败重试入口。</li>
+<li>保留核心数据层现有异常日志，不在 UI 层重复实现数据请求。</li>
+</ul>
+<p><strong>验收标准</strong></p>
+<p>分别模拟空名单、网络异常和缓存命中，三种界面文案不同；实时行情按自身 TTL 更新；每个看板区块能看到最近更新时间。</p>
+<h3>P1-3 PDF 改为点击后生成</h3>
+<p><strong>现状</strong></p>
+<p>报告每次 render 都先执行 <code>generate_pdf()</code>，见 <code>web/components/report_viewer.py:171-176</code>。PDF 构建还会生成图表，见 <code>web/pdf_export.py:727-744</code>。即使用户只阅读网页，也承担导出成本。</p>
+<p>历史报告实测从点击到下载按钮可见约 7.19 秒，但该数值是整页耗时，不能全部归给 PDF。</p>
+<p><strong>改造动作</strong></p>
+<ul>
+<li>首屏只渲染报告正文和“生成 PDF”按钮。</li>
+<li>用户点击后再生成，显示明确的生成状态。</li>
+<li>按报告内容哈希缓存结果，避免重复导出重复计算。</li>
+<li>生成失败不能影响网页报告阅读。</li>
+</ul>
+<p><strong>验收标准</strong></p>
+<p>打开报告时在点击导出前不调用 <code>generate_pdf()</code>；点击后只生成一次，重复下载命中缓存；导出失败时正文仍可阅读。</p>
+<h3>P1-4 进度面板适配窄屏，长报告不再静默截断</h3>
+<p><strong>现状</strong></p>
+<p>七位分析师使用七列，指标固定四列，见 <code>web/components/progress_panel.py:125-136</code>。中间报告在 <code>:157-160</code> 直接截取前 3000 字，没有“内容已截断”的提示。</p>
+<p><strong>改造动作</strong></p>
+<ul>
+<li>分析师阶段在手机改为分行、两列或纵向时间线。</li>
+<li>指标区在窄屏改为两列。</li>
+<li>超过 3000 字时显示完整长度和“展开全文”，不要无声丢失内容。</li>
+</ul>
+<p><strong>验收标准</strong></p>
+<p>390px 视口下阶段名称和状态不挤压、不重叠；长报告明确提示截断，并能展开查看完整内容。</p>
+<h3>P1-5 自定义卡片支持键盘和焦点状态</h3>
+<p><strong>现状</strong></p>
+<p><code>web/components/click_bridge.py:23-27</code> 只绑定 click。自定义卡片没有按钮语义、Tab 聚焦和 Enter/Space 触发能力。</p>
+<p><strong>改造动作</strong></p>
+<ul>
+<li>为可点击卡片补 <code>role="button"</code> 和 <code>tabindex="0"</code>。</li>
+<li>支持 Enter 与 Space，并阻止 Space 触发页面滚动。</li>
+<li>增加清晰的 <code>:focus-visible</code> 样式；优先使用原生按钮替代 JS 点击桥。</li>
+</ul>
+<p><strong>验收标准</strong></p>
+<p>仅用键盘可依次聚焦并打开快捷卡片、行业行和股票行；焦点清晰可见；鼠标和触屏行为不回归。</p>
+<h2>P2：规模化使用与长期维护</h2>
+<h3>P2-1 历史记录分页、筛选与对比</h3>
+<p><strong>现状</strong></p>
+<p>主列表固定最多 30 条，搜索最多 100 条，见 <code>web/app.py:740-741</code>，没有分页和结构化筛选。</p>
+<p><strong>改造动作</strong></p>
+<p>先补分页、股票/日期/信号筛选，再增加两份报告的并排对比。对比复用同一归一化报告结构，不另建展示字段。</p>
+<p><strong>验收标准</strong></p>
+<p>超过 100 条历史仍可完整访问；筛选条件清晰可重置；两份报告可对比信号、目标价、风控和关键论据。</p>
+<h3>P2-2 交易日志 iframe 高度与地址配置化</h3>
+<p><strong>现状</strong></p>
+<p>日志 iframe 固定高 1800px，见 <code>web/components/trade_journal.py:86</code>，手机端容易形成双层滚动。服务地址固定为 <code>127.0.0.1:8502</code>，见 <code>web/journal_service.py:16-19</code>，只适合本机部署。</p>
+<p><strong>改造动作</strong></p>
+<p>按内容或视口调整 iframe 高度，手机减少双滚动；地址通过环境变量配置，同时保留本机默认值。</p>
+<p><strong>验收标准</strong></p>
+<p>桌面和手机均可顺畅滚动到日志底部；非本机部署只需修改配置，无需改源码；日志服务未启动时主平台仍可使用。</p>
+<h3>P2-3 最后再做视觉统一与组件收敛</h3>
+<p><strong>现状</strong></p>
+<p>桌面报告阅读结构已经清楚，当前主要问题并不是“不好看”。若先大规模换皮，会掩盖字段、状态和移动端问题。</p>
+<p><strong>改造动作</strong></p>
+<ul>
+<li>统一卡片、空状态、错误状态、加载状态和时间标签。</li>
+<li>收敛重复的内联 HTML 与样式，保留集中式设计变量。</li>
+<li>建立首页、看板、运行中、报告四种页面的桌面/手机视觉回归截图。</li>
+<li>保持现有信息架构，不以更换前端框架作为升级目标。</li>
+</ul>
+<p><strong>验收标准</strong></p>
+<p>同类状态在各页面表现一致；四种核心页面通过桌面与手机截图回归；视觉改动不改变任务和报告行为。</p>
+<h2>建议实施批次</h2>
+<h3>批次一：小范围、先修确定性问题</h3>
+<p>P0-1 报告字段统一、P0-3 手机布局、P0-4 HTML 转义。</p>
+<p>这批改动边界相对清楚，可以先建立报告结构测试和移动端截图基线。</p>
+<h3>批次二：任务可靠性</h3>
+<p>P0-2 job id 与刷新重连、P1-1 真正的重试和返回导航。</p>
+<p>这批先写状态转换与幂等测试，再接 UI。不要仅把“重新分析”改名为“继续”。</p>
+<h3>批次三：阅读与运行效率</h3>
+<p>P1-2 数据状态与时间、P1-3 PDF 按需生成、P1-4 进度响应式、P1-5 键盘支持。</p>
+<h3>批次四：规模化与视觉精修</h3>
+<p>P2-1 历史增强、P2-2 日志嵌入、P2-3 视觉统一。</p>
+<h2>每批共同验收</h2>
+<ul>
+<li>使用模拟 final state 和模拟任务，不为前端测试支付真实模型费用。</li>
+<li>跑现有 Python 测试与 lint，再补报告状态、任务幂等和数据状态测试。</li>
+<li>浏览器至少覆盖 1440 × 1000、390 × 844、360 × 800。</li>
+<li>检查 console、pageerror、横向溢出、键盘路径和刷新行为。</li>
+<li>保留桌面与手机截图，比较改造前后，而不是只凭代码判断界面完成。</li>
+</ul>
+<h2>本次实测证据</h2>
+<p>截图目录：<code>ui_shots_review/</code>。</p>
+<ul>
+<li><code>audit_home_desktop_loaded.png</code>：桌面首页。</li>
+<li><code>audit_home_mobile.png</code>：手机首屏侧栏遮挡。</li>
+<li><code>audit_home_mobile_collapsed.png</code>：折叠侧栏后的手机首页。</li>
+<li><code>audit_dashboard_desktop.png</code>：桌面数据看板。</li>
+<li><code>audit_dashboard_mobile.png</code>：手机数据看板。</li>
+<li><code>audit_report_desktop_loaded.png</code>：桌面历史报告。</li>
+<li><code>audit_report_mobile.png</code>：手机报告决策区挤压。</li>
+</ul>
+<p>审计脚本与原始结果保存在本次工作目录：<code>audit_astock_frontend.py</code>、<code>audit_astock_reports.py</code> 及同名 JSON。</p>
+<h2>第一批实施记录</h2>
+<p>2026-10-27 已完成 P0-1、P0-3、P0-4，分别提交：</p>
+<ul>
+<li><code>ee7d201</code>：完成态与历史报告字段对齐。</li>
+<li><code>6c916af</code>：手机侧栏与报告决策区布局。</li>
+<li><code>5d8ca80</code>：看板外部文本 HTML 转义。</li>
+</ul>
+<p>验收结果：</p>
+<ul>
+<li><code>pytest tests/ -q</code>：301 passed，62 subtests passed。</li>
+<li><code>ruff check .</code>：All checks passed。</li>
+<li>Chromium 桌面 1440 × 1000：报告保持四列，无横向溢出。</li>
+<li>Chromium 手机 390 × 844：报告两列，每格 175px；侧栏默认折叠。</li>
+<li>Chromium 手机 360 × 800：报告两列，每格 160px；侧栏默认折叠。</li>
+<li>三种视口均无 pageerror；截图已逐张检查。</li>
+<li>HTML 注入 AppTest 使用模拟 <code>onerror</code> 文本，通过；未触发真实模型分析。</li>
+</ul>
+<p>版本恢复：</p>
+<ul>
+<li>改造前恢复标签：<code>pre-frontend-p0-20261027</code>，指向基线 <code>334b219</code>。</li>
+<li>改造前物理副本：<code>C:\Users\zhzsh\TradingAgents-astock-backup-20261027-pre-frontend-p0</code>。</li>
+<li>物理副本同时保存 <code>working-tree.patch</code>、<code>working-tree-status.txt</code> 和 <code>base-revision.txt</code>，覆盖改造前尚未提交的看板工作。</li>
+</ul>
+<p>下一批从 P0-2 开始，单独处理 job id、刷新重连和幂等启动，不与样式修改混合。</p></main></body></html>
