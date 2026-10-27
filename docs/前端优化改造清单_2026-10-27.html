@@ -89,7 +89,7 @@
 <p><strong>验收标准</strong></p>
 <p>用 <code>&lt;img src=x onerror=...&gt;</code>、<code>&lt;script&gt;</code> 等字符串作为模拟股票名称和题材，页面只显示字面文本，不创建对应 DOM 元素，不执行脚本，原有样式不回归。</p>
 <h2>P1：提升效率、状态可信度与可访问性</h2>
-<h3>P1-1 让“重试”真正重试，并补报告返回导航</h3>
+<h3>P1-1 让“重试”真正重试，并补报告返回导航（已完成）</h3>
 <p><strong>现状</strong></p>
 <p>失败后的“重试”只删除 tracker 并 rerun，见 <code>web/app.py:670-674</code>，没有使用原参数重新启动。历史报告通过侧栏打开，见 <code>web/components/sidebar.py:410-412</code>，报告正文缺少明确的“返回首页/新建分析”入口。</p>
 <p><strong>改造动作</strong></p>
@@ -263,4 +263,32 @@
 <li>改造前 bundle：<code>C:\Users\zhzsh\astock-pre-job-recovery-20261027.bundle</code>，已通过完整历史校验。</li>
 <li>本批代码提交只包含任务恢复文件。<code>web/app.py</code> 中已有的 K 线预热和模式切换性能修改仍未暂存，没有混入本批提交。</li>
 </ul>
-<p>下一项是 P1-1：让失败页“重试”使用相同参数创建明确的新任务，并补报告返回导航。</p></main></body></html>
+<p>下一项是 P1-1：让失败页“重试”使用相同参数创建明确的新任务，并补报告返回导航。</p>
+<h2>第三批实施记录：重试与报告导航</h2>
+<p>2026-10-27 已完成 P1-1，代码提交为 <code>e7c7819</code>。</p>
+<p>实现结果：</p>
+<ul>
+<li>每个 tracker 保存本次启动配置的深拷贝。刷新后仍能取得原股票、日期和模型配置。</li>
+<li>失败页按钮改为“使用相同参数重新分析”。点击后创建新的 job id，旧任务保持终态，不会重复执行。</li>
+<li>完成报告和历史报告顶部增加“返回首页”和“新建分析”。</li>
+<li>返回首页只解除报告绑定。</li>
+<li>新建分析回填原股票代码，但不自动启动分析。</li>
+<li>两种导航都不会停止 registry 中的任务。</li>
+</ul>
+<p>验收结果：</p>
+<ul>
+<li><code>pytest -q</code>：309 passed，4 skipped，59 subtests passed。</li>
+<li>Ruff 与 <code>git diff --check</code> 均通过。</li>
+<li>AppTest 验证原配置重试、新 job 刷新不重复启动、完成报告新建分析和历史报告返回首页。</li>
+<li>Chromium 在隔离端口 8506 验证重试后 URL 换成新 job id，刷新后模拟 launcher 仍只调用一次。</li>
+<li>Chromium 验证新建分析回到首页并回填 <code>000001</code>，未自动启动任务。</li>
+<li>全部验收使用模拟 launcher 和模拟报告，未触发真实模型或 PDF 生成。</li>
+</ul>
+<p>版本恢复：</p>
+<ul>
+<li>改造前恢复标签：<code>pre-report-retry-navigation-20261027</code>，指向 <code>12aaf95</code>。</li>
+<li>改造前物理副本：<code>C:\Users\zhzsh\TradingAgents-astock-backup-20261027-pre-report-retry</code>。</li>
+<li>改造前 bundle：<code>C:\Users\zhzsh\astock-pre-report-retry-navigation-20261027.bundle</code>，已通过完整历史校验。</li>
+<li>本批提交未混入 <code>web/app.py</code> 中已有的性能修改，也未改动其他未提交工作。</li>
+</ul>
+<p>下一项是 P1-2：区分无数据、请求失败和缓存陈旧，并展示数据更新时间。</p></main></body></html>
