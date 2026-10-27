@@ -1,5 +1,7 @@
 """Tests for TradingMemoryLog — storage, deferred reflection, PM injection, legacy removal."""
 
+import json
+
 import pytest
 import pandas as pd
 from unittest.mock import MagicMock, patch
@@ -781,3 +783,64 @@ class TestLegacyRemoval:
         assert len(entries) == 1
         assert entries[0]["ticker"] == "NVDA"
         assert entries[0]["pending"] is True
+
+
+class TestReportStateConsistency:
+
+    def test_finalize_aligns_live_and_saved_report_fields(self, tmp_path):
+        import functools
+
+        final_state = {
+            "company_of_interest": "000629",
+            "trade_date": "2026-10-24",
+            "market_report": "market",
+            "sentiment_report": "sentiment",
+            "news_report": "news",
+            "fundamentals_report": "fundamentals",
+            "policy_report": "policy",
+            "hot_money_report": "hot money",
+            "lockup_report": "lockup",
+            "data_quality_summary": "quality passed",
+            "investment_debate_state": {
+                "bull_history": "bull",
+                "bear_history": "bear",
+                "history": "debate",
+                "current_response": "response",
+                "judge_decision": "judge",
+            },
+            "investment_plan": "investment plan",
+            "trader_investment_plan": "trader decision",
+            "risk_debate_state": {
+                "aggressive_history": "aggressive",
+                "conservative_history": "conservative",
+                "neutral_history": "neutral",
+                "history": "risk",
+                "judge_decision": "risk judge",
+            },
+            "final_trade_decision": "Rating: Hold",
+        }
+        graph = MagicMock()
+        graph.config = {"results_dir": str(tmp_path), "checkpoint_enabled": False}
+        graph.ticker = "000629"
+        graph.log_states_dict = {}
+        graph.signal_processor.process_signal.return_value = "Hold"
+        graph._log_state = functools.partial(TradingAgentsGraph._log_state, graph)
+        graph.process_signal = graph.signal_processor.process_signal
+
+        signal = TradingAgentsGraph.finalize_graph_run(
+            graph, "000629", "2026-10-24", final_state
+        )
+
+        log_path = (
+            tmp_path
+            / "000629"
+            / "TradingAgentsStrategy_logs"
+            / "full_states_log_2026-10-24.json"
+        )
+        saved = json.loads(log_path.read_text(encoding="utf-8"))
+        assert signal == "Hold"
+        assert final_state["trader_investment_decision"] == "trader decision"
+        assert saved["trader_investment_decision"] == final_state[
+            "trader_investment_decision"
+        ]
+        assert saved["data_quality_summary"] == "quality passed"

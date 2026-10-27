@@ -393,6 +393,9 @@ class TradingAgentsGraph:
 
     def finalize_graph_run(self, company_name, trade_date, final_state):
         """Persist a completed run and clear its checkpoint."""
+        final_state["trader_investment_decision"] = final_state[
+            "trader_investment_plan"
+        ]
         self.curr_state = final_state
 
         # Log state to disk.
@@ -454,6 +457,7 @@ class TradingAgentsGraph:
             "policy_report": final_state.get("policy_report", ""),
             "hot_money_report": final_state.get("hot_money_report", ""),
             "lockup_report": final_state.get("lockup_report", ""),
+            "data_quality_summary": final_state.get("data_quality_summary", ""),
             "investment_debate_state": {
                 "bull_history": final_state["investment_debate_state"]["bull_history"],
                 "bear_history": final_state["investment_debate_state"]["bear_history"],
