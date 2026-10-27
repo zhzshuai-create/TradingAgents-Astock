@@ -147,6 +147,7 @@ from web.data_functions import (  # noqa: E402
     index_spot,
     tencent_quote,
 )
+from web.jobs import get_job, get_or_create_job  # noqa: E402
 
 # ── Session state ────────────────────────────────────────────────────────────
 if "app_mode" not in st.session_state:
@@ -155,6 +156,18 @@ if "data_code" not in st.session_state:
     st.session_state["data_code"] = ""
 if "theme" not in st.session_state:
     st.session_state["theme"] = "light"
+
+# URL 只负责重连已存在的任务；服务重启后任务消失时绝不自动发起付费分析。
+_job_id = st.query_params.get("job_id")
+if _job_id:
+    _job_tracker = get_job(_job_id)
+    if _job_tracker is None:
+        st.session_state.pop("tracker", None)
+        del st.query_params["job_id"]
+        st.warning("未找到该分析任务，服务可能已重启。请重新发起分析。")
+    else:
+        st.session_state["tracker"] = _job_tracker
+        st.session_state["viewing_history"] = None
 
 # ── 快速回填消费点 ──
 # 快捷标的按钮 / 快速开始输入框都只落 pending key（直写已实例化的 widget key 必抛
@@ -622,16 +635,25 @@ def _render_analysis_mode() -> None:
     # Trigger handler
     start_req = st.session_state.pop("start_analysis", None)
     if start_req:
+        from uuid import uuid4
+
         run_config = _build_config()
-        tracker = ProgressTracker(
-            ticker=start_req["ticker"], trade_date=start_req["trade_date"],
-        )
-        tracker.parallel = bool(run_config.get("parallel_analysts"))
+        job_id = str(uuid4())
+
+        def _launch() -> ProgressTracker:
+            new_tracker = ProgressTracker(
+                ticker=start_req["ticker"], trade_date=start_req["trade_date"],
+            )
+            new_tracker.parallel = bool(run_config.get("parallel_analysts"))
+            run_analysis_in_thread(
+                ticker=start_req["ticker"], trade_date=start_req["trade_date"],
+                config=run_config, tracker=new_tracker,
+            )
+            return new_tracker
+
+        tracker = get_or_create_job(job_id, _launch)
         st.session_state["tracker"] = tracker
-        run_analysis_in_thread(
-            ticker=start_req["ticker"], trade_date=start_req["trade_date"],
-            config=run_config, tracker=tracker,
-        )
+        st.query_params["job_id"] = job_id
 
     tracker: ProgressTracker | None = st.session_state.get("tracker")
     viewing_history: str | None = st.session_state.get("viewing_history")
@@ -663,6 +685,8 @@ def _render_analysis_mode() -> None:
         st.error(f"分析失败: {tracker.error}")
         if st.button("重试"):
             st.session_state.pop("tracker", None)
+            if "job_id" in st.query_params:
+                del st.query_params["job_id"]
             st.rerun()
 
     # State 0: idle
@@ -740,6 +764,9 @@ def _render_analysis_mode() -> None:
                             if st.button(f"{t}  ·  {d}", key=f"main_hist_{t}_{d}", use_container_width=True):
                                 st.session_state["viewing_history"] = p
                                 st.session_state["start_analysis"] = None
+                                st.session_state.pop("tracker", None)
+                                if "job_id" in st.query_params:
+                                    del st.query_params["job_id"]
                                 st.rerun()
                         with c2:
                             st.markdown(f'<div>{badge_html}</div>', unsafe_allow_html=True)
