@@ -1,0 +1,1060 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AStock Pro P0 契约集（Day 2）</title>
+<style>
+:root{--bg:#f5f7fa;--surface:#fff;--text:#172033;--muted:#667085;--border:#e4e7ec;--brand:#c75b16;--code:#f2f4f7}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei","PingFang SC",Arial,sans-serif;line-height:1.75;font-size:16px}
+article{max-width:1080px;margin:0 auto;padding:44px 56px 72px;background:var(--surface);min-height:100vh}h1,h2,h3,h4{line-height:1.4;scroll-margin-top:20px}h1{font-size:32px;margin:0 0 24px;padding-bottom:18px;border-bottom:2px solid var(--brand)}h2{font-size:24px;margin:48px 0 18px;padding-left:12px;border-left:4px solid var(--brand)}h3{font-size:19px;margin:30px 0 12px}h4{font-size:16px;margin:22px 0 8px}p{margin:10px 0}ul,ol{padding-left:26px}li{margin:5px 0}a{color:#175cd3;text-decoration:none}a:hover{text-decoration:underline}hr{border:0;border-top:1px solid var(--border);margin:36px 0}blockquote{margin:20px 0;padding:12px 18px;border-left:4px solid var(--brand);background:#fff8f2;color:#344054}code{padding:2px 5px;border-radius:4px;background:var(--code);font-family:Consolas,"SFMono-Regular",monospace;font-size:.9em;overflow-wrap:anywhere}pre{padding:16px 18px;border-radius:8px;background:#101828;color:#e5e7eb;overflow:auto;line-height:1.55}pre code{padding:0;background:transparent;color:inherit}table{width:100%;border-collapse:collapse;margin:18px 0 26px;font-size:14px}th,td{border:1px solid var(--border);padding:10px 12px;text-align:left;vertical-align:top}th{background:#f9fafb;font-weight:650}tr:nth-child(even) td{background:#fcfcfd}.toc{margin:22px 0 30px;padding:14px 18px;border:1px solid var(--border);border-radius:8px;background:#f9fafb}.toc summary{cursor:pointer;color:var(--brand)}.toc ul{margin:8px 0}.toc>ul{columns:2;column-gap:32px}.toc li{break-inside:avoid}.toc>ul>ul{display:none}
+@media(max-width:720px){body{font-size:15px}article{padding:26px 20px 48px}h1{font-size:26px}h2{font-size:21px;margin-top:38px}h3{font-size:18px}table{display:block;overflow-x:auto;white-space:normal}th,td{min-width:110px;padding:8px}.toc>ul{columns:1}pre{font-size:12px}}
+@media print{@page{size:A4;margin:15mm}body{background:#fff;color:#000;font-size:10.5pt;line-height:1.55}article{max-width:none;padding:0;background:#fff}h1{font-size:22pt}h2{font-size:16pt;margin-top:24px;break-after:avoid}h3,h4{break-after:avoid}table{display:table;font-size:8.5pt;break-inside:auto}tr{break-inside:avoid}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f5f5f5;color:#000;border:1px solid #ccc;font-size:8pt}.toc{display:none}a{color:#000;text-decoration:none}blockquote{background:#fff}code{background:#f3f3f3}}
+</style>
+</head>
+<body><article>
+<details class="toc"><summary><strong>展开目录</strong></summary><div class="toc"><ul>
+<li><a href="#semantic-dictionary">核心语义词典</a></li>
+<li><a href="#job-state-machine">任务状态机</a></li>
+<li><a href="#idempotency-conflicts">幂等与冲突决策表</a></li>
+<li><a href="#crash-boundaries">崩溃边界预期表</a></li>
+<li><a href="#p1-state-machine-tests">P1 状态机测试用例清单</a></li>
+</ul></div></details>
+<section id="semantic-dictionary"><h1>核心语义词典</h1>
+<p>目的：让每个用户操作只对应一个服务端语义。前后端、文档、测试一律使用本表的词与文案，不再用页面文案猜状态。</p>
+<p>旧版现状依据：<code>web/progress.py</code>（<code>ProgressTracker</code> 的四个布尔位 <code>is_running / is_complete / is_paused / stop_requested</code> 加 <code>error</code> 字段）、<code>web/jobs.py</code>（进程内 <code>_jobs</code> 字典）、<code>web/runner.py</code>（守护线程执行）。旧版没有持久化状态，进程重启即丢失全部任务。</p>
+<h2 id="1">1. 十二个核心词</h2>
+<h3 id="_1">新建分析</h3>
+<ul>
+<li>用户看到：首页输入代码与日期，点「开始分析」，进入任务页，看到排队或执行中的阶段进度。</li>
+<li>服务端做：创建一条 job 记录，状态 <code>queued</code>；Worker 认领后转 <code>running</code>。</li>
+<li>是否可能产生模型费用：会。执行开始后每个阶段都会调用模型。</li>
+<li>旧版现状：创建 tracker 的同时立刻起守护线程，没有排队态；同参数重复点击靠前端禁用按钮兜底。</li>
+</ul>
+<h3 id="_2">重新分析</h3>
+<ul>
+<li>用户看到：在报告页或任务页点「重新分析」，得到一个全新任务，旧报告仍在历史里。</li>
+<li>服务端做：以当前界面配置新建一条 job，<code>retry_of_job_id</code> 为空；旧 job 保持原终态不变。</li>
+<li>是否可能产生模型费用：会，全额。</li>
+<li>旧版现状：2026-10-27 之后已是新 job id 语义，与本表一致。</li>
+</ul>
+<h3 id="_3">重试</h3>
+<ul>
+<li>用户看到：失败页或中断页点「使用相同参数重试」，得到一个标注「重试自 #旧编号」的新任务。</li>
+<li>服务端做：读取旧 job 保存的配置深拷贝，新建 job 并写 <code>retry_of_job_id = 旧 job id</code>；旧 job 不动。</li>
+<li>是否可能产生模型费用：会，全额（旧版没有检查点，重试等于重跑）。</li>
+<li>与「续跑」的区别：重试不复用任何阶段产物；续跑复用。两者不得混用同一个按钮文案。</li>
+<li>旧版现状：2026-10-27 已实现同参数重试（新 job id），但配置深拷贝只存在内存里，进程重启后无法重试。</li>
+</ul>
+<h3 id="_4">从检查点继续（续跑）</h3>
+<ul>
+<li>用户看到：中断页点「从检查点继续」，弹出确认框，列出将复用哪些已完成阶段、将从哪个阶段开始、预计还会调用哪些模型；确认后才开始。</li>
+<li>服务端做：校验配置指纹与图版本与中断时一致；新建一条 job，带 <code>resume_of_job_id</code> 与起始阶段；已完成阶段的报告从旧 job 复制，不重新调用模型。</li>
+<li>是否可能产生模型费用：会，但只发生在未完成阶段。</li>
+<li>前置条件：配置指纹或图版本不匹配时，本操作不可用，界面只给「重新分析」。</li>
+<li>旧版现状：不存在。进程重启后任务消失，没有检查点可续。</li>
+</ul>
+<h3 id="pause_requested">暂停中（pause_requested）</h3>
+<ul>
+<li>用户看到：点「暂停」后按钮变为不可再次点击，进度条旁显示「暂停请求已提交，将在当前步骤结束后生效」。</li>
+<li>服务端做：写入暂停请求；当前正在流式输出的步骤跑完，执行停在步骤边界，状态转 <code>paused</code>。</li>
+<li>是否可能产生模型费用：当前步骤内已发生的调用不会退回；不会新增步骤调用。</li>
+<li>为什么要有请求态：暂停只能落在步骤边界，不能打断一次模型调用；没有请求态时，「点了暂停但还在跑」会被用户理解成按钮坏了。</li>
+<li>旧版现状：<code>pause()</code> 立即置 <code>is_paused</code> 并清 gate，界面上没有「请求已提交」的中间态。</li>
+</ul>
+<h3 id="paused">已暂停（paused）</h3>
+<ul>
+<li>用户看到：进度停在某个阶段，显示「已暂停」与「继续」「取消」两个按钮；已完成阶段的报告仍可查看。</li>
+<li>服务端做：执行停在步骤边界，检查点（已完成阶段报告 + 配置快照）落盘；Worker 租约释放，可以接别的任务。</li>
+<li>是否可能产生模型费用：不会新增。</li>
+<li>旧版现状：<code>is_paused</code> gate 生效，但任务仍占着那个守护线程；进程重启后暂停态丢失。</li>
+</ul>
+<h3 id="cancel_requested">取消中（cancel_requested）</h3>
+<ul>
+<li>用户看到：点「取消」后显示「取消中，正在收尾当前步骤」，按钮不可重复点击。</li>
+<li>服务端做：写入取消请求；当前步骤收尾后不再推进新步骤，状态转 <code>cancelled</code>。若收尾期间图恰好完成，则以 <code>succeeded</code> 结束并提示「任务在取消请求到达前已完成」。</li>
+<li>是否可能产生模型费用：当前步骤内已发生的不会退回；不会新增步骤调用。</li>
+<li>旧版现状：<code>request_stop()</code> 立即清空全部阶段报告与统计，没有收尾态，用户点完取消看到的是进度瞬间归零。</li>
+</ul>
+<h3 id="cancelled">已取消（cancelled）</h3>
+<ul>
+<li>用户看到：任务页显示「已取消」，已完成阶段的报告以只读形式保留，可展开查看；没有「自动重新开始」之类的动作。</li>
+<li>服务端做：终态。不自动重排、不自动重试。</li>
+<li>是否可能产生模型费用：不会。</li>
+<li>旧版现状：停止后 tracker 被清空，历史里看不到这次任务存在过。</li>
+</ul>
+<h3 id="_5">连接中断</h3>
+<ul>
+<li>用户看到：任务页顶部出现「连接已断开，正在重连」；重连成功后进度从断点继续显示，不丢失已渲染内容。</li>
+<li>服务端做：只影响浏览器与 SSE 通道；job 状态完全不变。重连带 <code>Last-Event-ID</code>，服务端从该序号之后续传事件。</li>
+<li>是否可能产生模型费用：不会。</li>
+<li>旧版现状：刷新页面会重跑整个 Streamlit 脚本；同进程内任务还在，但换浏览器或换设备看不到任务。</li>
+</ul>
+<h3 id="interrupted">执行中断（interrupted）</h3>
+<ul>
+<li>用户看到：任务页显示「执行中断」，说明原因（服务重启 / Worker 租约失效），给出「从检查点继续」和「重新分析」两个显式选项，没有任何自动动作。</li>
+<li>服务端做：终态。服务启动时对账：租约过期且状态不是终态的 job 一律改判 <code>interrupted</code>，不自动重放。</li>
+<li>是否可能产生模型费用：不会自动产生。只有用户显式确认续跑或重分析才会。</li>
+<li>为什么不用 failed：failed 表示「执行过并且报错」，interrupted 表示「不知道执行到哪了」。两者的处理动作不同，混用会让对账失去意义。</li>
+<li>旧版现状：进程重启后任务直接从 registry 消失，用户看到「任务不存在」。</li>
+</ul>
+<h3 id="succeeded">已完成（succeeded）</h3>
+<ul>
+<li>用户看到：任务页显示「已完成」与最终信号、统计（模型调用次数、token 数、耗时），可进入报告页；报告页只读。</li>
+<li>服务端做：终态。报告以不可变 report_id 提交；网页、Markdown、PDF 由同一份结构生成；PDF 需显式导出请求。</li>
+<li>是否可能产生模型费用：不会。查看报告零副作用。</li>
+<li>旧版现状：<code>is_complete</code> 为真；PDF 在渲染报告时重新拉行情，有副作用。</li>
+</ul>
+<h3 id="failed">已失败（failed）</h3>
+<ul>
+<li>用户看到：任务页显示「已失败」与错误摘要，已完成阶段的报告只读保留，给出「使用相同参数重试」和「重新分析」。</li>
+<li>服务端做：终态。记录错误码与错误文本；不覆盖原任务。</li>
+<li>是否可能产生模型费用：不会新增。</li>
+<li>旧版现状：<code>error</code> 字段存字符串，阶段报告在部分路径下被清空。</li>
+</ul>
+<h2 id="2">2. 状态与中文文案对照</h2>
+<p>前后端对同一状态必须使用同一文案。本表是唯一来源。</p>
+<table>
+<thead>
+<tr>
+<th>状态</th>
+<th>界面文案</th>
+<th>任务列表副标题</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>queued</td>
+<td>排队中</td>
+<td>等待 Worker 认领</td>
+</tr>
+<tr>
+<td>running</td>
+<td>执行中</td>
+<td>当前阶段名</td>
+</tr>
+<tr>
+<td>pause_requested</td>
+<td>暂停中</td>
+<td>当前步骤结束后生效</td>
+</tr>
+<tr>
+<td>paused</td>
+<td>已暂停</td>
+<td>停在某阶段，检查点已保存</td>
+</tr>
+<tr>
+<td>cancel_requested</td>
+<td>取消中</td>
+<td>正在收尾当前步骤</td>
+</tr>
+<tr>
+<td>cancelled</td>
+<td>已取消</td>
+<td>阶段报告只读保留</td>
+</tr>
+<tr>
+<td>succeeded</td>
+<td>已完成</td>
+<td>信号与耗时</td>
+</tr>
+<tr>
+<td>failed</td>
+<td>已失败</td>
+<td>错误摘要</td>
+</tr>
+<tr>
+<td>interrupted</td>
+<td>执行中断</td>
+<td>需人工选择续跑或重分析</td>
+</tr>
+</tbody>
+</table>
+<h2 id="3">3. 禁用词</h2>
+<p>以下说法在界面与文档中禁用，因为它们在旧版里各自指代过不止一件事：</p>
+<ul>
+<li>「停止」：旧版既表示取消又表示清空进度。一律改用「取消」。</li>
+<li>「重跑」：不区分重试与续跑。按语义分别写「使用相同参数重试」「从检查点继续」。</li>
+<li>「任务丢了」「任务不存在」：进程重启后的任务一律是 <code>interrupted</code>，界面必须给出原因与两个显式选项。</li>
+</ul>
+</section>
+<section id="job-state-machine"><h1>任务状态机</h1>
+<p>首期状态固定为九个，不再增减。任何新需求先尝试用现有状态表达，表达不了才允许提案加状态。</p>
+<pre><code class="language-text">queued
+running
+pause_requested
+paused
+cancel_requested
+cancelled
+succeeded
+failed
+interrupted
+</code></pre>
+<p>终态四个：<code>cancelled</code>、<code>succeeded</code>、<code>failed</code>、<code>interrupted</code>。终态永不自动离开。</p>
+<h2 id="1">1. 状态属性表</h2>
+<p>「占用 Worker」指是否持有执行租约。Worker 全系统只有一个，串行执行。</p>
+<table>
+<thead>
+<tr>
+<th>状态</th>
+<th>占用 Worker</th>
+<th>允许暂停</th>
+<th>允许恢复</th>
+<th>允许取消</th>
+<th>允许重试/续跑</th>
+<th>可以有报告</th>
+<th>浏览器刷新后展示</th>
+<th>服务重启后展示</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>queued</td>
+<td>否</td>
+<td>否</td>
+<td>否</td>
+<td>是</td>
+<td>否</td>
+<td>否</td>
+<td>排队中</td>
+<td>仍排队，Worker 起来后认领</td>
+</tr>
+<tr>
+<td>running</td>
+<td>是</td>
+<td>是</td>
+<td>否</td>
+<td>是</td>
+<td>否</td>
+<td>仅阶段报告</td>
+<td>当前阶段 + 事件流续传</td>
+<td>改判 interrupted</td>
+</tr>
+<tr>
+<td>pause_requested</td>
+<td>是</td>
+<td>否</td>
+<td>否</td>
+<td>是</td>
+<td>否</td>
+<td>仅阶段报告</td>
+<td>暂停请求已提交</td>
+<td>改判 interrupted</td>
+</tr>
+<tr>
+<td>paused</td>
+<td>否（租约释放，检查点保留）</td>
+<td>否</td>
+<td>是</td>
+<td>是</td>
+<td>否</td>
+<td>阶段报告只读</td>
+<td>已暂停 + 已完成阶段</td>
+<td>仍 paused，检查点在磁盘</td>
+</tr>
+<tr>
+<td>cancel_requested</td>
+<td>是</td>
+<td>否</td>
+<td>否</td>
+<td>否</td>
+<td>否</td>
+<td>仅阶段报告</td>
+<td>取消中</td>
+<td>改判 interrupted</td>
+</tr>
+<tr>
+<td>cancelled</td>
+<td>否</td>
+<td>否</td>
+<td>否</td>
+<td>否</td>
+<td>否</td>
+<td>阶段报告只读</td>
+<td>已取消</td>
+<td>已取消</td>
+</tr>
+<tr>
+<td>succeeded</td>
+<td>否</td>
+<td>否</td>
+<td>否</td>
+<td>否</td>
+<td>可重试（新任务）</td>
+<td>最终报告</td>
+<td>报告只读</td>
+<td>报告只读</td>
+</tr>
+<tr>
+<td>failed</td>
+<td>否</td>
+<td>否</td>
+<td>否</td>
+<td>否</td>
+<td>可重试（新任务）</td>
+<td>阶段报告只读</td>
+<td>已失败 + 错误摘要</td>
+<td>已失败</td>
+</tr>
+<tr>
+<td>interrupted</td>
+<td>否</td>
+<td>否</td>
+<td>否</td>
+<td>否</td>
+<td>人工确认后续跑或重分析（均为新任务）</td>
+<td>阶段报告只读</td>
+<td>执行中断 + 原因 + 两个显式选项</td>
+<td>执行中断</td>
+</tr>
+</tbody>
+</table>
+<p>两个刻意的设计决定：</p>
+<ul>
+<li><code>paused</code> 不占 Worker。暂停可能持续很久，占着唯一 Worker 会堵死整条队列。代价是恢复时要重新抢租约。</li>
+<li><code>interrupted</code> 不给「恢复」，只给「续跑 / 重分析」，且两者都创建新 job。原 job 保持终态，对账时能清楚看到「哪一次执行断了、断在哪」。</li>
+</ul>
+<h2 id="2">2. 合法转换表</h2>
+<p>编号用于测试用例引用。</p>
+<table>
+<thead>
+<tr>
+<th>编号</th>
+<th>从</th>
+<th>到</th>
+<th>触发者</th>
+<th>条件</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>T01</td>
+<td>（无）</td>
+<td>queued</td>
+<td>用户创建 / API 创建</td>
+<td>幂等校验通过</td>
+</tr>
+<tr>
+<td>T02</td>
+<td>queued</td>
+<td>running</td>
+<td>Worker</td>
+<td>抢到租约</td>
+</tr>
+<tr>
+<td>T03</td>
+<td>running</td>
+<td>succeeded</td>
+<td>Worker</td>
+<td>图正常结束且报告提交成功</td>
+</tr>
+<tr>
+<td>T04</td>
+<td>running</td>
+<td>failed</td>
+<td>Worker</td>
+<td>执行抛异常</td>
+</tr>
+<tr>
+<td>T05</td>
+<td>running</td>
+<td>pause_requested</td>
+<td>用户</td>
+<td>当前无未决暂停/取消请求</td>
+</tr>
+<tr>
+<td>T06</td>
+<td>pause_requested</td>
+<td>paused</td>
+<td>Worker</td>
+<td>当前步骤在边界结束</td>
+</tr>
+<tr>
+<td>T07</td>
+<td>pause_requested</td>
+<td>succeeded</td>
+<td>Worker</td>
+<td>收尾期间图恰好完成</td>
+</tr>
+<tr>
+<td>T08</td>
+<td>pause_requested</td>
+<td>failed</td>
+<td>Worker</td>
+<td>收尾期间执行报错</td>
+</tr>
+<tr>
+<td>T09</td>
+<td>paused</td>
+<td>running</td>
+<td>用户点继续</td>
+<td>Worker 空闲、配置指纹与图版本匹配</td>
+</tr>
+<tr>
+<td>T10</td>
+<td>paused</td>
+<td>queued</td>
+<td>用户点继续</td>
+<td>Worker 忙；排队等待续跑，保留检查点引用</td>
+</tr>
+<tr>
+<td>T11</td>
+<td>running</td>
+<td>cancel_requested</td>
+<td>用户</td>
+<td>当前无未决取消请求</td>
+</tr>
+<tr>
+<td>T12</td>
+<td>pause_requested</td>
+<td>cancel_requested</td>
+<td>用户</td>
+<td>取消优先于暂停</td>
+</tr>
+<tr>
+<td>T13</td>
+<td>cancel_requested</td>
+<td>cancelled</td>
+<td>Worker</td>
+<td>当前步骤收尾完成</td>
+</tr>
+<tr>
+<td>T14</td>
+<td>cancel_requested</td>
+<td>succeeded</td>
+<td>Worker</td>
+<td>收尾期间图恰好完成；取消记为 no-op 并提示用户</td>
+</tr>
+<tr>
+<td>T15</td>
+<td>cancel_requested</td>
+<td>failed</td>
+<td>Worker</td>
+<td>收尾期间执行报错</td>
+</tr>
+<tr>
+<td>T16</td>
+<td>running</td>
+<td>interrupted</td>
+<td>对账</td>
+<td>租约过期或进程死亡被检测到</td>
+</tr>
+<tr>
+<td>T17</td>
+<td>pause_requested</td>
+<td>interrupted</td>
+<td>对账</td>
+<td>同上</td>
+</tr>
+<tr>
+<td>T18</td>
+<td>cancel_requested</td>
+<td>interrupted</td>
+<td>对账</td>
+<td>同上</td>
+</tr>
+<tr>
+<td>T19</td>
+<td>queued</td>
+<td>cancelled</td>
+<td>用户</td>
+<td>尚未认领即可直接取消</td>
+</tr>
+</tbody>
+</table>
+<p>续跑与重试不是状态转换，而是创建新 job：</p>
+<table>
+<thead>
+<tr>
+<th>编号</th>
+<th>动作</th>
+<th>新 job 字段</th>
+<th>原 job</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>N01</td>
+<td>重试（failed / interrupted）</td>
+<td><code>retry_of_job_id = 原 id</code>，配置取原 job 深拷贝</td>
+<td>保持终态</td>
+</tr>
+<tr>
+<td>N02</td>
+<td>续跑（interrupted / paused 且指纹匹配）</td>
+<td><code>resume_of_job_id = 原 id</code>，<code>resume_from_stage = 首个未完成阶段</code></td>
+<td>保持终态（interrupted）或转 queued（paused 走 T10 时不新建）</td>
+</tr>
+</tbody>
+</table>
+<h2 id="3">3. 非法转换表</h2>
+<p>以下转换在任何入口都返回 409，并记录拒绝原因。测试逐条覆盖。</p>
+<table>
+<thead>
+<tr>
+<th>编号</th>
+<th>从</th>
+<th>到</th>
+<th>为什么非法</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>I01</td>
+<td>succeeded</td>
+<td>running</td>
+<td>已完成的任务不能重新执行；要重跑必须新建</td>
+</tr>
+<tr>
+<td>I02</td>
+<td>cancelled</td>
+<td>queued</td>
+<td>已取消不能自动重排</td>
+</tr>
+<tr>
+<td>I03</td>
+<td>failed</td>
+<td>running</td>
+<td>重试必须生成新任务，不能覆盖原任务</td>
+</tr>
+<tr>
+<td>I04</td>
+<td>interrupted</td>
+<td>running</td>
+<td>中断不自动重放，必须人工确认</td>
+</tr>
+<tr>
+<td>I05</td>
+<td>paused</td>
+<td>succeeded</td>
+<td>不能跳过执行直接成功</td>
+</tr>
+<tr>
+<td>I06</td>
+<td>queued</td>
+<td>paused</td>
+<td>没在跑的东西不能暂停</td>
+</tr>
+<tr>
+<td>I07</td>
+<td>cancel_requested</td>
+<td>paused</td>
+<td>取消优先，暂停请求作废而非转暂停</td>
+</tr>
+<tr>
+<td>I08</td>
+<td>succeeded</td>
+<td>failed</td>
+<td>终态之间互不转换</td>
+</tr>
+<tr>
+<td>I09</td>
+<td>cancelled</td>
+<td>succeeded</td>
+<td>同上</td>
+</tr>
+<tr>
+<td>I10</td>
+<td>running</td>
+<td>queued</td>
+<td>租约一旦发出不能退回排队（Worker 死亡走 T16）</td>
+</tr>
+<tr>
+<td>I11</td>
+<td>paused</td>
+<td>cancelled 直接</td>
+<td>必须先 cancel_requested 再收尾（T13），保证取消有确认点</td>
+</tr>
+</tbody>
+</table>
+<h2 id="4">4. 对账规则（服务启动时）</h2>
+<p>启动时扫一遍 job 表，逐条按下面顺序判定：</p>
+<ol>
+<li>状态是终态：不动。</li>
+<li>状态是 <code>queued</code>：不动，等 Worker 认领。</li>
+<li>状态是 <code>paused</code>：检查点文件存在则不动；不存在则改判 <code>interrupted</code>，原因记 <code>checkpoint_missing</code>。</li>
+<li>状态是 <code>running / pause_requested / cancel_requested</code>：租约心跳超过阈值即改判 <code>interrupted</code>，原因记 <code>lease_expired</code>。</li>
+</ol>
+<p>对账只改状态和写一条 <code>status_changed</code> 事件，不触发任何执行，不调用任何模型。</p>
+</section>
+<section id="idempotency-conflicts"><h1>幂等与冲突决策表</h1>
+<p>目标：同一个意图重复提交，永远只产生一个会花钱的执行。</p>
+<p>三个键的定义：</p>
+<ul>
+<li>幂等键 <code>Idempotency-Key</code>：客户端生成的 UUID，随创建请求提交，服务端按它去重。</li>
+<li>活动配置指纹：<code>ticker + trade_date + config_hash</code>。<code>config_hash</code> 是模型配置、阶段开关、图版本的规范化哈希。</li>
+<li>活动任务：状态属于 <code>queued / running / pause_requested / paused / cancel_requested</code> 的任务。</li>
+</ul>
+<h2 id="1">1. 创建请求的判定顺序</h2>
+<p>创建接口按下面顺序判定，命中即返回，不再往下走：</p>
+<table>
+<thead>
+<tr>
+<th>步</th>
+<th>条件</th>
+<th>响应</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>幂等键已存在且请求体哈希相同</td>
+<td>200 + 原 job</td>
+<td>重复提交，返回原任务</td>
+</tr>
+<tr>
+<td>2</td>
+<td>幂等键已存在但请求体哈希不同</td>
+<td>409 <code>idempotency_mismatch</code></td>
+<td>同一个键提交了两种意图，属客户端 bug，必须报错而不是猜</td>
+</tr>
+<tr>
+<td>3</td>
+<td>无幂等键，但存在同活动配置指纹的活动任务</td>
+<td>200 + 该 job，响应头 <code>X-Existing-Job: &lt;id&gt;</code></td>
+<td>用户连点「开始分析」的典型场景</td>
+</tr>
+<tr>
+<td>4</td>
+<td>同 ticker + 同 trade_date，配置不同，且存在活动任务</td>
+<td>409 <code>active_conflict</code>，body 带现有 job id</td>
+<td>让用户自己决定：等它跑完，还是先取消</td>
+</tr>
+<tr>
+<td>5</td>
+<td>以上都不命中</td>
+<td>201 + 新 job</td>
+<td>正常创建</td>
+</tr>
+</tbody>
+</table>
+<p>第 3 步与第 4 步的区别：配置完全相同就是同一个意图，直接复用；配置不同是另一个意图，不能替用户做主。</p>
+<h2 id="2">2. 只读操作清单</h2>
+<p>以下操作在任何情况下都不创建任务、不修改任务、不触发模型或 PDF 生成。测试逐条断言「调用前后 job 表与事件表行数不变」。</p>
+<table>
+<thead>
+<tr>
+<th>操作</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>打开任务 URL</td>
+<td>只 GET 任务详情；URL 里的 job id 不存在时返回 404，不自动创建</td>
+</tr>
+<tr>
+<td>浏览器刷新</td>
+<td>前端只发 GET 与 SSE 订阅</td>
+</tr>
+<tr>
+<td>SSE 重连</td>
+<td>带 <code>Last-Event-ID</code> 续传；服务端只读事件表</td>
+</tr>
+<tr>
+<td>查看历史报告</td>
+<td>GET 报告；零副作用</td>
+</tr>
+<tr>
+<td>导出 PDF</td>
+<td>显式 POST，缓存键为 <code>report_id + content_hash + exporter_version</code>；命中缓存不重新渲染</td>
+</tr>
+<tr>
+<td>查看任务列表</td>
+<td>GET 列表</td>
+</tr>
+</tbody>
+</table>
+<h2 id="3">3. 不自动重放清单</h2>
+<p>以下场景服务端永不自动创建新执行，只能由用户显式触发：</p>
+<table>
+<thead>
+<tr>
+<th>场景</th>
+<th>服务端行为</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>服务重启后发现 <code>running / pause_requested / cancel_requested</code></td>
+<td>改判 <code>interrupted</code>，写一条事件，结束</td>
+</tr>
+<tr>
+<td>Worker 租约过期</td>
+<td>同上</td>
+</tr>
+<tr>
+<td><code>failed</code> 任务</td>
+<td>保持 failed；界面给「使用相同参数重试」按钮，点击才新建</td>
+</tr>
+<tr>
+<td><code>cancelled</code> 任务</td>
+<td>保持 cancelled；不给任何自动动作</td>
+</tr>
+<tr>
+<td>检查点缺失的 <code>paused</code></td>
+<td>改判 <code>interrupted</code>，原因 <code>checkpoint_missing</code></td>
+</tr>
+<tr>
+<td>续跑时配置指纹或图版本不匹配</td>
+<td>拒绝续跑，界面只给「重新分析」</td>
+</tr>
+</tbody>
+</table>
+<h2 id="4">4. 并发创建的裁决</h2>
+<p>二十个并发创建请求带同一个活动配置指纹时，最终必须恰好一个 job 处于活动状态，其余十九个拿到 200 + 同一个 job id。实现上靠数据库唯一约束（<code>uniq_active_fingerprint</code> 部分唯一索引：仅对活动状态生效）兜底，不靠应用层先查后插。</p>
+<h2 id="5">5. 与旧版行为的差异</h2>
+<table>
+<thead>
+<tr>
+<th>场景</th>
+<th>旧版</th>
+<th>契约</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>打开带随机 job id 的 URL</td>
+<td><code>get_or_create_job</code> 会创建一个空 tracker</td>
+<td>404，不创建</td>
+</tr>
+<tr>
+<td>连点开始分析</td>
+<td>靠前端禁用按钮兜底，后端无防线</td>
+<td>第 3 步返回原 job</td>
+</tr>
+<tr>
+<td>刷新页面</td>
+<td>重跑整个 Streamlit 脚本</td>
+<td>只读 GET</td>
+</tr>
+<tr>
+<td>进程重启</td>
+<td>任务消失</td>
+<td><code>interrupted</code> + 人工选项</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="crash-boundaries"><h1>崩溃边界预期表</h1>
+<p>这里不承诺绝对无损。原则只有一条：<strong>无法确认执行位置时，结果是 <code>interrupted</code> 加人工对账，不是自动重跑。</strong> 自动重跑意味着可能重复付费，且用户不知道哪一份结果是权威的。</p>
+<p>六个时点按执行顺序排列。每个时点给出：崩溃前已落盘的东西、重启后可观测的证据、期望状态、是否可能重复付费、处理动作。</p>
+<h2 id="b1-worker">B1 任务已创建，Worker 尚未开始</h2>
+<ul>
+<li>已落盘：job 行（<code>queued</code>）、配置快照、幂等键记录。无租约。</li>
+<li>重启后证据：job 表里有 <code>queued</code> 行，事件表只有一条 <code>created</code>。</li>
+<li>期望状态：仍 <code>queued</code>。Worker 启动后正常认领。</li>
+<li>是否可能重复付费：否。一次模型调用都没发生。</li>
+<li>处理动作：无。这是唯一不需要人工介入的崩溃时点。</li>
+</ul>
+<h2 id="b2">B2 图已开始，尚无阶段报告</h2>
+<ul>
+<li>已落盘：job 行（<code>running</code>）、租约心跳、<code>stage_changed</code> 事件若干。无阶段报告文件。</li>
+<li>重启后证据：租约心跳停在崩溃时刻；事件表最后一条是某个 <code>stage_changed</code>；报告目录里没有该 job 的阶段产物。</li>
+<li>期望状态：对账改判 <code>interrupted</code>，原因 <code>lease_expired</code>。</li>
+<li>是否可能重复付费：崩溃前已发生的调用无法收回，但不会自动再花一次。</li>
+<li>处理动作：界面给「从检查点继续」（此时等于从头跑，但走续跑通道、有确认框）与「重新分析」。</li>
+</ul>
+<h2 id="b3">B3 阶段已完成，事件尚未保存</h2>
+<ul>
+<li>已落盘：某阶段的报告文件已写盘；<code>stage_changed(done)</code> 事件还没写进事件表。</li>
+<li>重启后证据：报告目录里有阶段产物，但事件表里该阶段仍是 <code>active</code>。</li>
+<li>期望状态：<code>interrupted</code>，原因 <code>lease_expired</code>；对账额外写一条 <code>reconcile_note</code> 事件，内容「发现未登记的阶段产物：&lt;阶段名&gt;」。</li>
+<li>是否可能重复付费：续跑时该阶段被识别为已完成，不重复调用。</li>
+<li>处理动作：人工对账。续跑起点取「事件表里最后一个 done 的下一阶段」与「磁盘产物里最后一个完整阶段」的较后者的下一阶段，保证不漏不重。</li>
+</ul>
+<h2 id="b4">B4 核心报告已落盘，应用数据库尚未提交</h2>
+<ul>
+<li>已落盘：最终报告文件在磁盘；job 行仍是 <code>running</code>。</li>
+<li>重启后证据：报告文件存在且内容完整；job 表没有 <code>succeeded</code>。</li>
+<li>期望状态：<code>interrupted</code>，原因 <code>lease_expired</code>。<strong>不</strong>自动改判 <code>succeeded</code>——数据库没提交就是没提交，替它补状态等于伪造执行历史。</li>
+<li>是否可能重复付费：续跑或重分析才会花；对账本身不花。</li>
+<li>处理动作：界面提示「发现一份未登记的完整报告」，给三个选项：导入为报告（<code>origin=manual</code>，与任务解耦）、从检查点继续、重新分析。导入动作只写报告表，不改 job 状态。</li>
+</ul>
+<h2 id="b5">B5 报告已提交，完成事件尚未发送</h2>
+<ul>
+<li>已落盘：job 行 <code>succeeded</code>、报告行、内容哈希。SSE 客户端还没收到 <code>report_ready</code>。</li>
+<li>重启后证据：job 表是 <code>succeeded</code>；事件表缺 <code>report_ready</code>。</li>
+<li>期望状态：保持 <code>succeeded</code>。对账补发一条 <code>report_ready</code> 事件（序号续接），让重连的客户端能拿到。</li>
+<li>是否可能重复付费：否。</li>
+<li>处理动作：无。补事件不算重放，它只是把已经发生的事实广播出去。</li>
+</ul>
+<h2 id="b6">B6 用户请求取消时，图正在完成收尾</h2>
+<ul>
+<li>已落盘：<code>cancel_requested</code> 已写；图在最后一步收尾。</li>
+<li>两种结局都合法，取先落盘者：</li>
+<li>取消先确认：<code>cancelled</code>，收尾产物丢弃，界面说明「任务已取消，最后一步的结果未保留」。</li>
+<li>完成先提交：<code>succeeded</code>，取消记为 no-op，界面说明「任务在取消请求到达前已完成」。</li>
+<li>重启后证据：看 job 表终态与事件表里 <code>status_changed</code> 的先后序号即可还原当时谁先落盘。</li>
+<li>期望状态：二者之一，不允许出现半状态（既不是 cancelled 也不是 succeeded）。</li>
+<li>是否可能重复付费：否。</li>
+<li>处理动作：无。实现上靠「收尾提交与取消确认共用同一把任务级锁」保证互斥。</li>
+</ul>
+<h2 id="_1">汇总</h2>
+<table>
+<thead>
+<tr>
+<th>时点</th>
+<th>期望状态</th>
+<th>自动动作</th>
+<th>人工动作</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>B1</td>
+<td>queued</td>
+<td>Worker 认领</td>
+<td>无</td>
+</tr>
+<tr>
+<td>B2</td>
+<td>interrupted</td>
+<td>无</td>
+<td>续跑或重分析</td>
+</tr>
+<tr>
+<td>B3</td>
+<td>interrupted + reconcile_note</td>
+<td>无</td>
+<td>对账后续跑或重分析</td>
+</tr>
+<tr>
+<td>B4</td>
+<td>interrupted</td>
+<td>无</td>
+<td>导入报告 / 续跑 / 重分析</td>
+</tr>
+<tr>
+<td>B5</td>
+<td>succeeded</td>
+<td>补发 report_ready</td>
+<td>无</td>
+</tr>
+<tr>
+<td>B6</td>
+<td>cancelled 或 succeeded</td>
+<td>无</td>
+<td>无</td>
+</tr>
+</tbody>
+</table>
+<p>六个时点里只有 B1 和 B5 不需要人。其余四个一律停住等人，这是刻意的：停住的代价是用户多点一次按钮，自动重跑的代价是可能多花一次钱并且说不清哪份结果算数。</p>
+</section>
+<section id="p1-state-machine-tests"><h1>P1 状态机测试用例清单</h1>
+<p>P1 实现持久化任务内核时按本清单补测试。用例编号稳定，评审与回归都引用编号。</p>
+<p>全部用例使用确定性假图（Day 6 产出）或打桩执行器，不触发真实模型调用。</p>
+<h2 id="1-t01t19">1. 合法转换（对应状态机 T01–T19）</h2>
+<table>
+<thead>
+<tr>
+<th>用例</th>
+<th>内容</th>
+<th>断言要点</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SM-01</td>
+<td>T01 创建</td>
+<td>新 job 状态 queued，事件表有 created</td>
+</tr>
+<tr>
+<td>SM-02</td>
+<td>T02 认领</td>
+<td>queued→running，租约字段写入</td>
+</tr>
+<tr>
+<td>SM-03</td>
+<td>T03 完成</td>
+<td>running→succeeded，报告行与内容哈希落库</td>
+</tr>
+<tr>
+<td>SM-04</td>
+<td>T04 失败</td>
+<td>running→failed，错误码与文本落库</td>
+</tr>
+<tr>
+<td>SM-05</td>
+<td>T05/T06 暂停</td>
+<td>running→pause_requested→paused；暂停落在步骤边界</td>
+</tr>
+<tr>
+<td>SM-06</td>
+<td>T07 收尾完成</td>
+<td>pause_requested 期间图完成→succeeded</td>
+</tr>
+<tr>
+<td>SM-07</td>
+<td>T09 恢复</td>
+<td>paused→running，检查点阶段不重复执行</td>
+</tr>
+<tr>
+<td>SM-08</td>
+<td>T10 忙时恢复</td>
+<td>Worker 忙时 paused→queued，检查点引用保留</td>
+</tr>
+<tr>
+<td>SM-09</td>
+<td>T11/T13 取消</td>
+<td>running→cancel_requested→cancelled，阶段报告只读保留</td>
+</tr>
+<tr>
+<td>SM-10</td>
+<td>T14 取消迟到</td>
+<td>cancel_requested 期间图完成→succeeded，取消记 no-op</td>
+</tr>
+<tr>
+<td>SM-11</td>
+<td>T12 取消优先</td>
+<td>pause_requested 上发取消→cancel_requested，不转 paused</td>
+</tr>
+<tr>
+<td>SM-12</td>
+<td>T19 排队取消</td>
+<td>queued 直接取消，不经过 cancel_requested</td>
+</tr>
+<tr>
+<td>SM-13</td>
+<td>T16–T18 对账</td>
+<td>三个非终态在租约过期后一律 interrupted</td>
+</tr>
+</tbody>
+</table>
+<h2 id="2-i01i11">2. 非法转换（对应 I01–I11）</h2>
+<p>每条一个用例，编号 SM-I01 … SM-I11。断言统一为：接口返回 409、状态不变、事件表多一条 <code>transition_rejected</code> 且带原因码。</p>
+<p>重点三条单独强调：</p>
+<ul>
+<li>SM-I03：failed 上发「重试」不得修改原 job，必须返回新 job id。</li>
+<li>SM-I04：interrupted 上发「恢复」必须被拒；只有带确认的续跑请求才创建新 job。</li>
+<li>SM-I10：running 不能退回 queued；Worker 死亡只能走对账。</li>
+</ul>
+<h2 id="3">3. 幂等与冲突（对应决策表）</h2>
+<table>
+<thead>
+<tr>
+<th>用例</th>
+<th>内容</th>
+<th>断言要点</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ID-01</td>
+<td>同幂等键同请求体</td>
+<td>200 + 原 job，job 表行数不变</td>
+</tr>
+<tr>
+<td>ID-02</td>
+<td>同幂等键异请求体</td>
+<td>409 idempotency_mismatch</td>
+</tr>
+<tr>
+<td>ID-03</td>
+<td>同活动配置指纹重复创建</td>
+<td>200 + 原 job，响应头 X-Existing-Job</td>
+</tr>
+<tr>
+<td>ID-04</td>
+<td>同股同日异配置且有活动任务</td>
+<td>409 active_conflict，body 带现有 id</td>
+</tr>
+<tr>
+<td>ID-05</td>
+<td>20 并发同指纹创建</td>
+<td>恰好 1 个活动 job，其余 19 个拿到同一 id</td>
+</tr>
+<tr>
+<td>ID-06</td>
+<td>GET 任务详情不创建</td>
+<td>不存在的 id 返回 404，表行数不变</td>
+</tr>
+<tr>
+<td>ID-07</td>
+<td>刷新与 SSE 重连不创建</td>
+<td>带 Last-Event-ID 重连只读事件表</td>
+</tr>
+<tr>
+<td>ID-08</td>
+<td>查看报告零副作用</td>
+<td>GET 报告前后事件表行数不变</td>
+</tr>
+<tr>
+<td>ID-09</td>
+<td>PDF 缓存命中</td>
+<td>同 report_id+content_hash+exporter_version 不重新渲染</td>
+</tr>
+</tbody>
+</table>
+<h2 id="4-b1b6">4. 崩溃边界（对应 B1–B6）</h2>
+<p>用「在指定时点杀进程 / 伪造租约过期」的方式构造，每个时点一个用例，编号 CB-01 … CB-06。</p>
+<table>
+<thead>
+<tr>
+<th>用例</th>
+<th>时点</th>
+<th>断言要点</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CB-01</td>
+<td>B1</td>
+<td>重启后仍 queued，被正常认领，无重复创建</td>
+</tr>
+<tr>
+<td>CB-02</td>
+<td>B2</td>
+<td>重启后 interrupted(lease_expired)，无自动执行</td>
+</tr>
+<tr>
+<td>CB-03</td>
+<td>B3</td>
+<td>interrupted + reconcile_note；续跑不重复已完成阶段</td>
+</tr>
+<tr>
+<td>CB-04</td>
+<td>B4</td>
+<td>interrupted；报告文件不自动登记；导入选项只写报告表</td>
+</tr>
+<tr>
+<td>CB-05</td>
+<td>B5</td>
+<td>保持 succeeded；重连客户端能补收到 report_ready</td>
+</tr>
+<tr>
+<td>CB-06</td>
+<td>B6</td>
+<td>结局是 cancelled 或 succeeded 之一，事件序号可还原先后</td>
+</tr>
+</tbody>
+</table>
+<h2 id="5">5. 文案一致性</h2>
+<table>
+<thead>
+<tr>
+<th>用例</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>TX-01</td>
+<td>九个状态的界面文案与语义词典第 2 节逐字一致（前端快照测试）</td>
+</tr>
+<tr>
+<td>TX-02</td>
+<td>界面与文档中不出现禁用词「停止」「重跑」「任务不存在」（字符串扫描测试）</td>
+</tr>
+</tbody>
+</table>
+<h2 id="6">6. 覆盖核对</h2>
+<ul>
+<li>合法转换 19 条全覆盖（SM-01…SM-13 对应 T01–T19，其中 T08/T15 并入 SM-05/SM-09 的异常分支，P1 实现时若拆细则沿用 T 编号）。</li>
+<li>非法转换 11 条全覆盖。</li>
+<li>幂等 9 条、崩溃 6 条、文案 2 条。</li>
+<li>合计 41 个用例编号位，P1 验收以本表为准。</li>
+</ul>
+</section>
+</article></body></html>
