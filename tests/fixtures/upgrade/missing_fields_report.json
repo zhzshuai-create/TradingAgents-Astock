@@ -1,0 +1,36 @@
+{
+  "meta": {
+    "report_id": "22222222-4b5a-6978-8765-4321fedcba98",
+    "job_id": null,
+    "ticker_code": "000629",
+    "ticker_name": null,
+    "analysis_date": "2026-10-24",
+    "generated_at": "2026-10-24T15:30:00+08:00",
+    "generated_at_source": "job_clock",
+    "origin": "new",
+    "schema_version": "report-v1",
+    "content_hash": "a93c03a9d27bd5cdfb8717f3eca873dc8c6427b865ace8c99c0fa12e46bba630",
+    "config_digest": null,
+    "data_quality_status": "absent",
+    "chart_snapshot_status": "none",
+    "retry_of_job_id": null,
+    "rating": "unknown",
+    "signal": "unknown",
+    "signal_legacy": null,
+    "price_target": null,
+    "stop_reference": null,
+    "time_horizon": null
+  },
+  "sections": {
+    "sec-decision": {
+      "id": "sec-decision",
+      "title": "最终交易决策",
+      "body": "## 最终交易决策 摘要\n\n最终交易决策 第 1 段：合成文本，用于渲染与导出一致性测试。\n\n最终交易决策 第 2 段：合成文本，用于渲染与导出一致性测试。\n\n最终交易决策 第 3 段：合成文本，用于渲染与导出一致性测试。\n\n最终交易决策 第 4 段：合成文本，用于渲染与导出一致性测试。\n\n最终交易决策 第 5 段：合成文本，用于渲染与导出一致性测试。\n\n最终交易决策 第 6 段：合成文本，用于渲染与导出一致性测试。\n\n| 指标 | 值 |\n| --- | --- |\n| 样本行 | 1 |"
+    },
+    "sec-market": {
+      "id": "sec-market",
+      "title": "技术分析",
+      "body": "## 技术分析 摘要\n\n技术分析 第 1 段：合成文本，用于渲染与导出一致性测试。\n\n技术分析 第 2 段：合成文本，用于渲染与导出一致性测试。\n\n技术分析 第 3 段：合成文本，用于渲染与导出一致性测试。\n\n技术分析 第 4 段：合成文本，用于渲染与导出一致性测试。\n\n技术分析 第 5 段：合成文本，用于渲染与导出一致性测试。\n\n技术分析 第 6 段：合成文本，用于渲染与导出一致性测试。\n\n| 指标 | 值 |\n| --- | --- |\n| 样本行 | 1 |"
+    }
+  }
+}

@@ -19,6 +19,8 @@ article{max-width:1080px;margin:0 auto;padding:44px 56px 72px;background:var(--s
 <li><a href="#idempotency-conflicts">幂等与冲突决策表</a></li>
 <li><a href="#crash-boundaries">崩溃边界预期表</a></li>
 <li><a href="#p1-state-machine-tests">P1 状态机测试用例清单</a></li>
+<li><a href="#report-schema-v1">报告结构契约 v1</a></li>
+<li><a href="#report-consistency-tests">报告一致性测试清单</a></li>
 </ul></div></details>
 <section id="semantic-dictionary"><h1>核心语义词典</h1>
 <p>目的：让每个用户操作只对应一个服务端语义。前后端、文档、测试一律使用本表的词与文案，不再用页面文案猜状态。</p>
@@ -1055,6 +1057,841 @@ interrupted
 <li>非法转换 11 条全覆盖。</li>
 <li>幂等 9 条、崩溃 6 条、文案 2 条。</li>
 <li>合计 41 个用例编号位，P1 验收以本表为准。</li>
+</ul>
+</section>
+<section id="report-schema-v1"><h1>报告结构契约 v1</h1>
+<p>日期：2026-10-29
+状态：冻结候选（Day 3 交付）
+配套文件：<code>report-schema-v1.json</code>（机器可读）、<code>tests/fixtures/upgrade/*.json</code>（黄金样本）、<code>report-consistency-tests.md</code>（一致性测试清单）</p>
+<p>目标：让「刚完成的报告」「历史导入报告」「网页」「Markdown」「PDF」消费同一份规范结构（ReportDTO），任何一端都不再直接理解 Python 私有对象或数组下标。</p>
+<hr />
+<h2 id="1">1. 字段盘点（来源 × 别名 × 必需 × 缺失表现）</h2>
+<p>盘点路径：</p>
+<table>
+<thead>
+<tr>
+<th>代号</th>
+<th>路径</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>S1</td>
+<td><code>tradingagents/graph/trading_graph.py::_log_state</code></td>
+<td>核心报告落盘（<code>full_states_log_&lt;date&gt;.json</code>）</td>
+</tr>
+<tr>
+<td>S2</td>
+<td><code>web/history.py::load_analysis / extract_signal</code></td>
+<td>历史文件读取与信号提取</td>
+</tr>
+<tr>
+<td>S3</td>
+<td><code>web/components/report_viewer.py::render_report / decision_facts</code></td>
+<td>网页阅读器</td>
+</tr>
+<tr>
+<td>S4</td>
+<td><code>web/pdf_export.py::generate_markdown</code></td>
+<td>Markdown 导出</td>
+</tr>
+<tr>
+<td>S5</td>
+<td><code>web/pdf_export.py::generate_pdf</code></td>
+<td>PDF 导出</td>
+</tr>
+<tr>
+<td>S6</td>
+<td><code>web/stock_display.py::_REPORT_STR_KEYS / _REPORT_DICT_KEYS</code></td>
+<td>报告字典归一</td>
+</tr>
+<tr>
+<td>S7</td>
+<td><code>cli/display.py</code></td>
+<td>CLI 展示（含历史别名）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="11">1.1 顶层字段</h3>
+<table>
+<thead>
+<tr>
+<th>旧键</th>
+<th>类型</th>
+<th>消费方</th>
+<th>别名</th>
+<th>必需</th>
+<th>缺失时表现（现状）</th>
+<th>v1 归一化</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>company_of_interest</code></td>
+<td>str</td>
+<td>S1,S3,S4,S5,S6</td>
+<td><code>ticker</code></td>
+<td>是</td>
+<td>落盘必写</td>
+<td><code>meta.ticker_code</code></td>
+</tr>
+<tr>
+<td><code>trade_date</code></td>
+<td>str(YYYY-MM-DD)</td>
+<td>S1,S2,S3,S4,S5</td>
+<td><code>analysis_date</code></td>
+<td>是</td>
+<td>落盘必写</td>
+<td><code>meta.analysis_date</code></td>
+</tr>
+<tr>
+<td><code>market_report</code></td>
+<td>str</td>
+<td>S1,S3,S4,S5,S6</td>
+<td>「技术分析」</td>
+<td>是</td>
+<td>章节不渲染</td>
+<td><code>sections[sec-market]</code></td>
+</tr>
+<tr>
+<td><code>sentiment_report</code></td>
+<td>str</td>
+<td>同上</td>
+<td>「市场情绪」</td>
+<td>是</td>
+<td>章节不渲染</td>
+<td><code>sections[sec-sentiment]</code></td>
+</tr>
+<tr>
+<td><code>news_report</code></td>
+<td>str</td>
+<td>同上</td>
+<td>「新闻舆情」</td>
+<td>是</td>
+<td>章节不渲染</td>
+<td><code>sections[sec-news]</code></td>
+</tr>
+<tr>
+<td><code>fundamentals_report</code></td>
+<td>str</td>
+<td>同上</td>
+<td>「基本面」</td>
+<td>是</td>
+<td>章节不渲染</td>
+<td><code>sections[sec-fundamentals]</code></td>
+</tr>
+<tr>
+<td><code>policy_report</code></td>
+<td>str</td>
+<td>S1(get),S3,S4,S5,S6</td>
+<td>「政策分析」</td>
+<td>否</td>
+<td>章节不渲染</td>
+<td><code>sections[sec-policy]</code>，可缺</td>
+</tr>
+<tr>
+<td><code>hot_money_report</code></td>
+<td>str(get)</td>
+<td>同上</td>
+<td>「游资追踪」</td>
+<td>否</td>
+<td>章节不渲染</td>
+<td><code>sections[sec-hot-money]</code>，可缺</td>
+</tr>
+<tr>
+<td><code>lockup_report</code></td>
+<td>str(get)</td>
+<td>同上</td>
+<td>「解禁/减持」</td>
+<td>否</td>
+<td>章节不渲染</td>
+<td><code>sections[sec-lockup]</code>，可缺</td>
+</tr>
+<tr>
+<td><code>data_quality_summary</code></td>
+<td>str(get)</td>
+<td>S1(get),S3,S6</td>
+<td>「数据质量」</td>
+<td>否</td>
+<td>章节不渲染</td>
+<td><code>sections[sec-quality]</code> + <code>meta.data_quality_status</code></td>
+</tr>
+<tr>
+<td><code>investment_debate_state</code></td>
+<td>dict</td>
+<td>S1,S3,S4,S5,S6</td>
+<td>—</td>
+<td>是</td>
+<td>多空章节不渲染</td>
+<td><code>sections[sec-debate]</code>（子结构见 1.2）</td>
+</tr>
+<tr>
+<td><code>trader_investment_decision</code></td>
+<td>str</td>
+<td>S1,S2,S3,S4,S5,S6</td>
+<td>—</td>
+<td>是</td>
+<td>交易员章节不渲染</td>
+<td><code>sections[sec-trader]</code></td>
+</tr>
+<tr>
+<td><code>trader_investment_plan</code></td>
+<td>str</td>
+<td>仅 S7</td>
+<td>与 <code>investment_plan</code> 混用</td>
+<td>否</td>
+<td>CLI 不展示</td>
+<td><strong>废弃</strong>：导入时若非空且与 <code>investment_plan</code> 不同，保留为 <code>sections[sec-plan].legacy_aliases</code>，不参与渲染</td>
+</tr>
+<tr>
+<td><code>investment_plan</code></td>
+<td>str</td>
+<td>S1,S2,S3,S4,S5,S6</td>
+<td>「最终投资建议」</td>
+<td>是</td>
+<td>决策章节不渲染</td>
+<td><code>sections[sec-plan]</code></td>
+</tr>
+<tr>
+<td><code>final_trade_decision</code></td>
+<td>str</td>
+<td>S1,S2,S3,S4,S5,S6</td>
+<td>—</td>
+<td>是</td>
+<td>决策卡与信号缺失</td>
+<td><code>sections[sec-decision]</code> + 结构化 <code>meta.rating</code> 解析源</td>
+</tr>
+<tr>
+<td><code>risk_debate_state</code></td>
+<td>dict</td>
+<td>S1,S3,S4,S5,S6</td>
+<td>—</td>
+<td>是</td>
+<td>风控章节不渲染</td>
+<td><code>sections[sec-risk]</code>（子结构见 1.2）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="12">1.2 辩论子结构</h3>
+<table>
+<thead>
+<tr>
+<th>旧路径</th>
+<th>v1 归一化</th>
+<th>缺失表现</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>investment_debate_state.bull_history</code></td>
+<td><code>sections[sec-debate].parts[bull]</code></td>
+<td>该 part 不展示</td>
+</tr>
+<tr>
+<td><code>investment_debate_state.bear_history</code></td>
+<td><code>sections[sec-debate].parts[bear]</code></td>
+<td>该 part 不展示</td>
+</tr>
+<tr>
+<td><code>investment_debate_state.history</code></td>
+<td><code>sections[sec-debate].parts[history]</code></td>
+<td>该 part 不展示</td>
+</tr>
+<tr>
+<td><code>investment_debate_state.current_response</code></td>
+<td><code>sections[sec-debate].parts[current]</code></td>
+<td>该 part 不展示</td>
+</tr>
+<tr>
+<td><code>investment_debate_state.judge_decision</code></td>
+<td><code>sections[sec-debate].parts[judge]</code></td>
+<td>该 part 不展示</td>
+</tr>
+<tr>
+<td><code>risk_debate_state.aggressive_history</code></td>
+<td><code>sections[sec-risk].parts[aggressive]</code></td>
+<td>该 part 不展示</td>
+</tr>
+<tr>
+<td><code>risk_debate_state.conservative_history</code></td>
+<td><code>sections[sec-risk].parts[conservative]</code></td>
+<td>该 part 不展示</td>
+</tr>
+<tr>
+<td><code>risk_debate_state.neutral_history</code></td>
+<td><code>sections[sec-risk].parts[neutral]</code></td>
+<td>该 part 不展示</td>
+</tr>
+<tr>
+<td><code>risk_debate_state.history</code></td>
+<td><code>sections[sec-risk].parts[history]</code></td>
+<td>该 part 不展示</td>
+</tr>
+<tr>
+<td><code>risk_debate_state.judge_decision</code></td>
+<td><code>sections[sec-risk].parts[judge]</code>；<strong>注意</strong>：框架把同一段文本同时写入 <code>risk_debate_state.judge_decision</code> 与 <code>final_trade_decision</code>（见 <code>pdf_export.py</code> 注释），导入时若两者完全相同，<code>sec-risk.parts[judge]</code> 置为引用 <code>sec-decision</code>，不重复存储</td>
+<td>该 part 不展示</td>
+</tr>
+</tbody>
+</table>
+<h3 id="13-v1">1.3 派生字段（现状为正则/关键词扫描，v1 改为结构化）</h3>
+<table>
+<thead>
+<tr>
+<th>派生量</th>
+<th>现状来源</th>
+<th>现状问题（实测证据）</th>
+<th>v1 归一化</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>五档评级 rating</td>
+<td><code>final_trade_decision</code> 文本中 <code>**Rating**: X</code>（<code>schemas.py::render_pm_decision</code> 渲染）</td>
+<td>结构化值在落盘前被渲染成 markdown，保存后只能正则取回</td>
+<td><code>meta.rating</code> ∈ {Buy, Overweight, Hold, Underweight, Sell, unknown}；导入时按 <code>**Rating**:</code> 精确解析，解析失败为 <code>unknown</code>，<strong>不做关键词猜测</strong></td>
+</tr>
+<tr>
+<td>三档展示信号 signal</td>
+<td><code>history.extract_signal</code>：按 <code>investment_plan → trader_investment_decision → final_trade_decision</code> 顺序扫描 BUY/SELL/HOLD 关键词</td>
+<td><strong>与评级矛盾</strong>：对 21 份历史报告审计，3 份扫描为 Buy 而评级为 Sell，2 份 Buy/Underweight、2 份 Sell/Underweight、1 份 N/A；Overweight/Underweight 不含三个关键词，直接落到 N/A 或被前文无关词劫持</td>
+<td><code>meta.signal</code> 由 <code>meta.rating</code> 按固定映射导出：Buy/Overweight→Buy，Hold→Hold，Underweight/Sell→Sell，unknown→unknown；旧扫描值仅存 <code>meta.signal_legacy</code> 供对照，不参与展示</td>
+</tr>
+<tr>
+<td>目标价 target</td>
+<td><code>decision_facts</code> 正则（<code>**Price Target**:</code> / <code>目标价</code>）</td>
+<td>双格式兼容已做，缺失返回 None</td>
+<td><code>meta.price_target</code>（number</td>
+</tr>
+<tr>
+<td>止损参考 stop</td>
+<td><code>decision_facts</code> 正则（<code>止损|止损位|硬止损</code>）</td>
+<td>同上</td>
+<td><code>meta.stop_reference</code>（string</td>
+</tr>
+<tr>
+<td>时间范围 horizon</td>
+<td><code>decision_facts</code> 正则（<code>**Time Horizon**:</code> / <code>时间范围|周期|跨度</code>）</td>
+<td>同上</td>
+<td><code>meta.time_horizon</code>（string</td>
+</tr>
+</tbody>
+</table>
+<p>审计命令（可复跑）：遍历 <code>~/.tradingagents/logs/*/TradingAgentsStrategy_logs/full_states_log_*.json</code>，对比 <code>extract_signal(d)</code> 与 <code>**Rating**: X</code> 解析值；21 份样本组合分布：
+<code>{(Buy,Overweight):3, (Hold,Hold):4, (Sell,Underweight):2, (Buy,Underweight):2, (Sell,None):2, (N/A,None):1, (Buy,Sell):3, (Buy,Hold):2, (Buy,None):2}</code>。</p>
+<p>另：21 份历史报告<strong>全部</strong>没有非空 <code>data_quality_summary</code>（质量门控为后加阶段），故 v1 中该章节与 <code>meta.data_quality_status</code> 均为可空，导入旧报告时 <code>data_quality_status = "absent"</code>，网页显示「—」而非编造。</p>
+<hr />
+<h2 id="2-reportdtometa">2. 报告元数据（ReportDTO.meta）</h2>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>类型</th>
+<th>必需</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>report_id</code></td>
+<td>string(uuid)</td>
+<td>是</td>
+<td>每次成功分析新建；重跑不覆盖</td>
+</tr>
+<tr>
+<td><code>job_id</code></td>
+<td>string 或 null</td>
+<td>否</td>
+<td>历史导入报告为 null</td>
+</tr>
+<tr>
+<td><code>ticker_code</code></td>
+<td>string</td>
+<td>是</td>
+<td>如 <code>000629</code></td>
+</tr>
+<tr>
+<td><code>ticker_name</code></td>
+<td>string 或 null</td>
+<td>否</td>
+<td>导入旧报告可为 null，显示回退为 code</td>
+</tr>
+<tr>
+<td><code>analysis_date</code></td>
+<td>string(YYYY-MM-DD)</td>
+<td>是</td>
+<td>分析标的日期</td>
+</tr>
+<tr>
+<td><code>generated_at</code></td>
+<td>string(ISO8601) 或 null</td>
+<td>否</td>
+<td>实际生成时间；<strong>旧报告无真实生成时间时为 null，禁止用文件 mtime 冒充</strong>，同时 <code>generated_at_source = "unknown"</code></td>
+</tr>
+<tr>
+<td><code>generated_at_source</code></td>
+<td>enum: job_clock, import_clock, unknown</td>
+<td>是</td>
+<td>标明时间来源</td>
+</tr>
+<tr>
+<td><code>origin</code></td>
+<td>enum: new, legacy_import</td>
+<td>是</td>
+<td>报告来源</td>
+</tr>
+<tr>
+<td><code>schema_version</code></td>
+<td>string</td>
+<td>是</td>
+<td>固定 <code>report-v1</code></td>
+</tr>
+<tr>
+<td><code>content_hash</code></td>
+<td>string(sha256)</td>
+<td>是</td>
+<td>对 <code>sections</code> 规范序列化结果计算；网页/MD/PDF 一致性校验依据</td>
+</tr>
+<tr>
+<td><code>config_digest</code></td>
+<td>string 或 null</td>
+<td>否</td>
+<td>生成配置摘要（模型、阶段开关）</td>
+</tr>
+<tr>
+<td><code>data_quality_status</code></td>
+<td>enum: ok, degraded, absent</td>
+<td>是</td>
+<td>旧报告为 absent</td>
+</tr>
+<tr>
+<td><code>chart_snapshot_status</code></td>
+<td>enum: frozen, refetch_needed, none</td>
+<td>是</td>
+<td>新版尽量 frozen；旧报告为 none</td>
+</tr>
+<tr>
+<td><code>retry_of_job_id</code></td>
+<td>string 或 null</td>
+<td>否</td>
+<td>重试来源任务</td>
+</tr>
+<tr>
+<td><code>rating</code></td>
+<td>enum 五档+unknown</td>
+<td>是</td>
+<td>见 1.3</td>
+</tr>
+<tr>
+<td><code>signal</code></td>
+<td>enum: Buy, Hold, Sell, unknown</td>
+<td>是</td>
+<td>由 rating 映射</td>
+</tr>
+<tr>
+<td><code>signal_legacy</code></td>
+<td>string 或 null</td>
+<td>否</td>
+<td>旧扫描值，仅对照</td>
+</tr>
+<tr>
+<td><code>price_target</code></td>
+<td>number 或 null</td>
+<td>否</td>
+<td></td>
+</tr>
+<tr>
+<td><code>stop_reference</code></td>
+<td>string 或 null</td>
+<td>否</td>
+<td></td>
+</tr>
+<tr>
+<td><code>time_horizon</code></td>
+<td>string 或 null</td>
+<td>否</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="3-reportdtosections">3. 章节结构（ReportDTO.sections）</h2>
+<ul>
+<li><code>sections</code> 为<strong>对象</strong>，键为稳定章节 ID；顺序由下表固定，前端按表渲染目录，<strong>禁止依赖数组下标</strong>。</li>
+<li>每章：<code>{id, title, body, parts?, legacy_aliases?}</code>；<code>body</code> 为清洗后 markdown 文本。</li>
+<li>缺失规则统一：章节键不存在或 body 为空 → 该章节<strong>不渲染且不出现在目录</strong>；决策卡单元格缺失显示「—」。任何端不得静默截断 body；导出分页由渲染层处理。</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>顺序</th>
+<th>id</th>
+<th>标题</th>
+<th>来源旧键</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>sec-decision</td>
+<td>最终交易决策</td>
+<td><code>final_trade_decision</code></td>
+</tr>
+<tr>
+<td>2</td>
+<td>sec-market</td>
+<td>技术分析</td>
+<td><code>market_report</code></td>
+</tr>
+<tr>
+<td>3</td>
+<td>sec-sentiment</td>
+<td>市场情绪</td>
+<td><code>sentiment_report</code></td>
+</tr>
+<tr>
+<td>4</td>
+<td>sec-news</td>
+<td>新闻舆情</td>
+<td><code>news_report</code></td>
+</tr>
+<tr>
+<td>5</td>
+<td>sec-fundamentals</td>
+<td>基本面</td>
+<td><code>fundamentals_report</code></td>
+</tr>
+<tr>
+<td>6</td>
+<td>sec-policy</td>
+<td>政策分析</td>
+<td><code>policy_report</code></td>
+</tr>
+<tr>
+<td>7</td>
+<td>sec-hot-money</td>
+<td>游资追踪</td>
+<td><code>hot_money_report</code></td>
+</tr>
+<tr>
+<td>8</td>
+<td>sec-lockup</td>
+<td>解禁/减持</td>
+<td><code>lockup_report</code></td>
+</tr>
+<tr>
+<td>9</td>
+<td>sec-quality</td>
+<td>数据质量</td>
+<td><code>data_quality_summary</code></td>
+</tr>
+<tr>
+<td>10</td>
+<td>sec-debate</td>
+<td>多空辩论</td>
+<td><code>investment_debate_state</code></td>
+</tr>
+<tr>
+<td>11</td>
+<td>sec-trader</td>
+<td>交易员决策</td>
+<td><code>trader_investment_decision</code></td>
+</tr>
+<tr>
+<td>12</td>
+<td>sec-plan</td>
+<td>最终投资建议</td>
+<td><code>investment_plan</code></td>
+</tr>
+<tr>
+<td>13</td>
+<td>sec-risk</td>
+<td>风控评估</td>
+<td><code>risk_debate_state</code></td>
+</tr>
+</tbody>
+</table>
+<p>注：网页现状把 <code>investment_plan</code> 的标题也叫「最终投资建议」（<code>report_viewer.py</code> 216 行），与 <code>final_trade_decision</code> 同标题；v1 起 <code>sec-decision</code> 标题为「最终交易决策」，<code>sec-plan</code> 为「最终投资建议」，消除重名。</p>
+<hr />
+<h2 id="4">4. 版本与导出规则</h2>
+<ol>
+<li>每次成功分析生成新 <code>report_id</code>；重跑、重试一律新建，不覆盖旧报告。</li>
+<li>同 <code>ticker_code + analysis_date</code> 允许多版本共存；列表按 <code>generated_at</code> 倒序，<code>generated_at</code> 为 null 的排最后。</li>
+<li>网页、Markdown、PDF 三者从同一 ReportDTO 渲染，渲染前校验 <code>content_hash</code> 一致。</li>
+<li>打开报告（GET）不生成 PDF、不请求外部行情；PDF 仅在显式导出动作时生成。</li>
+<li>新版报告冻结图表输入（<code>chart_snapshot_status = frozen</code>）；旧报告补数导出必须写入 <code>chart_snapshot_status = refetch_needed</code> 并在导出页标注补数时间。</li>
+<li>旧报告导入：<code>origin = legacy_import</code>、<code>generated_at = null</code>、<code>generated_at_source = unknown</code>、<code>data_quality_status = absent</code>、<code>chart_snapshot_status = none</code>。</li>
+</ol>
+<hr />
+<h2 id="5">5. 新旧字段对照表（归一化唯一结果）</h2>
+<table>
+<thead>
+<tr>
+<th>旧键/旧来源</th>
+<th>v1 路径</th>
+<th>归一化规则</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>company_of_interest</code></td>
+<td><code>meta.ticker_code</code></td>
+<td>原样</td>
+</tr>
+<tr>
+<td><code>trade_date</code></td>
+<td><code>meta.analysis_date</code></td>
+<td>原样</td>
+</tr>
+<tr>
+<td>文件 mtime</td>
+<td>—</td>
+<td><strong>丢弃</strong>，不映射到任何时间字段</td>
+</tr>
+<tr>
+<td><code>**Rating**: X</code> 文本</td>
+<td><code>meta.rating</code></td>
+<td>精确匹配五档；失败→unknown</td>
+</tr>
+<tr>
+<td><code>extract_signal</code> 扫描值</td>
+<td><code>meta.signal_legacy</code></td>
+<td>原样存档，不展示</td>
+</tr>
+<tr>
+<td><code>meta.rating</code></td>
+<td><code>meta.signal</code></td>
+<td>Buy/Overweight→Buy；Hold→Hold；Underweight/Sell→Sell；unknown→unknown</td>
+</tr>
+<tr>
+<td><code>**Price Target**: n</code> / <code>目标价 n</code></td>
+<td><code>meta.price_target</code></td>
+<td>数值解析；失败→null</td>
+</tr>
+<tr>
+<td><code>止损…n</code></td>
+<td><code>meta.stop_reference</code></td>
+<td>原样字符串；失败→null</td>
+</tr>
+<tr>
+<td><code>**Time Horizon**: t</code> / <code>时间范围 t</code></td>
+<td><code>meta.time_horizon</code></td>
+<td>原样字符串；失败→null</td>
+</tr>
+<tr>
+<td>7 个分析师键</td>
+<td><code>sections[sec-*].body</code></td>
+<td>清洗（去 think 标签/框架标记/代码围栏/跨章去重）后原样</td>
+</tr>
+<tr>
+<td><code>data_quality_summary</code></td>
+<td><code>sections[sec-quality].body</code> + <code>meta.data_quality_status</code></td>
+<td>空→absent 且章节不渲染</td>
+</tr>
+<tr>
+<td><code>investment_debate_state.*</code></td>
+<td><code>sections[sec-debate].parts.*</code></td>
+<td>空子键丢弃</td>
+</tr>
+<tr>
+<td><code>risk_debate_state.*</code></td>
+<td><code>sections[sec-risk].parts.*</code></td>
+<td>与 <code>final_trade_decision</code> 相同的 judge 文本改为引用</td>
+</tr>
+<tr>
+<td><code>trader_investment_plan</code></td>
+<td><code>sections[sec-plan].legacy_aliases</code></td>
+<td>仅存档</td>
+</tr>
+<tr>
+<td><code>investment_plan</code></td>
+<td><code>sections[sec-plan].body</code></td>
+<td>清洗后原样</td>
+</tr>
+<tr>
+<td><code>final_trade_decision</code></td>
+<td><code>sections[sec-decision].body</code></td>
+<td>清洗后原样</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="6">6. 验收映射</h2>
+<table>
+<thead>
+<tr>
+<th>Day 3 验收项</th>
+<th>本契约对应条款</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>同一黄金样本可明确表示网页/MD/PDF 预期内容</td>
+<td>§3 章节表 + §4.3 content_hash</td>
+</tr>
+<tr>
+<td>新旧字段别名有唯一归一化结果</td>
+<td>§5 对照表（每旧键恰一行）</td>
+</tr>
+<tr>
+<td>缺失字段不会导致前端编造数据</td>
+<td>§1 缺失表现列 + §3 缺失规则 + §2 可空字段</td>
+</tr>
+<tr>
+<td>同股票同日期两个版本可同时存在</td>
+<td>§4.1、§4.2</td>
+</tr>
+<tr>
+<td>样本不含真实密钥和个人数据</td>
+<td>黄金样本生成脚本扫描断言（见 <code>report-consistency-tests.md</code> T9）</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="report-consistency-tests"><h1>报告一致性测试清单</h1>
+<p>P1/P3 实现报告存储与三端渲染时按本清单补测试。编号稳定，评审与回归引用编号。</p>
+<p>黄金样本位置：<code>tests/fixtures/upgrade/</code>。schema 位置：<code>docs/upgrade/contracts/report-schema-v1.json</code>。</p>
+<h2 id="1-schema-t1t4">1. Schema 与样本（T1–T4）</h2>
+<table>
+<thead>
+<tr>
+<th>用例</th>
+<th>内容</th>
+<th>断言要点</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>T1</td>
+<td>四个 DTO 样本通过 schema 校验</td>
+<td><code>final_state_v1 / missing_fields_report / long_report / unsafe_text_report</code> 全部 validate 通过</td>
+</tr>
+<tr>
+<td>T2</td>
+<td>schema 有牙齿</td>
+<td>六类违规必须被拒：signal 与 rating 不一致、legacy_import 带 generated_at、未知章节 id、rating 超枚举、ticker 非六位、多余字段</td>
+</tr>
+<tr>
+<td>T3</td>
+<td>旧样本键集合</td>
+<td><code>legacy_report_v1.json</code> 的键是旧键集合的子集，无意外新增键</td>
+</tr>
+<tr>
+<td>T4</td>
+<td>样本无密钥与隐私</td>
+<td>正则扫描 sk- / api_key / Bearer / 手机号 / 邮箱，零命中</td>
+</tr>
+</tbody>
+</table>
+<h2 id="2-t5t8">2. 归一化唯一性（T5–T8）</h2>
+<table>
+<thead>
+<tr>
+<th>用例</th>
+<th>内容</th>
+<th>断言要点</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>T5</td>
+<td>五档→三档映射</td>
+<td>Buy/Overweight→Buy、Hold→Hold、Underweight/Sell→Sell、unknown→unknown；逐档单测</td>
+</tr>
+<tr>
+<td>T6</td>
+<td>rating 解析不做猜测</td>
+<td>对 21 份历史报告跑导入归一化：<code>**Rating**: X</code> 精确命中则 rating=X；未命中一律 unknown，<strong>不允许</strong>出现关键词扫描值进入 <code>meta.rating</code></td>
+</tr>
+<tr>
+<td>T7</td>
+<td>signal_legacy 只存档</td>
+<td>归一化结果中 <code>signal_legacy</code> 等于旧 <code>extract_signal</code> 值，且渲染层不读取该字段（字符串扫描渲染代码）</td>
+</tr>
+<tr>
+<td>T8</td>
+<td>别名归一唯一</td>
+<td>对照表每旧键恰一行：<code>trader_investment_plan</code> 只进 <code>legacy_aliases</code>，不进 body；mtime 不映射到任何字段</td>
+</tr>
+</tbody>
+</table>
+<h2 id="3-t9t13">3. 三端一致（T9–T13）</h2>
+<table>
+<thead>
+<tr>
+<th>用例</th>
+<th>内容</th>
+<th>断言要点</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>T9</td>
+<td>同样本三端章节集合相同</td>
+<td>网页目录、Markdown 标题序列、PDF 书签序列都等于 schema 第 3 节顺序表中「存在且非空」的章节</td>
+</tr>
+<tr>
+<td>T10</td>
+<td>content_hash 稳定</td>
+<td>同一 DTO 重复序列化哈希不变；改动任一 body 后哈希变化</td>
+</tr>
+<tr>
+<td>T11</td>
+<td>缺失不编造</td>
+<td><code>missing_fields_report</code> 渲染：决策卡目标价/止损/时间范围显示「—」；目录不出现缺失章节；不出现「暂无数据」以外的填充文案</td>
+</tr>
+<tr>
+<td>T12</td>
+<td>长报告不截断</td>
+<td><code>long_report</code> 的 sec-market 渲染后字符数等于 body 字符数（允许分页标记，不允许内容丢失）</td>
+</tr>
+<tr>
+<td>T13</td>
+<td>不安全文本被转义</td>
+<td><code>unsafe_text_report</code> 渲染后 DOM 中不存在可执行 script/onerror/javascript: 链接；markdown 注入不产生新 HTML 元素</td>
+</tr>
+</tbody>
+</table>
+<h2 id="4-t14t17">4. 版本与导出（T14–T17）</h2>
+<table>
+<thead>
+<tr>
+<th>用例</th>
+<th>内容</th>
+<th>断言要点</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>T14</td>
+<td>重跑不覆盖</td>
+<td>同 ticker+date 第二次成功分析产生新 report_id，旧报告仍可读取且 content_hash 不变</td>
+</tr>
+<tr>
+<td>T15</td>
+<td>多版本共存</td>
+<td>同 ticker+date 两条报告同时出现在列表，按 generated_at 倒序，null 排最后</td>
+</tr>
+<tr>
+<td>T16</td>
+<td>打开报告零副作用</td>
+<td>GET 报告前后：事件表行数不变、无 PDF 文件新增、无外部行情请求（网络打桩计数为 0）</td>
+</tr>
+<tr>
+<td>T17</td>
+<td>旧报告补数导出有标注</td>
+<td>legacy_import 报告导出 PDF/MD 时，产物内含补数时间标注且 <code>chart_snapshot_status = refetch_needed</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="5">5. 覆盖核对</h2>
+<ul>
+<li>T1–T4 对应 Day 3 验收「样本不含密钥」「缺失不编造」的机器化部分。</li>
+<li>T5–T8 对应「新旧字段别名有唯一归一化结果」。</li>
+<li>T9–T13 对应「同一黄金样本可明确表示网页、Markdown 和 PDF 的预期内容」。</li>
+<li>T14–T17 对应「同股票同日期两个版本可以同时存在」与导出规则。</li>
+<li>合计 17 个用例编号位。</li>
 </ul>
 </section>
 </article></body></html>

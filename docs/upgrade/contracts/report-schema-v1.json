@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://astock.local/schemas/report-v1.json",
+  "title": "ReportDTO",
+  "description": "AStock Pro 报告规范结构 v1。网页、Markdown、PDF 与历史导入共用。",
+  "type": "object",
+  "required": ["meta", "sections"],
+  "additionalProperties": false,
+  "properties": {
+    "meta": {
+      "type": "object",
+      "required": [
+        "report_id",
+        "ticker_code",
+        "analysis_date",
+        "generated_at_source",
+        "origin",
+        "schema_version",
+        "content_hash",
+        "data_quality_status",
+        "chart_snapshot_status",
+        "rating",
+        "signal"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "report_id": {"type": "string", "minLength": 1},
+        "job_id": {"type": ["string", "null"]},
+        "ticker_code": {"type": "string", "pattern": "^[0-9]{6}$"},
+        "ticker_name": {"type": ["string", "null"]},
+        "analysis_date": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"},
+        "generated_at": {
+          "type": ["string", "null"],
+          "description": "旧报告无真实生成时间时必须为 null，禁止用文件 mtime 冒充"
+        },
+        "generated_at_source": {"enum": ["job_clock", "import_clock", "unknown"]},
+        "origin": {"enum": ["new", "legacy_import"]},
+        "schema_version": {"const": "report-v1"},
+        "content_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "config_digest": {"type": ["string", "null"]},
+        "data_quality_status": {"enum": ["ok", "degraded", "absent"]},
+        "chart_snapshot_status": {"enum": ["frozen", "refetch_needed", "none"]},
+        "retry_of_job_id": {"type": ["string", "null"]},
+        "rating": {"enum": ["Buy", "Overweight", "Hold", "Underweight", "Sell", "unknown"]},
+        "signal": {"enum": ["Buy", "Hold", "Sell", "unknown"]},
+        "signal_legacy": {"type": ["string", "null"]},
+        "price_target": {"type": ["number", "null"]},
+        "stop_reference": {"type": ["string", "null"]},
+        "time_horizon": {"type": ["string", "null"]}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"origin": {"const": "legacy_import"}}, "required": ["origin"]},
+          "then": {
+            "properties": {
+              "generated_at": {"const": null},
+              "generated_at_source": {"const": "unknown"},
+              "data_quality_status": {"const": "absent"},
+              "chart_snapshot_status": {"const": "none"}
+            }
+          }
+        },
+        {
+          "if": {"properties": {"rating": {"const": "Buy"}}, "required": ["rating"]},
+          "then": {"properties": {"signal": {"const": "Buy"}}}
+        },
+        {
+          "if": {"properties": {"rating": {"const": "Overweight"}}, "required": ["rating"]},
+          "then": {"properties": {"signal": {"const": "Buy"}}}
+        },
+        {
+          "if": {"properties": {"rating": {"const": "Hold"}}, "required": ["rating"]},
+          "then": {"properties": {"signal": {"const": "Hold"}}}
+        },
+        {
+          "if": {"properties": {"rating": {"const": "Underweight"}}, "required": ["rating"]},
+          "then": {"properties": {"signal": {"const": "Sell"}}}
+        },
+        {
+          "if": {"properties": {"rating": {"const": "Sell"}}, "required": ["rating"]},
+          "then": {"properties": {"signal": {"const": "Sell"}}}
+        },
+        {
+          "if": {"properties": {"rating": {"const": "unknown"}}, "required": ["rating"]},
+          "then": {"properties": {"signal": {"const": "unknown"}}}
+        }
+      ]
+    },
+    "sections": {
+      "type": "object",
+      "description": "键为稳定章节 ID；渲染顺序由契约文档第 3 节固定，禁止依赖键序或数组下标",
+      "additionalProperties": false,
+      "propertyNames": {
+        "enum": [
+          "sec-decision",
+          "sec-market",
+          "sec-sentiment",
+          "sec-news",
+          "sec-fundamentals",
+          "sec-policy",
+          "sec-hot-money",
+          "sec-lockup",
+          "sec-quality",
+          "sec-debate",
+          "sec-trader",
+          "sec-plan",
+          "sec-risk"
+        ]
+      },
+      "minProperties": 1,
+      "patternProperties": {
+        "^sec-": {
+          "type": "object",
+          "required": ["id", "title", "body"],
+          "additionalProperties": false,
+          "properties": {
+            "id": {"type": "string", "pattern": "^sec-[a-z-]+$"},
+            "title": {"type": "string", "minLength": 1},
+            "body": {"type": "string", "description": "清洗后 markdown；不得静默截断"},
+            "parts": {
+              "type": "object",
+              "additionalProperties": {"type": "string"}
+            },
+            "parts_ref": {
+              "type": "object",
+              "description": "part 文本与另一章节完全相同时用引用，不重复存储",
+              "additionalProperties": {"type": "string", "pattern": "^sec-[a-z-]+$"}
+            },
+            "legacy_aliases": {
+              "type": "object",
+              "additionalProperties": {"type": "string"}
+            }
+          }
+        }
+      }
+    }
+  }
+}
