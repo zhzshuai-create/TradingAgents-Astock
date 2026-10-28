@@ -11,6 +11,7 @@ import math
 import re
 import json
 import logging
+import threading
 import urllib.request
 from pathlib import Path
 
@@ -29,6 +30,25 @@ UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
 def normalize_code(raw: str) -> str:
     """委托核心层实现（单一真相源）。"""
     return _core._normalize_ticker(raw)
+
+
+def start_bars_fuse_prewarm() -> None:
+    """启动期后台探测 TDX bars 通道，空返回即刻熔断（见 _common 熔断说明）。
+
+    熔断是"撞一次空才生效"，不预热的话每次进程重启后的首个看板 K 线仍要
+    白等 ~4s 空表；把这次探测挪到启动遮罩期间的后台线程里消化。守护线程、
+    全异常吞掉，探测与用户触发的拉取并发安全（bars 幂等熔断，客户端带锁）。
+    """
+    def _probe() -> None:
+        try:
+            client = _core._get_mootdx_client()
+            df = client.bars(symbol="000001", category=4, offset=5)
+            if df is None or df.empty:
+                _core._blow_tdx_bars_fuse()
+        except Exception:
+            logger.debug("tdx bars prewarm failed", exc_info=True)
+
+    threading.Thread(target=_probe, daemon=True, name="tdx-bars-prewarm").start()
 
 # ── 行情层 ────────────────────────────────────────────────
 
@@ -205,10 +225,14 @@ def _get_kline_full(code: str) -> pd.DataFrame:
     schema（datetime/open/high/low/close/vol）。
     """
     try:
-        client = _tdx_client()
-        klines = client.bars(symbol=code, category=4, offset=5000)
-        if klines is not None and not klines.empty:
-            return klines
+        # bars 通道熔断（_common）：mootdx 日K 恒空的网络环境下，每次冷拉
+        # 白等 4s+ 才落兜底；首次撞空后熔断期内直接跳过，秒进新浪/CSV。
+        if not _core._tdx_bars_blown():
+            client = _tdx_client()
+            klines = client.bars(symbol=code, category=4, offset=5000)
+            if klines is not None and not klines.empty:
+                return klines
+            _core._blow_tdx_bars_fuse()
     except Exception as e:
         logger.warning("_get_kline_full failed: %s", e, exc_info=True)
         pass

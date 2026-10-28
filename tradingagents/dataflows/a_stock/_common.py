@@ -283,6 +283,26 @@ def _get_mootdx_client():
 
 
 # ---------------------------------------------------------------------------
+# TDX bars 通道熔断
+# ---------------------------------------------------------------------------
+# 部分网络环境下 TDX 服务器"连接正常、分时正常、日K bars 恒空"（实测 10 台
+# 服务器全空、每次冷拉白等 4s+ 才落到新浪兜底）。首次撞到空返回后熔断
+# _TDX_BARS_FUSE_SECONDS，期间 bars 请求直接走兜底链；到期自动放行重试
+# （通道可能恢复）。minutes() 分时不受影响（实测健康，240 点 0.04s）。
+_TDX_BARS_FUSE_UNTIL = 0.0
+_TDX_BARS_FUSE_SECONDS = 1800.0
+
+
+def _tdx_bars_blown() -> bool:
+    return time.monotonic() < _TDX_BARS_FUSE_UNTIL
+
+
+def _blow_tdx_bars_fuse() -> None:
+    global _TDX_BARS_FUSE_UNTIL
+    _TDX_BARS_FUSE_UNTIL = time.monotonic() + _TDX_BARS_FUSE_SECONDS
+
+
+# ---------------------------------------------------------------------------
 # TTL Cache — 避免同一分析运行中重复请求相同数据
 # ---------------------------------------------------------------------------
 
@@ -770,10 +790,13 @@ def _load_ohlcv_astock(symbol: str, curr_date: str) -> pd.DataFrame:
 
     # Fetch from mootdx — 800 daily bars (~3 years of trading days)
     try:
+        if _tdx_bars_blown():
+            raise ValueError(f"mootdx bars fused for {code}, skip to sina fallback")
         client = _get_mootdx_client()
         df = client.bars(symbol=code, category=4, offset=800)
 
         if df is None or df.empty:
+            _blow_tdx_bars_fuse()
             raise ValueError(f"No OHLCV data from mootdx for {code}")
 
         # mootdx returns index named 'datetime' AND a column named 'datetime'

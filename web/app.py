@@ -138,6 +138,12 @@ from web.components.boot_splash import (  # noqa: E402
 render_boot_mask()
 start_boot_watchdog()
 
+# TDX bars 通道预热（后台守护线程）：mootdx 日K 恒空的机器上，进程重启后的
+# 首个看板 K 线会白等 ~4s 空表才落兜底——探测挪到这里，在启动遮罩期间完成。
+from web.data_functions import start_bars_fuse_prewarm  # noqa: E402
+
+start_bars_fuse_prewarm()
+
 # 这三个导入必须留在 set_page_config 之后: sidebar 会拉起整条 agent 图依赖链
 # (langgraph/langsmith, 实测约 3.2s), index_spot 是阻塞网络调用. 任何要在首屏
 # 之前上屏的元素都得插在它们上面.
@@ -397,10 +403,12 @@ with col_nav:
         default=_MODE_LABELS.get(st.session_state.get("app_mode"), "AI分析报告"),
         key="top_mode", label_visibility="collapsed",
     )
-    _new_mode = _label_to_mode.get(mode)
-    if _new_mode and _new_mode != st.session_state.get("app_mode"):
-        st.session_state["app_mode"] = _new_mode
-        st.rerun()
+    # 控件即真相源：选中值当轮直接生效，不再"写 session + st.rerun()"——
+    # 后者会把切换变成两轮全脚本重跑（侧栏/顶栏/指数条/iframe 外壳 ×2），
+    # 是切页慢的一半来源。app_mode 回写仅为 dispatch 与既有读取方（含测试
+    # 预置 session_state["app_mode"]）保持兼容；widget 有持久状态后 default
+    # 不再生效，预置值只在每会话首轮起作用。
+    st.session_state["app_mode"] = _label_to_mode.get(mode) or "analysis"
 
 with col_index:
     _indices = index_spot()
