@@ -1,0 +1,925 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AStock Pro P0 基线与契约逐日实施计划</title>
+<style>
+:root{--bg:#f5f7fa;--surface:#fff;--text:#172033;--muted:#667085;--border:#e4e7ec;--brand:#c75b16;--code:#f2f4f7}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei","PingFang SC",Arial,sans-serif;line-height:1.75;font-size:16px}
+article{max-width:1080px;margin:0 auto;padding:44px 56px 72px;background:var(--surface);min-height:100vh}h1,h2,h3,h4{line-height:1.4;scroll-margin-top:20px}h1{font-size:32px;margin:0 0 24px;padding-bottom:18px;border-bottom:2px solid var(--brand)}h2{font-size:24px;margin:48px 0 18px;padding-left:12px;border-left:4px solid var(--brand)}h3{font-size:19px;margin:30px 0 12px}h4{font-size:16px;margin:22px 0 8px}p{margin:10px 0}ul,ol{padding-left:26px}li{margin:5px 0}a{color:#175cd3;text-decoration:none}a:hover{text-decoration:underline}hr{border:0;border-top:1px solid var(--border);margin:36px 0}blockquote{margin:20px 0;padding:12px 18px;border-left:4px solid var(--brand);background:#fff8f2;color:#344054}code{padding:2px 5px;border-radius:4px;background:var(--code);font-family:Consolas,"SFMono-Regular",monospace;font-size:.9em;overflow-wrap:anywhere}pre{padding:16px 18px;border-radius:8px;background:#101828;color:#e5e7eb;overflow:auto;line-height:1.55}pre code{padding:0;background:transparent;color:inherit}table{width:100%;border-collapse:collapse;margin:18px 0 26px;font-size:14px}th,td{border:1px solid var(--border);padding:10px 12px;text-align:left;vertical-align:top}th{background:#f9fafb;font-weight:650}tr:nth-child(even) td{background:#fcfcfd}.toc{margin:22px 0 30px;padding:14px 18px;border:1px solid var(--border);border-radius:8px;background:#f9fafb}.toc summary{cursor:pointer;color:var(--brand)}.toc ul{margin:8px 0}.toc>ul{columns:2;column-gap:32px}.toc li{break-inside:avoid}.toc>ul>ul{display:none}
+@media(max-width:720px){body{font-size:15px}article{padding:26px 20px 48px}h1{font-size:26px}h2{font-size:21px;margin-top:38px}h3{font-size:18px}table{display:block;overflow-x:auto;white-space:normal}th,td{min-width:110px;padding:8px}.toc>ul{columns:1}pre{font-size:12px}}
+@media print{@page{size:A4;margin:15mm}body{background:#fff;color:#000;font-size:10.5pt;line-height:1.55}article{max-width:none;padding:0;background:#fff}h1{font-size:22pt}h2{font-size:16pt;margin-top:24px;break-after:avoid}h3,h4{break-after:avoid}table{display:table;font-size:8.5pt;break-inside:auto}tr{break-inside:avoid}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f5f5f5;color:#000;border:1px solid #ccc;font-size:8pt}.toc{display:none}a{color:#000;text-decoration:none}blockquote{background:#fff}code{background:#f3f3f3}}
+</style>
+</head>
+<body><article>
+<details class="toc"><summary><strong>展开目录</strong></summary><div class="toc">
+<ul>
+<li><a href="#astock-pro-p0">AStock Pro P0「基线与契约」逐日实施计划</a><ul>
+<li><a href="#_1">先说结论</a></li>
+</ul>
+</li>
+<li><a href="#p0">一、P0 的范围与产出</a><ul>
+<li><a href="#11">1.1 本阶段做</a></li>
+<li><a href="#12">1.2 本阶段不做</a></li>
+<li><a href="#13">1.3 建议目录</a></li>
+</ul>
+</li>
+<li><a href="#_2">二、每日共同规则</a><ul>
+<li><a href="#21">2.1 每日开始</a></li>
+<li><a href="#22">2.2 每日结束</a></li>
+<li><a href="#23">2.3 提交边界</a></li>
+</ul>
+</li>
+<li><a href="#day-1">三、Day 1：冻结旧版与恢复基线</a><ul>
+<li><a href="#_3">当日目标</a></li>
+<li><a href="#31">3.1 仓库基线</a></li>
+<li><a href="#32">3.2 旧版测试基线</a></li>
+<li><a href="#33">3.3 数据与恢复基线</a></li>
+<li><a href="#34">3.4 旧版功能与性能基线</a></li>
+<li><a href="#_4">当日交付</a></li>
+<li><a href="#_5">当日验收</a></li>
+<li><a href="#_6">阻塞时怎么处理</a></li>
+</ul>
+</li>
+<li><a href="#day-2">四、Day 2：冻结任务语义、状态机与幂等规则</a><ul>
+<li><a href="#_7">当日目标</a></li>
+<li><a href="#41">4.1 建立核心语义词典</a></li>
+<li><a href="#42">4.2 固定任务状态</a></li>
+<li><a href="#43">4.3 画出合法状态转换</a></li>
+<li><a href="#44">4.4 固定幂等与冲突规则</a></li>
+<li><a href="#45">4.5 定义最难的崩溃边界</a></li>
+<li><a href="#_8">当日交付</a></li>
+<li><a href="#_9">当日验收</a></li>
+</ul>
+</li>
+<li><a href="#day-3">五、Day 3：冻结报告结构与黄金样本</a><ul>
+<li><a href="#_10">当日目标</a></li>
+<li><a href="#51">5.1 盘点现有报告字段</a></li>
+<li><a href="#52">5.2 定义报告元数据</a></li>
+<li><a href="#53">5.3 定义报告正文结构</a></li>
+<li><a href="#54">5.4 定义版本与导出规则</a></li>
+<li><a href="#55">5.5 准备黄金样本</a></li>
+<li><a href="#_11">当日交付</a></li>
+<li><a href="#_12">当日验收</a></li>
+</ul>
+</li>
+<li><a href="#day-4-apisse">六、Day 4：冻结 API、SSE 与数据状态契约</a><ul>
+<li><a href="#_13">当日目标</a></li>
+<li><a href="#61">6.1 固定任务接口</a></li>
+<li><a href="#62">6.2 固定报告接口</a></li>
+<li><a href="#63">6.3 固定市场与股票接口</a></li>
+<li><a href="#64">6.4 固定统一数据状态</a></li>
+<li><a href="#65-sse">6.5 固定 SSE 事件</a></li>
+<li><a href="#66">6.6 固定错误与安全边界</a></li>
+<li><a href="#_14">当日交付</a></li>
+<li><a href="#_15">当日验收</a></li>
+</ul>
+</li>
+<li><a href="#day-5">七、Day 5：完成核心页面线框与交互走查</a><ul>
+<li><a href="#_16">当日目标</a></li>
+<li><a href="#71">7.1 固定路由和返回规则</a></li>
+<li><a href="#72">7.2 必做线框</a></li>
+<li><a href="#73">7.3 必做交互走查</a></li>
+<li><a href="#74">7.4 移动专项检查</a></li>
+<li><a href="#_17">当日交付</a></li>
+<li><a href="#_18">当日验收</a></li>
+</ul>
+</li>
+<li><a href="#day-6">八、Day 6：准备确定性假图与验收工具</a><ul>
+<li><a href="#_19">当日目标</a></li>
+<li><a href="#81">8.1 假图的基本能力</a></li>
+<li><a href="#82">8.2 假图必须确定性</a></li>
+<li><a href="#83">8.3 崩溃与竞争场景</a></li>
+<li><a href="#84">8.4 建立测试矩阵映射</a></li>
+<li><a href="#85">8.5 完成性能测量模板</a></li>
+<li><a href="#_20">当日交付</a></li>
+<li><a href="#_21">当日验收</a></li>
+</ul>
+</li>
+<li><a href="#day-7-p1">九、Day 7：契约冻结、评审与 P1 拆票</a><ul>
+<li><a href="#_22">当日目标</a></li>
+<li><a href="#91">9.1 交叉检查契约</a></li>
+<li><a href="#92">9.2 冻结契约版本</a></li>
+<li><a href="#93-p1">9.3 把 P1 拆成独立任务</a></li>
+<li><a href="#94-go-no-go">9.4 做 Go / No-Go 评审</a></li>
+<li><a href="#_23">当日交付</a></li>
+<li><a href="#_24">当日验收</a></li>
+</ul>
+</li>
+<li><a href="#day-8">十、Day 8：缓冲日，只处理阻塞项</a></li>
+<li><a href="#p0_1">十一、P0 最终交付清单</a><ul>
+<li><a href="#_25">基线</a></li>
+<li><a href="#_26">任务契约</a></li>
+<li><a href="#_27">报告契约</a></li>
+<li><a href="#api">API 与数据契约</a></li>
+<li><a href="#_28">设计与测试</a></li>
+<li><a href="#p1">进入 P1</a></li>
+</ul>
+</li>
+<li><a href="#p0_2">十二、P0 最容易失控的地方</a><ul>
+<li><a href="#_29">把写文档变成形式</a></li>
+<li><a href="#p0_3">在 P0 顺手做正式前端</a></li>
+<li><a href="#_30">用真实模型验证</a></li>
+<li><a href="#_31">忽略当前未提交工作</a></li>
+<li><a href="#_32">把检查点当成万能恢复</a></li>
+</ul>
+</li>
+<li><a href="#p0_4">十三、P0 完成后的第一步</a></li>
+</ul>
+</div>
+</details>
+<h1 id="astock-pro-p0">AStock Pro P0「基线与契约」逐日实施计划</h1>
+<p>日期：2026-10-28<br />
+对应总计划：P0 基线与契约<br />
+建议工期：7 个工作日 + 1 个缓冲日<br />
+实施目标：让后续前后端开发有稳定依据，不再边写页面边猜任务、报告和数据结构</p>
+<hr />
+<h2 id="_1">先说结论</h2>
+<p>P0 不建设正式新版页面。</p>
+<p>P0 也不改多智能体分析逻辑。</p>
+<p>P0 只完成四件事：</p>
+<ol>
+<li>冻结一个可恢复、可测试的旧版基线。</li>
+<li>固定任务、报告、接口和数据状态契约。</li>
+<li>准备不调用真实模型的测试样本与假图。</li>
+<li>确认核心页面线框和 P1 开发边界。</li>
+</ol>
+<p>P0 最重要的交付不是文档数量，而是消除关键歧义。</p>
+<p>后续开发者拿到契约后，应该能够直接回答：一个任务何时算开始、何时算暂停、刷新后如何恢复、重跑是否覆盖报告、空数据和接口失败如何区分。</p>
+<hr />
+<h1 id="p0">一、P0 的范围与产出</h1>
+<h2 id="11">1.1 本阶段做</h2>
+<ul>
+<li>盘点当前提交和未提交修改。</li>
+<li>记录旧版测试、截图和性能基线。</li>
+<li>建立旧版恢复点与数据备份。</li>
+<li>定义核心语义词典。</li>
+<li>定义任务状态机和幂等规则。</li>
+<li>定义报告统一结构和版本规则。</li>
+<li>定义 REST、SSE 和错误响应契约。</li>
+<li>定义市场数据状态和时间字段。</li>
+<li>制作核心页面桌面与移动线框。</li>
+<li>准备模拟报告、模拟行情和确定性假图。</li>
+<li>把 P1 拆成可独立验收的开发任务。</li>
+</ul>
+<h2 id="12">1.2 本阶段不做</h2>
+<ul>
+<li>不运行真实模型分析。</li>
+<li>不删除旧 Streamlit。</li>
+<li>不重写 <code>tradingagents</code> 图。</li>
+<li>不开发正式 React 页面。</li>
+<li>不启用多 Worker。</li>
+<li>不自动重放旧未完成任务。</li>
+<li>不合并交易日志数据库。</li>
+<li>不在契约未确认前建设正式数据库迁移。</li>
+</ul>
+<h2 id="13">1.3 建议目录</h2>
+<p>以下是 P0 结束时的目标结构，不要求第一天全部创建。</p>
+<pre><code class="language-text">docs/upgrade/
+├── baseline/
+│   ├── repository-baseline.md
+│   ├── test-baseline.md
+│   ├── performance-baseline.md
+│   └── recovery-baseline.md
+├── contracts/
+│   ├── semantic-dictionary.md
+│   ├── job-state-machine.md
+│   ├── report-schema-v1.md
+│   ├── report-schema-v1.json
+│   ├── api-v1.md
+│   ├── market-data-envelope-v1.json
+│   └── sse-events-v1.md
+├── design/
+│   ├── routes.md
+│   ├── core-wireframes.md
+│   └── interaction-checklist.md
+└── review/
+    ├── p0-exit-review.md
+    └── p1-backlog.md
+
+tests/fixtures/upgrade/
+├── final_state_v1.json
+├── legacy_report_v1.json
+├── missing_fields_report.json
+├── long_report.json
+├── market_empty.json
+├── market_error.json
+└── market_stale.json
+
+tests/support/
+└── fake_analysis_graph.py
+</code></pre>
+<p>文件名可以在实施时微调，但交付内容不能省略。</p>
+<hr />
+<h1 id="_2">二、每日共同规则</h1>
+<h2 id="21">2.1 每日开始</h2>
+<ul>
+<li>查看当天任务和前一天未解决项。</li>
+<li>记录当前工作树状态。</li>
+<li>确认当天不会触发真实模型。</li>
+<li>只打开当天需要的文件，避免顺手扩大改造范围。</li>
+</ul>
+<h2 id="22">2.2 每日结束</h2>
+<ul>
+<li>更新当天交付和验收结果。</li>
+<li>将文档、样本和测试分别整理成可审查的小改动。</li>
+<li>记录尚未决定的契约问题，不能口头带过。</li>
+<li>旧版仍需能够启动，已有测试不得被无意破坏。</li>
+<li>长文档同时提供可阅读的 HTML 版本。</li>
+</ul>
+<h2 id="23">2.3 提交边界</h2>
+<p>每天的工作应能独立审查和回退。</p>
+<p>基线文档、任务契约、报告契约、接口契约、测试样本和假图不混成一个大提交。</p>
+<p>涉及提交、标签、推送和物理备份时，按用户确认后的命令执行，不在计划中默认擅自操作。</p>
+<hr />
+<h1 id="day-1">三、Day 1：冻结旧版与恢复基线</h1>
+<h2 id="_3">当日目标</h2>
+<p>确认“现在正在运行的旧版到底是什么”，并保证后续任何时候都能恢复。</p>
+<h2 id="31">3.1 仓库基线</h2>
+<p>需要记录：</p>
+<ul>
+<li>当前分支和 HEAD。</li>
+<li>最近关键提交。</li>
+<li>已跟踪文件的未提交修改。</li>
+<li>未跟踪文件。</li>
+<li>当前 Python 和关键依赖版本。</li>
+<li>主平台与交易日志的启动方式。</li>
+<li>当前使用的端口和配置项。</li>
+</ul>
+<p>重点检查此前已经存在的前端、数据和测试修改。</p>
+<p>不得把已有未提交工作直接当成新版 P0 改动。</p>
+<h2 id="32">3.2 旧版测试基线</h2>
+<p>执行并记录：</p>
+<ul>
+<li><code>pytest -q</code>。</li>
+<li><code>ruff check .</code>。</li>
+<li><code>git diff --check</code>。</li>
+<li>现有 Streamlit AppTest。</li>
+<li>现有浏览器启动验收脚本。</li>
+</ul>
+<p>如果存在失败或跳过，逐项记录原因。</p>
+<p>不得为了让基线好看而删除测试或隐藏失败。</p>
+<h2 id="33">3.3 数据与恢复基线</h2>
+<p>盘点并备份：</p>
+<ul>
+<li><code>~/.tradingagents/logs/</code>。</li>
+<li><code>~/.tradingagents/incomplete_tasks.json</code>。</li>
+<li><code>~/.tradingagents/cache/checkpoints/</code>。</li>
+<li>非敏感模型配置。</li>
+<li>数据库或缓存目录的实际位置。</li>
+</ul>
+<p>恢复方案至少包括：</p>
+<ul>
+<li>一个可识别的代码恢复点。</li>
+<li>一份当前未提交补丁。</li>
+<li>一份独立物理副本。</li>
+<li>一份数据目录备份。</li>
+<li>一份恢复操作说明。</li>
+</ul>
+<h2 id="34">3.4 旧版功能与性能基线</h2>
+<p>使用模拟报告和现有页面完成：</p>
+<ul>
+<li>首页截图。</li>
+<li>市场看板截图。</li>
+<li>任务运行页截图。</li>
+<li>报告页截图。</li>
+<li>交易日志集成截图。</li>
+<li>1440 × 1000、390 × 844、360 × 800 三种视口。</li>
+<li>冷启动、页面切换和报告打开耗时。</li>
+<li>浏览器 console 与 pageerror 记录。</li>
+</ul>
+<h2 id="_4">当日交付</h2>
+<ul>
+<li><code>repository-baseline.md</code>。</li>
+<li><code>test-baseline.md</code>。</li>
+<li><code>performance-baseline.md</code>。</li>
+<li><code>recovery-baseline.md</code>。</li>
+<li>基线截图与结构化浏览器结果。</li>
+<li>恢复点和备份的位置清单。</li>
+</ul>
+<h2 id="_5">当日验收</h2>
+<ul>
+<li>能明确说明当前旧版对应的代码和未提交补丁。</li>
+<li>能明确说明测试通过数、跳过数和已有失败。</li>
+<li>能按文档恢复旧版代码和数据。</li>
+<li>没有触发真实模型。</li>
+<li>没有修改核心分析逻辑。</li>
+</ul>
+<h2 id="_6">阻塞时怎么处理</h2>
+<p>如果旧版测试本身不稳定，先记录并隔离问题。</p>
+<p>不要在 P0 顺手进行大规模修复。</p>
+<p>只有阻止后续契约测试的旧版缺陷，才单独立项修复。</p>
+<hr />
+<h1 id="day-2">四、Day 2：冻结任务语义、状态机与幂等规则</h1>
+<h2 id="_7">当日目标</h2>
+<p>让任务控制不再依赖页面文案猜测真实状态。</p>
+<p>这是 P0 最重要的一天。</p>
+<h2 id="41">4.1 建立核心语义词典</h2>
+<p>至少统一以下词语：</p>
+<ul>
+<li>新建分析。</li>
+<li>重新分析。</li>
+<li>重试。</li>
+<li>从检查点继续。</li>
+<li>暂停中。</li>
+<li>已暂停。</li>
+<li>取消中。</li>
+<li>已取消。</li>
+<li>连接中断。</li>
+<li>执行中断。</li>
+<li>已完成。</li>
+<li>已失败。</li>
+</ul>
+<p>每个词都要写清楚：用户看到什么、服务端实际做什么、是否可能产生模型费用。</p>
+<h2 id="42">4.2 固定任务状态</h2>
+<p>首期状态限定为：</p>
+<pre><code class="language-text">queued
+running
+pause_requested
+paused
+cancel_requested
+cancelled
+succeeded
+failed
+interrupted
+</code></pre>
+<p>为每个状态定义：</p>
+<ul>
+<li>是否占用 Worker。</li>
+<li>是否允许暂停。</li>
+<li>是否允许恢复。</li>
+<li>是否允许取消。</li>
+<li>是否允许重试。</li>
+<li>是否可以有报告。</li>
+<li>浏览器刷新后如何展示。</li>
+<li>服务重启后如何展示。</li>
+</ul>
+<h2 id="43">4.3 画出合法状态转换</h2>
+<p>必须覆盖：</p>
+<ul>
+<li>创建后排队。</li>
+<li>Worker 认领后运行。</li>
+<li>正常完成。</li>
+<li>执行异常。</li>
+<li>暂停请求与确认。</li>
+<li>暂停后恢复。</li>
+<li>取消请求与确认。</li>
+<li>Worker 租约失效。</li>
+<li>中断后人工续跑。</li>
+<li>中断后重新分析。</li>
+</ul>
+<p>非法转换也要明确，例如：</p>
+<ul>
+<li>已成功任务不能直接变回运行。</li>
+<li>已取消任务不能自动重新排队。</li>
+<li>已失败任务不能覆盖原任务重试。</li>
+<li>重试必须生成新任务 ID。</li>
+</ul>
+<h2 id="44">4.4 固定幂等与冲突规则</h2>
+<p>需要写清：</p>
+<ul>
+<li>相同幂等键、相同请求体返回原任务。</li>
+<li>相同幂等键、不同请求体返回冲突。</li>
+<li>相同活动配置指纹返回已有任务。</li>
+<li>同股票、同日期、不同配置的活动任务返回冲突。</li>
+<li>打开任务 URL 不创建任务。</li>
+<li>刷新页面不创建任务。</li>
+<li>SSE 重连不创建任务。</li>
+<li>查看历史报告不停止任务。</li>
+<li>中断任务不自动重放。</li>
+</ul>
+<h2 id="45">4.5 定义最难的崩溃边界</h2>
+<p>逐项给出预期结果：</p>
+<ol>
+<li>任务已创建，Worker 尚未开始。</li>
+<li>图已开始，尚无阶段报告。</li>
+<li>阶段已完成，事件尚未保存。</li>
+<li>核心报告已落盘，应用数据库尚未提交。</li>
+<li>报告已提交，完成事件尚未发送。</li>
+<li>用户请求取消时，图正在完成收尾。</li>
+</ol>
+<p>这里不能承诺绝对无损。</p>
+<p>无法确认执行位置时，预期结果应是 <code>interrupted</code> 和人工对账，而不是自动重跑。</p>
+<h2 id="_8">当日交付</h2>
+<ul>
+<li><code>semantic-dictionary.md</code>。</li>
+<li><code>job-state-machine.md</code>。</li>
+<li>状态转换表。</li>
+<li>幂等与冲突决策表。</li>
+<li>崩溃边界预期表。</li>
+<li>P1 状态机测试用例清单。</li>
+</ul>
+<h2 id="_9">当日验收</h2>
+<ul>
+<li>任意一个用户操作都能对应唯一的服务端语义。</li>
+<li>“重试”和“续跑”不再混用。</li>
+<li>所有终态都有防重启规则。</li>
+<li>所有可能付费的中断场景都默认禁止自动重放。</li>
+<li>前后端对同一状态使用同一中文文案。</li>
+</ul>
+<hr />
+<h1 id="day-3">五、Day 3：冻结报告结构与黄金样本</h1>
+<h2 id="_10">当日目标</h2>
+<p>保证刚完成报告、历史报告、网页、Markdown 和 PDF 使用同一份内容。</p>
+<h2 id="51">5.1 盘点现有报告字段</h2>
+<p>对照以下路径：</p>
+<ul>
+<li>运行完成状态。</li>
+<li>核心报告落盘。</li>
+<li>历史文件读取。</li>
+<li>报告阅读器。</li>
+<li>Markdown 导出。</li>
+<li>PDF 导出。</li>
+</ul>
+<p>列出每个字段的来源、别名、是否必需和缺失时表现。</p>
+<p>特别检查：</p>
+<ul>
+<li><code>trader_investment_plan</code> 与 <code>trader_investment_decision</code>。</li>
+<li><code>data_quality_summary</code>。</li>
+<li>五档信号。</li>
+<li>七类分析师报告。</li>
+<li>多空辩论。</li>
+<li>风控决策。</li>
+<li>最终决策。</li>
+<li>目标价、止损和时间范围。</li>
+</ul>
+<h2 id="52">5.2 定义报告元数据</h2>
+<p>至少包括：</p>
+<ul>
+<li><code>report_id</code>。</li>
+<li>可空 <code>job_id</code>。</li>
+<li>股票代码和名称。</li>
+<li>分析日期。</li>
+<li>实际生成时间。</li>
+<li>报告来源：新版或旧版导入。</li>
+<li>规范结构版本。</li>
+<li>内容哈希。</li>
+<li>配置摘要。</li>
+<li>数据质量状态。</li>
+<li>图表数据快照状态。</li>
+<li>重试来源任务。</li>
+</ul>
+<p>旧报告没有真实生成时间时，不用文件修改时间冒充。</p>
+<h2 id="53">5.3 定义报告正文结构</h2>
+<p>每章使用稳定的章节 ID、顺序、标题和正文。</p>
+<p>前端不能依赖数组下标猜测章节。</p>
+<p>缺失章节显示“—”或不展示，但规则必须统一。</p>
+<p>长报告不得静默截断。</p>
+<h2 id="54">5.4 定义版本与导出规则</h2>
+<ul>
+<li>每次成功分析生成新 <code>report_id</code>。</li>
+<li>重跑不覆盖旧报告。</li>
+<li>同股票同日期允许多版本。</li>
+<li>网页、Markdown 和 PDF 使用同一规范结构。</li>
+<li>打开报告不生成 PDF。</li>
+<li>打开报告不请求外部行情。</li>
+<li>新版报告尽量冻结图表输入。</li>
+<li>旧报告补数导出必须标注补数时间。</li>
+</ul>
+<h2 id="55">5.5 准备黄金样本</h2>
+<p>至少准备：</p>
+<ol>
+<li>完整新版 final state。</li>
+<li>完整旧版历史 JSON。</li>
+<li>缺少可选字段的报告。</li>
+<li>超长报告。</li>
+<li>包含五档信号的样本。</li>
+<li>包含外部文本和 HTML 字符的安全样本。</li>
+</ol>
+<p>黄金样本必须可读、可版本管理，不包含 API Key 和个人敏感数据。</p>
+<h2 id="_11">当日交付</h2>
+<ul>
+<li><code>report-schema-v1.md</code>。</li>
+<li><code>report-schema-v1.json</code>。</li>
+<li><code>final_state_v1.json</code>。</li>
+<li><code>legacy_report_v1.json</code>。</li>
+<li><code>missing_fields_report.json</code>。</li>
+<li><code>long_report.json</code>。</li>
+<li>报告字段新旧对照表。</li>
+<li>报告一致性测试清单。</li>
+</ul>
+<h2 id="_12">当日验收</h2>
+<ul>
+<li>同一黄金样本可以明确表示网页、Markdown 和 PDF 的预期内容。</li>
+<li>新旧字段别名有唯一归一化结果。</li>
+<li>缺失字段不会导致前端编造数据。</li>
+<li>同股票同日期两个版本可以同时存在。</li>
+<li>样本中不存在真实密钥和个人数据。</li>
+</ul>
+<hr />
+<h1 id="day-4-apisse">六、Day 4：冻结 API、SSE 与数据状态契约</h1>
+<h2 id="_13">当日目标</h2>
+<p>让前后端可以独立开发，不让 React 直接理解 Python 私有对象。</p>
+<h2 id="61">6.1 固定任务接口</h2>
+<p>定义以下接口的请求、响应和错误：</p>
+<pre><code class="language-text">POST /api/v1/jobs
+GET /api/v1/jobs
+GET /api/v1/jobs/{jobId}
+POST /api/v1/jobs/{jobId}/actions
+POST /api/v1/jobs/{jobId}/retry
+GET /api/v1/jobs/{jobId}/events
+</code></pre>
+<p>明确创建任务需要 <code>Idempotency-Key</code>。</p>
+<p>明确控制接口是异步请求，不代表操作已经立即完成。</p>
+<h2 id="62">6.2 固定报告接口</h2>
+<pre><code class="language-text">GET /api/v1/reports
+GET /api/v1/reports/{reportId}
+GET /api/v1/reports/{reportId}/markdown
+POST /api/v1/reports/{reportId}/exports/pdf
+</code></pre>
+<p>在契约中明确：报告 GET 没有 PDF、行情和写文件副作用。</p>
+<h2 id="63">6.3 固定市场与股票接口</h2>
+<p>覆盖：</p>
+<ul>
+<li>股票搜索。</li>
+<li>股票快照。</li>
+<li>K 线和分时。</li>
+<li>股票新闻。</li>
+<li>股票报告。</li>
+<li>市场概览。</li>
+<li>行业。</li>
+<li>强势股。</li>
+<li>资金流。</li>
+<li>快讯。</li>
+</ul>
+<p>不需要在 P0 实现这些接口，但必须固定返回结构和错误语义。</p>
+<h2 id="64">6.4 固定统一数据状态</h2>
+<p>市场数据至少返回：</p>
+<pre><code class="language-text">status: ok | empty | error | stale
+source
+as_of
+fetched_at
+is_stale
+error_code
+data
+</code></pre>
+<p>分别准备正常、空、失败和陈旧样本。</p>
+<p>“部分成功”需要表达区块级状态，不能用一个总状态掩盖所有失败。</p>
+<h2 id="65-sse">6.5 固定 SSE 事件</h2>
+<p>至少定义：</p>
+<ul>
+<li><code>snapshot</code>。</li>
+<li><code>stage_changed</code>。</li>
+<li><code>stats</code>。</li>
+<li><code>status_changed</code>。</li>
+<li><code>report_ready</code>。</li>
+<li><code>error</code>。</li>
+</ul>
+<p>每个事件需要序号、任务 ID、类型、时间和载荷。</p>
+<p>明确首次快照、断线续传、心跳、终态关闭和统计限频。</p>
+<h2 id="66">6.6 固定错误与安全边界</h2>
+<ul>
+<li>错误响应包含安全消息和请求 ID。</li>
+<li>不把服务端堆栈返回浏览器。</li>
+<li>不返回 API Key。</li>
+<li>不返回任意文件路径。</li>
+<li>不允许前端提交任意服务端配置。</li>
+<li>Base URL 使用服务端允许范围。</li>
+<li>报告和外部文本默认不可信。</li>
+</ul>
+<h2 id="_14">当日交付</h2>
+<ul>
+<li><code>api-v1.md</code>。</li>
+<li><code>sse-events-v1.md</code>。</li>
+<li><code>market-data-envelope-v1.json</code>。</li>
+<li><code>market_empty.json</code>。</li>
+<li><code>market_error.json</code>。</li>
+<li><code>market_stale.json</code>。</li>
+<li>错误响应字典。</li>
+<li>前后端契约评审记录。</li>
+</ul>
+<h2 id="_15">当日验收</h2>
+<ul>
+<li>前端不需要读取 LangGraph 原始对象即可完成页面设计。</li>
+<li>所有付费动作都有幂等规则。</li>
+<li>所有报告读取接口都明确无副作用。</li>
+<li>空数据、错误和陈旧三种响应不可混淆。</li>
+<li>SSE 重连没有创建任务的语义。</li>
+</ul>
+<hr />
+<h1 id="day-5">七、Day 5：完成核心页面线框与交互走查</h1>
+<h2 id="_16">当日目标</h2>
+<p>在写正式 React 前，用低成本线框验证主线是否顺畅。</p>
+<h2 id="71">7.1 固定路由和返回规则</h2>
+<p>确认：</p>
+<pre><code class="language-text">/workbench
+/market
+/stocks/:ticker
+/jobs
+/jobs/:jobId
+/reports
+/reports/:reportId
+/journal
+/settings
+</code></pre>
+<p>为每个页面定义：</p>
+<ul>
+<li>默认入口。</li>
+<li>返回目标。</li>
+<li>需要保留的筛选。</li>
+<li>需要恢复的滚动位置。</li>
+<li>刷新后的恢复方式。</li>
+<li>是否有活动任务入口。</li>
+</ul>
+<h2 id="72">7.2 必做线框</h2>
+<p>桌面和移动都要覆盖：</p>
+<ol>
+<li>工作台首页。</li>
+<li>统一分析启动器。</li>
+<li>任务列表。</li>
+<li>任务详情。</li>
+<li>报告库。</li>
+<li>报告阅读器。</li>
+<li>股票工作区主框架。</li>
+<li>市场到股票的钻取路径。</li>
+<li>交易日志不可用状态。</li>
+<li>设置页基本信息分组。</li>
+</ol>
+<p>P0 只需要覆盖主框架和关键交互，不完成全部高保真视觉。</p>
+<h2 id="73">7.3 必做交互走查</h2>
+<p>逐项演示：</p>
+<ul>
+<li>搜索股票并创建分析。</li>
+<li>重复点击提交。</li>
+<li>已有相同活动任务。</li>
+<li>跨页查看任务。</li>
+<li>浏览器刷新。</li>
+<li>SSE 断线。</li>
+<li>暂停和恢复。</li>
+<li>取消确认。</li>
+<li>失败后重新分析。</li>
+<li>中断后人工处理。</li>
+<li>完成后打开报告。</li>
+<li>报告章节跳转。</li>
+<li>PDF 显式生成。</li>
+<li>返回列表恢复上下文。</li>
+</ul>
+<h2 id="74">7.4 移动专项检查</h2>
+<ul>
+<li>首屏能看到主操作。</li>
+<li>底部导航不遮挡按钮。</li>
+<li>触控区域至少 44px。</li>
+<li>报告目录使用抽屉。</li>
+<li>任务阶段不挤成多列。</li>
+<li>表格转换为摘要卡片。</li>
+<li>360px 无页面级横向滚动。</li>
+<li>日志没有不可控双层滚动。</li>
+</ul>
+<h2 id="_17">当日交付</h2>
+<ul>
+<li><code>routes.md</code>。</li>
+<li><code>core-wireframes.md</code>。</li>
+<li><code>interaction-checklist.md</code>。</li>
+<li>桌面与移动线框。</li>
+<li>主流程走查记录。</li>
+<li>需要修改的契约问题清单。</li>
+</ul>
+<h2 id="_18">当日验收</h2>
+<ul>
+<li>用户无需旧版侧栏也能完成完整分析流程。</li>
+<li>每个付费操作都有明确确认和反馈。</li>
+<li>每个异常状态都有下一步操作。</li>
+<li>报告阅读和任务控制可以在手机上完成。</li>
+<li>线框发现的问题已回写到对应契约。</li>
+</ul>
+<hr />
+<h1 id="day-6">八、Day 6：准备确定性假图与验收工具</h1>
+<h2 id="_19">当日目标</h2>
+<p>让 P1 可以在不调用真实模型的情况下测试任务全生命周期。</p>
+<h2 id="81">8.1 假图的基本能力</h2>
+<p>假图需要提供与真实 Runner 相近的执行接口，但内部使用固定样本。</p>
+<p>至少支持：</p>
+<ul>
+<li>按固定顺序产生十二阶段。</li>
+<li>返回完整状态块。</li>
+<li>产生调用和 Token 统计。</li>
+<li>生成最终黄金报告。</li>
+<li>人为控制每个阶段等待时间。</li>
+<li>在安全边界响应暂停和取消。</li>
+<li>在指定阶段抛出异常。</li>
+<li>在指定阶段模拟进程中断。</li>
+</ul>
+<h2 id="82">8.2 假图必须确定性</h2>
+<p>相同输入应产生相同事件顺序和报告内容。</p>
+<p>不访问真实模型。</p>
+<p>不访问真实行情。</p>
+<p>不写真实用户报告目录。</p>
+<p>不依赖随机睡眠造成不稳定测试。</p>
+<h2 id="83">8.3 崩溃与竞争场景</h2>
+<p>至少预留：</p>
+<ul>
+<li>创建后立即取消。</li>
+<li>运行中暂停。</li>
+<li>暂停后取消。</li>
+<li>阶段完成后异常。</li>
+<li>最终报告前中断。</li>
+<li>最终报告后、数据库提交前中断。</li>
+<li>重复启动请求。</li>
+<li>多浏览器重连。</li>
+<li>事件断线后补发。</li>
+</ul>
+<p>P0 只要求假图和场景准备，不要求 P1 数据库实现已经通过。</p>
+<h2 id="84">8.4 建立测试矩阵映射</h2>
+<p>每个 P1 测试需要关联：</p>
+<ul>
+<li>对应契约条款。</li>
+<li>使用的样本。</li>
+<li>操作步骤。</li>
+<li>预期状态。</li>
+<li>预期事件。</li>
+<li>预期模型调用次数。</li>
+<li>预期报告结果。</li>
+</ul>
+<h2 id="85">8.5 完成性能测量模板</h2>
+<p>固定以下指标的记录格式：</p>
+<ul>
+<li>冷启动。</li>
+<li>路由切换。</li>
+<li>报告 GET。</li>
+<li>报告列表筛选。</li>
+<li>任务事件延迟。</li>
+<li>PDF 首次生成。</li>
+<li>PDF 缓存命中。</li>
+<li>移动视口溢出和交互耗时。</li>
+</ul>
+<h2 id="_20">当日交付</h2>
+<ul>
+<li><code>fake_analysis_graph.py</code>。</li>
+<li>假图使用说明。</li>
+<li>崩溃与竞争场景清单。</li>
+<li>契约到测试的映射表。</li>
+<li>性能测量模板。</li>
+<li>不访问真实网络的验证结果。</li>
+</ul>
+<h2 id="_21">当日验收</h2>
+<ul>
+<li>假图可以重复产生一致结果。</li>
+<li>可以人为指定失败和中断位置。</li>
+<li>默认测试路径没有真实模型和真实行情请求。</li>
+<li>P1 的核心任务风险都有对应测试场景。</li>
+</ul>
+<hr />
+<h1 id="day-7-p1">九、Day 7：契约冻结、评审与 P1 拆票</h1>
+<h2 id="_22">当日目标</h2>
+<p>确认 P0 已足够稳定，可以进入持久化任务内核开发。</p>
+<h2 id="91">9.1 交叉检查契约</h2>
+<p>重点检查：</p>
+<ul>
+<li>任务状态与接口状态一致。</li>
+<li>任务状态与线框文案一致。</li>
+<li>报告结构与黄金样本一致。</li>
+<li>报告 ID 与重试关系一致。</li>
+<li>数据状态与市场线框一致。</li>
+<li>SSE 事件与任务状态机一致。</li>
+<li>错误响应与页面下一步操作一致。</li>
+</ul>
+<p>发现冲突时，以真实执行语义为依据修改，不为了页面好看而掩盖状态。</p>
+<h2 id="92">9.2 冻结契约版本</h2>
+<p>为首版契约标记 <code>v1</code>。</p>
+<p>记录后续允许的变化：</p>
+<ul>
+<li>新增可选字段可以兼容。</li>
+<li>修改字段含义需要升级版本。</li>
+<li>删除字段需要评审。</li>
+<li>状态机新增状态需要同步前端和测试。</li>
+<li>报告结构变化需要同步黄金样本。</li>
+</ul>
+<h2 id="93-p1">9.3 把 P1 拆成独立任务</h2>
+<p>建议拆成：</p>
+<ol>
+<li>SQLite 与迁移基础。</li>
+<li>任务表、阶段表和事件表。</li>
+<li>配置快照和配置哈希。</li>
+<li>创建任务与幂等。</li>
+<li>Worker 单行租约。</li>
+<li>假图执行适配。</li>
+<li>阶段保存与统计事件。</li>
+<li>暂停、恢复和取消。</li>
+<li>终态与重试。</li>
+<li>崩溃检测和 <code>interrupted</code>。</li>
+<li>SSE 快照、事件和重连。</li>
+<li>旧新 Runner 黄金样本对照。</li>
+<li>任务内核性能与故障测试。</li>
+</ol>
+<p>每个任务写清依赖、涉及文件、测试和回退方式。</p>
+<h2 id="94-go-no-go">9.4 做 Go / No-Go 评审</h2>
+<p>只有全部通过才进入 P1：</p>
+<ul>
+<li>旧版可恢复。</li>
+<li>契约没有关键空白。</li>
+<li>黄金样本可用。</li>
+<li>假图可用。</li>
+<li>主流程线框已走查。</li>
+<li>P1 任务可以独立验收。</li>
+<li>真实模型仍然默认禁用。</li>
+</ul>
+<h2 id="_23">当日交付</h2>
+<ul>
+<li><code>p0-exit-review.md</code>。</li>
+<li><code>p1-backlog.md</code>。</li>
+<li>冻结后的契约文件。</li>
+<li>P0 验收证据索引。</li>
+<li>P1 实施顺序和依赖图。</li>
+</ul>
+<h2 id="_24">当日验收</h2>
+<ul>
+<li>评审结论明确为 Go 或 No-Go。</li>
+<li>No-Go 项有负责人、动作和预计解决时间。</li>
+<li>P1 不需要重新讨论已经冻结的基础语义。</li>
+<li>旧版保持可用。</li>
+</ul>
+<hr />
+<h1 id="day-8">十、Day 8：缓冲日，只处理阻塞项</h1>
+<p>缓冲日不是增加新需求的时间。</p>
+<p>只允许用于以下情况：</p>
+<ul>
+<li>Day 1 旧版基线不稳定。</li>
+<li>Day 2 崩溃和取消语义仍有分歧。</li>
+<li>Day 3 旧报告字段无法统一。</li>
+<li>Day 4 API 与真实数据能力不一致。</li>
+<li>Day 5 主流程线框未通过。</li>
+<li>Day 6 假图无法确定性复现。</li>
+<li>Day 7 评审存在阻塞项。</li>
+</ul>
+<p>如果前七天全部通过，缓冲日直接结束，不提前扩大 P1 范围。</p>
+<hr />
+<h1 id="p0_1">十一、P0 最终交付清单</h1>
+<h2 id="_25">基线</h2>
+<ul>
+<li>[ ] 当前提交与未提交修改已记录。</li>
+<li>[ ] 旧版测试结果已记录。</li>
+<li>[ ] 桌面与移动截图已保存。</li>
+<li>[ ] 性能基线已保存。</li>
+<li>[ ] 代码恢复点已建立。</li>
+<li>[ ] 数据备份与恢复说明已验证。</li>
+</ul>
+<h2 id="_26">任务契约</h2>
+<ul>
+<li>[ ] 核心语义词典已确认。</li>
+<li>[ ] 状态机和非法转换已确认。</li>
+<li>[ ] 幂等与冲突规则已确认。</li>
+<li>[ ] 刷新和重连不创建任务。</li>
+<li>[ ] 中断任务默认不自动重放。</li>
+<li>[ ] 最难崩溃边界已有明确预期。</li>
+</ul>
+<h2 id="_27">报告契约</h2>
+<ul>
+<li>[ ] 字段别名已统一。</li>
+<li>[ ] 报告元数据已定义。</li>
+<li>[ ] 报告版本规则已定义。</li>
+<li>[ ] 报告读取无副作用。</li>
+<li>[ ] 黄金样本完整且脱敏。</li>
+<li>[ ] 网页与导出内容来源一致。</li>
+</ul>
+<h2 id="api">API 与数据契约</h2>
+<ul>
+<li>[ ] 任务、报告和市场接口已定义。</li>
+<li>[ ] SSE 事件和重连规则已定义。</li>
+<li>[ ] 错误响应已定义。</li>
+<li>[ ] 空、错误和陈旧数据可区分。</li>
+<li>[ ] 密钥和文件路径不会泄露。</li>
+</ul>
+<h2 id="_28">设计与测试</h2>
+<ul>
+<li>[ ] 核心路由已定义。</li>
+<li>[ ] 桌面与移动线框已走查。</li>
+<li>[ ] 异常状态都有下一步操作。</li>
+<li>[ ] 假图可确定性运行。</li>
+<li>[ ] 假图不访问真实模型和行情。</li>
+<li>[ ] P1 测试矩阵已映射到契约。</li>
+</ul>
+<h2 id="p1">进入 P1</h2>
+<ul>
+<li>[ ] P0 Go / No-Go 评审已完成。</li>
+<li>[ ] P1 任务已拆分。</li>
+<li>[ ] P1 依赖和回退方式已明确。</li>
+<li>[ ] 旧版仍可启动和阅读报告。</li>
+</ul>
+<hr />
+<h1 id="p0_2">十二、P0 最容易失控的地方</h1>
+<h2 id="_29">把写文档变成形式</h2>
+<p>如果契约没有状态转换、字段样本和异常预期，文档再多也不能指导开发。</p>
+<p>验收时必须拿具体操作逐条走，而不是只检查文件是否存在。</p>
+<h2 id="p0_3">在 P0 顺手做正式前端</h2>
+<p>正式 React 会迅速扩大范围。</p>
+<p>P0 只做线框和交互走查，避免任务语义尚未固定就投入页面开发。</p>
+<h2 id="_30">用真实模型验证</h2>
+<p>真实模型会增加费用和不确定性。</p>
+<p>P0 全部使用黄金样本和假图。</p>
+<p>真实模型只留到新版任务内核通过后的 Canary。</p>
+<h2 id="_31">忽略当前未提交工作</h2>
+<p>当前工作树已经有旧版优化和测试修改。</p>
+<p>如果不先记录，后续恢复标签无法完整代表用户正在使用的版本。</p>
+<h2 id="_32">把检查点当成万能恢复</h2>
+<p>检查点必须匹配配置和图版本。</p>
+<p>无法确认兼容时，只能重新分析，不能自动续跑。</p>
+<hr />
+<h1 id="p0_4">十三、P0 完成后的第一步</h1>
+<p>P0 评审通过后，P1 的第一项不是任务页面，也不是 SSE。</p>
+<p>第一项是：</p>
+<blockquote>
+<p>建立 SQLite 迁移基础、<code>jobs</code>、<code>job_stages</code>、<code>job_events</code> 和配置快照，并用 Day 2 的状态机与 Day 6 的假图验证“重复创建只产生一个任务”。</p>
+</blockquote>
+<p>这一步通过后，才接独立 Worker 和前端进度展示。</p>
+</article></body></html>

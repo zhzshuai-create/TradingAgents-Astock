@@ -1,0 +1,1611 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AStock Pro 专业投研工作台全面升级计划</title>
+<style>
+:root{--bg:#f5f7fa;--surface:#fff;--text:#172033;--muted:#667085;--border:#e4e7ec;--brand:#c75b16;--code:#f2f4f7}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei","PingFang SC",Arial,sans-serif;line-height:1.75;font-size:16px}
+article{max-width:1080px;margin:0 auto;padding:44px 56px 72px;background:var(--surface);min-height:100vh}h1,h2,h3,h4{line-height:1.4;scroll-margin-top:20px}h1{font-size:32px;margin:0 0 24px;padding-bottom:18px;border-bottom:2px solid var(--brand)}h2{font-size:24px;margin:48px 0 18px;padding-left:12px;border-left:4px solid var(--brand)}h3{font-size:19px;margin:30px 0 12px}h4{font-size:16px;margin:22px 0 8px}p{margin:10px 0}ul,ol{padding-left:26px}li{margin:5px 0}a{color:#175cd3;text-decoration:none}a:hover{text-decoration:underline}hr{border:0;border-top:1px solid var(--border);margin:36px 0}blockquote{margin:20px 0;padding:12px 18px;border-left:4px solid var(--brand);background:#fff8f2;color:#344054}code{padding:2px 5px;border-radius:4px;background:var(--code);font-family:Consolas,"SFMono-Regular",monospace;font-size:.9em;overflow-wrap:anywhere}pre{padding:16px 18px;border-radius:8px;background:#101828;color:#e5e7eb;overflow:auto;line-height:1.55}pre code{padding:0;background:transparent;color:inherit}table{width:100%;border-collapse:collapse;margin:18px 0 26px;font-size:14px}th,td{border:1px solid var(--border);padding:10px 12px;text-align:left;vertical-align:top}th{background:#f9fafb;font-weight:650}tr:nth-child(even) td{background:#fcfcfd}.toc{margin:22px 0 30px;padding:14px 18px;border:1px solid var(--border);border-radius:8px;background:#f9fafb}.toc summary{cursor:pointer;color:var(--brand)}.toc ul{margin:8px 0}.toc>ul{columns:2;column-gap:32px}.toc li{break-inside:avoid}.toc>ul>ul{display:none}
+@media(max-width:720px){body{font-size:15px}article{padding:26px 20px 48px}h1{font-size:26px}h2{font-size:21px;margin-top:38px}h3{font-size:18px}table{display:block;overflow-x:auto;white-space:normal}th,td{min-width:110px;padding:8px}.toc>ul{columns:1}pre{font-size:12px}}
+@media print{@page{size:A4;margin:15mm}body{background:#fff;color:#000;font-size:10.5pt;line-height:1.55}article{max-width:none;padding:0;background:#fff}h1{font-size:22pt}h2{font-size:16pt;margin-top:24px;break-after:avoid}h3,h4{break-after:avoid}table{display:table;font-size:8.5pt;break-inside:auto}tr{break-inside:avoid}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f5f5f5;color:#000;border:1px solid #ccc;font-size:8pt}.toc{display:none}a{color:#000;text-decoration:none}blockquote{background:#fff}code{background:#f3f3f3}}
+</style>
+</head>
+<body><article>
+<details class="toc"><summary><strong>展开目录</strong></summary><div class="toc">
+<ul>
+<li><a href="#astock-pro">AStock Pro 专业投研工作台全面升级计划</a><ul>
+<li><a href="#_1">先说结论</a></li>
+</ul>
+</li>
+<li><a href="#_2">一、现状评估</a><ul>
+<li><a href="#11">1.1 已经具备、应当保留的资产</a><ul>
+<li><a href="#_3">多智能体分析引擎</a></li>
+<li><a href="#a">A 股数据能力</a></li>
+<li><a href="#_4">报告与导出</a></li>
+<li><a href="#_5">交易日志</a></li>
+<li><a href="#_6">测试与恢复机制</a></li>
+</ul>
+</li>
+<li><a href="#12">1.2 当前制约专业工作台的六类问题</a></li>
+<li><a href="#13">1.3 升级的核心矛盾</a></li>
+</ul>
+</li>
+<li><a href="#_7">二、产品定位与范围</a><ul>
+<li><a href="#21">2.1 产品定位</a></li>
+<li><a href="#22">2.2 设计原则</a><ul>
+<li><a href="#_8">主线唯一</a></li>
+<li><a href="#_9">股票上下文连续</a></li>
+<li><a href="#_10">状态必须真实</a></li>
+<li><a href="#_11">付费动作明确</a></li>
+<li><a href="#_12">数据必须带时间口径</a></li>
+<li><a href="#_13">移动优先保证主任务</a></li>
+</ul>
+</li>
+<li><a href="#23">2.3 首期交付范围</a></li>
+<li><a href="#24">2.4 明确不做</a></li>
+</ul>
+</li>
+<li><a href="#_14">三、目标信息架构</a><ul>
+<li><a href="#31">3.1 桌面端结构</a><ul>
+<li><a href="#_15">左侧导航</a></li>
+<li><a href="#_16">顶部研究工具条</a></li>
+</ul>
+</li>
+<li><a href="#32">3.2 移动端结构</a></li>
+<li><a href="#33">3.3 建议路由</a></li>
+<li><a href="#34">3.4 四条核心用户流程</a><ul>
+<li><a href="#_17">从市场发现到研究报告</a></li>
+<li><a href="#_18">直接分析</a></li>
+<li><a href="#_19">历史研究与重跑</a></li>
+<li><a href="#_20">异常恢复</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a href="#_21">四、页面与交互详细设计</a><ul>
+<li><a href="#41">4.1 工作台首页</a><ul>
+<li><a href="#_22">页面目标</a></li>
+<li><a href="#_23">首屏布局</a></li>
+<li><a href="#_24">删除或迁移的内容</a></li>
+<li><a href="#_25">活动任务卡</a></li>
+<li><a href="#_26">最近报告</a></li>
+<li><a href="#_27">验收重点</a></li>
+</ul>
+</li>
+<li><a href="#42">4.2 统一分析启动器</a><ul>
+<li><a href="#_28">打开入口</a></li>
+<li><a href="#_29">表单顺序</a></li>
+<li><a href="#_30">提交规则</a></li>
+<li><a href="#_31">付费提示</a></li>
+</ul>
+</li>
+<li><a href="#43">4.3 股票工作区</a><ul>
+<li><a href="#_32">固定股票头部</a></li>
+<li><a href="#_33">内容分区</a></li>
+<li><a href="#_34">加载方式</a></li>
+<li><a href="#_35">图表交互</a></li>
+<li><a href="#_36">验收重点</a></li>
+</ul>
+</li>
+<li><a href="#44">4.4 市场看板</a><ul>
+<li><a href="#_37">保留能力</a></li>
+<li><a href="#_38">统一区块状态</a></li>
+<li><a href="#_39">钻取交互</a></li>
+<li><a href="#_40">刷新策略</a></li>
+</ul>
+</li>
+<li><a href="#45">4.5 任务中心</a><ul>
+<li><a href="#_41">任务列表</a></li>
+<li><a href="#_42">任务详情</a></li>
+<li><a href="#_43">阶段报告</a></li>
+<li><a href="#_44">控制操作</a></li>
+<li><a href="#_45">验收重点</a></li>
+</ul>
+</li>
+<li><a href="#46">4.6 报告库</a><ul>
+<li><a href="#_46">列表能力</a></li>
+<li><a href="#_47">报告版本</a></li>
+</ul>
+</li>
+<li><a href="#47">4.7 报告阅读器</a><ul>
+<li><a href="#_48">桌面布局</a></li>
+<li><a href="#_49">移动布局</a></li>
+<li><a href="#_50">内容完整性</a></li>
+</ul>
+</li>
+<li><a href="#48">4.8 报告导出</a><ul>
+<li><a href="#_51">打开报告</a></li>
+<li><a href="#markdown">Markdown</a></li>
+<li><a href="#pdf">PDF</a></li>
+<li><a href="#_52">数据快照</a></li>
+</ul>
+</li>
+<li><a href="#49">4.9 交易日志</a></li>
+<li><a href="#410">4.10 设置页</a></li>
+</ul>
+</li>
+<li><a href="#_53">五、视觉与设计系统</a><ul>
+<li><a href="#51">5.1 视觉方向</a></li>
+<li><a href="#52">5.2 候选色彩令牌</a></li>
+<li><a href="#53">5.3 字体与数字</a></li>
+<li><a href="#54">5.4 间距、圆角与密度</a></li>
+<li><a href="#55">5.5 动效</a></li>
+<li><a href="#56">5.6 核心组件清单</a></li>
+</ul>
+</li>
+<li><a href="#_54">六、目标技术架构</a><ul>
+<li><a href="#61">6.1 技术选型</a></li>
+<li><a href="#62">6.2 进程拓扑</a></li>
+<li><a href="#63">6.3 建议目录</a></li>
+<li><a href="#64">6.4 模块职责</a><ul>
+<li><a href="#jobservice">JobService</a></li>
+<li><a href="#analysisworker">AnalysisWorker</a></li>
+<li><a href="#reportrepository">ReportRepository</a></li>
+<li><a href="#marketdataservice">MarketDataService</a></li>
+<li><a href="#exportservice">ExportService</a></li>
+<li><a href="#preferenceservice">PreferenceService</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a href="#_55">七、任务、数据与接口设计</a><ul>
+<li><a href="#71">7.1 核心数据表</a></li>
+<li><a href="#72">7.2 配置快照</a></li>
+<li><a href="#73">7.3 任务状态机</a></li>
+<li><a href="#74-rest">7.4 最小 REST 接口</a><ul>
+<li><a href="#_56">任务</a></li>
+<li><a href="#_57">报告</a></li>
+<li><a href="#_58">股票与市场</a></li>
+<li><a href="#_59">设置与健康</a></li>
+</ul>
+</li>
+<li><a href="#75-sse">7.5 SSE 事件</a></li>
+<li><a href="#76">7.6 数据响应口径</a></li>
+<li><a href="#77">7.7 初始缓存建议</a></li>
+</ul>
+</li>
+<li><a href="#_60">八、旧数据迁移与双栈策略</a><ul>
+<li><a href="#81">8.1 基线保护</a></li>
+<li><a href="#82">8.2 报告迁移</a></li>
+<li><a href="#83">8.3 未完成任务迁移</a></li>
+<li><a href="#84">8.4 设置、缓存与日志</a></li>
+<li><a href="#85">8.5 唯一分析写入者</a></li>
+<li><a href="#86">8.6 报告兼容投影</a></li>
+<li><a href="#87">8.7 灰度顺序</a></li>
+<li><a href="#88">8.8 回滚条件与步骤</a></li>
+</ul>
+</li>
+<li><a href="#_61">九、分阶段实施计划</a><ul>
+<li><a href="#91-mvp">9.1 内部 MVP</a></li>
+<li><a href="#92">9.2 完整替代版</a></li>
+</ul>
+</li>
+<li><a href="#_62">十、测试与量化验收</a><ul>
+<li><a href="#101">10.1 测试矩阵</a></li>
+<li><a href="#102">10.2 性能指标</a></li>
+<li><a href="#103">10.3 费用与可靠性硬指标</a></li>
+<li><a href="#104">10.4 移动与可访问性指标</a></li>
+</ul>
+</li>
+<li><a href="#_63">十一、安全、成本与数据治理</a><ul>
+<li><a href="#111">11.1 安全</a></li>
+<li><a href="#112">11.2 成本</a></li>
+<li><a href="#113">11.3 数据治理</a></li>
+</ul>
+</li>
+<li><a href="#_64">十二、主要风险与应对</a><ul>
+<li><a href="#_65">最难部分的技术判断</a></li>
+</ul>
+</li>
+<li><a href="#_66">十三、工程执行规则</a><ul>
+<li><a href="#131">13.1 小批次交付</a></li>
+<li><a href="#132">13.2 契约先行</a></li>
+<li><a href="#133">13.3 默认不使用真实模型</a></li>
+<li><a href="#134">13.4 浏览器证据优先</a></li>
+<li><a href="#135">13.5 旧版持续可运行</a></li>
+</ul>
+</li>
+<li><a href="#_67">十四、最终发布清单</a></li>
+<li><a href="#_68">十五、建议评审时确认的五个决策</a></li>
+<li><a href="#a_1">附录 A：功能等价清单</a><ul>
+<li><a href="#_69">分析与任务</a></li>
+<li><a href="#_70">市场与股票</a></li>
+<li><a href="#_71">报告</a></li>
+<li><a href="#_72">交易日志与设置</a></li>
+</ul>
+</li>
+<li><a href="#b">附录 B：关键代码依据</a></li>
+<li><a href="#c">附录 C：术语说明</a></li>
+</ul>
+</div>
+</details>
+<h1 id="astock-pro">AStock Pro 专业投研工作台全面升级计划</h1>
+<p>日期：2026-10-28<br />
+版本：评审稿 v1.0<br />
+范围：产品、交互、视觉、前端、后端任务系统、报告、数据服务、迁移与交付<br />
+现状基线：<code>TradingAgents-astock</code> 当前工作树及 2026-10-27 前端优化记录</p>
+<hr />
+<h2 id="_1">先说结论</h2>
+<p>这次升级不应只更换界面皮肤。</p>
+<p>目标是把 AStock Pro 从“Streamlit 驱动的分析页面”升级为“以股票为中心、任务可恢复、报告可追溯的个人专业投研工作台”。</p>
+<p>推荐技术路线是：</p>
+<ul>
+<li>前端采用 React + TypeScript。</li>
+<li>后端采用 FastAPI。</li>
+<li>分析引擎继续使用现有 <code>tradingagents</code>。</li>
+<li>分析任务交给独立单 Worker 执行。Worker 是单独运行的后台执行进程。</li>
+<li>SQLite 保存任务、事件、报告索引和设置。</li>
+<li>SSE 推送任务进度。SSE 是浏览器持续接收服务端消息的单向通道。</li>
+<li>旧 Streamlit 保留为独立回退版本。</li>
+<li>交易日志继续保持独立应用和独立数据，不在首期合并数据库。</li>
+</ul>
+<p>整个项目最难的部分不是 React 页面。</p>
+<p>最难的是分析任务在刷新、崩溃、重连、暂停和重试时，仍能避免重复模型调用，并如实表达任务状态。</p>
+<p>计划优先保证费用安全和数据可信。</p>
+<p>遇到无法确认的崩溃现场，系统应标记“已中断，等待人工处理”，而不是自动重跑。</p>
+<p>按 1 名熟悉项目的开发者全职投入并配合 AI 辅助估算，完整替代旧版需要 15–21 人周。</p>
+<p>完成“分析 + 任务 + 报告”内部可用版本，预计需要 8.5–12 人周。</p>
+<hr />
+<h1 id="_2">一、现状评估</h1>
+<h2 id="11">1.1 已经具备、应当保留的资产</h2>
+<h3 id="_3">多智能体分析引擎</h3>
+<p>现有引擎已经包含七类分析师、多空辩论、交易决策、风险评估和最终信号。</p>
+<p>核心图不依赖 Streamlit，具备直接复用条件。</p>
+<p>本次不重写提示词、辩论逻辑和信号算法。</p>
+<h3 id="a">A 股数据能力</h3>
+<p>项目已有行情、K 线、估值、概念、行业、强势股、北向资金、资金流和资讯等数据能力。</p>
+<p>数据层已有缓存、重试、节流和部分降级机制。</p>
+<p>新后端应复用这些能力，而不是让前端重新对接各个数据网站。</p>
+<h3 id="_4">报告与导出</h3>
+<p>现有报告已覆盖阶段报告、多空辩论、风控和最终决策。</p>
+<p>Markdown 与 PDF 导出已有实现基础。</p>
+<p>本次重点解决报告版本、阅读体验和导出副作用，不重新设计报告内容体系。</p>
+<h3 id="_5">交易日志</h3>
+<p>交易日志是独立产品，具备独立的数据和业务流程。</p>
+<p>现有 iframe 集成保持了较低耦合。</p>
+<p>首期保留这个边界，只升级导航、状态、尺寸、主题和故障反馈。</p>
+<h3 id="_6">测试与恢复机制</h3>
+<p>项目已有 Python 测试、Streamlit AppTest、浏览器验收脚本和移动端截图基线。</p>
+<p>这些资产应继续作为旧版回归门禁，并转化为新旧语义对照测试。</p>
+<h2 id="12">1.2 当前制约专业工作台的六类问题</h2>
+<table>
+<thead>
+<tr>
+<th>问题</th>
+<th>当前表现</th>
+<th>升级方向</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>信息架构分散</td>
+<td>侧栏、首页和报告页存在重复入口，能力还不完全一致</td>
+<td>建立统一导航、统一分析启动器和 URL 驱动的工作区</td>
+</tr>
+<tr>
+<td>任务生命周期不可靠</td>
+<td>任务依赖进程内字典和 daemon 线程，服务重启后无法可靠恢复</td>
+<td>数据库任务、独立 Worker、持久事件和明确状态机</td>
+</tr>
+<tr>
+<td>报告会被覆盖</td>
+<td>同股票、同日期报告使用相同文件键</td>
+<td>每次分析生成独立报告版本</td>
+</tr>
+<tr>
+<td>数据状态不清楚</td>
+<td>空数据、请求失败和缓存陈旧经常表现相同</td>
+<td>统一数据状态、来源、业务时间和抓取时间</td>
+</tr>
+<tr>
+<td>阅读与移动体验不足</td>
+<td>长报告定位弱，移动目录和日志嵌套滚动不完善</td>
+<td>专业报告阅读器、移动抽屉和单滚动容器</td>
+</tr>
+<tr>
+<td>页面存在隐藏成本</td>
+<td>打开报告即生成 PDF，PDF 又可能重新拉取行情</td>
+<td>报告读取零导出副作用，PDF 显式生成并缓存</td>
+</tr>
+</tbody>
+</table>
+<h2 id="13">1.3 升级的核心矛盾</h2>
+<p>React 替换本身风险可控。</p>
+<p>真正需要优先处理的是以下四件事：</p>
+<ol>
+<li>任务必须有独立 ID，不能只属于某个浏览器会话。</li>
+<li>每个任务必须保存不可变配置快照。</li>
+<li>每次成功分析必须保留独立报告版本。</li>
+<li>任何刷新和断线都不能自动创建新的付费分析。</li>
+</ol>
+<p>因此，实施顺序必须是“任务与数据地基 → 新界面 → 双栈切换”，不能先做完整新皮肤再补后端。</p>
+<hr />
+<h1 id="_7">二、产品定位与范围</h1>
+<h2 id="21">2.1 产品定位</h2>
+<p>AStock Pro 是面向个人 A 股研究者的本地专业投研工作台。</p>
+<p>它以股票为研究对象，把以下流程连成一条连续主线：</p>
+<blockquote>
+<p>市场发现 → 股票工作区 → 发起 AI 分析 → 跨页跟踪任务 → 阅读版本化报告 → 导出与复盘 → 跳转交易日志</p>
+</blockquote>
+<p>它不是自动交易系统。</p>
+<p>它也不以堆叠更多指标为目标。</p>
+<p>它的核心价值是研究上下文不丢失、任务状态可信、报告可以追溯、数据时效可以判断。</p>
+<h2 id="22">2.2 设计原则</h2>
+<h3 id="_8">主线唯一</h3>
+<p>“新建分析”可以出现在多个页面，但所有入口必须打开同一个分析启动器。</p>
+<p>不同入口不得各自实现一套任务创建逻辑。</p>
+<h3 id="_9">股票上下文连续</h3>
+<p>用户从市场、任务或报告进入同一股票时，应看到一致的股票头部和相关研究内容。</p>
+<p>返回来源页面时，恢复筛选、展开状态和滚动位置。</p>
+<h3 id="_10">状态必须真实</h3>
+<p>“暂停中”不能显示为“已暂停”。</p>
+<p>“取消请求已提交”不能显示为“已停止”。</p>
+<p>“连接中断”不能被描述成“任务失败”。</p>
+<h3 id="_11">付费动作明确</h3>
+<p>只有用户明确点击才能创建分析。</p>
+<p>打开 URL、刷新页面和 SSE 重连都不能触发新任务。</p>
+<p>重新分析和检查点续跑必须使用不同文案。</p>
+<h3 id="_12">数据必须带时间口径</h3>
+<p>每个市场数据区块都要能回答三个问题：数据来自哪里、数据本身属于什么时间、系统何时取得它。</p>
+<h3 id="_13">移动优先保证主任务</h3>
+<p>移动端不追求复制桌面全部信息密度。</p>
+<p>移动端首先保证搜索、任务跟踪、报告阅读和关键控制可用。</p>
+<h2 id="23">2.3 首期交付范围</h2>
+<ul>
+<li>全新工作台首页。</li>
+<li>市场看板。</li>
+<li>股票工作区。</li>
+<li>统一分析启动器。</li>
+<li>任务中心和任务详情。</li>
+<li>报告库和版本化报告阅读器。</li>
+<li>Markdown 与 PDF 按需导出。</li>
+<li>交易日志整合外壳。</li>
+<li>模型与界面设置。</li>
+<li>旧报告和旧未完成记录迁移。</li>
+<li>旧 Streamlit 双栈运行、灰度和回滚。</li>
+<li>桌面与移动端完整验收。</li>
+</ul>
+<h2 id="24">2.4 明确不做</h2>
+<ul>
+<li>不调整 Agent 数量、提示词和默认辩论轮次。</li>
+<li>不承诺相同输入产生逐字一致的模型结果。</li>
+<li>不接券商下单、自动交易和实盘账户。</li>
+<li>不合并交易日志数据库。</li>
+<li>不把交易日志业务重写为 React 子模块。</li>
+<li>不引入微服务、Kubernetes、Redis、Celery 和多 Worker 集群。</li>
+<li>不做组织、角色、多人协作和复杂权限。</li>
+<li>不做 tick 级行情、Level-2 和低延迟全市场推送。</li>
+<li>不自动重试可能已经产生模型费用的中断任务。</li>
+<li>不把报告对比、关注列表和复杂通知中心列为首个完整版本的阻塞项。</li>
+<li>不尝试恢复已经被旧文件覆盖的历史报告版本。</li>
+</ul>
+<hr />
+<h1 id="_14">三、目标信息架构</h1>
+<h2 id="31">3.1 桌面端结构</h2>
+<p>采用“左侧导航 + 顶部研究工具条 + 主内容区”。</p>
+<h3 id="_15">左侧导航</h3>
+<p>展开宽度建议 232px，折叠宽度建议 72px。</p>
+<p>导航项如下：</p>
+<ol>
+<li>工作台</li>
+<li>市场看板</li>
+<li>股票工作区</li>
+<li>任务中心</li>
+<li>报告库</li>
+<li>交易日志</li>
+<li>设置</li>
+<li>旧版入口</li>
+</ol>
+<p>“股票工作区”没有当前标的时，展示最近研究股票和搜索入口。</p>
+<h3 id="_16">顶部研究工具条</h3>
+<p>包含：</p>
+<ul>
+<li>全局股票搜索。</li>
+<li>当前活动任务入口与数量。</li>
+<li>Worker 和数据服务状态。</li>
+<li>亮暗主题切换。</li>
+<li>当前页面需要的轻量操作。</li>
+</ul>
+<p>顶栏不再重复展示大面积品牌卡和模型说明。</p>
+<p>模型详情移入设置页或紧凑状态弹层。</p>
+<h2 id="32">3.2 移动端结构</h2>
+<p>顶部保留返回、页面标题、搜索和活动任务状态。</p>
+<p>底部设置五个入口：</p>
+<ul>
+<li>工作台</li>
+<li>市场</li>
+<li>任务</li>
+<li>报告</li>
+<li>更多</li>
+</ul>
+<p>“更多”包含交易日志、设置和旧版入口。</p>
+<p>移动端侧栏不默认展开。</p>
+<p>关键触控区域至少 44 × 44px。</p>
+<p>360px 宽度下不得依赖页面级横向滚动。</p>
+<h2 id="33">3.3 建议路由</h2>
+<pre><code class="language-text">/workbench
+/market
+/stocks/:ticker?tab=overview|news|reports
+/jobs
+/jobs/:jobId
+/reports
+/reports/:reportId?section=...
+/journal
+/settings
+</code></pre>
+<p>股票、筛选、分页、任务 ID 和报告章节应体现在 URL 或路由状态中。</p>
+<p>URL 只负责定位，不负责自动执行付费动作。</p>
+<h2 id="34">3.4 四条核心用户流程</h2>
+<h3 id="_17">从市场发现到研究报告</h3>
+<p>市场看板点击股票 → 进入股票工作区 → 点击“发起 AI 分析” → 确认配置 → 进入任务详情 → 完成后进入报告。</p>
+<h3 id="_18">直接分析</h3>
+<p>全局搜索股票 → 打开统一启动器 → 检查相同活动任务 → 创建或复用任务 → 跨页持续跟踪 → 阅读报告。</p>
+<h3 id="_19">历史研究与重跑</h3>
+<p>报告库筛选 → 打开指定版本 → 查看同标的其他版本 → 选择“使用相同参数重新分析” → 创建新任务和新报告。</p>
+<p>旧报告不被修改。</p>
+<h3 id="_20">异常恢复</h3>
+<p>浏览器刷新后按任务 ID 重新读取快照并订阅进度。</p>
+<p>SSE 断线后显示连接状态并自动重连，不重启任务。</p>
+<p>Worker 崩溃后任务标记为“已中断”。</p>
+<p>只有存在匹配检查点时，才提供“从检查点继续”。</p>
+<p>否则只提供“重新分析”。</p>
+<hr />
+<h1 id="_21">四、页面与交互详细设计</h1>
+<h2 id="41">4.1 工作台首页</h2>
+<h3 id="_22">页面目标</h3>
+<p>让用户在首屏完成两件事：开始研究，以及回到尚未完成的研究。</p>
+<h3 id="_23">首屏布局</h3>
+<ol>
+<li>股票搜索框。</li>
+<li>“新建分析”主按钮。</li>
+<li>当前活动任务。</li>
+<li>最近报告。</li>
+<li>最近研究股票。</li>
+<li>精简市场摘要。</li>
+</ol>
+<h3 id="_24">删除或迁移的内容</h3>
+<ul>
+<li>删除占据首屏的名言区。</li>
+<li>删除重复的侧栏新建分析表单。</li>
+<li>删除大段版本和流程说明。</li>
+<li>将系统状态压缩为状态入口。</li>
+<li>将完整模型配置移入分析启动器和设置页。</li>
+</ul>
+<h3 id="_25">活动任务卡</h3>
+<p>显示股票、分析日期、当前阶段、真实状态、耗时和“继续查看”。</p>
+<p>失败任务显示“查看错误”和“重新分析”。</p>
+<p>中断任务显示“等待人工处理”，不能继续显示“进行中”。</p>
+<h3 id="_26">最近报告</h3>
+<p>显示股票、分析日期、信号、生成时间和报告版本。</p>
+<p>点击后进入指定报告，不再通过临时 session 状态间接打开。</p>
+<h3 id="_27">验收重点</h3>
+<p>首屏主操作明确。</p>
+<p>活动任务和最近报告无需展开隐藏面板即可看到。</p>
+<p>跨页返回后，首页不重复启动任何任务。</p>
+<h2 id="42">4.2 统一分析启动器</h2>
+<h3 id="_28">打开入口</h3>
+<p>工作台、股票工作区、任务重试和报告重跑都使用同一启动器。</p>
+<p>桌面端使用右侧抽屉或居中对话框。</p>
+<p>移动端使用全屏页面。</p>
+<h3 id="_29">表单顺序</h3>
+<ol>
+<li>股票与分析日期。</li>
+<li>模型供应商和模型组合。</li>
+<li>并行分析师等高级选项。</li>
+<li>本次配置摘要。</li>
+<li>明确的提交按钮。</li>
+</ol>
+<h3 id="_30">提交规则</h3>
+<p>点击后按钮进入提交中状态，防止重复点击。</p>
+<p>服务端仍必须通过幂等键防止重复创建。幂等指同一个请求重复到达时只产生一次实际任务。</p>
+<p>相同幂等键和相同请求体返回原任务。</p>
+<p>相同幂等键但请求体不同返回冲突。</p>
+<p>同股票、同日期、同配置已有活动任务时，直接提供“查看已有任务”。</p>
+<p>同股票、同日期但不同配置仍有活动任务时，提示冲突，不静默排队。</p>
+<h3 id="_31">付费提示</h3>
+<p>提交前说明本次会启动真实模型调用。</p>
+<p>重试时说明这是新任务，可能产生新费用。</p>
+<p>取消时说明已经发生的调用无法撤销。</p>
+<h2 id="43">4.3 股票工作区</h2>
+<h3 id="_32">固定股票头部</h3>
+<p>显示代码、名称、最新价、涨跌幅、数据来源和数据时间。</p>
+<p>缓存陈旧时显示明确标记。</p>
+<p>主操作包括“查看最新报告”和“发起分析”。</p>
+<p>当前已有同标的任务时，主按钮改为“查看进行中任务”。</p>
+<h3 id="_33">内容分区</h3>
+<ul>
+<li>概览：价格、估值、市值、换手率、K 线和成交量。</li>
+<li>估值与题材：EPS 一致预期、前向估值、行业、概念和地域。</li>
+<li>资讯：个股新闻与相关快讯。</li>
+<li>研究报告：该股票全部报告版本。</li>
+</ul>
+<h3 id="_34">加载方式</h3>
+<p>各区块独立加载。</p>
+<p>一个数据源失败时，其他区块继续展示。</p>
+<p>加载骨架必须匹配最终内容尺寸，避免页面跳动。</p>
+<h3 id="_35">图表交互</h3>
+<p>支持周期切换、缩放、十字光标、图例开关和数据时间显示。</p>
+<p>移动端提供明确的周期按钮，不依赖精细鼠标手势。</p>
+<h3 id="_36">验收重点</h3>
+<p>从市场进入股票，再返回市场时，恢复原行业、Tab、筛选和滚动位置。</p>
+<p>报告和分析入口保持同一股票上下文。</p>
+<h2 id="44">4.4 市场看板</h2>
+<h3 id="_37">保留能力</h3>
+<ul>
+<li>指数概览。</li>
+<li>行业涨跌榜和成分股。</li>
+<li>强势股和题材归因。</li>
+<li>北向资金和行业资金。</li>
+<li>快讯和个股新闻。</li>
+</ul>
+<h3 id="_38">统一区块状态</h3>
+<p>每个数据区块都使用统一的数据状态外壳：</p>
+<ul>
+<li>加载中。</li>
+<li>正常。</li>
+<li>真实空数据。</li>
+<li>请求失败。</li>
+<li>缓存陈旧。</li>
+<li>部分成功。</li>
+</ul>
+<p>“暂无数据”和“数据源请求失败”必须使用不同文案。</p>
+<h3 id="_39">钻取交互</h3>
+<p>点击行业展开成分股。</p>
+<p>点击股票进入股票工作区。</p>
+<p>点击题材可筛选相关股票。</p>
+<p>所有钻取状态可通过返回操作恢复。</p>
+<h3 id="_40">刷新策略</h3>
+<p>仅刷新可见页面。</p>
+<p>后台浏览器标签页降频。</p>
+<p>手动刷新有短防抖，并继续使用服务端缓存约束。</p>
+<h2 id="45">4.5 任务中心</h2>
+<h3 id="_41">任务列表</h3>
+<p>支持活动、已完成、失败、已取消、股票和日期筛选。</p>
+<p>字段包括股票、分析日期、状态、当前阶段、耗时、调用统计和创建时间。</p>
+<p>桌面使用表格。</p>
+<p>移动端使用摘要卡片，不压缩成多列窄表格。</p>
+<h3 id="_42">任务详情</h3>
+<p>包含：</p>
+<ul>
+<li>状态头。</li>
+<li>最后服务端更新时间。</li>
+<li>十二阶段时间线。</li>
+<li>LLM 和工具调用统计。</li>
+<li>Token 统计。</li>
+<li>已完成阶段的部分报告。</li>
+<li>非敏感配置摘要。</li>
+<li>错误信息与安全任务 ID。</li>
+<li>暂停、恢复、取消和重试操作。</li>
+<li>完成后的报告入口。</li>
+</ul>
+<h3 id="_43">阶段报告</h3>
+<p>不再静默截断 3000 字。</p>
+<p>长内容默认折叠，但可以展开完整文本。</p>
+<h3 id="_44">控制操作</h3>
+<p>点击暂停后先显示“暂停中”。</p>
+<p>Worker 在安全边界确认后才显示“已暂停”。</p>
+<p>取消必须二次确认。</p>
+<p>取消后保留已产生的阶段成果和审计记录，不能简单清空。</p>
+<h3 id="_45">验收重点</h3>
+<p>运行中可以自由切换页面。</p>
+<p>查看历史报告不会丢失任务控制入口。</p>
+<p>刷新和重连不会增加模型调用次数。</p>
+<h2 id="46">4.6 报告库</h2>
+<h3 id="_46">列表能力</h3>
+<ul>
+<li>游标分页。</li>
+<li>股票筛选。</li>
+<li>分析日期和生成日期筛选。</li>
+<li>信号筛选。</li>
+<li>同股票同日期多版本展示。</li>
+<li>返回列表时恢复筛选与滚动位置。</li>
+</ul>
+<p>不再使用固定 30 条或 100 条截断。</p>
+<h3 id="_47">报告版本</h3>
+<p>每次成功分析生成独立 <code>report_id</code>。</p>
+<p>重跑生成新版本，并关联来源任务。</p>
+<p>旧版文件只作为迁移来源和兼容投影，不再作为新版主存储。</p>
+<h2 id="47">4.7 报告阅读器</h2>
+<h3 id="_48">桌面布局</h3>
+<p>顶部是股票、分析日期、信号、目标价、止损参考和时间范围。</p>
+<p>元信息区显示生成时间、模型配置摘要、任务 ID 和数据质量状态。</p>
+<p>正文最大宽度建议 760–840px。</p>
+<p>右侧使用粘性目录，并高亮当前章节。</p>
+<p>操作包括返回、同标的其他版本、重新分析、下载 Markdown 和生成 PDF。</p>
+<h3 id="_49">移动布局</h3>
+<p>信号头部压缩为核心信息。</p>
+<p>目录改为抽屉。</p>
+<p>多空辩论和风控角色使用分段控件或折叠区。</p>
+<p>支持章节深链接和返回原阅读位置。</p>
+<h3 id="_50">内容完整性</h3>
+<p>缺失字段显示“—”，不得编造。</p>
+<p>网页、Markdown 和 PDF 必须来自同一规范化报告结构。</p>
+<p>同一报告刚完成时与重新打开时，章节和信号必须一致。</p>
+<h2 id="48">4.8 报告导出</h2>
+<h3 id="_51">打开报告</h3>
+<p>只读取报告正文和元数据。</p>
+<p>不得生成 PDF。</p>
+<p>不得请求外部行情。</p>
+<h3 id="markdown">Markdown</h3>
+<p>直接从冻结的报告内容生成。</p>
+<p>重复下载应得到相同内容。</p>
+<h3 id="pdf">PDF</h3>
+<p>只有用户明确点击后才生成。</p>
+<p>生成期间正文仍可阅读。</p>
+<p>缓存键使用 <code>report_id + content_hash + exporter_version</code>。</p>
+<p>失败不影响正文和 Markdown。</p>
+<h3 id="_52">数据快照</h3>
+<p>新版任务在完成时冻结报告正文和导出图表所需的数据快照。</p>
+<p>旧报告没有图表快照时，允许补数导出，但必须明确标注“导出时补充数据”及对应时间。</p>
+<p>不得把补数图表伪装成原分析时快照。</p>
+<h2 id="49">4.9 交易日志</h2>
+<p>首期保持独立服务。</p>
+<p>新版只提供原生导航外壳和集成状态。</p>
+<p>状态包括可用、启动中和不可用。</p>
+<p>不可用时提供手动启动指引和新窗口打开，不影响主站其他功能。</p>
+<p>地址通过配置管理，默认继续使用 <code>127.0.0.1:8502</code>。</p>
+<p>桌面端按内容或视口调整高度。</p>
+<p>移动端优先使用单滚动容器。</p>
+<p>主题消息必须校验目标来源，不再使用任意目标的 <code>postMessage</code>。</p>
+<p>日志自己的录入、流水和指标验收仍由日志项目负责。</p>
+<h2 id="410">4.10 设置页</h2>
+<p>包含：</p>
+<ul>
+<li>模型供应商和模型组合。</li>
+<li>Base URL。</li>
+<li>并行分析师开关及实验性说明。</li>
+<li>行情刷新偏好。</li>
+<li>主题和密度。</li>
+<li>报告导出偏好。</li>
+<li>交易日志地址。</li>
+<li>数据目录、版本和 Worker 状态的只读信息。</li>
+</ul>
+<p>API Key 只从服务端环境读取。</p>
+<p>设置接口永远不返回密钥。</p>
+<p>配置修改只影响新任务。</p>
+<p>已有任务继续使用创建时的配置快照。</p>
+<hr />
+<h1 id="_53">五、视觉与设计系统</h1>
+<h2 id="51">5.1 视觉方向</h2>
+<p>整体风格定位为“克制、密集但清晰的专业研究工具”。</p>
+<p>保留现有品牌橙作为操作强调色。</p>
+<p>用深色中性色建立专业感，但不把整个界面做成纯黑交易终端。</p>
+<p>信息层级优先于装饰。</p>
+<p>卡片只用于真正独立的信息分组，不为每段文字重复加卡片。</p>
+<h2 id="52">5.2 候选色彩令牌</h2>
+<p>以下数值是设计起点，最终必须通过对比度实测。</p>
+<table>
+<thead>
+<tr>
+<th>令牌</th>
+<th>亮色建议</th>
+<th>暗色建议</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>页面背景</td>
+<td><code>#F5F7FA</code></td>
+<td><code>#0B1220</code></td>
+<td>全局底色</td>
+</tr>
+<tr>
+<td>表面</td>
+<td><code>#FFFFFF</code></td>
+<td><code>#111827</code></td>
+<td>导航与卡片</td>
+</tr>
+<tr>
+<td>主文本</td>
+<td><code>#172033</code></td>
+<td><code>#E5E7EB</code></td>
+<td>标题与正文</td>
+</tr>
+<tr>
+<td>次文本</td>
+<td><code>#667085</code></td>
+<td><code>#98A2B3</code></td>
+<td>辅助说明</td>
+</tr>
+<tr>
+<td>边框</td>
+<td><code>#E4E7EC</code></td>
+<td><code>#2A3648</code></td>
+<td>分隔与输入框</td>
+</tr>
+<tr>
+<td>品牌强调</td>
+<td><code>#C75B16</code></td>
+<td><code>#F79009</code></td>
+<td>主按钮与激活态</td>
+</tr>
+<tr>
+<td>上涨</td>
+<td><code>#D92D20</code></td>
+<td><code>#FF6B61</code></td>
+<td>A 股上涨语义</td>
+</tr>
+<tr>
+<td>下跌</td>
+<td><code>#039855</code></td>
+<td><code>#47CD89</code></td>
+<td>A 股下跌语义</td>
+</tr>
+<tr>
+<td>警告</td>
+<td><code>#B54708</code></td>
+<td><code>#FDB022</code></td>
+<td>陈旧、暂停和注意</td>
+</tr>
+<tr>
+<td>错误</td>
+<td><code>#B42318</code></td>
+<td><code>#F97066</code></td>
+<td>失败与破坏性操作</td>
+</tr>
+</tbody>
+</table>
+<p>红涨绿跌必须同时配合正负号、箭头或文字。</p>
+<p>不能只靠颜色传达方向。</p>
+<h2 id="53">5.3 字体与数字</h2>
+<p>中文优先使用系统字体。</p>
+<p>正文默认 14–16px。</p>
+<p>辅助信息不小于 12px。</p>
+<p>页面标题建议 24–28px。</p>
+<p>报告正文建议 16px，行高 1.75。</p>
+<p>数字使用等宽数字特性，避免刷新时横向跳动。</p>
+<p>股票代码、价格、Token 和耗时使用统一数字样式。</p>
+<h2 id="54">5.4 间距、圆角与密度</h2>
+<p>采用 4px 基础间距单位。</p>
+<p>常用间距为 8、12、16、24、32px。</p>
+<p>圆角以 6、10、14px 为主。</p>
+<p>阴影只用于浮层和重要层级，不给所有卡片增加明显悬浮感。</p>
+<p>桌面表格提供紧凑和舒适两档密度。</p>
+<p>报告阅读默认使用舒适密度。</p>
+<h2 id="55">5.5 动效</h2>
+<p>普通状态切换使用 120–200ms 动效。</p>
+<p>不使用持续吸引注意的装饰动画。</p>
+<p>任务运行状态可以使用轻量指示，但必须支持 <code>prefers-reduced-motion</code>。</p>
+<p>页面加载优先使用稳定骨架，避免大面积闪烁和布局位移。</p>
+<h2 id="56">5.6 核心组件清单</h2>
+<ul>
+<li><code>AppShell</code>：全局导航和响应式框架。</li>
+<li><code>PageHeader</code>：标题、返回和页面操作。</li>
+<li><code>StockHeader</code>：统一股票上下文。</li>
+<li><code>JobStatusBadge</code>：统一任务状态。</li>
+<li><code>DataSection</code>：统一加载、空、错误、陈旧和部分成功。</li>
+<li><code>MetricCard</code>：指标展示。</li>
+<li><code>SignalBadge</code>：报告信号。</li>
+<li><code>AnalysisLauncher</code>：统一分析启动器。</li>
+<li><code>TaskDock</code>：全局活动任务入口。</li>
+<li><code>ReportToc</code>：报告目录与当前章节。</li>
+<li><code>ExportMenu</code>：导出状态和操作。</li>
+<li><code>ConfirmPaidActionDialog</code>：付费和破坏性操作确认。</li>
+</ul>
+<hr />
+<h1 id="_54">六、目标技术架构</h1>
+<h2 id="61">6.1 技术选型</h2>
+<table>
+<thead>
+<tr>
+<th>层级</th>
+<th>选择</th>
+<th>理由</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>前端</td>
+<td>React、TypeScript strict、Vite</td>
+<td>本地工具不需要 SEO 和服务端渲染，构建轻量</td>
+</tr>
+<tr>
+<td>路由</td>
+<td>React Router</td>
+<td>用 URL 管理股票、任务、报告和返回上下文</td>
+</tr>
+<tr>
+<td>服务端状态</td>
+<td>TanStack Query</td>
+<td>统一缓存、失效、重试和请求状态，避免引入 Redux</td>
+</tr>
+<tr>
+<td>UI</td>
+<td>Ant Design 5 + CSS Modules + Tokens</td>
+<td>提高表单、表格和可访问性开发效率，同时保留品牌定制</td>
+</tr>
+<tr>
+<td>图表</td>
+<td>ECharts</td>
+<td>支持 K 线、分时、资金流和移动交互</td>
+</tr>
+<tr>
+<td>Markdown</td>
+<td><code>react-markdown</code> + 内容清理</td>
+<td>禁止不可信原始 HTML 直接进入页面</td>
+</tr>
+<tr>
+<td>后端</td>
+<td>FastAPI + Pydantic</td>
+<td>复用 Python 引擎并生成稳定接口契约</td>
+</tr>
+<tr>
+<td>数据库</td>
+<td>SQLite + SQLAlchemy + Alembic</td>
+<td>单用户、单 Worker 下事务可靠，运维成本低</td>
+</tr>
+<tr>
+<td>实时进度</td>
+<td>SSE</td>
+<td>单向任务事件足够，不需要双向 WebSocket</td>
+</tr>
+<tr>
+<td>前端测试</td>
+<td>Vitest、Testing Library、Playwright、axe</td>
+<td>覆盖单元、交互、浏览器和可访问性</td>
+</tr>
+<tr>
+<td>交付</td>
+<td>FastAPI 同源托管前端构建产物</td>
+<td>减少跨域和额外反向代理复杂度</td>
+</tr>
+</tbody>
+</table>
+<h2 id="62">6.2 进程拓扑</h2>
+<pre><code class="language-text">浏览器 React 应用
+       │
+       │ REST + SSE
+       ▼
+FastAPI 单进程 ───────────────┐
+       │                      │
+       │ SQLite/WAL           │ 有界线程池处理行情和 PDF
+       ▼                      │
+独立单 Worker                  │
+       │                      │
+       └── TradingAgentsGraph ┘
+               │
+               ├── 每任务独立结果目录
+               ├── 现有缓存、检查点和记忆
+               └── 成功后写数据库与旧版兼容投影
+
+旧 Streamlit：独立端口，保留回退
+trade-journal：独立端口和独立数据库
+</code></pre>
+<p>FastAPI 只负责接口和状态读取。</p>
+<p>Worker 是唯一分析图执行者。</p>
+<p>首期严格串行执行分析任务。</p>
+<p>这会牺牲部分并发吞吐，但可以避免当前全局配置污染，并降低重复模型费用风险。</p>
+<h2 id="63">6.3 建议目录</h2>
+<pre><code class="language-text">TradingAgents-astock/
+├── tradingagents/                 # 核心图和数据层，保持独立
+├── web/                           # 旧 Streamlit，继续可运行
+├── backend/
+│   ├── app/
+│   │   ├── main.py
+│   │   ├── api/v1/
+│   │   │   ├── jobs.py
+│   │   │   ├── reports.py
+│   │   │   ├── stocks.py
+│   │   │   ├── market.py
+│   │   │   ├── settings.py
+│   │   │   └── integrations.py
+│   │   ├── core/
+│   │   ├── models/
+│   │   ├── schemas/
+│   │   ├── services/
+│   │   │   ├── analysis_runner.py
+│   │   │   ├── job_service.py
+│   │   │   ├── report_schema.py
+│   │   │   ├── market_service.py
+│   │   │   ├── export_service.py
+│   │   │   └── legacy_import.py
+│   │   └── worker/
+│   └── alembic/
+├── frontend/
+│   ├── src/
+│   │   ├── app/
+│   │   ├── components/ui/
+│   │   ├── features/
+│   │   │   ├── workbench/
+│   │   │   ├── stocks/
+│   │   │   ├── analysis/
+│   │   │   ├── jobs/
+│   │   │   ├── reports/
+│   │   │   ├── market/
+│   │   │   ├── journal/
+│   │   │   └── settings/
+│   │   ├── lib/
+│   │   └── styles/
+│   └── e2e/
+└── tests/
+</code></pre>
+<h2 id="64">6.4 模块职责</h2>
+<h3 id="jobservice">JobService</h3>
+<p>负责创建任务、配置快照、幂等、控制请求、重试和状态查询。</p>
+<p>接口路由不得直接操作线程、文件或 <code>ProgressTracker</code>。</p>
+<h3 id="analysisworker">AnalysisWorker</h3>
+<p>负责领取任务、写入心跳、执行图、保存阶段、确认控制和写入事件。</p>
+<p>首期单 Worker 串行。</p>
+<p>即使误启动第二个 Worker，也只能等待或退出。</p>
+<h3 id="reportrepository">ReportRepository</h3>
+<p>负责报告版本、筛选、读取和旧报告导入。</p>
+<p>前端不直接理解完整 LangGraph 状态。</p>
+<h3 id="marketdataservice">MarketDataService</h3>
+<p>负责复用核心数据层、统一缓存、来源、时间和错误语义。</p>
+<p>FastAPI 不直接调用带 Streamlit 缓存的 <code>web.data_functions</code>。</p>
+<h3 id="exportservice">ExportService</h3>
+<p>负责 Markdown、PDF、数据快照、缓存和导出文件路径。</p>
+<p>报告 GET 请求不得调用导出服务。</p>
+<h3 id="preferenceservice">PreferenceService</h3>
+<p>负责非敏感偏好。</p>
+<p>已有任务不读取修改后的偏好。</p>
+<hr />
+<h1 id="_55">七、任务、数据与接口设计</h1>
+<h2 id="71">7.1 核心数据表</h2>
+<table>
+<thead>
+<tr>
+<th>表</th>
+<th>关键内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>jobs</code></td>
+<td>任务 ID、股票、分析日期、状态、控制请求、配置快照、配置哈希、幂等键、重试来源、当前阶段、统计、错误、租约和时间</td>
+</tr>
+<tr>
+<td><code>job_stages</code></td>
+<td>任务与阶段唯一键、阶段状态、阶段报告、开始和完成时间</td>
+</tr>
+<tr>
+<td><code>job_events</code></td>
+<td>单调事件序号、任务 ID、事件类型、小型载荷和时间</td>
+</tr>
+<tr>
+<td><code>reports</code></td>
+<td>报告 ID、来源任务、股票、分析日期、信号、规范化状态、原始状态、内容哈希、数据快照清单、来源和时间</td>
+</tr>
+<tr>
+<td><code>app_settings</code></td>
+<td>少量非敏感用户偏好</td>
+</tr>
+<tr>
+<td><code>worker_lease</code></td>
+<td>单行 Worker 锁、执行者 ID、心跳和租约到期时间</td>
+</tr>
+</tbody>
+</table>
+<p>SQLite 开启外键、WAL 和合理忙等待。</p>
+<p>WAL 是 SQLite 的日志模式，可降低读写互相阻塞。</p>
+<p>事务保持短小。</p>
+<p>数据库和备份放在本地磁盘。</p>
+<h2 id="72">7.2 配置快照</h2>
+<p>创建任务时，服务端生成完整配置。</p>
+<p>嵌套配置必须深拷贝。</p>
+<p>密钥、临时 UI 状态和无关路径不得进入配置快照。</p>
+<p>模型、供应商、Base URL、并行开关、数据供应商、语言和图适配器版本参与配置哈希。</p>
+<p>Worker 为每个任务使用独立结果目录。</p>
+<h2 id="73">7.3 任务状态机</h2>
+<pre><code class="language-text">创建
+  └─&gt; queued ──Worker 原子认领──&gt; running ──完成并写入报告──&gt; succeeded
+        │                         │
+        │                         ├─异常────────────────&gt; failed
+        │                         ├─暂停请求────────────&gt; paused
+        │                         │                      └─恢复──&gt; running
+        │                         └─租约失效────────────&gt; interrupted
+        │
+        └─取消────────────────────────────────────────&gt; cancelled
+
+running/paused + cancel_requested
+  └─Worker 在安全边界确认─────────────────────────────&gt; cancelled
+</code></pre>
+<p>界面同时显示 <code>pause_requested</code> 和 <code>cancel_requested</code> 对应的中文中间状态。</p>
+<p>终态任务不能被 Worker 自动重新认领。</p>
+<p><code>interrupted</code> 任务默认不自动重跑。</p>
+<p>重新分析创建新任务 ID，并关联旧任务。</p>
+<p>检查点续跑必须验证配置哈希和图版本。</p>
+<h2 id="74-rest">7.4 最小 REST 接口</h2>
+<h3 id="_56">任务</h3>
+<pre><code class="language-text">POST   /api/v1/jobs
+GET    /api/v1/jobs?status=&amp;ticker=&amp;cursor=
+GET    /api/v1/jobs/{jobId}
+POST   /api/v1/jobs/{jobId}/actions
+       { action: pause | resume | cancel }
+POST   /api/v1/jobs/{jobId}/retry
+GET    /api/v1/jobs/{jobId}/events
+</code></pre>
+<p>创建任务必须携带 <code>Idempotency-Key</code>。</p>
+<h3 id="_57">报告</h3>
+<pre><code class="language-text">GET  /api/v1/reports?ticker=&amp;date=&amp;signal=&amp;cursor=
+GET  /api/v1/reports/{reportId}
+GET  /api/v1/reports/{reportId}/markdown
+POST /api/v1/reports/{reportId}/exports/pdf
+</code></pre>
+<h3 id="_58">股票与市场</h3>
+<pre><code class="language-text">GET /api/v1/stocks/search?q=
+GET /api/v1/stocks/{ticker}/snapshot
+GET /api/v1/stocks/{ticker}/ohlcv?period=&amp;end=
+GET /api/v1/stocks/{ticker}/intraday?date=
+GET /api/v1/stocks/{ticker}/news
+GET /api/v1/stocks/{ticker}/reports
+
+GET /api/v1/market/overview
+GET /api/v1/market/sectors
+GET /api/v1/market/hot-stocks
+GET /api/v1/market/capital-flow
+GET /api/v1/market/news
+</code></pre>
+<h3 id="_59">设置与健康</h3>
+<pre><code class="language-text">GET   /api/v1/settings
+PATCH /api/v1/settings
+GET   /api/v1/integrations/journal/status
+GET   /api/v1/health
+</code></pre>
+<p>健康接口只暴露必要状态，不暴露用户名、密钥和完整路径。</p>
+<h2 id="75-sse">7.5 SSE 事件</h2>
+<p>事件类型保持少量：</p>
+<ul>
+<li><code>snapshot</code></li>
+<li><code>stage_changed</code></li>
+<li><code>stats</code></li>
+<li><code>status_changed</code></li>
+<li><code>report_ready</code></li>
+<li><code>error</code></li>
+</ul>
+<p>每条事件都有持久化序号。</p>
+<p>断线后使用 <code>Last-Event-ID</code> 补发遗漏事件。</p>
+<p>连接建立时始终发送权威快照。</p>
+<p>每 15 秒发送心跳。</p>
+<p>终态发送最终快照后关闭连接。</p>
+<p>统计事件每 2–5 秒最多一次。</p>
+<p>阶段长文本不随统计事件重复发送。</p>
+<h2 id="76">7.6 数据响应口径</h2>
+<p>所有市场区块统一携带：</p>
+<pre><code class="language-text">status: ok | empty | error | stale
+source
+as_of
+fetched_at
+is_stale
+error_code
+</code></pre>
+<p><code>as_of</code> 是数据本身所属时间。</p>
+<p><code>fetched_at</code> 是系统抓取时间。</p>
+<p>两者不得混用。</p>
+<p>界面按 <code>Asia/Shanghai</code> 展示时间。</p>
+<h2 id="77">7.7 初始缓存建议</h2>
+<table>
+<thead>
+<tr>
+<th>数据</th>
+<th style="text-align: right;">初始 TTL</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>实时报价</td>
+<td style="text-align: right;">10 秒</td>
+</tr>
+<tr>
+<td>行业和市场概览</td>
+<td style="text-align: right;">2–5 分钟</td>
+</tr>
+<tr>
+<td>K 线</td>
+<td style="text-align: right;">5 分钟</td>
+</tr>
+<tr>
+<td>快讯和新闻</td>
+<td style="text-align: right;">2–5 分钟</td>
+</tr>
+<tr>
+<td>强势股名单</td>
+<td style="text-align: right;">1 小时，实时报价单独 10 秒</td>
+</tr>
+<tr>
+<td>EPS 一致预期</td>
+<td style="text-align: right;">4 小时</td>
+</tr>
+<tr>
+<td>概念板块</td>
+<td style="text-align: right;">24 小时</td>
+</tr>
+</tbody>
+</table>
+<p>这些数值是起点，需要根据数据源限流和真实使用调整。</p>
+<hr />
+<h1 id="_60">八、旧数据迁移与双栈策略</h1>
+<h2 id="81">8.1 基线保护</h2>
+<p>开始前必须记录当前提交、未提交补丁、依赖约束和配置清单。</p>
+<p>保留独立旧版目录和虚拟环境。</p>
+<p>每个高风险阶段建立恢复标签和物理副本。</p>
+<p>不得在唯一可用目录上直接进行不可逆迁移。</p>
+<h2 id="82">8.2 报告迁移</h2>
+<ol>
+<li>备份整个 <code>~/.tradingagents</code>。</li>
+<li>扫描旧 <code>full_states_log_*.json</code>。</li>
+<li>校验股票、日期和 JSON 结构。</li>
+<li>原样保存旧状态，并生成统一读取结构。</li>
+<li>用“旧路径 + 内容哈希”保证重复导入幂等。</li>
+<li>旧报告不伪造运行任务，来源标为 <code>legacy</code>。</li>
+<li>文件修改时间只作为迁移元数据，不能冒充真实生成时间。</li>
+<li>已被覆盖的旧版本标记为不可恢复。</li>
+</ol>
+<h2 id="83">8.3 未完成任务迁移</h2>
+<p>旧记录缺少完整配置和执行归属。</p>
+<p>统一导入为“旧版未完成记录”或“已中断”。</p>
+<p>不自动进入队列。</p>
+<p>有匹配检查点时允许人工续跑。</p>
+<p>否则要求用户确认参数后创建新任务。</p>
+<h2 id="84">8.4 设置、缓存与日志</h2>
+<p>从旧模型配置迁移非敏感偏好。</p>
+<p>API Key 继续只读环境变量。</p>
+<p>缓存、检查点和记忆文件原地保留。</p>
+<p>交易日志数据完全不触碰。</p>
+<h2 id="85">8.5 唯一分析写入者</h2>
+<p>双栈运行期间必须明确唯一分析写入者：</p>
+<pre><code class="language-text">ACTIVE_ANALYSIS_UI=legacy | next
+</code></pre>
+<p><code>legacy</code> 模式下，只有旧版能创建分析，新版任务提交返回冲突。</p>
+<p><code>next</code> 模式下，只有新版 Worker 能创建分析，旧版分析入口禁用。</p>
+<p>不能允许两个入口同时执行分析图。</p>
+<h2 id="86">8.6 报告兼容投影</h2>
+<p>新版每次成功报告写入独立任务目录和 SQLite。</p>
+<p>同时把同股票、同日期最新成功报告投影到旧版文件，供旧 Streamlit 阅读。</p>
+<p>投影前备份并原子替换。</p>
+<p>旧版本报告不回写到旧文件系统。</p>
+<p>因此旧版只能看到同键最新报告，新版保留全部版本。</p>
+<p>投影失败不影响新版报告成功状态，但必须显示兼容警告。</p>
+<h2 id="87">8.7 灰度顺序</h2>
+<ol>
+<li>新版只读上线报告、市场和导航。</li>
+<li>使用假图完成任务、崩溃、重连和迁移验收。</li>
+<li>人工批准一次有费用上限的真实模型 Canary。Canary 是小范围真实验证。</li>
+<li>新版主用一周，旧版保持可进入。</li>
+<li>稳定后切换默认启动入口。</li>
+<li>旧版继续保留一个观察周期。</li>
+</ol>
+<h2 id="88">8.8 回滚条件与步骤</h2>
+<p>出现重复模型执行、报告字段丢失、任务错误自动重跑或数据损坏时立即回滚。</p>
+<p>回滚步骤：</p>
+<ol>
+<li>禁止新版创建任务。</li>
+<li>当前运行任务等待终态或协作取消。</li>
+<li>将唯一写入者切回旧版。</li>
+<li>验证最新兼容投影能由旧版打开。</li>
+<li>保留新版只读入口，以访问多个报告版本。</li>
+<li>数据库迁移保持新增式，不要求降级。</li>
+<li>数据损坏时停止写入，再恢复 SQLite 和 <code>~/.tradingagents</code> 备份。</li>
+<li>回滚过程不触碰交易日志。</li>
+</ol>
+<hr />
+<h1 id="_61">九、分阶段实施计划</h1>
+<p>以下工期按 1 名熟悉项目的开发者全职投入并配合 AI 辅助估算。</p>
+<p>工期包含测试和修复缓冲。</p>
+<p>如果为兼职投入，日历时间应按实际每周可投入小时折算。</p>
+<table>
+<thead>
+<tr>
+<th>阶段</th>
+<th style="text-align: right;">工期</th>
+<th>主要产出</th>
+<th>退出验收</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>P0 基线与契约</td>
+<td style="text-align: right;">1–1.5 周</td>
+<td>功能等价清单、测试基线、模拟报告与假图、性能基线、路由和 API 契约、页面线框、备份方案</td>
+<td>旧版测试通过；核心语义词典确定；当前未提交修改已记录；真实付费测试默认禁用</td>
+</tr>
+<tr>
+<td>P1 持久化任务内核</td>
+<td style="text-align: right;">3–4 周</td>
+<td>FastAPI、SQLite 迁移、单 Worker、租约、配置快照、状态机、REST、SSE、假图执行器</td>
+<td>20 个并发相同启动请求只执行一次；API 重启可重连；Worker 崩溃不自动重跑；配置串行隔离通过</td>
+</tr>
+<tr>
+<td>P2 React 外壳与分析任务中心</td>
+<td style="text-align: right;">2.5–3.5 周</td>
+<td>设计令牌、响应式框架、全局搜索、统一启动器、任务列表与详情、跨页任务入口</td>
+<td>跨页和刷新不丢任务；暂停与取消状态真实；360/390px 无页面横向溢出；旧版仍是默认写入口</td>
+</tr>
+<tr>
+<td>P3 报告库、阅读器与迁移</td>
+<td style="text-align: right;">2–3 周</td>
+<td>旧报告导入、版本化报告、统一报告结构、目录深链、Markdown/PDF 按需导出、兼容投影</td>
+<td>同一模拟报告新旧章节一致；打开报告零 PDF 和行情调用；同股票同日期多版本并存；重复 PDF 命中缓存</td>
+</tr>
+<tr>
+<td>P4 市场看板与股票工作区</td>
+<td style="text-align: right;">3–4 周</td>
+<td>行情、K 线、估值、强势股、行业、北向、资讯、数据状态封装和股票深链</td>
+<td>与旧看板逐项等价；错误、空、陈旧可区分；市场到股票再返回保留上下文；移动图表可操作</td>
+</tr>
+<tr>
+<td>P5 日志、设置与可访问性</td>
+<td style="text-align: right;">1.5–2 周</td>
+<td>日志健康、主题和尺寸整合、设置页、键盘、读屏、减少动态效果和移动收尾</td>
+<td>日志故障不拖垮主站；设置不泄露密钥；核心页面无严重 axe 问题；全键盘主流程通过</td>
+</tr>
+<tr>
+<td>P6 双栈灰度、性能与回滚</td>
+<td style="text-align: right;">2–3 周</td>
+<td>写入开关、迁移工具、真实 Canary、性能报告、备份恢复、回滚手册和启动脚本</td>
+<td>完成真实回滚演练；Canary 无重复调用；连续主用观察通过；旧版可独立启动</td>
+</tr>
+</tbody>
+</table>
+<h2 id="91-mvp">9.1 内部 MVP</h2>
+<p>P0–P3 完成后形成内部 MVP。</p>
+<p>MVP 包含新外壳、分析启动、任务中心、报告库和报告阅读。</p>
+<p>此阶段还不能称为旧工作台完整替代，因为市场和日志尚未完成等价迁移。</p>
+<h2 id="92">9.2 完整替代版</h2>
+<p>P4–P6 完成后才切换默认入口。</p>
+<p>总工期为 15–21 人周。</p>
+<p>若真实检查点续跑暴露核心问题，应延长 P1 或 P6，而不是带着自动重试风险上线。</p>
+<hr />
+<h1 id="_62">十、测试与量化验收</h1>
+<h2 id="101">10.1 测试矩阵</h2>
+<table>
+<thead>
+<tr>
+<th>层级</th>
+<th>必测内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>核心语义</td>
+<td>假图下比较旧新 Runner 的节点顺序、阶段字段、信号、报告结构和记忆调用</td>
+</tr>
+<tr>
+<td>报告契约</td>
+<td>字段别名、数据质量、缺失字段、旧 JSON、刚完成与重开一致性</td>
+</tr>
+<tr>
+<td>状态机</td>
+<td>合法与非法转换、重复控制、终态保护、重试新 ID</td>
+</tr>
+<tr>
+<td>幂等</td>
+<td>同键重复、同键不同请求、配置指纹、同股票日期冲突、Worker 原子认领</td>
+</tr>
+<tr>
+<td>崩溃恢复</td>
+<td>API 重启、Worker 崩溃、SQLite 锁、事件中断、报告落盘后数据库提交前崩溃</td>
+</tr>
+<tr>
+<td>SSE</td>
+<td>首次快照、重复事件、断线续传、终态关闭、心跳和重连</td>
+</tr>
+<tr>
+<td>数据服务</td>
+<td>正常、空、错误、陈旧、缓存 TTL、部分成功、供应商超时和非交易日</td>
+</tr>
+<tr>
+<td>导出</td>
+<td>报告 GET 无副作用、PDF 缓存、字体缺失、图表失败、中文长文和路径安全</td>
+</tr>
+<tr>
+<td>迁移</td>
+<td>重复导入、损坏 JSON、同名覆盖、旧未完成记录和回滚兼容投影</td>
+</tr>
+<tr>
+<td>前端</td>
+<td>路由、筛选、启动器、缓存失效、报告目录、键盘、移动端和暗色</td>
+</tr>
+<tr>
+<td>安全</td>
+<td>外部文本注入、Markdown 注入、恶意 URL、iframe 消息伪造和日志脱敏</td>
+</tr>
+<tr>
+<td>旧版回归</td>
+<td>现有 pytest、Ruff、AppTest、旧报告打开和旧版独立启动</td>
+</tr>
+<tr>
+<td>E2E</td>
+<td>1440×1000、390×844、360×800；Chromium 必测，Edge/WebKit 做核心冒烟</td>
+</tr>
+</tbody>
+</table>
+<p>真实模型测试必须人工触发、限制次数并设置费用上限。</p>
+<p>不得进入默认 CI。</p>
+<h2 id="102">10.2 性能指标</h2>
+<p>在 P0 确定的基准机器和生产构建上测量。</p>
+<ul>
+<li>缓存命中后的路由切换 p95 不超过 300ms。</li>
+<li>报告元数据和正文 GET p95 不超过 500ms，外部网络调用为 0。</li>
+<li>10,000 条报告元数据下，50 条分页和基础筛选 p95 不超过 500ms。</li>
+<li>股票快照暖缓存 p95 不超过 1.5 秒。</li>
+<li>正常供应商冷加载 p95 不超过 4 秒，单区块失败不阻塞其他区块。</li>
+<li>任务创建 REST 响应 p95 不超过 500ms，不包含实际图执行。</li>
+<li>Worker 阶段变化到浏览器可见 p95 不超过 2 秒。</li>
+<li>SSE 网络恢复后 5 秒内开始重连，重连不创建新任务。</li>
+<li>PDF 缓存命中下载准备不超过 500ms。</li>
+<li>固定大报告首次 PDF 生成 p95 不超过 15 秒，失败时正文始终可用。</li>
+<li>核心页面 LCP 不超过 2.5 秒，CLS 不超过 0.1，缓存交互 INP 不超过 200ms。</li>
+</ul>
+<h2 id="103">10.3 费用与可靠性硬指标</h2>
+<ul>
+<li>20 个并发重复启动请求，假图构造次数严格为 1。</li>
+<li>Worker 崩溃测试中，自动付费重放次数严格为 0。</li>
+<li>刷新、返回、查看历史和 SSE 重连产生的新任务数严格为 0。</li>
+<li>同股票同日期重跑后，旧报告仍可打开且内容不变。</li>
+<li>取消任务不能晚写入成功状态。</li>
+</ul>
+<h2 id="104">10.4 移动与可访问性指标</h2>
+<ul>
+<li>核心流程满足 WCAG 2.2 AA。</li>
+<li>核心页面 axe critical/serious 问题为 0。</li>
+<li>正文和关键控件对比度至少 4.5:1。</li>
+<li>全部主流程仅键盘可完成，焦点清晰可见。</li>
+<li>360px 和 390px 无页面横向溢出。</li>
+<li>触控目标至少 44px。</li>
+<li>开启减少动态效果后，无持续脉冲和自动数字滚动。</li>
+<li>长报告完整可读，交易日志无不可控双层滚动。</li>
+</ul>
+<hr />
+<h1 id="_63">十一、安全、成本与数据治理</h1>
+<h2 id="111">11.1 安全</h2>
+<ul>
+<li>默认只绑定 <code>127.0.0.1</code>。</li>
+<li>局域网或公网访问前必须增加认证和访问控制。</li>
+<li>生产环境由 FastAPI 同源提供前端，默认关闭宽松 CORS。</li>
+<li>API Key 不进入前端、SQLite、事件、报告、URL 和错误响应。</li>
+<li>Base URL、代理地址和异常日志需要脱敏。</li>
+<li>报告 Markdown 禁止不可信原始 HTML。</li>
+<li>外部新闻链接只允许 HTTP/HTTPS。</li>
+<li>文件读取按任务或报告 ID 查询，接口不接收任意文件路径。</li>
+<li>iframe 消息校验来源和数据结构。</li>
+<li>默认错误响应只返回安全消息和请求 ID，详细堆栈仅写服务端日志。</li>
+<li>Python 和 npm 依赖纳入漏洞检查。</li>
+</ul>
+<h2 id="112">11.2 成本</h2>
+<p>不新增付费基础设施。</p>
+<p>模型成本通过幂等、禁用自动重试和显式付费确认控制。</p>
+<p>没有价格配置时，只显示调用和 Token，不伪造人民币成本。</p>
+<p>行情仅按可见页面轮询。</p>
+<p>PDF 按需生成。</p>
+<p>单 Worker 会带来任务排队，这是为避免配置污染和重复费用而接受的明确权衡。</p>
+<h2 id="113">11.3 数据治理</h2>
+<p>报告正文是历史研究快照。</p>
+<p>每次报告都有内容哈希和导出版本。</p>
+<p>新报告的图表输入尽量随任务冻结。</p>
+<p>旧报告补数时必须标注补数时间。</p>
+<p>非交易时段不伪装为实时。</p>
+<p>请求失败但有旧数据时标为陈旧。</p>
+<p>没有旧数据时标为错误。</p>
+<p>真实空结果才标为空数据。</p>
+<hr />
+<h1 id="_64">十二、主要风险与应对</h1>
+<table>
+<thead>
+<tr>
+<th>风险</th>
+<th>等级</th>
+<th>应对</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>付费图在崩溃、重连和重试中重复执行</td>
+<td>最高</td>
+<td>单 Worker、数据库租约、幂等键、终态保护、不自动重放、人工续跑和崩溃对账</td>
+</tr>
+<tr>
+<td>全局配置和检查点造成任务间污染</td>
+<td>高</td>
+<td>图只在 Worker 加载、严格串行、完整配置快照、同股票日期冲突保护</td>
+</tr>
+<tr>
+<td>Runner 抽取导致核心分析语义漂移</td>
+<td>高</td>
+<td>保留核心调用顺序，使用假图做新旧黄金样本对照，不在本项目优化 Agent</td>
+</tr>
+<tr>
+<td>双栈同时写入导致报告再次覆盖</td>
+<td>高</td>
+<td>唯一写入者、新版独立任务目录、旧文件只作兼容投影</td>
+</tr>
+<tr>
+<td>检查点被误认为可无损恢复</td>
+<td>高</td>
+<td>验证配置和图版本，无法验证则新建任务，界面如实描述</td>
+</tr>
+<tr>
+<td>外部数据接口异常或结构变化</td>
+<td>中高</td>
+<td>固定样本测试、部分成功、错误/空/陈旧分离和供应商超时预算</td>
+</tr>
+<tr>
+<td>SSE 重连出现事件丢失或重复 UI 状态</td>
+<td>中</td>
+<td>持久事件序号、断线续传、权威快照和终态关闭</td>
+</tr>
+<tr>
+<td>SQLite 锁等待影响任务事件</td>
+<td>中</td>
+<td>WAL、忙等待、短事务和事件限频，绝不因数据库重试而重跑图</td>
+</tr>
+<tr>
+<td>PDF 继续产生隐藏网络副作用</td>
+<td>中</td>
+<td>GET 无副作用测试、显式生成、内容哈希缓存和图表局部失败</td>
+</tr>
+<tr>
+<td>移动图表、长报告和表格工作量被低估</td>
+<td>中</td>
+<td>从 P2 起持续移动测试，不在最后一周集中补</td>
+</tr>
+<tr>
+<td>交易日志跨域通信和高度适配</td>
+<td>中</td>
+<td>来源校验、消息版本、健康降级和新窗口回退</td>
+</tr>
+<tr>
+<td>功能范围膨胀</td>
+<td>中</td>
+<td>按功能等价清单验收，报告对比和关注列表延后</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_65">最难部分的技术判断</h2>
+<p>付费分析图无法在任意崩溃点同时绝对保证“不重复模型调用”和“自动无缝续跑”。</p>
+<p>本计划优先选择费用安全和状态可信。</p>
+<p>系统宁可标记为 <code>interrupted</code> 并等待人工确认，也不擅自自动重跑。</p>
+<p>这是整个升级中不能为了界面体验而牺牲的原则。</p>
+<hr />
+<h1 id="_66">十三、工程执行规则</h1>
+<h2 id="131">13.1 小批次交付</h2>
+<p>每个阶段拆成可独立审查和回退的小提交。</p>
+<p>任务内核、报告迁移、页面重构和视觉调整不混在同一个大提交中。</p>
+<p>高风险改造前建立恢复标签和物理副本。</p>
+<p>现有未提交工作不得被无意覆盖或混入新功能提交。</p>
+<h2 id="132">13.2 契约先行</h2>
+<p>P0 先确定任务状态、报告字段、数据状态和接口结构。</p>
+<p>前后端依据同一契约并行开发。</p>
+<p>前端不直接读取 Python 私有对象。</p>
+<p>后端不返回 Streamlit session 或服务器任意文件路径。</p>
+<h2 id="133">13.3 默认不使用真实模型</h2>
+<p>开发和 CI 默认使用假图、模拟报告和固定行情样本。</p>
+<p>真实模型只在人工 Canary 中运行。</p>
+<p>每次真实调用记录任务 ID、模型、配置哈希和调用次数。</p>
+<h2 id="134">13.4 浏览器证据优先</h2>
+<p>前端完成不能只看类型检查和测试通过。</p>
+<p>必须逐页检查桌面和手机截图。</p>
+<p>必须实际操作搜索、创建、刷新、跨页、暂停、恢复、取消、阅读和导出。</p>
+<p>必须记录 console、pageerror、横向溢出和核心操作耗时。</p>
+<h2 id="135">13.5 旧版持续可运行</h2>
+<p>每个阶段结束都验证旧版启动和旧报告打开。</p>
+<p>新版未达到等价验收前，不删除旧 Streamlit。</p>
+<hr />
+<h1 id="_67">十四、最终发布清单</h1>
+<p>只有全部满足以下条件，才将默认入口切到新版：</p>
+<ul>
+<li>[ ] 核心分析语义通过新旧对照。</li>
+<li>[ ] 任务创建、刷新、重连和重试没有重复模型调用。</li>
+<li>[ ] Worker 崩溃后没有自动付费重放。</li>
+<li>[ ] 暂停、恢复、取消和中断状态与真实执行一致。</li>
+<li>[ ] 同股票同日期报告可以多版本并存。</li>
+<li>[ ] 报告网页、Markdown 和 PDF 内容一致。</li>
+<li>[ ] 打开报告不触发 PDF 或外部行情请求。</li>
+<li>[ ] 市场、股票、任务、报告和日志达到功能等价。</li>
+<li>[ ] 空数据、错误和陈旧状态可区分。</li>
+<li>[ ] 360px、390px 和桌面视口通过真实浏览器验收。</li>
+<li>[ ] 键盘、对比度和减少动态效果达到验收要求。</li>
+<li>[ ] 设置、日志和错误响应不泄露密钥及敏感路径。</li>
+<li>[ ] 旧报告迁移可重复执行且不重复生成记录。</li>
+<li>[ ] 旧版独立启动和报告读取正常。</li>
+<li>[ ] 已完成一次真实回滚演练。</li>
+<li>[ ] 已完成一次有费用上限的真实模型 Canary。</li>
+<li>[ ] 备份、恢复和唯一写入者开关已经验证。</li>
+</ul>
+<hr />
+<h1 id="_68">十五、建议评审时确认的五个决策</h1>
+<ol>
+<li>是否接受“React + FastAPI + 独立单 Worker + SQLite + SSE”的技术路线。</li>
+<li>是否接受完整替代需要 15–21 人周，而不是一次性换皮。</li>
+<li>是否接受单 Worker 串行带来的任务排队，以换取配置隔离和费用安全。</li>
+<li>是否接受中断任务默认不自动重跑，必须由用户明确续跑或重新分析。</li>
+<li>是否接受交易日志首期继续独立，不合并代码和数据库。</li>
+</ol>
+<p>这五项确认后，P0 即可开始。</p>
+<hr />
+<h1 id="a_1">附录 A：功能等价清单</h1>
+<h2 id="_69">分析与任务</h2>
+<ul>
+<li>[ ] 股票代码和中文名输入。</li>
+<li>[ ] 分析日期选择。</li>
+<li>[ ] 模型供应商和模型配置。</li>
+<li>[ ] 七分析师阶段展示。</li>
+<li>[ ] 多空辩论、交易决策、风控和最终信号。</li>
+<li>[ ] 并行分析师配置。</li>
+<li>[ ] 暂停、恢复、取消和重试。</li>
+<li>[ ] 调用与 Token 统计。</li>
+<li>[ ] 阶段报告完整访问。</li>
+<li>[ ] 刷新重连。</li>
+<li>[ ] 服务重启后的可信状态。</li>
+</ul>
+<h2 id="_70">市场与股票</h2>
+<ul>
+<li>[ ] 指数概览。</li>
+<li>[ ] 个股快照。</li>
+<li>[ ] K 线和成交量。</li>
+<li>[ ] 分时和历史分时。</li>
+<li>[ ] 估值和 EPS 一致预期。</li>
+<li>[ ] 行业、概念和地域。</li>
+<li>[ ] 强势股和题材。</li>
+<li>[ ] 行业榜和成分股。</li>
+<li>[ ] 北向和资金流。</li>
+<li>[ ] 快讯和个股新闻。</li>
+<li>[ ] 数据来源、时间和错误状态。</li>
+</ul>
+<h2 id="_71">报告</h2>
+<ul>
+<li>[ ] 报告列表、分页和筛选。</li>
+<li>[ ] 同股票同日期多版本。</li>
+<li>[ ] 决策摘要。</li>
+<li>[ ] 全部章节。</li>
+<li>[ ] 多空和风控内容。</li>
+<li>[ ] 当前章节目录。</li>
+<li>[ ] 移动端完整阅读。</li>
+<li>[ ] Markdown 导出。</li>
+<li>[ ] PDF 按需导出和缓存。</li>
+<li>[ ] 数据质量和配置摘要。</li>
+</ul>
+<h2 id="_72">交易日志与设置</h2>
+<ul>
+<li>[ ] 日志可用状态。</li>
+<li>[ ] 桌面和移动滚动。</li>
+<li>[ ] 亮暗主题同步。</li>
+<li>[ ] 不可用降级。</li>
+<li>[ ] 新窗口打开。</li>
+<li>[ ] 非敏感偏好设置。</li>
+<li>[ ] 旧版入口。</li>
+</ul>
+<hr />
+<h1 id="b">附录 B：关键代码依据</h1>
+<p>以下行号以 2026-10-28 当前工作树为准。</p>
+<ul>
+<li>核心图构造与全局配置：<code>tradingagents/graph/trading_graph.py:52-79</code>。</li>
+<li>全局数据流配置：<code>tradingagents/dataflows/config.py:5-27</code>。</li>
+<li>当前图执行适配：<code>web/runner.py:85-168</code>。</li>
+<li>当前 daemon 线程：<code>web/runner.py:171-211</code>。</li>
+<li>进程内任务注册：<code>web/jobs.py:11-30</code>。</li>
+<li>URL 重连边界：<code>web/app.py:166-176</code>。</li>
+<li>当前阶段推断：<code>web/runner.py:37-82</code>。</li>
+<li>暂停与停止：<code>web/progress.py:56-110</code>、<code>web/runner.py:119-152</code>。</li>
+<li>报告落盘文件键：<code>tradingagents/graph/trading_graph.py:448-492</code>。</li>
+<li>检查点键：<code>tradingagents/graph/checkpointer.py:19-43</code>。</li>
+<li>历史文件扫描：<code>web/history.py:34-62</code>。</li>
+<li>未完成任务记录：<code>web/history.py:150-184</code>。</li>
+<li>报告读取时生成 PDF：<code>web/components/report_viewer.py:159-187</code>。</li>
+<li>PDF 图表生成：<code>web/pdf_export.py:727-766</code>。</li>
+<li>当前数据适配层：<code>web/data_functions.py:1-8</code>。</li>
+<li>交易日志独立服务：<code>web/journal_service.py:16-74</code>。</li>
+<li>当前 iframe 集成：<code>web/components/trade_journal.py:63-87</code>。</li>
+<li>既有前端优化基线：<code>docs/前端优化改造清单_2026-10-27.md</code>。</li>
+</ul>
+<hr />
+<h1 id="c">附录 C：术语说明</h1>
+<ul>
+<li><strong>SPA</strong>：单页前端应用。页面切换主要由浏览器路由完成，不必每次整页刷新。</li>
+<li><strong>Worker</strong>：独立后台执行进程。这里专门运行分析图，不负责网页接口。</li>
+<li><strong>SSE</strong>：服务端向浏览器持续发送事件的单向通道。适合任务进度。</li>
+<li><strong>幂等</strong>：同一个请求重复提交时，只产生一次实际效果。用于防止重复创建付费任务。</li>
+<li><strong>配置快照</strong>：任务创建时冻结的一份完整参数。后续修改设置不影响已创建任务。</li>
+<li><strong>报告版本</strong>：每次成功分析对应的独立报告。重跑不会覆盖旧版本。</li>
+<li><strong>WAL</strong>：SQLite 的预写日志模式。用于改善读写并发和崩溃恢复。</li>
+<li><strong>租约</strong>：Worker 对任务执行权的有时限登记。用于避免多个执行者同时认领同一任务。</li>
+<li><strong>检查点</strong>：分析流程在安全节点保存的状态。只有配置和图版本匹配时才可续跑。</li>
+<li><strong>Canary</strong>：小范围真实验证。这里指一次人工批准、限制费用的真实模型分析。</li>
+<li><strong>p95</strong>：95% 的测量结果不超过该数值。用于避免只看平均速度。</li>
+<li><strong>LCP/CLS/INP</strong>：分别衡量主要内容出现速度、布局跳动和交互响应。</li>
+<li><strong>WCAG 2.2 AA</strong>：一套网页可访问性标准，覆盖对比度、键盘和辅助技术等要求。</li>
+</ul>
+</article></body></html>
