@@ -6,6 +6,8 @@ Extracted from app.py: all Streamlit rendering for the real-time data report mod
 
 from __future__ import annotations
 
+import time
+from concurrent.futures import ThreadPoolExecutor
 from html import escape
 
 import streamlit as st
@@ -33,6 +35,11 @@ PERIOD_SINGLE_DAY = KLINE_PERIODS[0]
 # 双击桥隐藏日期载体的 placeholder：text_input / 隐藏 CSS / 桥 JS 三处共用
 _KLINE_PICK_PLACEHOLDER = "kline-pick-date-carrier"
 
+# 骨架屏陈旧阈值：个股估值快照各源 TTL 最短 10s（行情卡），上次完整加载
+# 距今超过该阈值即视为冷加载（显示骨架屏），暖加载（切周期/换主题 rerun，
+# 各缓存命中秒回）不闪骨架。
+_SNAPSHOT_STALE_S = 20.0
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Chart helpers
@@ -58,8 +65,9 @@ def _price_chart(series: pd.Series, y_label: str = "价格(元)", x_format: str 
     )
 
 
-def _vol_chart(series: pd.Series, x_format: str = "%m/%d") -> alt.Chart:
-    """Volume bar chart."""
+def _vol_chart(series: pd.Series, x_format: str = "%m/%d",
+               y_label: str = "成交量(手)") -> alt.Chart:
+    """Volume bar chart. 日K场景调用方传 vol/1e6 + 万手标签（源数据单位是股）。"""
     chart_df = series.reset_index()
     chart_df.columns = ["x", "y"]
     return (
@@ -67,7 +75,7 @@ def _vol_chart(series: pd.Series, x_format: str = "%m/%d") -> alt.Chart:
         .mark_bar(color="#999", opacity=0.6)
         .encode(
             x=alt.X("x:T", title="", axis=alt.Axis(format=x_format)),
-            y=alt.Y("y:Q", title="成交量(手)", axis=alt.Axis(format="~s")),
+            y=alt.Y("y:Q", title=y_label, axis=alt.Axis(format="~s")),
         )
         .properties(width='container')
         .interactive().properties(usermeta={"embedOptions": {"actions": False}})
@@ -98,7 +106,13 @@ def _candlestick_chart(
     if display_tail:
         k = k.tail(display_tail)
         pct_chg = pct_chg.tail(display_tail)
-    up = (k["close"] >= k["open"]).tolist()
+    # 量价同色：收盘>开盘 红 / 收盘<开盘 绿 / 收平（开=收）灰——量柱颜色
+    # 与蜡烛方向严格一致；2=平盘，与 1/0 一起作为主题桥 restyle 的方向数组
+    flat_c = "#868e96"
+    vol_state = [
+        1 if c > o else (0 if c < o else 2)
+        for o, c in zip(k["open"], k["close"])
+    ]
     # hover 文本用预格式化字符串，避免 Plotly 对 NaN/方向格式的版本差异
     candle_hover = [
         f"开 {o:.2f}　高 {h:.2f}　低 {lo:.2f}　收 {c:.2f}<br>"
@@ -132,13 +146,32 @@ def _candlestick_chart(
             line=dict(width=1.3, color=color),
             hoverinfo="skip",
         ), row=1, col=1)
+    bar_colors = [up_c if s == 1 else (dn_c if s == 0 else flat_c) for s in vol_state]
+    # 数据源(sina/CSV)的 vol 单位是股：万手 = 股/1e6（实测 000629 换手 1.01%
+    # ×流通 93亿股 ≈ 9400万股 = 94万手，与原始 vol 9351万对上）
     fig.add_trace(go.Bar(
-        x=k["datetime"], y=k["vol"],
-        marker_color=[up_c if u else dn_c for u in up],
-        customdata=[1 if u else 0 for u in up],  # 方向数组: 主题桥 restyle 用
-        hovertemplate="成交量 %{y:,.0f}<extra></extra>",
+        x=k["datetime"], y=k["vol"] / 1_000_000.0,  # 万手：A股终端口径
+        # 刻度不设 SI 缩写——plotly 默认的 "50M/100M" 英文单位在 A 股语境
+        # 不可读，小字号回退字体下甚至被误读成乱码（实测 "30M"→"30岁男"）
+        marker_color=bar_colors,
+        customdata=vol_state,  # 1/0/2 方向数组: 主题桥 restyle 用
+        hovertemplate="成交量 %{y:,.2f}万手<extra></extra>",
         name="成交量", showlegend=False,
     ), row=2, col=1)
+
+    # 收平（开=收）蜡烛：主 trace 按 close>=open 会画成红色十字星，与灰色
+    # 量柱不一致——补一层同几何的灰色覆盖（主题桥与双击桥都按 flat- 前缀
+    # 跳过它）。必须加在成交量 bar 之后：既有测试锚定 fig.data[4]=bar。
+    flat_mask = k["close"] == k["open"]
+    if flat_mask.any():
+        fig.add_trace(go.Candlestick(
+            x=k["datetime"][flat_mask],
+            open=k["open"][flat_mask], high=k["high"][flat_mask],
+            low=k["low"][flat_mask], close=k["close"][flat_mask],
+            increasing_line_color=flat_c, increasing_fillcolor=flat_c,
+            decreasing_line_color=flat_c, decreasing_fillcolor=flat_c,
+            name="flat-doji", showlegend=False, hoverinfo="skip",
+        ), row=1, col=1)
 
     # 最新价虚线 + 右侧价签（终端惯例）；颜色随最后一日涨跌，暗色由主题桥
     # 按 annotation/shape 上的 name 识别后换成暗色调色板。
@@ -200,7 +233,9 @@ def _candlestick_chart(
         spikecolor="rgba(120,120,120,0.45)",
     )
     fig.update_yaxes(title_text="价格(元)", row=1, col=1)
-    fig.update_yaxes(title_text="成交量(手)", row=2, col=1)
+    # 刻度锁纯数字（",.0f" 千分位）：plotly 默认 SI 缩写会产出 "50M" 这类
+    # 英文单位，中文语境不可读
+    fig.update_yaxes(title_text="成交量(万手)", row=2, col=1, tickformat=",.0f")
     return fig
 
 
@@ -311,10 +346,10 @@ _CHART_THEME_BRIDGE_JS = """
 <script>
 (function(){
   var PALETTE = {
-    light: { up:'#e03131', down:'#2f9e44', font:'#888888', grid:'rgba(128,128,128,0.18)',
+    light: { up:'#e03131', down:'#2f9e44', flat:'#868e96', font:'#888888', grid:'rgba(128,128,128,0.18)',
              spike:'rgba(120,120,120,0.55)', hoverBg:'#ffffff',
              hoverBorder:'rgba(16,24,40,0.10)', hoverFont:'#333333' },
-    dark:  { up:'#ff6b6b', down:'#51cf66', font:'#aaaaaa', grid:'rgba(128,128,128,0.28)',
+    dark:  { up:'#ff6b6b', down:'#51cf66', flat:'#9aa0a6', font:'#aaaaaa', grid:'rgba(128,128,128,0.28)',
              spike:'rgba(190,180,170,0.45)', hoverBg:'#2a2523',
              hoverBorder:'#453e3a', hoverFont:'#ede4dc' }
   };
@@ -335,13 +370,21 @@ _CHART_THEME_BRIDGE_JS = """
       if (!gd.data) continue;
       for (var j = 0; j < gd.data.length; j++) {
         var tr = gd.data[j], up = {};
+        // flat- 前缀 = 收平灰色覆盖层，两主题同色不换
+        if (String(tr.name || '').indexOf('flat-') === 0) continue;
         if (tr.type === 'candlestick') {
           up['increasing.line.color'] = pal.up;
           up['increasing.fillcolor'] = pal.up;
           up['decreasing.line.color'] = pal.down;
           up['decreasing.fillcolor'] = pal.down;
         } else if (tr.type === 'bar' && tr.customdata) {
-          up['marker.color'] = tr.customdata.map(function(u){ return u ? pal.up : pal.down; });
+          // customdata 方向数组: 1=收涨 0=收跌 2=收平(灰)。
+          // 🔴 必须嵌套 [[...]]：Plotly.restyle 对数组值按"列出 trace 数"拉链
+          // 分发——不嵌套时整组颜色被当成逐 trace 值，单 trace 取元素[0]广播
+          // 成单色（实测暗色切换全柱变红/绿的根因）
+          up['marker.color'] = [tr.customdata.map(function(u){
+            return u === 1 ? pal.up : (u === 0 ? pal.down : pal.flat);
+          })];
         } else { continue; }
         P.Plotly.restyle(gd, up, [j]);
       }
@@ -390,6 +433,7 @@ _CHART_THEME_BRIDGE_JS = """
           if (!gd0.data) continue;
           for (var j2 = 0; j2 < gd0.data.length; j2++) {
             var tr0 = gd0.data[j2];
+            if (String(tr0.name || '').indexOf('flat-') === 0) continue;
             if (tr0.type === 'candlestick' && tr0.increasing
                 && String(tr0.increasing.fillcolor || '').indexOf(pal0.up) < 0) {
               apply(t);
@@ -634,19 +678,30 @@ def render_data_mode() -> None:
         if not code:
             _render_market_overview()
         else:
-            # 骨架屏：仅同股首次加载显示（慢速抓取 2~8s），后续重跑（切周期/换主题）
-            # 走缓存秒回，不再渲染骨架避免闪烁。抓取完成后用 ph.empty() 清除占位。
+            # 骨架屏按陈旧度显示（见 _SNAPSHOT_STALE_S）：冷加载占位防白屏，
+            # 暖加载直接进入正式渲染。抓取完成后 ph.empty() 清除占位。
             _sk_key = f"_quote_loaded_{code}"
             ph = st.empty()
-            if not st.session_state.get(_sk_key):
+            if time.monotonic() - st.session_state.get(_sk_key, 0.0) > _SNAPSHOT_STALE_S:
                 with ph.container():
                     st.markdown(_QUOTE_SKELETON_HTML.replace("__CODE__", code), unsafe_allow_html=True)
-            quote = tencent_quote([code])
-            eps_df = ths_eps_forecast(code)
-            blocks = baidu_concept_blocks(code)
-            klines = get_kline_data(code)
-            news = eastmoney_stock_news(code, 8)
-            st.session_state[_sk_key] = True
+            # 五路并行拉取：串行时冷加载 12s+（K线单路 9s），并行后由最慢一路
+            # 决定（约 1-2s）。st.cache_data 的缓存存储按进程 runtime 选择
+            # （cache_data_api.get_storage_manager 只看 runtime.exists()），
+            # worker 线程与主线程共用同一份缓存；线程里缺的 ScriptRunContext
+            # 只影响 spinner 装饰，不影响缓存读写。
+            with ThreadPoolExecutor(max_workers=5) as _pool:
+                _fut_quote = _pool.submit(tencent_quote, [code])
+                _fut_eps = _pool.submit(ths_eps_forecast, code)
+                _fut_blocks = _pool.submit(baidu_concept_blocks, code)
+                _fut_klines = _pool.submit(get_kline_data, code)
+                _fut_news = _pool.submit(eastmoney_stock_news, code, 8)
+                quote = _fut_quote.result()
+                eps_df = _fut_eps.result()
+                blocks = _fut_blocks.result()
+                klines = _fut_klines.result()
+                news = _fut_news.result()
+            st.session_state[_sk_key] = time.monotonic()
             ph.empty()
 
             if code not in quote:
@@ -823,7 +878,7 @@ def render_data_mode() -> None:
                             chg = (closes.iloc[-1] / closes.iloc[0] - 1) * 100
                             avg_vol = klines.tail(30)["vol"].mean()
                             chg_color = "var(--up)" if chg > 0 else "var(--down)"
-                            st.markdown(f'30日涨幅: <span style="color:{chg_color};font-weight:700">{chg:+.2f}%</span>  |  日均成交量: {avg_vol/10000:.1f}万手', unsafe_allow_html=True)
+                            st.markdown(f'30日涨幅: <span style="color:{chg_color};font-weight:700">{chg:+.2f}%</span>  |  日均成交量: {avg_vol/1_000_000:.1f}万手', unsafe_allow_html=True)
                         else:
                             render_empty_state("暂无K线数据", "行情源暂不可用")
 
@@ -946,7 +1001,11 @@ def render_data_mode() -> None:
                     close_s = recent.set_index("datetime")["close"]
                     vol_s = recent.set_index("datetime")["vol"]
                     st.altair_chart(_price_chart(close_s), use_container_width=True)
-                    st.altair_chart(_vol_chart(vol_s), use_container_width=True)
+                    # vol 单位是股，/1e6 转万手（与个股估值 plotly 图同口径）
+                    st.altair_chart(
+                        _vol_chart(vol_s / 1_000_000, y_label="成交量(万手)"),
+                        use_container_width=True,
+                    )
                     st.caption(f"近30日涨幅: {(recent['close'].iloc[-1] / recent['close'].iloc[0] - 1)*100:+.2f}%")
                 else:
                     render_empty_state("暂无K线数据", "行情源暂不可用")
@@ -1018,8 +1077,14 @@ def _render_sector_detail(row: dict) -> None:
 def _render_market_overview() -> None:
     """Market overview shown when no stock code entered."""
     st.caption("在顶部搜索框输入股票代码，查看完整估值分析")
-    with st.spinner("加载行业数据..."):
-        comp = industry_comparison(10)
+    # 两路并行（EM 行业排名冷加载实测 ~2s、同花顺强势股 ~0.4s），串行等两遍
+    # 在总览首屏是纯浪费。
+    with ThreadPoolExecutor(max_workers=2) as _pool:
+        _fut_comp = _pool.submit(industry_comparison, 10)
+        _fut_hot = _pool.submit(ths_hot_reason)
+        with st.spinner("加载行业与强势股数据..."):
+            comp = _fut_comp.result()
+            df_hot = _fut_hot.result()
     if comp["top"]:
         board_by_code = {r["code"]: r for r in comp["top"] + comp["bottom"]}
         active = st.session_state.get("sector_detail")
@@ -1039,8 +1104,6 @@ def _render_market_overview() -> None:
 
     st.markdown("---")
     st.markdown("#### 当日强势股速览")
-    with st.spinner("加载..."):
-        df_hot = ths_hot_reason()
     if not df_hot.empty:
         reason_col = "题材归因" if "题材归因" in df_hot.columns else "reason"
         hot_rows = []

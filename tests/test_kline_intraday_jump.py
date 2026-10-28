@@ -474,3 +474,82 @@ def test_hot_view_button_jump_does_not_raise(_stub_dashboard, monkeypatch):
     assert not at.exception
     assert at.session_state["data_code"] == "002694"
     assert at.radio(key="dash_tab").value == "个股估值"
+
+
+# ── 单元: 量价同色 + 成交量轴中文口径 (2026-10-25 报障修复) ────────────────
+
+def test_candlestick_volume_colors_match_candle_direction():
+    """量价同色：收盘>开盘红 / 收盘<开盘绿 / 收平(开=收)灰，量柱与蜡烛严格一致。"""
+    from web.components.data_dashboard import _candlestick_chart
+
+    kdf = pd.DataFrame({
+        "datetime": pd.bdate_range("2026-09-21", periods=3),
+        "open": [10.0, 10.5, 10.0],
+        "high": [10.6, 10.8, 10.2],
+        "low": [9.8, 10.2, 9.9],
+        "close": [10.5, 10.0, 10.0],  # 涨 / 跌 / 平(开=收)
+        "vol": [100.0, 120.0, 90.0],
+    })
+    fig = _candlestick_chart(kdf)
+
+    bar = fig.data[4]
+    assert list(bar.customdata) == [1, 0, 2]
+    assert list(bar.marker.color) == ["#e03131", "#2f9e44", "#868e96"]
+
+    # 收平蜡烛有灰色覆盖层（两方向同灰、不进悬浮；加在 bar 之后=data[5]）
+    flat = fig.data[5]
+    assert flat.name == "flat-doji"
+    assert flat.increasing.fillcolor == "#868e96"
+    assert flat.decreasing.fillcolor == "#868e96"
+    assert flat.hoverinfo == "skip"
+    assert len(flat.x) == 1
+
+
+def test_candlestick_volume_axis_in_wanshou():
+    """成交量轴中文口径：y=万手(股/1e6，源数据单位是股)、标题(万手)、悬浮带
+    单位——杜绝 plotly 默认 SI 缩写刻度（"50M" 被误读成乱码"30岁男"）。"""
+    from web.components.data_dashboard import _candlestick_chart
+
+    kdf = pd.DataFrame({
+        "datetime": pd.bdate_range("2026-09-21", periods=2),
+        "open": [10.0, 10.5],
+        "high": [10.6, 10.8],
+        "low": [9.8, 10.2],
+        "close": [10.5, 10.0],
+        "vol": [1000000.0, 2000000.0],  # 100万股/200万股 = 1万手/2万手
+    })
+    fig = _candlestick_chart(kdf)
+
+    bar = fig.data[4]
+    assert list(bar.y) == [1.0, 2.0]
+    assert "万手" in bar.hovertemplate
+    assert fig.layout.yaxis2.title.text == "成交量(万手)"
+    assert fig.layout.yaxis2.tickformat == ",.0f"
+
+
+def test_chart_theme_bridge_uses_nested_restyle_array():
+    """主题桥量柱重着色必须嵌套 [[...]]：Plotly.restyle 对数组值按列出 trace
+    数拉链分发，不嵌套时取元素[0]广播成单色（暗色切主题全柱变红/绿的根因）。"""
+    from web.components.data_dashboard import _CHART_THEME_BRIDGE_JS
+
+    bar_branch = _CHART_THEME_BRIDGE_JS[
+        _CHART_THEME_BRIDGE_JS.index("tr.type === 'bar'"):
+        _CHART_THEME_BRIDGE_JS.index("} else { continue; }")
+    ]
+    assert "up['marker.color'] = [tr.customdata.map(" in bar_branch
+
+
+def test_candlestick_no_flat_day_no_overlay():
+    """无收平日时不加覆盖层（trace 数不变，防行为漂移）。"""
+    from web.components.data_dashboard import _candlestick_chart
+
+    kdf = pd.DataFrame({
+        "datetime": pd.bdate_range("2026-09-21", periods=2),
+        "open": [10.0, 10.5],
+        "high": [10.6, 10.8],
+        "low": [9.8, 10.2],
+        "close": [10.5, 10.0],
+        "vol": [100.0, 90.0],
+    })
+    fig = _candlestick_chart(kdf)
+    assert len(fig.data) == 5  # 蜡烛 + MA5/10/20 + 量，无 flat 覆盖层
