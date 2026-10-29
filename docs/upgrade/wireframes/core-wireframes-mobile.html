@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AStock Pro P0 核心页面线框（移动）</title>
+<style>
+:root{--ink:#1f2328;--muted:#6b7280;--line:#d0d7de;--soft:#f6f8fa;--accent:#2563eb;--ok:#15803d;--warn:#b45309;--bad:#b91c1c;--bg:#eef1f4}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.55 "Segoe UI","Microsoft YaHei","PingFang SC",sans-serif;-webkit-font-smoothing:antialiased}
+.doc{max-width:1240px;margin:0 auto;padding:28px 20px 60px}
+.doc-head h1{font-size:24px;margin:0 0 6px}
+.doc-head p{margin:4px 0;color:#4b5563}
+.meta{font-size:12px;color:var(--muted)}
+.toc{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:18px 0 26px}
+.toc a{display:block;background:#fff;border:1px solid var(--line);border-radius:7px;padding:8px 10px;color:var(--ink);text-decoration:none;font-size:12px}
+.toc a b{color:var(--accent);margin-right:5px}
+.toc a span{display:block;color:var(--muted);font-size:11px}
+.screen{margin:0 0 42px;scroll-margin-top:16px}
+.screen-head{display:flex;align-items:baseline;gap:10px;margin-bottom:4px;flex-wrap:wrap}
+.screen-head .wid{background:var(--ink);color:#fff;border-radius:5px;padding:2px 7px;font:600 12px/1.5 monospace}
+.screen-head h2{font-size:19px;margin:0}
+.screen-head code{background:#fff;border:1px solid var(--line);border-radius:5px;padding:2px 7px;font-size:12px;color:#57606a;overflow-wrap:anywhere}
+.goal{margin:2px 0 12px;color:#4b5563}
+.browser{background:#fff;border:1px solid #b9c1ca;border-radius:10px;overflow:hidden;box-shadow:0 6px 22px rgba(15,23,42,.08)}
+.browser-bar{display:flex;align-items:center;gap:7px;background:#e6e9ee;padding:8px 12px;border-bottom:1px solid #cfd5dd}
+.browser-bar .dot{width:9px;height:9px;border-radius:50%;background:#c3c9d2}
+.browser-bar .url{margin-left:10px;background:#fff;border:1px solid #cfd5dd;border-radius:5px;padding:2px 12px;font-size:11px;color:#57606a;max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.app{position:relative;font-size:13px;background:#fff;min-height:420px}
+.app.tall{min-height:700px}
+.topnav{display:flex;align-items:center;gap:18px;padding:10px 16px;border-bottom:1px solid var(--line)}
+.brand{font-weight:700;letter-spacing:.02em}
+.navlinks{display:flex;gap:14px;color:#57606a;font-size:12px}
+.navlinks .active{color:var(--accent);font-weight:600;box-shadow:inset 0 -2px 0 var(--accent)}
+.navsearch{margin-left:auto;border:1px solid var(--line);border-radius:6px;padding:4px 10px;color:#9aa2ad;min-width:170px;font-size:12px}
+.navgear{color:#57606a;font-size:12px}
+.jobbar{display:flex;align-items:center;gap:9px;padding:7px 16px;background:#eff6ff;border-bottom:1px solid #dbeafe;font-size:12px}
+.jobbar b{font-size:12px}
+.jobbar .mini{width:110px;height:5px;background:#dbeafe;border-radius:3px;overflow:hidden}
+.jobbar .mini i{display:block;height:100%;background:var(--accent)}
+.jobbar a{margin-left:auto;color:var(--accent);cursor:pointer}
+.content{padding:16px}
+.dim{opacity:.55}
+.grid2{display:grid;grid-template-columns:1.06fr .94fr;gap:12px;margin-bottom:12px}
+.grid2:last-child{margin-bottom:0}
+.card{border:1px solid var(--line);border-radius:8px;padding:12px;background:#fff;min-width:0}
+.card.tight{padding:10px}
+.card h3,.m-h{font-size:13px;font-weight:600;margin:0 0 8px}
+.card-h{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:8px}
+.hero h3{font-size:16px}
+.hero p{margin:0 0 10px}
+.searchrow{display:flex;gap:8px}
+.input{flex:1;border:1px solid var(--line);border-radius:6px;padding:6px 9px;font-size:12px;display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}
+.dropdown{margin-top:8px;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.drop-row{display:flex;justify-content:space-between;padding:6px 9px;border-bottom:1px solid #eef1f4;font-size:12px}
+.drop-row:last-child{border-bottom:0}
+.indices4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.idx{display:flex;flex-direction:column;gap:2px;border:1px solid #eef1f4;border-radius:6px;padding:7px}
+.idx b{font-size:15px}
+.indices3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:12px}
+.indices3 .card{display:flex;flex-direction:column;gap:3px}
+.indices3 b{font-size:18px}
+.market-state{display:flex;gap:8px;align-items:center;margin-top:8px}
+.up{color:#b91c1c}.down{color:#15803d}
+.badge{display:inline-block;padding:1px 7px;border-radius:999px;font-size:11px;line-height:1.6;border:1px solid var(--line);white-space:nowrap}
+.badge.ok{color:var(--ok);background:#f0fdf4;border-color:#bbf7d0}
+.badge.run{color:#1d4ed8;background:#eff6ff;border-color:#bfdbfe}
+.badge.warn{color:var(--warn);background:#fffbeb;border-color:#fde68a}
+.badge.bad{color:var(--bad);background:#fef2f2;border-color:#fecaca}
+.badge.mut{color:#4b5563;background:#f3f4f6;border-color:#e5e7eb}
+.btn{display:inline-block;border:1px solid var(--line);background:#fff;border-radius:6px;padding:5px 11px;font-size:12px;white-space:nowrap}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+.btn.danger{color:var(--bad);border-color:#fecaca}
+.btn.disabled{opacity:.6}
+.tbl{width:100%;border-collapse:collapse;font-size:12px}
+.tbl th{text-align:left;color:var(--muted);font-weight:600;border-bottom:1px solid var(--line);padding:5px 6px;white-space:nowrap}
+.tbl td{border-bottom:1px solid #eef1f4;padding:6px;vertical-align:middle}
+.tbl tr:last-child td{border-bottom:0}
+.filters{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px;font-size:12px}
+.chip{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:11px;color:#374151;background:#fafbfc;white-space:nowrap}
+.switch-s{font-size:11px;color:#374151;border:1px solid var(--line);border-radius:999px;padding:3px 10px;background:#fff}
+.link{color:var(--accent);cursor:pointer}
+.loadmore{text-align:center;color:var(--accent);font-size:12px;padding-top:10px}
+.stage-label{font-size:10px;letter-spacing:.08em;color:var(--muted);margin:9px 0 5px}
+.stages7{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.stages5{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.stage{border:1px solid var(--line);border-radius:6px;padding:6px;font-size:11px;min-height:50px;display:flex;flex-direction:column;gap:3px}
+.stage .no{color:var(--muted);font-size:10px;font-family:monospace}
+.stage.done{background:#f0fdf4;border-color:#bbf7d0}
+.stage.active{background:#eff6ff;border-color:#93c5fd;box-shadow:0 0 0 2px #dbeafe}
+.stage.pending{background:#fafafa;color:#9ca3af}
+.stage.failed{background:#fef2f2;border-color:#fecaca}
+.pause-note{margin-top:8px;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:6px 9px;font-size:11px;color:#92400e}
+.stats4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:12px 0}
+.stat{border:1px solid var(--line);border-radius:8px;padding:8px 10px;display:flex;flex-direction:column;gap:2px;background:#fff}
+.stat b{font-size:17px}
+.task-head,.reader-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px}
+.task-title{font-size:18px;font-weight:700;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.task-actions{display:flex;gap:8px;align-items:center}
+.acc,.acc-open{border-top:1px solid #eef1f4;padding:8px 0}
+.acc{display:flex;align-items:center;gap:8px;color:#6b7280}
+.acc-open .acc-head{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.acc-head .muted{margin-left:auto}
+.md{border:1px dashed #dbe1e8;border-radius:6px;padding:8px 10px;background:#fcfcfd}
+.md-h{font-weight:700;font-size:13px;margin:2px 0 6px}
+.md-h.big{font-size:16px}
+.md .line{margin:5px 0}
+.line{height:7px;background:#e9edf2;border-radius:4px}
+.line.w95{width:95%}.line.w92{width:92%}.line.w90{width:90%}.line.w88{width:88%}.line.w84{width:84%}.line.w80{width:80%}.line.w70{width:70%}.line.w60{width:60%}
+.overlay{position:absolute;inset:0;background:rgba(15,23,42,.30);display:flex;justify-content:center;align-items:flex-start;padding:56px 20px}
+.dialog{background:#fff;border-radius:10px;width:520px;max-width:100%;padding:16px;box-shadow:0 18px 50px rgba(15,23,42,.28)}
+.dialog-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px}
+.field{margin-bottom:10px}
+.field label{display:block;font-size:11px;color:var(--muted);margin-bottom:3px}
+.switchrow{display:flex;justify-content:space-between;align-items:center;font-size:12px;margin:8px 0}
+.switch{width:30px;height:16px;border-radius:999px;background:#cbd5e1;display:inline-block;position:relative}
+.switch.on{background:var(--accent)}
+.switch.on:after{content:"";position:absolute;right:2px;top:2px;width:12px;height:12px;border-radius:50%;background:#fff}
+.accordion{display:flex;justify-content:space-between;border:1px solid var(--line);border-radius:6px;padding:7px 9px;font-size:12px;margin:8px 0}
+.hintwarn{background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:6px 9px;font-size:11px;color:#92400e;margin:10px 0}
+.dialog-actions{display:flex;justify-content:flex-end;gap:8px}
+.reader{display:grid;grid-template-columns:130px minmax(0,1fr) 220px;gap:12px;align-items:start}
+.reader .toc{display:block;margin:0;background:#fff;border:1px solid var(--line);border-radius:8px;padding:8px;position:static}
+.toc-item{font-size:10px;color:#6b7280;padding:3px 5px;border-radius:4px;font-family:monospace}
+.toc-item.on{background:#eff6ff;color:var(--accent);font-weight:700}
+.reading{background:#fff;border:1px solid var(--line);border-radius:8px;padding:14px;min-width:0}
+.md-table{margin-top:10px;border:1px dashed #dbe1e8;border-radius:6px;padding:14px;text-align:center;font-size:11px;color:var(--muted)}
+.side{display:flex;flex-direction:column;gap:10px}
+.kv{display:flex;justify-content:space-between;gap:10px;font-size:12px;padding:4px 0;border-bottom:1px solid #f1f4f7}
+.kv:last-child{border-bottom:0}
+.toast{position:absolute;right:16px;bottom:16px;background:#111827;color:#fff;border-radius:7px;padding:8px 12px;font-size:12px;box-shadow:0 8px 24px rgba(15,23,42,.28)}
+.stock-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px}
+.price{font-size:26px}
+.tabs{display:flex;gap:16px;border-bottom:1px solid var(--line);margin-bottom:12px;font-size:12px;color:#57606a}
+.tabs .on{color:var(--accent);font-weight:700;box-shadow:inset 0 -2px 0 var(--accent);padding-bottom:6px}
+.tabs span{padding-bottom:6px}
+.metrics4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.metric{border:1px solid #eef1f4;border-radius:6px;padding:8px;display:flex;flex-direction:column;gap:2px}
+.metric b{font-size:16px}
+.chart{border:1px dashed #dbe1e8;border-radius:6px;padding:8px}
+.bars{display:flex;align-items:flex-end;gap:3px;height:110px;margin-top:6px}
+.bars i{flex:1;background:#c7d2fe;border-radius:2px 2px 0 0;min-height:4px}
+.session{display:flex;gap:10px;align-items:center;margin-bottom:10px}
+.drawer{position:absolute;top:0;right:0;bottom:0;width:340px;background:#fff;border-left:1px solid var(--line);box-shadow:-12px 0 30px rgba(15,23,42,.12);padding:14px;z-index:3}
+.drawer-head{display:flex;justify-content:space-between;margin-bottom:10px}
+.scrim{position:absolute;inset:0;background:rgba(15,23,42,.18);z-index:2}
+.iframe-placeholder{min-height:480px;border:1px dashed #b9c1ca;border-radius:8px;background:#f8fafc;display:flex;align-items:center;justify-content:center;padding:20px}
+.journal-card{max-width:420px;text-align:center;background:#fff;border:1px solid var(--line);border-radius:10px;padding:22px}
+.journal-icon{width:44px;height:44px;border-radius:12px;background:#e5e7eb;color:#6b7280;font:700 20px/44px monospace;margin:0 auto 10px}
+.journal-card h3{margin:0 0 6px;font-size:16px}
+.code,.m-code{font-family:Consolas,monospace;background:#f3f4f6;border:1px solid var(--line);border-radius:6px;padding:7px 10px;margin:10px 0 6px;font-size:12px;overflow-wrap:anywhere}
+.journal-actions{display:flex;gap:8px;justify-content:center;margin-top:10px}
+.settings{display:grid;grid-template-columns:180px minmax(0,1fr);gap:12px;align-items:start}
+.settings-nav{background:#fff;border:1px solid var(--line);border-radius:8px;padding:6px}
+.set-item{font-size:12px;padding:7px 9px;border-radius:6px;color:#57606a}
+.set-item.on{background:#eff6ff;color:var(--accent);font-weight:700}
+.settings-body{margin-bottom:12px}
+.notes{display:grid;grid-template-columns:1.15fr .85fr;gap:14px;margin-top:12px;font-size:12px}
+.notes h3{font-size:12px;margin:0 0 4px;color:#374151}
+.notes ul{margin:0;padding-left:18px;color:#4b5563}
+.notes li{margin:2px 0}
+.doc-foot{margin-top:30px;font-size:12px;color:var(--muted);border-top:1px solid #d6dbe1;padding-top:12px}
+/* mobile page */
+.mobile-page{max-width:460px;margin:0 auto;padding:18px 12px 50px}
+.mobile-page .doc-head h1{font-size:20px}
+.phone{background:#fff;border:1px solid #b9c1ca;border-radius:20px;overflow:hidden;box-shadow:0 10px 30px rgba(15,23,42,.12);margin-bottom:8px;display:flex;flex-direction:column;position:relative}
+.m-top{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--line);font-weight:700;font-size:14px}
+.m-top-r{font-size:11px;color:var(--accent);font-weight:500;display:flex;align-items:center;min-height:44px;padding-left:12px}
+.m-jobbar{display:flex;align-items:center;gap:6px;padding:6px 12px;background:#eff6ff;border-bottom:1px solid #dbeafe;font-size:11px;flex-wrap:wrap}
+.m-job-more{margin-left:auto;color:var(--accent)}
+.m-content{padding:10px;display:flex;flex-direction:column;gap:9px;flex:1}
+.m-card{border:1px solid var(--line);border-radius:9px;padding:10px;min-width:0;overflow-wrap:anywhere}
+.m-h{font-size:12px;font-weight:700;margin-bottom:6px}
+.m-label{font-size:11px;color:var(--muted);margin-bottom:4px}
+.m-input{border:1px solid var(--line);border-radius:6px;padding:7px 9px;font-size:12px;margin-bottom:6px}
+.m-primary{display:flex;align-items:center;justify-content:center;min-height:44px;text-align:center;background:var(--accent);color:#fff;border-radius:7px;padding:9px;font-size:13px;font-weight:700;margin-top:6px}
+.m-primary.half{flex:1;margin:0}
+.m-primary.disabled{background:#94a3b8}
+.m-btn{display:flex;align-items:center;justify-content:center;min-height:44px;border:1px solid var(--line);border-radius:7px;padding:8px 10px;font-size:12px;text-align:center}
+.m-btn.quiet{color:#57606a}
+.m-btn-danger{display:flex;align-items:center;justify-content:center;min-height:44px;border:1px solid #fecaca;color:var(--bad);border-radius:7px;padding:8px 10px;font-size:12px;text-align:center}
+.m-indices{display:flex;gap:8px;overflow-x:auto;padding-bottom:2px}
+.m-index{min-width:110px;flex:1;border:1px solid #eef1f4;border-radius:7px;padding:7px;display:flex;flex-direction:column;gap:1px}
+.m-index b{font-size:14px}
+.m-list-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid #eef1f4;font-size:12px;min-width:0}
+.m-list-row:last-child{border-bottom:0}
+.m-list-row>span:first-child{overflow-wrap:anywhere}
+.m-chips{display:flex;gap:6px;flex-wrap:wrap}
+.m-row-between{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.m-tabs{display:flex;gap:14px;overflow-x:auto;font-size:12px;color:#57606a;border-bottom:1px solid var(--line);padding-bottom:2px}
+.m-tabs .on{color:var(--accent);font-weight:700;box-shadow:inset 0 -2px 0 var(--accent);padding-bottom:4px}
+.m-metrics{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.m-metrics>div{display:flex;flex-direction:column;gap:1px}
+.chart-scroll{overflow-x:auto;margin-top:4px}
+.chart-inner{width:520px}
+.m-sticky{display:flex;align-items:center;gap:8px;padding:8px 10px;border-top:1px solid var(--line);background:#fff;position:sticky;bottom:0;z-index:2}
+.m-sticky>*:first-child{margin-right:auto}
+.m-nav{display:grid;grid-template-columns:repeat(5,1fr);border-top:1px solid var(--line);background:#fff;font-size:10px;text-align:center;color:#57606a;position:sticky;bottom:0}
+.m-nav span{min-height:44px;display:flex;align-items:center;justify-content:center}
+.m-nav .active{color:var(--accent);font-weight:700}
+.m-warn{background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:9px;font-size:12px;color:#92400e}
+.m-warn.small{font-size:11px;padding:6px 8px}
+.m-warn-actions{display:flex;gap:6px;margin-top:7px;flex-wrap:wrap}
+.m-warn-actions .btn{font-size:11px}
+.m-stage-list{border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.m-stage{display:flex;justify-content:space-between;gap:8px;padding:7px 10px;border-bottom:1px solid #eef1f4;font-size:12px}
+.m-stage:last-child{border-bottom:0}
+.m-stage.done{background:#f7fdf9}
+.m-stage.active{background:#eff6ff;font-weight:700;color:#1d4ed8}
+.m-stage.pending{color:#9ca3af}
+.m-stats{display:flex;gap:10px;flex-wrap:wrap;font-size:11px;color:#4b5563}
+.m-drawer{position:absolute;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);border-radius:14px 14px 0 0;box-shadow:0 -12px 30px rgba(15,23,42,.18);padding:12px;z-index:4;max-height:62%;overflow:auto}
+.m-drawer-head{display:flex;justify-content:space-between;margin-bottom:6px;font-size:12px}
+.m-toc{border:1px solid var(--line);border-radius:8px;padding:8px;max-height:180px;overflow:auto}
+.m-toc-row{font-size:10px;color:#6b7280;padding:2px 4px;font-family:monospace}
+.m-toc-row.on{background:#eff6ff;color:var(--accent);font-weight:700}
+.m-switch{display:flex;justify-content:space-between;align-items:center;font-size:12px;margin-top:4px}
+.mobile-page .toc{grid-template-columns:1fr 1fr;margin:14px 0 22px}
+.mobile-page .notes{grid-template-columns:1fr}
+@media (max-width:420px){.mobile-page{padding:12px 8px 40px}.m-content{padding:8px}.m-card{padding:9px}.m-top{padding:10px 12px}.mobile-page .doc-head h1{font-size:18px}}
+</style>
+</head>
+<body>
+<div class="doc mobile-page">
+<header class="doc-head">
+<h1>AStock Pro P0 核心页面线框（移动）</h1>
+<p>十张线框覆盖 Day 5 主线；只表达结构与状态，不代表最终视觉。</p>
+<p class="meta">2026-10-29 · 与 docs/upgrade/contracts/core-wireframes.md 同步 · 按 390px 宽绘制，同时必须在 360px 下不出现页面级横向滚动；表格已换成摘要卡。</p>
+</header>
+<nav class="toc"><a href="#w01"><b>W01</b>工作台首页<span>/workbench</span></a><a href="#w02"><b>W02</b>统一分析启动器<span>/workbench?launch=1</span></a><a href="#w03"><b>W03</b>任务列表<span>/jobs</span></a><a href="#w04"><b>W04</b>任务详情<span>/jobs/:jobId</span></a><a href="#w05"><b>W05</b>报告库<span>/reports</span></a><a href="#w06"><b>W06</b>报告阅读器<span>/reports/:reportId</span></a><a href="#w07"><b>W07</b>股票工作区<span>/stocks/:ticker</span></a><a href="#w08"><b>W08</b>市场与钻取<span>/market</span></a><a href="#w09"><b>W09</b>交易日志不可用<span>/journal</span></a><a href="#w10"><b>W10</b>设置页<span>/settings</span></a></nav>
+<section class="screen" id="w01"><div class="screen-head"><span class="wid">W01</span><h2>工作台首页</h2><code>/workbench</code></div><p class="goal">打开就有事可做：活动任务优先，其次是发起分析，最后才是市场与历史。</p><div class="phone"><div class="m-top"><span>工作台</span><span class="m-top-r">搜索</span></div><div class="m-jobbar"><span class="badge run">运行中</span><b>宁德时代</b><span>9/12 多空辩论</span><span class="m-job-more">查看</span></div><div class="m-content"><div class="m-card "><div class="m-h">分析一只股票</div><div class="m-input">宁德时代 300750</div><div class="m-primary">开始分析</div></div><div class="m-card "><div class="m-h">今日市场</div><div class="m-indices"><div class="m-index"><span class="tiny muted">上证指数</span><b>3,318.62</b><span class="up tiny">+0.82%</span></div><div class="m-index"><span class="tiny muted">深证成指</span><b>10,562.14</b><span class="up tiny">+1.10%</span></div><div class="m-index"><span class="tiny muted">创业板指</span><b>2,184.07</b><span class="down tiny">-0.31%</span></div></div></div><div class="m-card "><div class="m-h">最近任务</div><div class="m-list-row"><span>宁德时代 · 运行中</span><span class="muted tiny">9/12</span></div><div class="m-list-row"><span>贵州茅台 · 已完成</span><span class="muted tiny">11:20</span></div><div class="m-list-row"><span>中国平安 · 失败</span><span class="muted tiny">昨天</span></div></div><div class="m-card "><div class="m-h">最近报告</div><div class="m-list-row"><span>贵州茅台 · 增持</span><span class="muted tiny">10-28</span></div><div class="m-list-row"><span>比亚迪 · 中性</span><span class="muted tiny">10-27</span></div><div class="m-list-row"><span>查看全部报告</span><span class="muted tiny">›</span></div></div></div><div class="m-nav"><span class="active">工作台</span><span class="">市场</span><span class="">任务</span><span class="">报告</span><span class="">更多</span></div></div><div class="notes"><div><h3>要确认的状态</h3><ul><li>无活动任务</li><li>市场 stale / error</li><li>搜索无结果</li><li>无最近任务与报告</li></ul></div><div><h3>依赖接口</h3><ul><li><code>GET /market/overview</code></li><li><code>GET /jobs?active=true</code></li><li><code>GET /reports</code></li><li><code>GET /market/search</code></li></ul></div></div></section><section class="screen" id="w02"><div class="screen-head"><span class="wid">W02</span><h2>统一分析启动器</h2><code>/workbench?launch=1</code></div><p class="goal">把票、日期、配置填对，并在付费前说清代价；提交中防重复。</p><div class="phone"><div class="m-top"><span>新建分析</span><span class="m-top-r">关闭</span></div><div class="m-content"><div class="m-card "><div class="m-label">标的</div><div class="m-input">宁德时代 300750</div></div><div class="m-card "><div class="m-label">分析日期</div><div class="m-input">2026-10-29</div></div><div class="m-card "><div class="m-label">模型配置</div><div class="m-input">DeepSeek 默认 ▾</div><div class="m-switch"><span>并行分析</span><span class="switch on"></span></div></div><div class="m-card "><div class="m-label">阶段开关</div><div class="muted tiny">7 个分析阶段 · 点开二级页</div></div><div class="m-warn"><b>该股票今日已有进行中的分析</b><div class="tiny">等待它结束，或先取消后再提交。</div><div class="m-warn-actions"><span class="btn">查看进行中的任务</span><span class="btn">取消</span></div></div></div><div class="m-sticky"><span class="muted tiny">预计 5–15 分钟</span><span class="m-primary half disabled">暂不能提交</span></div></div><div class="notes"><div><h3>要确认的状态</h3><ul><li>标的解析失败/多候选</li><li>日期非法</li><li>active_conflict</li><li>提交中</li><li>429 退避</li><li>已有相同任务</li></ul></div><div><h3>依赖接口</h3><ul><li><code>GET /meta/options</code></li><li><code>POST /jobs（Idempotency-Key）</code></li></ul></div></div></section><section class="screen" id="w03"><div class="screen-head"><span class="wid">W03</span><h2>任务列表</h2><code>/jobs</code></div><p class="goal">按状态、股票、日期范围找到任务；移动端表格换成摘要卡。</p><div class="phone"><div class="m-top"><span>任务</span><span class="m-top-r">筛选</span></div><div class="m-jobbar"><span class="badge run">运行中</span><b>宁德时代</b><span>9/12 多空辩论</span><span class="m-job-more">查看</span></div><div class="m-content"><div class="m-chips"><span class="chip">全部状态</span><span class="chip">近 30 天</span><span class="chip">清空</span></div><div class="m-card "><div class="m-row-between"><b>宁德时代 300750</b><span class="badge run">运行中</span></div><div class="tiny muted">2026-10-29 · 9/12 多空辩论 · 06:12</div></div><div class="m-card "><div class="m-row-between"><b>贵州茅台 600519</b><span class="badge ok">已完成</span></div><div class="tiny muted">2026-10-29 · 12/12 · 11:41</div></div><div class="m-card "><div class="m-row-between"><b>中国平安 601318</b><span class="badge bad">失败</span></div><div class="tiny muted">2026-10-28 · 新闻舆情超时 · 03:05</div></div><div class="m-card "><div class="m-row-between"><b>比亚迪 002594</b><span class="badge warn">中断</span></div><div class="tiny muted">2026-10-28 · 8/12 质量门控 · 07:20</div></div><div class="loadmore">加载更多</div></div><div class="m-nav"><span class="">工作台</span><span class="">市场</span><span class="active">任务</span><span class="">报告</span><span class="">更多</span></div></div><div class="notes"><div><h3>要确认的状态</h3><ul><li>空列表</li><li>筛选为空</li><li>接口错误</li><li>加载更多失败</li><li>九种状态徽标</li></ul></div><div><h3>依赖接口</h3><ul><li><code>GET /jobs?status=&ticker=&date_from=&date_to=&active=</code></li></ul></div></div></section><section class="screen" id="w04"><div class="screen-head"><span class="wid">W04</span><h2>任务详情</h2><code>/jobs/:jobId</code></div><p class="goal">看清 12 个阶段与控制效果；展开单个阶段读报告；异常时给出下一步。</p><div class="phone"><div class="m-top"><span>宁德时代 300750</span><span class="m-top-r">更多</span></div><div class="m-content m-task"><div class="m-row-between"><div><b>宁德时代</b> <span class="badge warn">暂停中</span></div><span class="tiny muted">8/12</span></div><div class="m-stats"><span>模型调用 38</span><span>耗时 06:12</span><span>Tokens 159.6k</span></div><div class="m-warn small">暂停请求已受理，将在当前阶段结束后生效。</div><div class="m-stage-list"><div class="m-stage done"><span>01 技术分析</span><span class="tiny">已完成</span></div><div class="m-stage done"><span>02 情绪分析</span><span class="tiny">已完成</span></div><div class="m-stage done"><span>03 新闻舆情</span><span class="tiny">已完成</span></div><div class="m-stage done"><span>04 基本面</span><span class="tiny">已完成</span></div><div class="m-stage done"><span>05 政策分析</span><span class="tiny">已完成</span></div><div class="m-stage done"><span>06 游资追踪</span><span class="tiny">已完成</span></div><div class="m-stage done"><span>07 解禁监控</span><span class="tiny">已完成</span></div><div class="m-stage done"><span>08 质量门控</span><span class="tiny">已完成</span></div><div class="m-stage active"><span>09 多空辩论</span><span class="tiny">进行中</span></div><div class="m-stage pending"><span>10 交易决策</span><span class="tiny">等待</span></div><div class="m-stage pending"><span>11 风控评估</span><span class="tiny">等待</span></div><div class="m-stage pending"><span>12 最终决策</span><span class="tiny">等待</span></div></div></div><div class="m-drawer"><div class="m-drawer-head"><b>阶段报告 · 技术分析</b><span class="muted">关闭</span></div><div class="md"><div class="md-h">技术面：均线多头排列</div><div class="line w95"></div><div class="line w88"></div><div class="line w92"></div><div class="line w70"></div><div class="line w96"></div><div class="line w84"></div></div><div class="link tiny">展开全文</div></div><div class="m-sticky"><span class="m-btn-danger">取消</span><span class="m-btn quiet">打开报告</span></div><div class="m-nav"><span class="">工作台</span><span class="">市场</span><span class="active">任务</span><span class="">报告</span><span class="">更多</span></div></div><div class="notes"><div><h3>要确认的状态</h3><ul><li>queued/running/paused/failed/interrupted/succeeded</li><li>SSE 重连中</li><li>410 过期</li><li>任务不存在</li></ul></div><div><h3>依赖接口</h3><ul><li><code>GET /jobs/{id}</code></li><li><code>GET /jobs/{id}/stages/{stageId}</code></li><li><code>POST /jobs/{id}/actions</code></li><li><code>POST /jobs/{id}/retry</code></li><li><code>GET /jobs/{id}/events</code></li></ul></div></div></section><section class="screen" id="w05"><div class="screen-head"><span class="wid">W05</span><h2>报告库</h2><code>/reports</code></div><p class="goal">按票、日期、评级找报告；旧报告缺时间时如实说明。</p><div class="phone"><div class="m-top"><span>报告</span><span class="m-top-r">筛选</span></div><div class="m-jobbar"><span class="badge run">运行中</span><b>宁德时代</b><span>9/12 多空辩论</span><span class="m-job-more">查看</span></div><div class="m-content"><div class="m-chips"><span class="chip">评级：全部</span><span class="chip">近 30 天</span><span class="chip">清空</span></div><div class="m-card "><div class="m-row-between"><span class="badge ok">增持</span><span class="tiny muted">10-28</span></div><b>贵州茅台 600519</b><div class="tiny muted">AI 分析 · 生成于 11:41</div></div><div class="m-card "><div class="m-row-between"><span class="badge warn">中性</span><span class="tiny muted">10-27</span></div><b>比亚迪 002594</b><div class="tiny muted">AI 分析 · 生成于 15:02</div></div><div class="m-card "><div class="m-row-between"><span class="badge bad">卖出</span><span class="tiny muted">10-20</span></div><b>中国平安 601318</b><div class="tiny muted">历史导入 · 生成时间未知</div></div><div class="loadmore">加载更多</div></div><div class="m-nav"><span class="">工作台</span><span class="">市场</span><span class="">任务</span><span class="active">报告</span><span class="">更多</span></div></div><div class="notes"><div><h3>要确认的状态</h3><ul><li>空库</li><li>筛选为空</li><li>接口错误</li><li>旧报告生成时间未知</li><li>legacy_import 角标</li></ul></div><div><h3>依赖接口</h3><ul><li><code>GET /reports?ticker=&date_from=&date_to=&rating=</code></li></ul></div></div></section><section class="screen" id="w06"><div class="screen-head"><span class="wid">W06</span><h2>报告阅读器</h2><code>/reports/:reportId</code></div><p class="goal">读完报告、跳到任意章节、显式导出 PDF、按原配置重新分析。</p><div class="phone"><div class="m-top"><span>贵州茅台 600519</span><span class="m-top-r">目录</span></div><div class="m-content"><div class="m-card "><div class="m-row-between"><b>增持</b><span class="tiny muted">2026-10-28</span></div><div class="tiny muted">目标价 1,980 元 · 止损 1,720 元 · 3–6 个月</div></div><div class="md-h">一、投资结论</div><div class="md"><div class="md-h">评级：增持</div><div class="line w95"></div><div class="line w88"></div><div class="line w92"></div><div class="line w70"></div><div class="line w96"></div><div class="line w84"></div><div class="line w90"></div><div class="line w60"></div></div><div class="md-h">二、核心逻辑</div><div class="md"><div class="md-h">高端白酒动销改善</div><div class="line w95"></div><div class="line w88"></div><div class="line w92"></div><div class="line w70"></div><div class="line w96"></div><div class="line w84"></div></div></div><div class="m-drawer"><div class="m-drawer-head"><b>报告目录</b><span class="muted">关闭</span></div><div class="m-toc-row on">sec-decision</div><div class="m-toc-row ">sec-thesis</div><div class="m-toc-row ">sec-market</div><div class="m-toc-row ">sec-social</div><div class="m-toc-row ">sec-news</div><div class="m-toc-row ">sec-fundamentals</div><div class="m-toc-row ">sec-policy</div><div class="m-toc-row ">sec-hot_money</div><div class="m-toc-row ">sec-lockup</div><div class="m-toc-row ">sec-debate</div><div class="m-toc-row ">sec-trader</div><div class="m-toc-row ">sec-risk</div><div class="m-toc-row ">sec-summary</div></div><div class="m-sticky"><span class="m-btn">导出 PDF</span><span class="m-primary half">重新分析</span></div><div class="m-nav"><span class="">工作台</span><span class="">市场</span><span class="">任务</span><span class="active">报告</span><span class="">更多</span></div></div><div class="notes"><div><h3>要确认的状态</h3><ul><li>正文加载中</li><li>报告不存在</li><li>章节缺失</li><li>导出四态</li><li>历史报告无图表</li><li>重新分析确认</li></ul></div><div><h3>依赖接口</h3><ul><li><code>GET /reports/{id}</code></li><li><code>GET /reports/{id}/markdown</code></li><li><code>POST /reports/{id}/exports/pdf</code></li><li><code>GET /exports/{id}</code></li><li><code>POST /jobs/{id}/retry</code></li></ul></div></div></section><section class="screen" id="w07"><div class="screen-head"><span class="wid">W07</span><h2>股票工作区</h2><code>/stocks/:ticker</code></div><p class="goal">看盘并就地发起分析；数据三态与区块失败要说清楚。</p><div class="phone"><div class="m-top"><span>宁德时代 300750</span><span class="m-top-r">⋯</span></div><div class="m-content"><div class="m-card "><b class="price">268.40</b> <span class="up">+4.10%</span><div class="tiny muted">行情 14:59:32 · 数据正常</div></div><div class="m-tabs"><span class="on">估值</span><span>K 线</span><span>分时</span><span>新闻</span><span>报告</span></div><div class="m-card "><div class="m-metrics"><div><span class="tiny muted">EPS</span><b>12.86</b></div><div><span class="tiny muted">动态 PE</span><b>20.9</b></div><div><span class="tiny muted">PEG</span><b>0.87</b></div><div><span class="tiny muted">消化</span><b>2.1 年</b></div></div></div><div class="m-card "><div class="m-h">日 K</div><div class="chart"><div class="tiny muted">K 线占位 · 不复权</div><div class="chart-scroll"><div class="chart-inner"><div class="bars"><i style="height:40%"></i><i style="height:52%"></i><i style="height:45%"></i><i style="height:60%"></i><i style="height:58%"></i><i style="height:66%"></i><i style="height:62%"></i><i style="height:70%"></i><i style="height:68%"></i><i style="height:76%"></i><i style="height:72%"></i><i style="height:84%"></i><i style="height:80%"></i><i style="height:88%"></i><i style="height:74%"></i><i style="height:90%"></i></div></div></div></div></div></div><div class="m-sticky"><span class="muted tiny">268.40 · +4.10%</span><span class="m-primary half">分析这只股票</span></div><div class="m-nav"><span class="">工作台</span><span class="active">市场</span><span class="">任务</span><span class="">报告</span><span class="">更多</span></div></div><div class="notes"><div><h3>要确认的状态</h3><ul><li>ticker 解析失败</li><li>部分区块失败</li><li>stale 横幅</li><li>空数据</li><li>数据源错误</li></ul></div><div><h3>依赖接口</h3><ul><li><code>GET /stocks/{ticker}/snapshot|kline|intraday|news|reports</code></li></ul></div></div></section><section class="screen" id="w08"><div class="screen-head"><span class="wid">W08</span><h2>市场与钻取</h2><code>/market</code></div><p class="goal">从行业看成分股，再进个股；非交易日与区块延迟不伪装成错误。</p><div class="phone"><div class="m-top"><span>市场</span><span class="m-top-r">筛选</span></div><div class="m-jobbar"><span class="badge run">运行中</span><b>宁德时代</b><span>9/12 多空辩论</span><span class="m-job-more">查看</span></div><div class="m-content"><div class="m-card "><div class="m-row-between"><span class="badge ok">交易中</span><span class="tiny muted">14:59:32</span></div><div class="m-indices"><div class="m-index"><span class="tiny muted">上证</span><b>3,318.62</b><span class="up tiny">+0.82%</span></div><div class="m-index"><span class="tiny muted">深证</span><b>10,562.14</b><span class="up tiny">+1.10%</span></div><div class="m-index"><span class="tiny muted">创业板</span><b>2,184.07</b><span class="down tiny">-0.31%</span></div></div></div><div class="m-card "><div class="m-h">行业涨幅</div><div class="m-list-row"><span>半导体 · 领涨中芯国际</span><span class="muted tiny">+3.21%</span></div><div class="m-list-row"><span>消费电子 · 立讯精密</span><span class="muted tiny">+2.74%</span></div><div class="m-list-row"><span>汽车整车 · 比亚迪</span><span class="muted tiny">+2.15%</span></div><div class="m-list-row"><span>电池 · 宁德时代</span><span class="muted tiny">+1.88%</span></div><div class="tiny muted">点击行业查看成分股</div></div><div class="m-card "><div class="m-h">强势股</div><div class="m-list-row"><span>中芯国际 688981</span><span class="muted tiny">+9.98%</span></div><div class="m-list-row"><span>立讯精密 002475</span><span class="muted tiny">+7.31%</span></div><div class="m-list-row"><span>比亚迪 002594</span><span class="muted tiny">+5.62%</span></div></div><div class="m-card "><div class="m-h">快讯</div><div class="m-list-row"><span>半导体板块持续走强</span><span class="muted tiny">14:56</span></div><div class="m-list-row"><span>北向净流入扩大至 42 亿</span><span class="muted tiny">14:51</span></div></div></div><div class="m-nav"><span class="">工作台</span><span class="active">市场</span><span class="">任务</span><span class="">报告</span><span class="">更多</span></div></div><div class="notes"><div><h3>要确认的状态</h3><ul><li>非交易日 empty</li><li>北向 stale</li><li>行业成分股加载中</li><li>快讯为空</li></ul></div><div><h3>依赖接口</h3><ul><li><code>GET /market/overview</code></li><li><code>GET /market/industries</code></li><li><code>GET /market/industries/{boardCode}/stocks</code></li><li><code>GET /market/strong-stocks</code></li><li><code>GET /market/newsflash</code></li></ul></div></div></section><section class="screen" id="w09"><div class="screen-head"><span class="wid">W09</span><h2>交易日志不可用</h2><code>/journal</code></div><p class="goal">解释日志是独立应用、当前起不来，并给出可执行的下一步。</p><div class="phone"><div class="m-top"><span>交易日志</span><span class="m-top-r">⋯</span></div><div class="m-content"><div class="m-card "><div class="m-h">交易日志服务当前没有运行</div><div class="tiny muted">交易日志是独立应用，本系统不读取也不修改它的数据。</div><div class="m-code">trade-journal/run.bat</div><div class="m-primary">重试</div><div class="m-btn quiet">查看启动说明</div><div class="tiny muted">端口未监听（not_running）</div></div></div><div class="m-nav"><span class="">工作台</span><span class="">市场</span><span class="">任务</span><span class="">报告</span><span class="active">更多</span></div></div><div class="notes"><div><h3>要确认的状态</h3><ul><li>not_running</li><li>not_installed</li><li>probe_failed</li><li>可用（iframe）</li></ul></div><div><h3>依赖接口</h3><ul><li><code>GET /meta/options → journal</code></li></ul></div></div></section><section class="screen" id="w10"><div class="screen-head"><span class="wid">W10</span><h2>设置页</h2><code>/settings</code></div><p class="goal">看清版本、服务器时间、日志与数据源状态；P0 只做基本信息分组。</p><div class="phone"><div class="m-top"><span>设置</span><span class="m-top-r">⋯</span></div><div class="m-content"><div class="m-card "><b>基本信息</b><div class="m-list-row"><span>服务状态</span><span class="muted tiny">接口可达 · SSE 可达</span></div><div class="m-list-row"><span>版本</span><span class="muted tiny">0.9.0</span></div><div class="m-list-row"><span>接口契约</span><span class="muted tiny">api-v1</span></div><div class="m-list-row"><span>服务器时间</span><span class="muted tiny">15:04:05 +08:00</span></div><div class="m-list-row"><span>交易日志</span><span class="muted tiny">不可用 ›</span></div><div class="m-list-row"><span>数据源</span><span class="muted tiny">腾讯行情 · 14:59:31</span></div></div><div class="m-card "><div class="m-list-row"><span>模型</span><span class="muted tiny">P1 开放 ›</span></div><div class="m-list-row"><span>数据源</span><span class="muted tiny">P1 开放 ›</span></div><div class="m-list-row"><span>关于</span><span class="muted tiny">构建 2026-10-29 ›</span></div></div></div><div class="m-nav"><span class="">工作台</span><span class="">市场</span><span class="">任务</span><span class="">报告</span><span class="active">更多</span></div></div><div class="notes"><div><h3>要确认的状态</h3><ul><li>接口可达/不可达</li><li>日志可用/不可用</li><li>P1 分组占位</li></ul></div><div><h3>依赖接口</h3><ul><li><code>GET /meta/options</code></li></ul></div></div></section>
+<footer class="doc-foot">线框版本 2026-10-29。任何与 core-wireframes.md 不一致之处，以 md 为准并回写本文件。</footer>
+</div>
+</body>
+</html>
