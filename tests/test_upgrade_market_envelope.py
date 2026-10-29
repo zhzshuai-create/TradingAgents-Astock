@@ -65,6 +65,7 @@ JOB_ENDPOINTS = [
     "POST /api/v1/jobs/{jobId}/actions",
     "POST /api/v1/jobs/{jobId}/retry",
     "GET /api/v1/jobs/{jobId}/events",
+    "GET /api/v1/jobs/{jobId}/stages/{stageId}",
 ]
 
 REPORT_ENDPOINTS = [
@@ -222,3 +223,11 @@ def test_api_contract_freezes_paths() -> None:
         assert path in text, f"缺少接口 {path}"
     assert "Idempotency-Key" in text
     assert "已受理，不等于生效" in text or "受理不等于生效" in text
+
+
+def test_wireframe_gaps_written_back() -> None:
+    api = (CONTRACTS / "api-v1.md").read_text(encoding="utf-8-sig")
+    errors = (CONTRACTS / "error-codes-v1.md").read_text(encoding="utf-8-sig")
+    for needle in ("stage_not_found", "default_analysis_date", "journal.reason", "active=true", "rating="):
+        assert needle in api, f"api-v1 缺少线框回写字段 {needle}"
+    assert "`stage_not_found`" in errors

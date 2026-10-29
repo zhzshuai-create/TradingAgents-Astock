@@ -2284,10 +2284,12 @@ Idempotency-Key: &lt;uuid&gt;        （必需）
 </table>
 <p><code>Idempotency-Key</code> 作用域为创建接口，保留 24 小时；24 小时内重放返回当时的响应体与状态码。</p>
 <h3 id="14">1.4 任务列表</h3>
-<pre><code class="language-text">GET /api/v1/jobs?status=running,failed&amp;ticker=000629&amp;limit=20&amp;cursor=...
+<pre><code class="language-text">GET /api/v1/jobs?status=running,failed&amp;ticker=000629&amp;date_from=2026-09-01&amp;date_to=2026-10-29&amp;active=true&amp;limit=20&amp;cursor=...
 </code></pre>
 <ul>
 <li><code>status</code> 可逗号分隔多值；<code>ticker</code> 精确匹配代码。</li>
+<li><code>date_from</code> / <code>date_to</code> 按 <code>analysis_date</code> 闭区间过滤；格式错误或晚于今天报 422 <code>invalid_date</code>。</li>
+<li><code>active=true</code> 只返回非终态任务（queued、running、pause_requested、paused、cancel_requested），供活动任务条使用。它与 <code>status</code> 互斥，同时出现报 400 <code>invalid_request</code>，<code>details.field = "active"</code>。</li>
 <li>排序固定 <code>created_at</code> 倒序；同秒内按 <code>job_id</code> 升序，保证分页稳定。</li>
 <li>返回 <code>{items: JobSummary[], next_cursor}</code>。</li>
 <li>该接口零副作用，不改变任何 job 状态。</li>
@@ -2442,32 +2444,148 @@ Idempotency-Key: &lt;uuid&gt;        （必需）
 <p><code>paused</code> 的「继续」不走本接口，走 1.6 的 <code>resume</code> 动作：同一个 job、同一个 id，这是暂停与中断的关键区别。暂停状态下检查点缺失时，对账已把它改判 <code>interrupted</code>，届时才用 <code>resume_from_checkpoint</code>。</p>
 <ul>
 <li>该接口会产生新的模型费用，因此必须带 <code>Idempotency-Key</code>，判定顺序与 1.3 相同。</li>
+<li>报告页的「重新分析」不另设接口：<code>report.job_id</code> 非空时调用本接口 <code>mode = same_config</code>，配置来源即原任务；历史导入报告 <code>job_id</code> 为 null，改为打开启动器并预填股票与分析日期。</li>
 <li><code>resume_from_checkpoint</code> 时 <code>config_digest</code> 或 <code>graph_version</code> 不匹配，返回 409 <code>resume_fingerprint_mismatch</code>，界面只给「重新分析」。</li>
 <li>成功返回 201 + 新 <code>JobDetail</code>；原 job 任何字段不变。</li>
 </ul>
-<h3 id="18">1.8 消息面：配置选项</h3>
+<h3 id="18">1.8 元信息与配置选项</h3>
 <pre><code class="language-text">GET /api/v1/meta/options
 </code></pre>
-<p>返回前端表单需要的枚举，避免前端硬编码服务端配置：</p>
+<p>返回前端表单与设置页需要的枚举和只读状态，避免前端硬编码服务端配置：</p>
 <pre><code class="language-json">{
+  &quot;app_version&quot;: &quot;0.9.0&quot;,
+  &quot;server_time&quot;: &quot;2026-10-29T15:04:05+08:00&quot;,
+  &quot;default_analysis_date&quot;: &quot;2026-10-29&quot;,
   &quot;llm_profiles&quot;: [{&quot;id&quot;: &quot;deepseek-default&quot;, &quot;label&quot;: &quot;DeepSeek 默认&quot;}],
   &quot;stage_toggles&quot;: [{&quot;id&quot;: &quot;policy&quot;, &quot;label&quot;: &quot;政策分析&quot;, &quot;default&quot;: true}],
   &quot;limits&quot;: {&quot;max_active_jobs&quot;: 1, &quot;max_date_ahead_days&quot;: 0},
+  &quot;journal&quot;: {&quot;available&quot;: false, &quot;entry_url&quot;: &quot;http://127.0.0.1:8502&quot;, &quot;reason&quot;: &quot;not_running&quot;},
   &quot;contract_version&quot;: &quot;api-v1&quot;
 }
 </code></pre>
-<p>零副作用。这是本契约在计划清单之外补充的两个接口之一（另一个是 2.5 的导出状态查询），理由都写在评审记录里。</p>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>类型</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>app_version</code></td>
+<td>string</td>
+<td>应用版本，设置页「关于」显示</td>
+</tr>
+<tr>
+<td><code>server_time</code></td>
+<td>ISO8601</td>
+<td>带 <code>+08:00</code> 的服务器时间</td>
+</tr>
+<tr>
+<td><code>default_analysis_date</code></td>
+<td>string(YYYY-MM-DD)</td>
+<td>启动器默认分析日期，按北京时间取当天；前端不得用本地时区自行推导</td>
+</tr>
+<tr>
+<td><code>journal.available</code></td>
+<td>bool</td>
+<td>交易日志服务是否可用，依据 TCP 连通加健康端点身份校验</td>
+</tr>
+<tr>
+<td><code>journal.entry_url</code></td>
+<td>string</td>
+<td>日志应用入口地址，不可用时也返回，用于手动打开</td>
+</tr>
+<tr>
+<td><code>journal.reason</code></td>
+<td>enum 或 null</td>
+<td><code>not_running</code>、<code>not_installed</code>、<code>probe_failed</code>；可用时为 null</td>
+</tr>
+</tbody>
+</table>
+<p><code>journal</code> 只做探活，<strong>不自动拉起日志服务</strong>；启动必须由用户在日志页手动执行。</p>
+<p>零副作用。本契约在计划清单之外补充的接口有 2.5 导出状态、1.8 元信息、1.10 阶段报告，理由都写在评审记录里。</p>
 <h3 id="19">1.9 任务事件流</h3>
 <pre><code class="language-text">GET /api/v1/jobs/{jobId}/events
 </code></pre>
 <p>只读事件流，只接受 GET，<code>Accept: text/event-stream</code>，重连带 <code>Last-Event-ID</code>。订阅与续传不写任何表、不创建任务。事件类型、首帧快照、断线续传、心跳、限频与终态关闭全部见 <code>sse-events-v1.md</code>。</p>
+<h3 id="110">1.10 阶段报告</h3>
+<pre><code class="language-text">GET /api/v1/jobs/{jobId}/stages/{stageId}
+</code></pre>
+<p>任务详情页展开某个阶段时读取该阶段的产出。只读，零副作用：不触发对账、不改状态、不发事件、不补跑阶段。</p>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>类型</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>job_id</code></td>
+<td>string(uuid)</td>
+<td></td>
+</tr>
+<tr>
+<td><code>stage_id</code></td>
+<td>string</td>
+<td>1.2 的固定 12 个之一</td>
+</tr>
+<tr>
+<td><code>stage_name</code></td>
+<td>string</td>
+<td>中文名</td>
+</tr>
+<tr>
+<td><code>index</code></td>
+<td>int</td>
+<td>1–12</td>
+</tr>
+<tr>
+<td><code>status</code></td>
+<td>enum</td>
+<td>与 <code>JobDetail.stages</code> 中该项一致</td>
+</tr>
+<tr>
+<td><code>markdown</code></td>
+<td>string 或 null</td>
+<td>阶段产出原文；未产出时为 null</td>
+</tr>
+<tr>
+<td><code>truncated</code></td>
+<td>bool</td>
+<td>超过 128 KiB 时服务端截断，保留前 128 KiB</td>
+</tr>
+<tr>
+<td><code>full_length</code></td>
+<td>int</td>
+<td>原文总字符数；未产出为 0</td>
+</tr>
+<tr>
+<td><code>updated_at</code></td>
+<td>ISO8601 或 null</td>
+<td>该阶段产出写入时间</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li><code>pending</code>、<code>active</code>、<code>skipped</code> 阶段返回 200，<code>markdown = null</code>，不是错误。</li>
+<li><code>jobId</code> 不存在返回 404 <code>job_not_found</code>；<code>stageId</code> 不在固定 12 个之内返回 404 <code>stage_not_found</code>。</li>
+<li>阶段报告与最终报告无关：即使任务失败或中断，已完成阶段的报告仍可读取。</li>
+</ul>
 <hr />
 <h2 id="2">2. 报告接口</h2>
 <p>报告结构一律用 <code>report-schema-v1</code> 的 ReportDTO，本契约不再重复字段。</p>
 <h3 id="21">2.1 报告列表</h3>
-<pre><code class="language-text">GET /api/v1/reports?ticker=000629&amp;date_from=2026-09-01&amp;date_to=2026-10-29&amp;limit=20&amp;cursor=...
+<pre><code class="language-text">GET /api/v1/reports?ticker=000629&amp;date_from=2026-09-01&amp;date_to=2026-10-29&amp;rating=Buy,Sell&amp;limit=20&amp;cursor=...
 </code></pre>
-<p>返回 <code>{items: ReportSummary[], next_cursor}</code>，<code>ReportSummary</code> 是 ReportDTO 去掉 <code>sections</code> 的部分，附加 <code>summary_available: true</code>。</p>
+<ul>
+<li><code>date_from</code> / <code>date_to</code> 按 <code>analysis_date</code> 闭区间过滤；<code>generated_at</code> 为 null 的历史报告同样按分析日期参与筛选。</li>
+<li><code>rating</code> 可逗号分隔多值，取值 <code>Buy | Overweight | Hold | Underweight | Sell | unknown</code>；非法值报 400 <code>invalid_request</code>，<code>details.field = "rating"</code> 并给 <code>allowed_values</code>。</li>
+<li>返回 <code>{items: ReportSummary[], next_cursor}</code>，<code>ReportSummary</code> 是 ReportDTO 去掉 <code>sections</code> 的部分，附加 <code>summary_available: true</code>。</li>
+</ul>
 <p>排序：<code>generated_at</code> 倒序，<code>generated_at</code> 为 null 的历史报告排最后（与 <code>report-schema-v1</code> 第 4.2 条一致）。</p>
 <h3 id="22">2.2 报告详情</h3>
 <pre><code class="language-text">GET /api/v1/reports/{reportId}
@@ -3261,7 +3379,7 @@ data: {&quot;seq&quot;:128,&quot;job_id&quot;:&quot;5b1c...&quot;,&quot;type&quo
 <tr>
 <td><code>invalid_request</code></td>
 <td>400</td>
-<td>JSON 解析失败、类型不对、超出长度上限</td>
+<td>JSON 解析失败、类型不对、查询参数取值非法、超出长度上限</td>
 <td>请求格式不正确</td>
 <td>修请求；不要重试</td>
 </tr>
@@ -3299,6 +3417,13 @@ data: {&quot;seq&quot;:128,&quot;job_id&quot;:&quot;5b1c...&quot;,&quot;type&quo
 <td>export id 不存在</td>
 <td>没有找到这个导出任务</td>
 <td>重新发起导出</td>
+</tr>
+<tr>
+<td><code>stage_not_found</code></td>
+<td>404</td>
+<td>stage id 不在固定 12 个阶段内</td>
+<td>没有找到这个阶段</td>
+<td>刷新任务详情；按固定阶段列表修正请求</td>
 </tr>
 <tr>
 <td><code>sse_cursor_expired</code></td>

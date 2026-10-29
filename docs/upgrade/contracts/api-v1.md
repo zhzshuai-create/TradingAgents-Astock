@@ -134,10 +134,12 @@ Idempotency-Key: <uuid>        （必需）
 ### 1.4 任务列表
 
 ```text
-GET /api/v1/jobs?status=running,failed&ticker=000629&limit=20&cursor=...
+GET /api/v1/jobs?status=running,failed&ticker=000629&date_from=2026-09-01&date_to=2026-10-29&active=true&limit=20&cursor=...
 ```
 
 - `status` 可逗号分隔多值；`ticker` 精确匹配代码。
+- `date_from` / `date_to` 按 `analysis_date` 闭区间过滤；格式错误或晚于今天报 422 `invalid_date`。
+- `active=true` 只返回非终态任务（queued、running、pause_requested、paused、cancel_requested），供活动任务条使用。它与 `status` 互斥，同时出现报 400 `invalid_request`，`details.field = "active"`。
 - 排序固定 `created_at` 倒序；同秒内按 `job_id` 升序，保证分页稳定。
 - 返回 `{items: JobSummary[], next_cursor}`。
 - 该接口零副作用，不改变任何 job 状态。
@@ -218,27 +220,43 @@ Idempotency-Key: <uuid>        （必需）
 `paused` 的「继续」不走本接口，走 1.6 的 `resume` 动作：同一个 job、同一个 id，这是暂停与中断的关键区别。暂停状态下检查点缺失时，对账已把它改判 `interrupted`，届时才用 `resume_from_checkpoint`。
 
 - 该接口会产生新的模型费用，因此必须带 `Idempotency-Key`，判定顺序与 1.3 相同。
+- 报告页的「重新分析」不另设接口：`report.job_id` 非空时调用本接口 `mode = same_config`，配置来源即原任务；历史导入报告 `job_id` 为 null，改为打开启动器并预填股票与分析日期。
 - `resume_from_checkpoint` 时 `config_digest` 或 `graph_version` 不匹配，返回 409 `resume_fingerprint_mismatch`，界面只给「重新分析」。
 - 成功返回 201 + 新 `JobDetail`；原 job 任何字段不变。
 
-### 1.8 消息面：配置选项
+### 1.8 元信息与配置选项
 
 ```text
 GET /api/v1/meta/options
 ```
 
-返回前端表单需要的枚举，避免前端硬编码服务端配置：
+返回前端表单与设置页需要的枚举和只读状态，避免前端硬编码服务端配置：
 
 ```json
 {
+  "app_version": "0.9.0",
+  "server_time": "2026-10-29T15:04:05+08:00",
+  "default_analysis_date": "2026-10-29",
   "llm_profiles": [{"id": "deepseek-default", "label": "DeepSeek 默认"}],
   "stage_toggles": [{"id": "policy", "label": "政策分析", "default": true}],
   "limits": {"max_active_jobs": 1, "max_date_ahead_days": 0},
+  "journal": {"available": false, "entry_url": "http://127.0.0.1:8502", "reason": "not_running"},
   "contract_version": "api-v1"
 }
 ```
 
-零副作用。这是本契约在计划清单之外补充的两个接口之一（另一个是 2.5 的导出状态查询），理由都写在评审记录里。
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `app_version` | string | 应用版本，设置页「关于」显示 |
+| `server_time` | ISO8601 | 带 `+08:00` 的服务器时间 |
+| `default_analysis_date` | string(YYYY-MM-DD) | 启动器默认分析日期，按北京时间取当天；前端不得用本地时区自行推导 |
+| `journal.available` | bool | 交易日志服务是否可用，依据 TCP 连通加健康端点身份校验 |
+| `journal.entry_url` | string | 日志应用入口地址，不可用时也返回，用于手动打开 |
+| `journal.reason` | enum 或 null | `not_running`、`not_installed`、`probe_failed`；可用时为 null |
+
+`journal` 只做探活，**不自动拉起日志服务**；启动必须由用户在日志页手动执行。
+
+零副作用。本契约在计划清单之外补充的接口有 2.5 导出状态、1.8 元信息、1.10 阶段报告，理由都写在评审记录里。
 
 ### 1.9 任务事件流
 
@@ -247,6 +265,30 @@ GET /api/v1/jobs/{jobId}/events
 ```
 
 只读事件流，只接受 GET，`Accept: text/event-stream`，重连带 `Last-Event-ID`。订阅与续传不写任何表、不创建任务。事件类型、首帧快照、断线续传、心跳、限频与终态关闭全部见 `sse-events-v1.md`。
+
+### 1.10 阶段报告
+
+```text
+GET /api/v1/jobs/{jobId}/stages/{stageId}
+```
+
+任务详情页展开某个阶段时读取该阶段的产出。只读，零副作用：不触发对账、不改状态、不发事件、不补跑阶段。
+
+| 字段 | 类型 | 说明 |
+| --- | --- | --- |
+| `job_id` | string(uuid) | |
+| `stage_id` | string | 1.2 的固定 12 个之一 |
+| `stage_name` | string | 中文名 |
+| `index` | int | 1–12 |
+| `status` | enum | 与 `JobDetail.stages` 中该项一致 |
+| `markdown` | string 或 null | 阶段产出原文；未产出时为 null |
+| `truncated` | bool | 超过 128 KiB 时服务端截断，保留前 128 KiB |
+| `full_length` | int | 原文总字符数；未产出为 0 |
+| `updated_at` | ISO8601 或 null | 该阶段产出写入时间 |
+
+- `pending`、`active`、`skipped` 阶段返回 200，`markdown = null`，不是错误。
+- `jobId` 不存在返回 404 `job_not_found`；`stageId` 不在固定 12 个之内返回 404 `stage_not_found`。
+- 阶段报告与最终报告无关：即使任务失败或中断，已完成阶段的报告仍可读取。
 
 ---
 
@@ -257,10 +299,12 @@ GET /api/v1/jobs/{jobId}/events
 ### 2.1 报告列表
 
 ```text
-GET /api/v1/reports?ticker=000629&date_from=2026-09-01&date_to=2026-10-29&limit=20&cursor=...
+GET /api/v1/reports?ticker=000629&date_from=2026-09-01&date_to=2026-10-29&rating=Buy,Sell&limit=20&cursor=...
 ```
 
-返回 `{items: ReportSummary[], next_cursor}`，`ReportSummary` 是 ReportDTO 去掉 `sections` 的部分，附加 `summary_available: true`。
+- `date_from` / `date_to` 按 `analysis_date` 闭区间过滤；`generated_at` 为 null 的历史报告同样按分析日期参与筛选。
+- `rating` 可逗号分隔多值，取值 `Buy | Overweight | Hold | Underweight | Sell | unknown`；非法值报 400 `invalid_request`，`details.field = "rating"` 并给 `allowed_values`。
+- 返回 `{items: ReportSummary[], next_cursor}`，`ReportSummary` 是 ReportDTO 去掉 `sections` 的部分，附加 `summary_available: true`。
 
 排序：`generated_at` 倒序，`generated_at` 为 null 的历史报告排最后（与 `report-schema-v1` 第 4.2 条一致）。
 

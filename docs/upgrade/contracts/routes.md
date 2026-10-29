@@ -44,7 +44,7 @@
   └─ 最近任务 → /jobs/:jobId
 
 /market
-  ├─ 行业行 → /stocks/:ticker?tab=valuation
+  ├─ 行业行 → 行业成分股抽屉 → /stocks/:ticker?tab=valuation
   ├─ 强势股行 → /stocks/:ticker
   └─ 快讯 → 原文链接（外链，新窗口）
 

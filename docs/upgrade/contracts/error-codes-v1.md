@@ -39,12 +39,13 @@
 
 | code | HTTP | 触发条件 | 安全文案 | 客户端动作 |
 | --- | --- | --- | --- | --- |
-| `invalid_request` | 400 | JSON 解析失败、类型不对、超出长度上限 | 请求格式不正确 | 修请求；不要重试 |
+| `invalid_request` | 400 | JSON 解析失败、类型不对、查询参数取值非法、超出长度上限 | 请求格式不正确 | 修请求；不要重试 |
 | `idempotency_key_required` | 400 | 创建任务或重试未带 `Idempotency-Key` | 缺少幂等键 | 生成 UUID 后重发 |
 | `method_not_allowed` | 405 | 方法不对，如对 SSE 端点发 POST | 不支持该请求方法 | 修调用 |
 | `job_not_found` | 404 | job id 不存在 | 没有找到这个任务 | 回任务列表；不要自动创建 |
 | `report_not_found` | 404 | report id 不存在 | 没有找到这份报告 | 回报告列表 |
 | `export_not_found` | 404 | export id 不存在 | 没有找到这个导出任务 | 重新发起导出 |
+| `stage_not_found` | 404 | stage id 不在固定 12 个阶段内 | 没有找到这个阶段 | 刷新任务详情；按固定阶段列表修正请求 |
 | `sse_cursor_expired` | 410 | 重连的 `Last-Event-ID` 早于事件保留窗口 | 事件流已过期，请刷新任务页 | 用 GET 任务详情重建页面，**不创建任务** |
 | `idempotency_mismatch` | 409 | 同一幂等键提交了不同请求体 | 该请求与之前的提交不一致 | 换新幂等键，或复用原请求体 |
 | `active_conflict` | 409 | 同票同日已有活动任务且配置不同 | 该股票今日已有进行中的分析 | 等它结束，或先取消 |
