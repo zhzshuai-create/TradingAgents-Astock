@@ -64,6 +64,7 @@
 | `resume_from_stage` | string 或 null | 是 | 续跑起始阶段 id |
 | `allowed_actions` | array<enum> | 是 | 见 1.6；前端按钮只按它渲染，不自己推状态表 |
 | `links` | object | 是 | `{self, events, report}`，report 为 null 当无报告 |
+| `reconcile_notes` | array | 仅详情 | 启动对账发现的未登记产物或报告，元素为 `{code, message, at}`；只入库不广播，不占 SSE 序号；无则为空数组 |
 
 ### 1.2 阶段 id（固定 12 个）
 

@@ -62,6 +62,9 @@ interrupted
 | T17 | pause_requested | interrupted | 对账 | 同上 |
 | T18 | cancel_requested | interrupted | 对账 | 同上 |
 | T19 | queued | cancelled | 用户 | 尚未认领即可直接取消 |
+| T20 | paused | cancel_requested | 用户 | 当前无未决取消请求；取消优先于继续 |
+
+T20 是 P0 Day 6 用假图场景 S03 演练时发现的缺口：原表里 paused 只能恢复或直接取消，而直接取消被 I11 拒绝，用户想放弃暂停中的任务会无路可走。补上 T20 后，paused 的取消固定走 `cancel_requested → cancelled`，与其它状态的取消路径一致。
 
 续跑与重试不是状态转换，而是创建新 job：
 

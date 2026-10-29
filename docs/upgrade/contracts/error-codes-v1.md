@@ -73,7 +73,8 @@
 `illegal_transition` 的 `details.rule` 取 `job-state-machine.md` 的编号：
 
 - I01–I11：非法状态转换，任何入口一律 409。
-- `paused → cancelled` 走 I11，必须先 `cancel_requested` 再收尾。
+- 合法转换编号为 T01–T20，P1 测试按 `p1-state-machine-tests.md` 引用。
+- `paused → cancelled` 直接取消走 I11；合法路径是先走 T20 到 `cancel_requested`，再由 T13 收尾。
 - 重复提交同一控制动作不算非法转换：返回 200 `accepted = false, reason = already_pending`（见 `api-v1.md` 1.6）。
 
 ---

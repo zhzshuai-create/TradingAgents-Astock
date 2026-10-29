@@ -60,9 +60,13 @@ data: {"seq":128,"job_id":"5b1c...","type":"status_changed","at":"2026-10-29T10:
 | `snapshot` | 连接建立、或重连后需要重建视图时，作为首帧 | `{job: JobDetail, last_seq: int}` |
 | `stage_changed` | 阶段开始、结束、失败、跳过 | 见 3.1 |
 | `stats` | 统计值变化且满足限频；终态前必发一条 | 见 3.2 |
-| `status_changed` | 任何状态转换（T01–T19、对账改判） | 见 3.3 |
+| `status_changed` | 任何状态转换（T01–T20、对账改判） | 见 3.3 |
 | `report_ready` | 报告提交成功，紧跟在 succeeded 的 `status_changed` 之后 | 见 3.4 |
 | `error` | 传输层或服务端内部错误，不改变任务状态 | 见 3.5 |
+
+`created`、`transition_rejected`、`reconcile_note` 是审计记录，不属于这六类事件。它们只写审计表，不广播、不占 `seq`。审计记录混进事件流会让序号出现空洞，重连补发就断链。
+
+假图场景 S06 与 S07 产生的对账备注就是审计记录：`JobDetail.reconcile_notes` 能读到，事件流里没有对应帧。
 
 ### 3.1 stage_changed
 
@@ -110,10 +114,10 @@ data: {"seq":128,"job_id":"5b1c...","type":"status_changed","at":"2026-10-29T10:
 ### 3.4 report_ready
 
 ```json
-{"report_id": "7f2a...", "content_hash": "sha256:9c1e...", "rating": "Overweight", "signal": "Buy", "url": "/api/v1/reports/7f2a..."}
+{"report_id": "7f2a...", "content_hash": "9c1e5b7a0d2f4c6e8a1b3d5f7091a2c4e6f8b0d2c4e6a8f0b2d4c6e8a0f2b4d6", "rating": "Overweight", "signal": "Buy", "url": "/api/v1/reports/7f2a..."}
 ```
 
-`rating` 与 `signal` 取自 ReportDTO 的 `meta`，前端不解析正文。
+`content_hash` 与 `ReportDTO.meta.content_hash` 相同，64 位十六进制小写，不带 `sha256:` 前缀。`rating` 与 `signal` 取自 ReportDTO 的 `meta`，前端不解析正文。
 
 ### 3.5 error
 
@@ -205,6 +209,6 @@ data: {"seq":128,"job_id":"5b1c...","type":"status_changed","at":"2026-10-29T10:
 | 用户点暂停 | `status_changed` 到 `pause_requested`，`pending_action = pause`；阶段边界后 `status_changed` 到 `paused` |
 | 用户点取消，收尾期间图完成（T14） | `status_changed` 到 `succeeded`，`detail = cancel_noop`，界面提示「任务在取消请求到达前已完成」 |
 | 服务重启对账（T16–T18） | 重连首帧 `snapshot` 即为 `interrupted`；随后 `status_changed` 的 `reason = reconcile` |
-| B3 发现未登记阶段产物 | `status_changed` 到 `interrupted`，`detail = "unregistered_stage_output"`；事件表里的对账备注只入库，不广播 |
+| B3 发现未登记阶段产物 | `status_changed` 到 `interrupted`，`detail = "unregistered_stage_output"`；对账备注是审计记录，只入库、不广播、不占 `seq` |
 | B5 报告已提交、完成事件未发 | 启动时补发 `report_ready`（新序号），重连客户端从 `Last-Event-ID` 之后拿到 |
 | 任务已终态再订阅 | `snapshot` 后立即关闭 |
