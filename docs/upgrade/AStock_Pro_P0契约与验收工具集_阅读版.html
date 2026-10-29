@@ -30,12 +30,16 @@ article{max-width:1080px;margin:0 auto;padding:44px 56px 72px;background:var(--s
 <li><a href="#contracts-routes">路由与返回规则</a></li>
 <li><a href="#contracts-core-wireframes">核心页面线框（十屏）</a></li>
 <li><a href="#contracts-interaction-checklist">交互走查清单</a></li>
+<li><a href="#contracts-FREEZE-v1">契约冻结清单 v1</a></li>
 <li><a href="#fake-graph-README">确定性假图使用说明</a></li>
 <li><a href="#fake-graph-scenarios">崩溃与竞争场景清单</a></li>
 <li><a href="#fake-graph-test-matrix">契约条款到测试的映射</a></li>
 <li><a href="#fake-graph-perf-template">性能测量模板</a></li>
+<li><a href="#p0-exit-review">P0 出口评审：Go / No-Go</a></li>
+<li><a href="#p1-backlog">P1 任务拆票：持久化任务内核</a></li>
 </ul></div></details>
 <section id="contracts-semantic-dictionary"><h1>核心语义词典</h1>
+<p>版本：v1（2026-10-29 冻结）</p>
 <p>目的：让每个用户操作只对应一个服务端语义。前后端、文档、测试一律使用本表的词与文案，不再用页面文案猜状态。</p>
 <p>旧版现状依据：<code>web/progress.py</code>（<code>ProgressTracker</code> 的四个布尔位 <code>is_running / is_complete / is_paused / stop_requested</code> 加 <code>error</code> 字段）、<code>web/jobs.py</code>（进程内 <code>_jobs</code> 字典）、<code>web/runner.py</code>（守护线程执行）。旧版没有持久化状态，进程重启即丢失全部任务。</p>
 <h2 id="1">1. 十二个核心词</h2>
@@ -194,6 +198,7 @@ article{max-width:1080px;margin:0 auto;padding:44px 56px 72px;background:var(--s
 </ul>
 </section>
 <section id="contracts-job-state-machine"><h1>任务状态机</h1>
+<p>版本：v1（2026-10-29 冻结）</p>
 <p>首期状态固定为九个，不再增减。任何新需求先尝试用现有状态表达，表达不了才允许提案加状态。</p>
 <pre><code class="language-text">queued
 running
@@ -601,6 +606,7 @@ interrupted
 <p>对账只改状态和写一条 <code>status_changed</code> 事件，不触发任何执行，不调用任何模型。</p>
 </section>
 <section id="contracts-idempotency-conflicts"><h1>幂等与冲突决策表</h1>
+<p>版本：v1（2026-10-29 冻结）</p>
 <p>目标：同一个意图重复提交，永远只产生一个会花钱的执行。</p>
 <p>三个键的定义：</p>
 <ul>
@@ -762,6 +768,7 @@ interrupted
 </table></div>
 </section>
 <section id="contracts-crash-boundaries"><h1>崩溃边界预期表</h1>
+<p>版本：v1（2026-10-29 冻结）</p>
 <p>这里不承诺绝对无损。原则只有一条：<strong>无法确认执行位置时，结果是 <code>interrupted</code> 加人工对账，不是自动重跑。</strong> 自动重跑意味着可能重复付费，且用户不知道哪一份结果是权威的。</p>
 <p>六个时点按执行顺序排列。每个时点给出：崩溃前已落盘的东西、重启后可观测的证据、期望状态、是否可能重复付费、处理动作。</p>
 <h2 id="b1-worker">B1 任务已创建，Worker 尚未开始</h2>
@@ -867,6 +874,7 @@ interrupted
 <p>六个时点里只有 B1 和 B5 不需要人。其余四个一律停住等人，这是刻意的：停住的代价是用户多点一次按钮，自动重跑的代价是可能多花一次钱并且说不清哪份结果算数。</p>
 </section>
 <section id="contracts-p1-state-machine-tests"><h1>P1 状态机测试用例清单</h1>
+<p>版本：v1（2026-10-29 冻结）</p>
 <p>P1 实现持久化任务内核时按本清单补测试。用例编号稳定，评审与回归都引用编号。</p>
 <p>全部用例使用确定性假图（Day 6 产出）或打桩执行器，不触发真实模型调用。</p>
 <h2 id="1-t01t20">1. 合法转换（对应状态机 T01–T20）</h2>
@@ -1088,6 +1096,7 @@ interrupted
 <p>SM-14 对应的 T20 由 P0 Day 6 发现并补入，见 <code>job-state-machine.md</code> 第 2 节。</p>
 </section>
 <section id="contracts-report-schema-v1"><h1>报告结构契约 v1</h1>
+<p>版本：v1（2026-10-29 冻结）</p>
 <p>日期：2026-10-29
 状态：冻结候选（Day 3 交付）
 配套文件：<code>report-schema-v1.json</code>（机器可读）、<code>tests/fixtures/upgrade/*.json</code>（黄金样本）、<code>report-consistency-tests.md</code>（一致性测试清单）</p>
@@ -1778,6 +1787,7 @@ interrupted
 </table></div>
 </section>
 <section id="contracts-report-consistency-tests"><h1>报告一致性测试清单</h1>
+<p>版本：v1（2026-10-29 冻结）</p>
 <p>P1/P3 实现报告存储与三端渲染时按本清单补测试。编号稳定，评审与回归引用编号。</p>
 <p>黄金样本位置：<code>tests/fixtures/upgrade/</code>。schema 位置：<code>docs/upgrade/contracts/report-schema-v1.json</code>。</p>
 <h2 id="1-schema-t1t4">1. Schema 与样本（T1–T4）</h2>
@@ -1923,6 +1933,7 @@ interrupted
 </ul>
 </section>
 <section id="contracts-api-v1"><h1>接口契约 v1：任务、报告与市场数据</h1>
+<p>版本：v1（2026-10-29 冻结）</p>
 <p>日期：2026-10-29
 状态：冻结候选（Day 4 交付）
 配套文件：<code>market-data-envelope-v1.json</code>（数据信封 Schema）、<code>sse-events-v1.md</code>（事件流）、<code>error-codes-v1.md</code>（错误字典）、<code>job-state-machine.md</code>、<code>idempotency-conflicts.md</code>、<code>report-schema-v1.md</code></p>
@@ -3063,6 +3074,7 @@ GET /api/v1/market/newsflash?limit=30
 </table></div>
 </section>
 <section id="contracts-sse-events-v1"><h1>SSE 事件流契约 v1</h1>
+<p>版本：v1（2026-10-29 冻结）</p>
 <p>日期：2026-10-29
 状态：冻结候选（Day 4 交付）
 配套：<code>api-v1.md</code>（JobDetail 字段）、<code>job-state-machine.md</code>（状态与转换）、<code>crash-boundaries.md</code>（B5 补发事件）、<code>error-codes-v1.md</code></p>
@@ -3345,6 +3357,7 @@ data: {&quot;seq&quot;:128,&quot;job_id&quot;:&quot;5b1c...&quot;,&quot;type&quo
 </table></div>
 </section>
 <section id="contracts-error-codes-v1"><h1>错误响应字典 v1</h1>
+<p>版本：v1（2026-10-29 冻结）</p>
 <p>日期：2026-10-29
 状态：冻结候选（Day 4 交付）
 配套：<code>api-v1.md</code>、<code>market-data-envelope-v1.json</code></p>
@@ -3641,6 +3654,7 @@ data: {&quot;seq&quot;:128,&quot;job_id&quot;:&quot;5b1c...&quot;,&quot;type&quo
 <p><code>tests/test_upgrade_market_envelope.py</code> 对五份样本做这四项扫描；服务端实现阶段加同一份断言的集成测试。</p>
 </section>
 <section id="contracts-routes"><h1>路由与返回规则</h1>
+<p>版本：v1（2026-10-29 冻结）</p>
 <p>日期：2026-10-29
 状态：冻结候选
 配套：<code>api-v1.md</code>、<code>core-wireframes.md</code>、<code>interaction-checklist.md</code></p>
@@ -3823,6 +3837,7 @@ data: {&quot;seq&quot;:128,&quot;job_id&quot;:&quot;5b1c...&quot;,&quot;type&quo
 </table></div>
 </section>
 <section id="contracts-core-wireframes"><h1>核心页面线框（十屏）</h1>
+<p>版本：v1（2026-10-29 冻结）</p>
 <p>日期：2026-10-29
 状态：冻结候选
 配套：<code>routes.md</code>、<code>interaction-checklist.md</code>
@@ -4027,7 +4042,7 @@ data: {&quot;seq&quot;:128,&quot;job_id&quot;:&quot;5b1c...&quot;,&quot;type&quo
 <li>阶段报告用底部抽屉，抽屉内单独滚动，页面本身不出现双层滚动。</li>
 <li>SSE 断线时顶部黄条「正在重连，阶段可能延迟」，重连成功自动消失；410 时黄条换成「刷新以恢复」并给刷新按钮。</li>
 </ul>
-<p>状态必须逐一见到的：queued、running、pause_requested、paused、cancel_requested、cancelled、succeeded、failed、interrupted，以及 SSE 重连中/已过期、任务不存在。</p>
+<p>状态必须逐一见到的：queued、running、pause_requested、paused、cancel_requested、cancelled、succeeded、failed、interrupted，以及 SSE 重连中/已过期、任务 ID 无效（404，按禁用词规则措辞）。</p>
 <p>依赖：<code>GET /jobs/{id}</code>、<code>GET /jobs/{id}/stages/{stageId}</code>、<code>POST /jobs/{id}/actions</code>、<code>POST /jobs/{id}/retry</code>、<code>GET /jobs/{id}/events</code>。</p>
 <hr />
 <h2 id="5-w05">5. W05 报告库</h2>
@@ -4209,6 +4224,7 @@ data: {&quot;seq&quot;:128,&quot;job_id&quot;:&quot;5b1c...&quot;,&quot;type&quo
 </table></div>
 </section>
 <section id="contracts-interaction-checklist"><h1>交互走查清单</h1>
+<p>版本：v1（2026-10-29 冻结）</p>
 <p>日期：2026-10-29
 状态：冻结候选
 配套：<code>routes.md</code>、<code>core-wireframes.md</code>
@@ -4807,6 +4823,146 @@ data: {&quot;seq&quot;:128,&quot;job_id&quot;:&quot;5b1c...&quot;,&quot;type&quo
 <hr />
 <h2 id="4-p0">4. P0 走查范围说明</h2>
 <p>P0 没有可运行的 P1 前端，本清单在 Day 5 以线框和契约推演方式走一遍，结论与问题清单见 <code>docs/upgrade/reviews/2026-10-29_Day5走查记录.md</code>。真实浏览器走查在 P1 实现后补，证据落到本文件第 3 节。</p>
+</section>
+<section id="contracts-FREEZE-v1"><h1>契约冻结清单 v1</h1>
+<p>版本：v1（2026-10-29 冻结）
+作用：把 P0 的契约内容固定成可校验的快照，P1 开工前不再口头约定。
+校验：<code>tests/test_upgrade_contract_consistency.py::test_ct08_freeze_manifest_matches_contract_files</code></p>
+<h2 id="1">1. 冻结范围与变更规则</h2>
+<p>冻结范围：本目录下 13 份契约 Markdown 与 2 份 JSON Schema，共 15 个文件。</p>
+<p>允许变更，不升版本：</p>
+<ul>
+<li>新增可选字段，且旧客户端忽略后行为不变。</li>
+<li>新增错误码，且不复用既有码的含义。</li>
+<li>新增文档章节、补充示例、修错别字与失效链接。</li>
+<li>新增测试，不改既有断言。</li>
+</ul>
+<p>需要升版本（v1.1 起）：</p>
+<ul>
+<li>修改字段含义、类型或必填性。</li>
+<li>修改状态机转换、<code>allowed_actions</code> 或对账规则。</li>
+<li>修改报告章节 id、章节顺序或 <code>content_hash</code> 计算方式。</li>
+<li>修改 SSE 事件类型、<code>seq</code> 规则或终态发送顺序。</li>
+<li>修改错误码的 HTTP 状态或用户动作。</li>
+</ul>
+<p>需要评审，评审通过才允许改：</p>
+<ul>
+<li>删除字段、状态、事件类型、错误码或章节。</li>
+<li>修改默认值、超时、保留窗口与限频参数。</li>
+<li>替换任何一份黄金样本。</li>
+</ul>
+<p>同步义务：</p>
+<ul>
+<li>状态机新增状态时，必须同步 <code>semantic-dictionary.md</code> 文案、<code>api-v1.md</code> 的 <code>allowed_actions</code>、SSE 契约与 P1 用例。</li>
+<li>报告结构变化时，必须同步 <code>report-schema-v1.json</code> 与 <code>tests/fixtures/upgrade/</code> 五份样本。</li>
+<li>SSE 规则变化时，必须同步假图事件实现与 <code>test_upgrade_fake_graph.py</code> 的断言。</li>
+<li>任何冻结文件变化，必须在同一次提交更新本清单的哈希，并在当日评审记录写明理由。</li>
+</ul>
+<h2 id="2">2. 冻结文件与校验值</h2>
+<p>哈希为文件字节的 SHA-256，包含 UTF-8 BOM 与 CRLF 行尾，算法与校验代码一致。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>文件</th>
+<th>SHA-256</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>api-v1.md</code></td>
+<td><code>b0f53c59899313bcf2e41c0bd1122a777de8ce46838a8ca564a60c71516ab5b5</code></td>
+<td>任务、报告与市场接口</td>
+</tr>
+<tr>
+<td><code>core-wireframes.md</code></td>
+<td><code>909c528c80164f4f075094cc117e5a5a9f25fbcad55ce1884378688b435ef000</code></td>
+<td>十屏线框结构说明</td>
+</tr>
+<tr>
+<td><code>crash-boundaries.md</code></td>
+<td><code>721499392d166bf7a5b9b163bece89fdd8509c17f29fa60765067c9702f5379b</code></td>
+<td>崩溃边界 B1–B6</td>
+</tr>
+<tr>
+<td><code>error-codes-v1.md</code></td>
+<td><code>5afc486e8ef6c8e210d89971649891feed3074ea1c5b7a286d82c4b6933e6b81</code></td>
+<td>错误码与用户动作</td>
+</tr>
+<tr>
+<td><code>idempotency-conflicts.md</code></td>
+<td><code>ca0a1e0bb69d059289408bed780e6849da9b27cf8dc98a26525795df2a6bd371</code></td>
+<td>幂等五步与冲突裁决</td>
+</tr>
+<tr>
+<td><code>interaction-checklist.md</code></td>
+<td><code>e536ad0817ced335aa79cb30f71f146e3eeef973950fef0fc84cce7b3eb60350</code></td>
+<td>交互走查清单</td>
+</tr>
+<tr>
+<td><code>job-state-machine.md</code></td>
+<td><code>99ac0b9f92b86e94653074a29e7d29566285a42af679803dfa4f25cb6e6737c4</code></td>
+<td>九状态、T01–T20、I01–I11</td>
+</tr>
+<tr>
+<td><code>market-data-envelope-v1.json</code></td>
+<td><code>e34a2242728fef59305e429f13c4004e4784a619f6522690839369baac5c7546</code></td>
+<td>市场数据信封 Schema</td>
+</tr>
+<tr>
+<td><code>p1-state-machine-tests.md</code></td>
+<td><code>357fc4e969b21446d798ab8861c05be85658d412db4122bd4a198e1bbb33433c</code></td>
+<td>P1 用例编号 SM/ID/CB/TX</td>
+</tr>
+<tr>
+<td><code>report-consistency-tests.md</code></td>
+<td><code>d58f14ce9fd9631dacce3eee338df9700e89576d17ea165e8bdd9872aaeb0932</code></td>
+<td>报告一致性测试清单</td>
+</tr>
+<tr>
+<td><code>report-schema-v1.json</code></td>
+<td><code>d189dc60ee93032d1f3cd84fbb0b8827976c8c75c1f4d13f8b6b530789bf9b80</code></td>
+<td>报告 Schema</td>
+</tr>
+<tr>
+<td><code>report-schema-v1.md</code></td>
+<td><code>9ec64472bd3b845981cb3ea0fc1a23fced5bf2085b5147286eed4e61c571316b</code></td>
+<td>报告结构与归一化</td>
+</tr>
+<tr>
+<td><code>routes.md</code></td>
+<td><code>195c9f5077f5c73ad53fec39f7bdb8e443b1ef259936e0e096808e0189eb58a6</code></td>
+<td>九条路由规则</td>
+</tr>
+<tr>
+<td><code>semantic-dictionary.md</code></td>
+<td><code>72cfa0a5bad64e1d76e6178ecac7465677f027ade08719e9e8d0fa84e9ae4aab</code></td>
+<td>状态文案与禁用词</td>
+</tr>
+<tr>
+<td><code>sse-events-v1.md</code></td>
+<td><code>ecfb67191b9ffc339fff7e7cf31c51394320c9fa39302c3fbb7caf4614725cd7</code></td>
+<td>SSE 六类事件与序号规则</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="3">3. 冻结依据</h2>
+<ul>
+<li>Day 2 语义、状态机、幂等与崩溃边界评审通过。</li>
+<li>Day 3 报告契约与五份黄金样本通过 Schema 校验。</li>
+<li>Day 4 接口、SSE、信封与错误字典评审通过。</li>
+<li>Day 5 十屏线框与十四条主线走查闭合。</li>
+<li>Day 6 假图与 28 条 GF 测试通过，演练发现的 4 处缺口已回写。</li>
+<li>Day 7 七组交叉检查全部通过，证据见 <code>p0-exit-review.md</code>。</li>
+</ul>
+<h2 id="4">4. 解除冻结</h2>
+<p>只有两种情况允许改冻结文件：</p>
+<ol>
+<li>P0 出口评审结论为 No-Go，且改动用于消除 No-Go 项。</li>
+<li>P1 实现发现契约本身有缺陷，且改动通过评审。</li>
+</ol>
+<p>改动后重新冻结为 v1.1，更新本清单哈希，并在评审记录写清改了什么、为什么、影响哪些端。</p>
+<p>不允许先改代码再补契约，也不允许只改契约不改测试。</p>
 </section>
 <section id="fake-graph-README"><h1>确定性假图使用说明</h1>
 <p>日期：2026-10-29
@@ -6404,5 +6560,728 @@ print(runner.status)    # interrupted
 <h2 id="7">7. 与验收的关系</h2>
 <p>本模板是 P0 Day 6 的交付物，不产生性能结论。</p>
 <p>P1 第一个可运行版本出来后，按本模板采集第一份结果，作为新版基线。</p>
+</section>
+<section id="p0-exit-review"><h1>P0 出口评审：Go / No-Go</h1>
+<p>版本：v1（2026-10-29）
+范围：Day 1 至 Day 7 的契约、样本、线框、假图与验收工具
+结论：Go。P1 可以按 <code>p1-backlog.md</code> 开工。
+冻结：契约 v1，清单见 <code>contracts/FREEZE-v1.md</code>。</p>
+<h2 id="1">1. 结论</h2>
+<p>P0 七条硬条件全部满足，没有 No-Go 项。</p>
+<p>进入 P1 写代码前有 3 个准备动作，不阻塞拆票，但必须在第一个 P1 提交前完成：</p>
+<ol>
+<li>给当前整棵树做物理副本，路径与回滚脚本写进 P1 第一条提交说明。</li>
+<li>安装并锁定 FastAPI、SQLAlchemy、Alembic 版本，记录进基线文档。</li>
+<li>用假图跑一次 P1-01 的空库迁移演练，确认旧版 Streamlit 不受影响。</li>
+</ol>
+<h2 id="2">2. 七条硬条件逐条核对</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>条件</th>
+<th>结论</th>
+<th>主要证据</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>旧版可恢复</td>
+<td>通过</td>
+<td>回滚 tag、bundle、数据备份齐全；P0 未改产品代码；健康检查 ok</td>
+</tr>
+<tr>
+<td>契约没有关键空白</td>
+<td>通过</td>
+<td>15 份文件冻结；8 条 CT 交叉检查全绿；12 处缺口全部回写</td>
+</tr>
+<tr>
+<td>黄金样本可用</td>
+<td>通过</td>
+<td>5 份样本；4 份 ReportDTO 通过 Schema；哈希可重算</td>
+</tr>
+<tr>
+<td>假图可用</td>
+<td>通过</td>
+<td>28 条 GF 测试；10 次运行摘要一致；命令行可独立运行</td>
+</tr>
+<tr>
+<td>主流程线框已走查</td>
+<td>通过</td>
+<td>10 屏、14 条主线、8 项移动专项全部通过；三视口量测正常</td>
+</tr>
+<tr>
+<td>P1 任务可以独立验收</td>
+<td>通过</td>
+<td>13 个任务，各自有依赖、文件、测试、回退与验收判据</td>
+</tr>
+<tr>
+<td>真实模型默认禁用</td>
+<td>通过</td>
+<td>GF-05 断言无网络无模型；P1 用例全部指定假图</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="21">2.1 旧版可恢复</h3>
+<p>回滚点三件套在 Day 1 已就位：</p>
+<ul>
+<li>tag <code>pre-upgrade-p0-20261028</code>。</li>
+<li>bundle <code>C:\Users\zhzsh\astock-pre-upgrade-p0-20261028.bundle</code>。</li>
+<li>数据备份 <code>C:\Users\zhzsh\tradingagents-data-backup-20261028-pre-upgrade-p0</code>。</li>
+</ul>
+<p>P0 期间没有改产品代码。用回滚 tag 做差异比对，变动只在 <code>docs/</code>、<code>scripts/</code>、<code>tests/</code> 三个目录。</p>
+<p>今天用仓库自带虚拟环境启动旧版 Streamlit（1.66.0，Python 3.13.3），健康检查返回 ok，随后停止进程。旧版入口仍是 <code>web/app.py</code>，启动命令未变。</p>
+<h3 id="22">2.2 契约没有关键空白</h3>
+<p>15 份契约文件已冻结，其中 13 份 Markdown、2 份 JSON Schema。</p>
+<p>七组交叉检查写成 8 条可执行测试（CT-01 至 CT-08），每次提交都会重跑。检查覆盖状态、文案、报告结构、重试与续跑字段、市场数据状态、SSE 事件、错误码、冻结哈希。</p>
+<p>P0 共发现并回写 12 处契约缺口：</p>
+<ul>
+<li>G1 至 G7：Day 5 线框走查发现，涉及任务与报告筛选、阶段报告接口、默认日期、市场钻取链、重新分析配置来源。</li>
+<li>G8 至 G11：Day 6 假图演练发现，涉及暂停后取消路径、审计记录与 SSE 序号分离、对账备注字段、幂等第 3 步措辞。</li>
+<li>G12：Day 7 交叉检查发现，线框与生成脚本仍用禁用词「任务不存在」，已改为「任务 ID 无效（404）」。</li>
+</ul>
+<p>没有留到 P1 的口头约定。参数类事项（行情新鲜度阈值、PDF 生成耗时）已有测量口径，数值在 P1 实测后填。</p>
+<h3 id="23">2.3 黄金样本可用</h3>
+<p>样本在 <code>tests/fixtures/upgrade/</code>：</p>
+<ul>
+<li><code>final_state_v1.json</code>：完整报告 DTO，13 个章节。</li>
+<li><code>missing_fields_report.json</code>：缺失字段样本，渲染为「—」。</li>
+<li><code>long_report.json</code>：长文本样本，验证不截断。</li>
+<li><code>unsafe_text_report.json</code>：注入样本，验证转义。</li>
+<li><code>legacy_report_v1.json</code>：旧格式输入，不参与 ReportDTO 校验，只作 P1 迁移对照。</li>
+</ul>
+<p><code>final_state_v1.json</code> 的 <code>content_hash</code> 由章节内容重算，结果与样本 meta 一致：<code>869ee791c7c3af089050e7734aa0605d6f37efddeac0dc1066f978b87f3a6202</code>。CT-03 每次都重算，不信任存的字面值。</p>
+<h3 id="24">2.4 假图可用</h3>
+<p>假图在 <code>tests/fake_analysis_graph.py</code>，28 条测试在 <code>tests/test_upgrade_fake_graph.py</code>。</p>
+<p>同一输入连续运行 10 次，事件、任务详情与报告序列化后的 SHA-256 全部相同，摘要为 <code>2ff35f03…6d43ba</code>。</p>
+<p>正常路径 S00 的固定输出：40 条事件、24 条阶段事件、13 条统计事件、2 次状态转换、1 次报告事件、14 次模型调用、182430 输入 Token、41208 输出 Token。</p>
+<p>13 个执行场景与 3 个交互场景覆盖全部 20 条合法转换中的主路径、11 条非法转换的代表项、6 个崩溃边界。命令行可脱离 pytest 独立运行。</p>
+<h3 id="25">2.5 主流程线框已走查</h3>
+<p>十屏为 W01 至 W10，桌面与移动两个可视图在 <code>docs/upgrade/wireframes/</code>。</p>
+<p>14 条主线 A01 至 A14 全部通过，包含搜索创建、重复提交、跨页回到任务、刷新恢复、SSE 断线、暂停恢复、取消、失败重来、中断处理、报告跳转、PDF 显式生成与列表上下文恢复。</p>
+<p>移动专项 8 条通过。三视口量测结果：1440、390、360 三个宽度下页面 scrollWidth 等于 clientWidth，触控项没有低于 44px，页面脚本错误为 0。</p>
+<h3 id="26-p1">2.6 P1 任务可以独立验收</h3>
+<p>13 个任务写在 <code>p1-backlog.md</code>。每个任务都有依赖、涉及文件、测试编号、回退方式和验收判据。</p>
+<p>测试编号沿用冻结契约的 SM、ID、CB、TX 共 42 个用例位，以及 Day 6 的 GF-01 至 GF-28。新增测试编号（DB、CFG、WK、AD、ST、RT、SSE、FT）只在本票内使用。</p>
+<p>依赖关系是一条主线加一个旁支：P1-01 到 P1-11 顺序推进，P1-12 在 P1-07 后并行，P1-13 最后收口。</p>
+<h3 id="27">2.7 真实模型默认禁用</h3>
+<p>GF-05 断言假图默认路径不访问网络、不创建模型客户端、不写真实报告目录。</p>
+<p>假图模块不导入任何模型 SDK。P1 的执行器工厂默认返回假图，真实执行器需要环境变量与配置双条件才开启（AD-01）。</p>
+<p>P1 的 42 个用例与 28 个 GF 用例全部指定假图或打桩执行器。测试不读取 API Key。</p>
+<p>旧版 Streamlit 保留原有模型调用能力，这是旧版行为，本阶段未改；新内核默认不启用真实模型。</p>
+<h2 id="3">3. 七组交叉检查结果</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>编号</th>
+<th>检查项</th>
+<th>结果</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CT-01</td>
+<td>状态机、接口按钮表、语义词典的九个状态</td>
+<td>通过</td>
+<td>三处集合相等，文案两两不同</td>
+</tr>
+<tr>
+<td>CT-02</td>
+<td>线框徽标文案与禁用词</td>
+<td>通过</td>
+<td>发现 G12 并修复；两个线框 HTML 重建</td>
+</tr>
+<tr>
+<td>CT-03</td>
+<td>报告章节 id、Schema 与五份样本</td>
+<td>通过</td>
+<td>13 个 id 一致；黄金哈希重算一致；旧格式样本单独对待</td>
+</tr>
+<tr>
+<td>CT-04</td>
+<td>重试与续跑字段</td>
+<td>通过</td>
+<td>状态机、接口、报告 meta 三处同名；指纹错误码在字典中</td>
+</tr>
+<tr>
+<td>CT-05</td>
+<td>市场数据四态与线框</td>
+<td>通过</td>
+<td>四态加 partial 布尔；五份样本覆盖四态</td>
+</tr>
+<tr>
+<td>CT-06</td>
+<td>SSE 六类事件与状态机</td>
+<td>通过</td>
+<td>T01 至 T20；审计记录不占 seq；终态顺序固定</td>
+</tr>
+<tr>
+<td>CT-07</td>
+<td>错误码与页面动作</td>
+<td>通过</td>
+<td>每条错误码都有 HTTP 状态和用户动作；接口引用的码都在字典里</td>
+</tr>
+<tr>
+<td>CT-08</td>
+<td>冻结清单</td>
+<td>通过</td>
+<td>15 个文件哈希逐字节匹配；13 份 md 都有 v1 版本行</td>
+</tr>
+</tbody>
+</table></div>
+<p>G12 的修复过程：CT-02 扫描到线框生成脚本与线框文档中出现「任务不存在」，违反语义词典第 3 节与 TX-02。两处改为「任务 ID 无效（404）」，重建桌面与移动线框，再刷新冻结清单哈希。CT-08 随即拦住了未同步的旧哈希，说明冻结机制在工作。</p>
+<h2 id="4">4. 遗留事项</h2>
+<p>没有 No-Go 项。以下事项不阻塞 P1 拆票，按表中时点处理。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>编号</th>
+<th>事项</th>
+<th>影响</th>
+<th>处理时点</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>O1</td>
+<td>行情新鲜度阈值未在真实行情下校准</td>
+<td>市场页 stale 判定可能偏松或偏紧</td>
+<td>P1 实测后填数值</td>
+</tr>
+<tr>
+<td>O2</td>
+<td>FastAPI、SQLAlchemy、Alembic 未安装与锁版本</td>
+<td>P1-01 无法开工</td>
+<td>P1-01 第一个提交</td>
+</tr>
+<tr>
+<td>O3</td>
+<td>整树物理副本未做</td>
+<td>动代码后的回滚只能靠 git</td>
+<td>P1-01 开工前</td>
+</tr>
+<tr>
+<td>O4</td>
+<td>旧新 Runner 对照目前用样本，不是真实旧任务</td>
+<td>迁移差异可能漏掉边角数据</td>
+<td>P1-12 用真实旧报告补测</td>
+</tr>
+<tr>
+<td>O5</td>
+<td>旧版冒烟只查健康接口，未做点击走查</td>
+<td>页面级回归缺口</td>
+<td>P1 每个任务完成后复跑 Day 1 基线截图</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="5-p0">5. P0 验收证据索引</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>证据</th>
+<th>位置</th>
+<th>覆盖内容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>逐日计划</td>
+<td><code>docs/AStock_Pro_P0基线与契约_逐日实施计划_2026-10-28.md</code></td>
+<td>7 天范围与验收口径</td>
+</tr>
+<tr>
+<td>旧版基线</td>
+<td><code>docs/upgrade/baseline/2026-10-28_旧版基线.md</code></td>
+<td>旧版测试、截图、首屏耗时</td>
+</tr>
+<tr>
+<td>契约文件</td>
+<td><code>docs/upgrade/contracts/</code></td>
+<td>13 份 md 与 2 份 Schema</td>
+</tr>
+<tr>
+<td>冻结清单</td>
+<td><code>docs/upgrade/contracts/FREEZE-v1.md</code></td>
+<td>哈希、变更规则、解冻流程</td>
+</tr>
+<tr>
+<td>交叉检查测试</td>
+<td><code>tests/test_upgrade_contract_consistency.py</code></td>
+<td>CT-01 至 CT-08</td>
+</tr>
+<tr>
+<td>假图</td>
+<td><code>tests/fake_analysis_graph.py</code></td>
+<td>假图、假执行器、账本、场景、命令行</td>
+</tr>
+<tr>
+<td>假图测试</td>
+<td><code>tests/test_upgrade_fake_graph.py</code></td>
+<td>GF-01 至 GF-28</td>
+</tr>
+<tr>
+<td>假图文档</td>
+<td><code>docs/upgrade/fake-graph/</code></td>
+<td>说明、场景、测试矩阵、性能模板</td>
+</tr>
+<tr>
+<td>十屏线框</td>
+<td><code>docs/upgrade/wireframes/</code></td>
+<td>桌面与移动可视图</td>
+</tr>
+<tr>
+<td>线框生成与量测</td>
+<td><code>scripts/build_wireframes_html.py</code>、<code>scripts/shoot_wireframes.py</code></td>
+<td>生成、三视口截图、触控量测</td>
+</tr>
+<tr>
+<td>交互清单</td>
+<td><code>docs/upgrade/contracts/interaction-checklist.md</code></td>
+<td>A01 至 A14 与移动专项</td>
+</tr>
+<tr>
+<td>走查记录</td>
+<td><code>docs/upgrade/reviews/</code></td>
+<td>Day 4 评审、Day 5 走查、Day 6 验收</td>
+</tr>
+<tr>
+<td>当天记录</td>
+<td>本文件</td>
+<td>Day 7 交叉检查与 Go 结论</td>
+</tr>
+<tr>
+<td>阅读版</td>
+<td><code>docs/upgrade/AStock_Pro_P0契约与验收工具集_阅读版.html</code></td>
+<td>契约与工具文档的渲染版</td>
+</tr>
+<tr>
+<td>全量测试</td>
+<td>仓库根目录运行 <code>.venv/Scripts/python.exe -m pytest -q</code></td>
+<td>Day 6 的 364 条加 8 条 CT，共 372 条通过</td>
+</tr>
+<tr>
+<td>旧版冒烟</td>
+<td>本次记录</td>
+<td>Streamlit 1.66.0 健康检查 ok</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="6">6. 冻结后的变更规则</h2>
+<p>冻结不意味着永远不能改。规则写在 <code>contracts/FREEZE-v1.md</code> 第 1 节与第 4 节。</p>
+<p>新增可选字段、新增错误码、补文档与补测试不升版本。修改字段含义、状态转换、报告章节、SSE 规则或错误码动作要升到 v1.1。删除字段、状态、事件、错误码或替换黄金样本要先评审。</p>
+<p>任何冻结文件变化，必须在同一次提交更新冻结清单哈希，并在评审记录写清原因。先改代码再补契约不允许，只改契约不改测试也不允许。</p>
+<h2 id="7">7. 评审结论</h2>
+<p>P0 通过，结论为 Go。</p>
+<p>P1 从 P1-01 开始，按 <code>p1-backlog.md</code> 第 2 节顺序执行。每个任务一个本地提交，完成后复跑全量测试与旧版冒烟。P1-13 结束时按同一格式做一次 P1 出口评审。</p>
+</section>
+<section id="p1-backlog"><h1>P1 任务拆票：持久化任务内核</h1>
+<p>版本：v1（2026-10-29）
+上游：<code>p0-exit-review.md</code> 结论为 Go。
+用途：把 P1 拆成可以独立验收的 13 个任务。每个任务单独提交、单独回退、单独跑测试。</p>
+<p>公共约束：</p>
+<ul>
+<li>全部测试使用 Day 6 的确定性假图，不调用真实模型，不访问行情网络。</li>
+<li>只新增 <code>backend/</code>、<code>tests/backend/</code> 与迁移文件，不动 <code>tradingagents/</code> 核心图与 <code>web/</code> 旧版。</li>
+<li>旧版 Streamlit 在每个任务完成后都要能启动，健康检查返回 ok。</li>
+<li>提交只留本地，不推送远端。</li>
+</ul>
+<h2 id="1">1. 任务总表</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>编号</th>
+<th>任务</th>
+<th>依赖</th>
+<th>主要验收编号</th>
+<th>独立回退方式</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>P1-01</td>
+<td>SQLite 连接与迁移基础</td>
+<td>无</td>
+<td>DB-01 至 DB-04</td>
+<td>删除 <code>backend/</code> 与 <code>alembic.ini</code></td>
+</tr>
+<tr>
+<td>P1-02</td>
+<td>任务、阶段与事件表</td>
+<td>P1-01</td>
+<td>SM-01、DB-05 至 DB-08</td>
+<td>迁移 downgrade 到空库</td>
+</tr>
+<tr>
+<td>P1-03</td>
+<td>配置快照与配置哈希</td>
+<td>P1-02</td>
+<td>CFG-01 至 CFG-04</td>
+<td>快照列可清空，原请求体保留</td>
+</tr>
+<tr>
+<td>P1-04</td>
+<td>创建任务与幂等</td>
+<td>P1-03</td>
+<td>ID-01 至 ID-06、SM-01</td>
+<td>下线 <code>POST /jobs</code> 路由</td>
+</tr>
+<tr>
+<td>P1-05</td>
+<td>Worker 单行租约</td>
+<td>P1-04</td>
+<td>SM-02、CB-01、WK-01 至 WK-03</td>
+<td>停 Worker 进程</td>
+</tr>
+<tr>
+<td>P1-06</td>
+<td>假图执行适配</td>
+<td>P1-05</td>
+<td>GF-05、GF-06、S00</td>
+<td>切换执行器工厂回空实现</td>
+</tr>
+<tr>
+<td>P1-07</td>
+<td>阶段保存与统计事件</td>
+<td>P1-06</td>
+<td>GF-03、GF-13、SM-03</td>
+<td>删除阶段行，事件表只追加</td>
+</tr>
+<tr>
+<td>P1-08</td>
+<td>暂停、恢复与取消</td>
+<td>P1-07</td>
+<td>SM-05 至 SM-12、SM-14</td>
+<td>关闭 actions 路由</td>
+</tr>
+<tr>
+<td>P1-09</td>
+<td>终态与重试</td>
+<td>P1-08</td>
+<td>SM-03、SM-04、SM-07、SM-10、SM-12、ID-09</td>
+<td>下线 retry 路由</td>
+</tr>
+<tr>
+<td>P1-10</td>
+<td>崩溃检测与 interrupted</td>
+<td>P1-05、P1-09</td>
+<td>SM-13、SM-I04、CB-01 至 CB-06</td>
+<td>关闭启动对账开关</td>
+</tr>
+<tr>
+<td>P1-11</td>
+<td>SSE 快照、事件与重连</td>
+<td>P1-09、P1-10</td>
+<td>GF-19、GF-20、CB-05、SSE-01 至 SSE-06</td>
+<td>关闭 events 路由</td>
+</tr>
+<tr>
+<td>P1-12</td>
+<td>旧新 Runner 黄金样本对照</td>
+<td>P1-07</td>
+<td>T1 至 T13、RC-01 至 RC-03</td>
+<td>对照工具只在测试内，可整体删除</td>
+</tr>
+<tr>
+<td>P1-13</td>
+<td>任务内核性能与故障测试</td>
+<td>P1-11、P1-12</td>
+<td>P05、FT-01 至 FT-06</td>
+<td>只增测试，不改产品行为</td>
+</tr>
+</tbody>
+</table></div>
+<p>表里的 SM、ID、CB、GF、T 编号来自冻结契约与 Day 6 测试矩阵。DB、CFG、WK、AD、ST、RT、SSE、FT 是本票新增的测试编号，不占用契约编号。</p>
+<h2 id="2">2. 依赖顺序</h2>
+<pre><code class="language-text">P1-01 SQLite 与迁移
+  └─ P1-02 三张表
+       └─ P1-03 配置快照与哈希
+            └─ P1-04 创建任务与幂等
+                 └─ P1-05 Worker 租约
+                      └─ P1-06 假图适配
+                           └─ P1-07 阶段保存与统计
+                                ├─ P1-08 暂停、恢复、取消
+                                │    └─ P1-09 终态与重试
+                                │         └─ P1-10 崩溃检测与 interrupted
+                                │              └─ P1-11 SSE
+                                │                   └─ P1-13 性能与故障
+                                └─ P1-12 旧新样本对照
+                                     └─ P1-13 性能与故障
+</code></pre>
+<p>实际执行顺序按编号 01 到 13。P1-12 可以在 P1-07 完成后随时插入，与 P1-08 到 P1-11 并行，不阻塞主线。</p>
+<h2 id="3">3. 逐任务说明</h2>
+<h3 id="p1-01-sqlite">P1-01 SQLite 连接与迁移基础</h3>
+<p>目标：给任务内核一个可升级、可回退的数据库底座。</p>
+<p>依赖：无。</p>
+<p>涉及文件：</p>
+<ul>
+<li>新增 <code>backend/app/core/config.py</code>：读取 <code>TA_JOBS_DB</code>，默认 <code>~/.tradingagents/jobs.db</code>。</li>
+<li>新增 <code>backend/app/core/db.py</code>：连接工厂，开启外键、WAL 与忙等待。</li>
+<li>新增 <code>backend/alembic.ini</code>、<code>backend/alembic/env.py</code>、<code>backend/alembic/versions/0001_base.py</code>。</li>
+<li>新增 <code>tests/backend/test_db_migrations.py</code>。</li>
+</ul>
+<p>测试：</p>
+<ul>
+<li>DB-01：空目录执行 upgrade head，全部表建立。</li>
+<li>DB-02：连接后 <code>PRAGMA foreign_keys</code> 为 1、<code>journal_mode</code> 为 wal、<code>busy_timeout</code> 非 0。</li>
+<li>DB-03：upgrade 与 downgrade 往返两次，schema 无残留。</li>
+<li>DB-04：任务数据库路径指向临时目录，旧版数据目录不被创建或修改。</li>
+</ul>
+<p>回退：删除 <code>backend/</code> 与 <code>alembic.ini</code>。数据库文件独立存放，旧版不引用。</p>
+<p>验收：<code>tests/backend/test_db_migrations.py</code> 全绿；重复升级幂等；旧版健康检查仍为 ok。</p>
+<h3 id="p1-02">P1-02 任务、阶段与事件表</h3>
+<p>目标：把九状态、阶段进度与事件序号落成有约束的表。</p>
+<p>依赖：P1-01。</p>
+<p>涉及文件：</p>
+<ul>
+<li>新增 <code>backend/app/models/job.py</code>、<code>stage.py</code>、<code>event.py</code>。</li>
+<li>新增迁移 <code>backend/alembic/versions/0002_jobs_stages_events.py</code>。</li>
+<li>新增 <code>tests/backend/test_models_constraints.py</code>。</li>
+</ul>
+<p>表要点：</p>
+<ul>
+<li><code>jobs</code>：id、ticker、trade_date、status、config_snapshot、config_hash、idempotency_key、retry_of_job_id、resume_of_job_id、resume_from_stage、lease_owner、lease_expires_at、error_code、error_message、created_at、updated_at、terminal_at。</li>
+<li><code>job_stages</code>：job_id、stage_id、status、started_at、ended_at、report_path，主键为 job_id 加 stage_id。</li>
+<li><code>job_events</code>：job_id、seq、type、payload、created_at，唯一约束为 job_id 加 seq。</li>
+</ul>
+<p>测试：</p>
+<ul>
+<li>DB-05：status 只接受九个枚举值，写入第十个值被拒。</li>
+<li>DB-06：同一 job 的 seq 重复写入被唯一约束拒绝。</li>
+<li>DB-07：删除 job 时阶段与事件按外键级联删除。</li>
+<li>DB-08：迁移 downgrade 后三张表消失，其他表不受影响。</li>
+</ul>
+<p>回退：执行 downgrade 到 0001。新表无外部依赖。</p>
+<p>验收：约束测试全绿；SM-01 可在此层先跑通建行与 <code>created</code> 审计记录。</p>
+<h3 id="p1-03">P1-03 配置快照与配置哈希</h3>
+<p>目标：同一份配置在任何进程都得到同一哈希，续跑校验有唯一依据。</p>
+<p>依赖：P1-02。</p>
+<p>涉及文件：</p>
+<ul>
+<li>新增 <code>backend/app/services/config_snapshot.py</code>。</li>
+<li>新增 <code>tests/backend/test_config_snapshot.py</code>。</li>
+</ul>
+<p>测试：</p>
+<ul>
+<li>CFG-01：字段顺序不同、内容相同的两份配置，哈希相同。</li>
+<li>CFG-02：任一字段变化，哈希变化。</li>
+<li>CFG-03：浮点、空值与整数的规范化规则固定，跨进程重算一致。</li>
+<li>CFG-04：续跑指纹包含配置哈希与图版本，任一不匹配则拒绝续跑。</li>
+</ul>
+<p>回退：配置快照是普通 JSON 列。清空该列不影响任务读取，原始请求体另存。</p>
+<p>验收：CFG-01 至 CFG-04 全绿；同一配置连续 100 次计算哈希一致。</p>
+<h3 id="p1-04">P1-04 创建任务与幂等</h3>
+<p>目标：创建任务只有一条写路径，重复请求不产生第二个任务。</p>
+<p>依赖：P1-03。</p>
+<p>涉及文件：</p>
+<ul>
+<li>新增 <code>backend/app/api/v1/jobs.py</code> 中的创建路由。</li>
+<li>新增 <code>backend/app/services/job_service.py</code> 的创建五步。</li>
+<li>新增 <code>tests/backend/test_create_idempotency.py</code>。</li>
+</ul>
+<p>测试：</p>
+<ul>
+<li>ID-01：同幂等键同请求体，返回原 job，行数不变。</li>
+<li>ID-02：同幂等键异请求体，409 <code>idempotency_mismatch</code>。</li>
+<li>ID-03：同活动配置指纹，200 加 <code>X-Existing-Job</code>。</li>
+<li>ID-04：同股同日异配置且有活动任务，409 <code>active_conflict</code>。</li>
+<li>ID-05：20 并发同指纹，恰好 1 个活动 job，其余 19 个拿到同一 id。</li>
+<li>ID-06：GET 不存在的任务返回 404，表行数不变。</li>
+</ul>
+<p>回退：下线 <code>POST /jobs</code> 路由。已创建任务仍可读，旧版不受影响。</p>
+<p>验收：ID-01 至 ID-06 全绿；并发测试重复 10 次结果一致。</p>
+<h3 id="p1-05-worker">P1-05 Worker 单行租约</h3>
+<p>目标：首期只允许一个 Worker 执行任务，误启动第二个也只能等待或退出。</p>
+<p>依赖：P1-02，P1-04 完成后接入创建。</p>
+<p>涉及文件：</p>
+<ul>
+<li>新增 <code>backend/app/worker/main.py</code>、<code>backend/app/services/lease.py</code>。</li>
+<li>新增 <code>tests/backend/test_worker_lease.py</code>。</li>
+</ul>
+<p>测试：</p>
+<ul>
+<li>SM-02：T02 认领后状态 running，租约字段写入。</li>
+<li>CB-01：B1 崩溃后任务仍 queued，重启可正常认领一次。</li>
+<li>WK-01：第二个 Worker 启动时拿不到租约，进入等待或退出。</li>
+<li>WK-02：心跳按固定间隔刷新租约到期时间。</li>
+<li>WK-03：租约过期后任务不被 Worker 自动重跑。</li>
+</ul>
+<p>回退：停 Worker 进程。租约字段留空不影响任务读取。</p>
+<p>验收：单 Worker 串行执行；双 Worker 不产生双重执行；租约过期只改变状态，不自动重跑。</p>
+<h3 id="p1-06">P1-06 假图执行适配</h3>
+<p>目标：Worker 默认执行 Day 6 假图，真实模型执行器默认关闭。</p>
+<p>依赖：P1-05。</p>
+<p>涉及文件：</p>
+<ul>
+<li>新增 <code>backend/app/services/analysis_runner.py</code>：执行器工厂。</li>
+<li>新增 <code>tests/backend/test_fake_adapter.py</code>。</li>
+<li>复用 <code>tests/fake_analysis_graph.py</code>，不复制其中逻辑。</li>
+</ul>
+<p>测试：</p>
+<ul>
+<li>GF-05：默认路径无网络、无模型客户端、不写真实报告目录。</li>
+<li>GF-06：假图事件流驱动真实进度追踪器。</li>
+<li>S00：14 次模型调用、182430 输入 Token、41208 输出 Token、40 条事件，与假图文档一致。</li>
+<li>AD-01：真实执行器开关默认关闭；显式开启需要环境变量与配置双条件。</li>
+</ul>
+<p>回退：执行器工厂切回空实现，Worker 只认领不执行。</p>
+<p>验收：默认配置下跑完整任务不出现任何外部请求；S00 数字逐项相等。</p>
+<h3 id="p1-07">P1-07 阶段保存与统计事件</h3>
+<p>目标：每个阶段结束即落库，统计事件与阶段报告可查。</p>
+<p>依赖：P1-06。</p>
+<p>涉及文件：</p>
+<ul>
+<li>新增 <code>backend/app/services/job_service.py</code> 的阶段写入与统计方法。</li>
+<li>新增 <code>backend/app/services/report_store.py</code> 的阶段报告文件写入。</li>
+<li>新增 <code>tests/backend/test_stage_persistence.py</code>。</li>
+</ul>
+<p>测试：</p>
+<ul>
+<li>GF-03：阶段事件 24 条、统计事件 13 条、顺序固定。</li>
+<li>GF-13：B3 阶段输出已落盘但事件未写，重启对账补备注。</li>
+<li>SM-03：完成时报告行与内容哈希落库。</li>
+<li>ST-01：阶段报告路径按 job 与 stage 隔离，不覆盖旧文件。</li>
+</ul>
+<p>回退：按 job 删除阶段行与报告文件。事件表只追加，不回改。</p>
+<p>验收：12 个阶段各有开始与结束事件；统计事件 13 条；阶段报告 GET 返回与假图输出一致。</p>
+<h3 id="p1-08">P1-08 暂停、恢复与取消</h3>
+<p>目标：三个控制动作在安全边界生效，状态按 T05 至 T20 转换。</p>
+<p>依赖：P1-07。</p>
+<p>涉及文件：</p>
+<ul>
+<li>新增 <code>backend/app/api/v1/jobs.py</code> 的 actions 路由。</li>
+<li>新增 <code>backend/app/services/job_service.py</code> 的控制请求方法。</li>
+<li>新增 <code>tests/backend/test_control_actions.py</code>。</li>
+</ul>
+<p>测试：</p>
+<ul>
+<li>SM-05：running 到 pause_requested 到 paused，暂停落在步骤边界。</li>
+<li>SM-07：paused 恢复到 running，检查点阶段不重复执行。</li>
+<li>SM-08：Worker 忙时恢复转 queued，检查点引用保留。</li>
+<li>SM-09：running 到 cancel_requested 到 cancelled，阶段报告只读保留。</li>
+<li>SM-10：取消迟到，图完成转 succeeded，取消记 no-op。</li>
+<li>SM-11：pause_requested 上发取消，转 cancel_requested，不转 paused。</li>
+<li>SM-12：queued 直接取消，不经过 cancel_requested。</li>
+<li>SM-14：paused 上发取消，走 T20 到 cancel_requested，再由 T13 收尾。</li>
+</ul>
+<p>回退：关闭 actions 路由。进行中的任务仍可自然完成。</p>
+<p>验收：上述编号全绿；每次动作后 <code>allowed_actions</code> 与 api-v1 一致。</p>
+<h3 id="p1-09">P1-09 终态与重试</h3>
+<p>目标：三个终态只写一次，重试创建新任务且原任务不变。</p>
+<p>依赖：P1-08。</p>
+<p>涉及文件：</p>
+<ul>
+<li>新增 <code>backend/app/services/job_service.py</code> 的终态写入与重试方法。</li>
+<li>新增 <code>backend/app/api/v1/jobs.py</code> 的 retry 路由。</li>
+<li>新增 <code>tests/backend/test_terminal_retry.py</code>。</li>
+</ul>
+<p>测试：</p>
+<ul>
+<li>SM-03：running 到 succeeded，报告行与哈希落库。</li>
+<li>SM-04：running 到 failed，错误码与文本落库。</li>
+<li>SM-07、SM-10、SM-12 复跑，确认终态只写一次。</li>
+<li>ID-09：PDF 缓存命中不重新渲染。</li>
+<li>RT-01：retry 返回新 job id，<code>retry_of_job_id</code> 指向旧任务。</li>
+<li>RT-02：原任务状态、报告和事件不被 retry 修改。</li>
+</ul>
+<p>回退：下线 retry 路由。旧任务保持可读。</p>
+<p>验收：终态不可再次转换；重试后任务数加一；<code>report_ready</code> 只发一次。</p>
+<h3 id="p1-10-interrupted">P1-10 崩溃检测与 interrupted</h3>
+<p>目标：进程崩溃与租约失效只产生 interrupted，绝不自动重跑。</p>
+<p>依赖：P1-05、P1-09。</p>
+<p>涉及文件：</p>
+<ul>
+<li>新增 <code>backend/app/worker/reconcile.py</code>。</li>
+<li>新增 <code>backend/app/services/job_service.py</code> 的对账备注写入。</li>
+<li>新增 <code>tests/backend/test_crash_recovery.py</code>。</li>
+</ul>
+<p>测试：</p>
+<ul>
+<li>SM-13：三个非终态在租约过期后一律 interrupted。</li>
+<li>SM-I04：interrupted 上发恢复被拒，只有带确认的续跑创建新 job。</li>
+<li>CB-01 至 CB-06：六个崩溃边界逐条断言，含 B3、B4 的 <code>reconcile_notes</code>。</li>
+<li>GF-21：queued 与检查点缺失的对账分支。</li>
+</ul>
+<p>回退：关闭启动对账开关。任务停在原状态，由人工处理。</p>
+<p>验收：六个边界的结局与 <code>crash-boundaries.md</code> 一致；事件表可还原崩溃前顺序。</p>
+<h3 id="p1-11-sse">P1-11 SSE 快照、事件与重连</h3>
+<p>目标：客户端断线只补事件，不创建任务，序号无空洞。</p>
+<p>依赖：P1-09、P1-10。</p>
+<p>涉及文件：</p>
+<ul>
+<li>新增 <code>backend/app/api/v1/jobs.py</code> 的 events 路由。</li>
+<li>新增 <code>backend/app/services/event_stream.py</code>。</li>
+<li>新增 <code>tests/backend/test_sse.py</code>。</li>
+</ul>
+<p>测试：</p>
+<ul>
+<li>GF-19：多浏览器重连只读事件表，任务数不变。</li>
+<li>GF-20：断线后按 <code>Last-Event-ID</code> 补发，seq 连续。</li>
+<li>CB-05：B5 已成功后重连补收到 <code>report_ready</code>。</li>
+<li>SSE-01 至 SSE-06：六类事件形状、终态顺序、心跳、410、审计记录不占 seq、快照先行。</li>
+</ul>
+<p>回退：关闭 events 路由。任务写入与查询不受影响。</p>
+<p>验收：补发无空洞；终态顺序为 stats、status_changed、report_ready；410 后整页刷新可恢复。</p>
+<h3 id="p1-12-runner">P1-12 旧新 Runner 黄金样本对照</h3>
+<p>目标：旧报告样本导入后与黄金样本章节一致，哈希可重算。</p>
+<p>依赖：P1-07。</p>
+<p>涉及文件：</p>
+<ul>
+<li>新增 <code>backend/app/services/report_schema.py</code> 的旧样本转换。</li>
+<li>新增 <code>tests/backend/test_legacy_golden.py</code>。</li>
+<li>复用 <code>tests/fixtures/upgrade/legacy_report_v1.json</code> 与 <code>final_state_v1.json</code>。</li>
+</ul>
+<p>测试：</p>
+<ul>
+<li>T1 至 T13 中与导入和渲染无关的部分，至少覆盖 T1、T2、T3、T9、T10、T11。</li>
+<li>RC-01：旧样本键集合不越界，<code>trader_investment_plan</code> 只进 <code>legacy_aliases</code>。</li>
+<li>RC-02：<code>signal_legacy</code> 只存档，渲染层不读取。</li>
+<li>RC-03：转换后 <code>content_hash</code> 可重算，且与报告 meta 一致。</li>
+</ul>
+<p>回退：对照工具只在测试内，删除测试文件即可，不影响生产导入。</p>
+<p>验收：旧样本转换后 13 个章节 ID 与黄金样本一致；哈希重算通过。</p>
+<h3 id="p1-13">P1-13 任务内核性能与故障测试</h3>
+<p>目标：把 Day 6 的性能模板与故障场景跑成可重复的记录。</p>
+<p>依赖：P1-11、P1-12。</p>
+<p>涉及文件：</p>
+<ul>
+<li>新增 <code>tests/backend/test_kernel_perf_faults.py</code>。</li>
+<li>新增 <code>tests/backend/perf/</code> 下的测量脚本。</li>
+<li>复用 <code>docs/upgrade/fake-graph/perf-template.md</code> 与 <code>perf-result-template.json</code>。</li>
+</ul>
+<p>测试：</p>
+<ul>
+<li>P05：任务事件端到端延迟，按模板口径记录。</li>
+<li>FT-01：API 重启后可重连并补发事件。</li>
+<li>FT-02：Worker 崩溃不自动重跑，任务转 interrupted。</li>
+<li>FT-03：20 并发同指纹创建只执行一次。</li>
+<li>FT-04：SQLite 忙等不导致图重跑。</li>
+<li>FT-05：1000 条事件补发顺序与 seq 完整。</li>
+<li>FT-06：配置串行隔离，两个任务不共享运行期配置。</li>
+</ul>
+<p>回退：只增测试，不改产品行为，删除测试即可。</p>
+<p>验收：结果写入 <code>perf-result-template.json</code> 的副本并附环境信息；无失败项。</p>
+<h2 id="4-p1">4. P1 出口判据</h2>
+<p>P1 完成必须同时满足：</p>
+<ol>
+<li>20 个并发相同创建请求只执行一次。</li>
+<li>API 重启后客户端可以重连并补发遗漏事件。</li>
+<li>Worker 崩溃不自动重跑，任务一律 interrupted 并带原因。</li>
+<li>配置串行隔离通过，两个任务不共享运行期配置。</li>
+<li>旧版 Streamlit 仍可独立启动，健康检查 ok。</li>
+<li>全部测试使用假图，真实模型默认关闭。</li>
+<li>每个任务一个本地提交，回退方式经过演练。</li>
+</ol>
+<p>详细证据格式沿用 P0：测试编号、命令、输出摘要、提交号。</p>
+<h2 id="5-p0">5. 与 P0 契约的对应</h2>
+<ul>
+<li>状态与转换：<code>contracts/job-state-machine.md</code> 的 T01 至 T20、I01 至 I11。</li>
+<li>字段与按钮：<code>contracts/api-v1.md</code>、<code>contracts/semantic-dictionary.md</code>。</li>
+<li>事件与序号：<code>contracts/sse-events-v1.md</code>。</li>
+<li>崩溃边界：<code>contracts/crash-boundaries.md</code>。</li>
+<li>幂等：<code>contracts/idempotency-conflicts.md</code>。</li>
+<li>报告结构：<code>contracts/report-schema-v1.md</code> 与 <code>report-schema-v1.json</code>。</li>
+<li>冻结与变更：<code>contracts/FREEZE-v1.md</code>。</li>
+</ul>
+<p>P1 不允许在代码里另立状态名、事件名或错误码。发现契约缺陷时先走 <code>FREEZE-v1.md</code> 第 4 节的解冻流程。</p>
 </section>
 </article></body></html>

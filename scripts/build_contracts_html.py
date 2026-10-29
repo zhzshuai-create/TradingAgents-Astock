@@ -32,10 +32,13 @@ DOCS = [
     ("contracts/routes.md", "路由与返回规则"),
     ("contracts/core-wireframes.md", "核心页面线框（十屏）"),
     ("contracts/interaction-checklist.md", "交互走查清单"),
+    ("contracts/FREEZE-v1.md", "契约冻结清单 v1"),
     ("fake-graph/README.md", "确定性假图使用说明"),
     ("fake-graph/scenarios.md", "崩溃与竞争场景清单"),
     ("fake-graph/test-matrix.md", "契约条款到测试的映射"),
     ("fake-graph/perf-template.md", "性能测量模板"),
+    ("p0-exit-review.md", "P0 出口评审：Go / No-Go"),
+    ("p1-backlog.md", "P1 任务拆票：持久化任务内核"),
 ]
 
 
