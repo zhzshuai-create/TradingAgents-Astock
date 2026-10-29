@@ -1,0 +1,257 @@
+{
+  "schema_version": "perf-result-v1",
+  "run": {
+    "run_id": "perf-YYYYMMDD-01",
+    "date": "YYYY-MM-DD",
+    "commit": "<git rev-parse --short HEAD>",
+    "operator": "<name>",
+    "notes": ""
+  },
+  "environment": {
+    "python": "3.13.3",
+    "streamlit": "1.66.0",
+    "browser": "Playwright Chromium",
+    "os": "Windows 10.0.26200",
+    "port": 8507
+  },
+  "method": {
+    "script": "scripts/p0_baseline_shots.py",
+    "dom_silence_ms": 1500,
+    "rerun_buffer_ms": 400,
+    "first_screen_silence_ms": 2000,
+    "samples_per_metric": 5,
+    "statistic": "median"
+  },
+  "metrics": {
+    "P01": {
+      "label": "冷启动",
+      "unit": "ms",
+      "cases": [
+        {
+          "id": "P01-a",
+          "name": "桌面冷启动首屏",
+          "baseline": 5740,
+          "budget": 6400,
+          "budget_source": "Day 1 基线 +10%",
+          "samples": [],
+          "median": null,
+          "pass": null
+        },
+        {
+          "id": "P01-b",
+          "name": "移动冷启动首屏",
+          "baseline": 6260,
+          "budget": 6900,
+          "budget_source": "Day 1 基线 +10%",
+          "samples": [],
+          "median": null,
+          "pass": null
+        },
+        {
+          "id": "P01-c",
+          "name": "桌面启动遮罩放行",
+          "baseline": 2470,
+          "budget": 2800,
+          "budget_source": "Day 1 基线 +10%",
+          "samples": [],
+          "median": null,
+          "pass": null
+        }
+      ]
+    },
+    "P02": {
+      "label": "路由切换",
+      "unit": "ms",
+      "cases": [
+        {
+          "id": "P02-a",
+          "name": "冷切换（首次进入，需请求）",
+          "baseline": 4340,
+          "budget": 4800,
+          "budget_source": "Day 1 基线 +10%",
+          "samples": [],
+          "median": null,
+          "pass": null
+        },
+        {
+          "id": "P02-b",
+          "name": "暖切换（缓存命中）",
+          "baseline": 2310,
+          "budget": 2600,
+          "budget_source": "Day 1 基线 +10%",
+          "samples": [],
+          "median": null,
+          "pass": null
+        }
+      ],
+      "routes": [
+        "任务列表 -> 任务详情",
+        "任务详情 -> 报告",
+        "报告 -> 历史列表",
+        "历史列表 -> 任务列表"
+      ]
+    },
+    "P03": {
+      "label": "报告 GET",
+      "unit": "ms",
+      "cases": [
+        {
+          "id": "P03-a",
+          "name": "小报告（首屏可见）",
+          "baseline": null,
+          "budget": null,
+          "budget_source": "首次测量后定基线",
+          "samples": [],
+          "median": null,
+          "pass": null
+        },
+        {
+          "id": "P03-b",
+          "name": "长报告（需滚动）",
+          "baseline": null,
+          "budget": null,
+          "budget_source": "首次测量后定基线",
+          "samples": [],
+          "median": null,
+          "pass": null
+        },
+        {
+          "id": "P03-c",
+          "name": "历史导入报告（无图表快照）",
+          "baseline": null,
+          "budget": null,
+          "budget_source": "首次测量后定基线",
+          "samples": [],
+          "median": null,
+          "pass": null
+        }
+      ]
+    },
+    "P04": {
+      "label": "报告列表筛选",
+      "unit": "ms",
+      "cases": [
+        {
+          "id": "P04-a",
+          "name": "单条件（股票代码）",
+          "baseline": null,
+          "budget": null,
+          "budget_source": "首次测量后定基线",
+          "samples": [],
+          "median": null,
+          "pass": null
+        },
+        {
+          "id": "P04-b",
+          "name": "双条件（日期区间 + 状态）",
+          "baseline": null,
+          "budget": null,
+          "budget_source": "首次测量后定基线",
+          "samples": [],
+          "median": null,
+          "pass": null
+        },
+        {
+          "id": "P04-c",
+          "name": "空结果",
+          "baseline": null,
+          "budget": null,
+          "budget_source": "首次测量后定基线",
+          "samples": [],
+          "median": null,
+          "pass": null
+        }
+      ]
+    },
+    "P05": {
+      "label": "任务事件延迟",
+      "unit": "ms",
+      "cases": [
+        {
+          "id": "P05-a",
+          "name": "事件产生到界面可见",
+          "baseline": null,
+          "budget": 500,
+          "budget_source": "硬线",
+          "samples": [],
+          "median": null,
+          "pass": null
+        },
+        {
+          "id": "P05-b",
+          "name": "阶段间隔偏差",
+          "unit": "percent",
+          "baseline": 0,
+          "budget": 5,
+          "budget_source": "偏差上限",
+          "samples": [],
+          "median": null,
+          "pass": null
+        }
+      ]
+    },
+    "P06": {
+      "label": "PDF 首次生成",
+      "unit": "ms",
+      "cases": [
+        {
+          "id": "P06-a",
+          "name": "清缓存后导出",
+          "baseline": null,
+          "budget": 8000,
+          "budget_source": "设计目标",
+          "samples": [],
+          "median": null,
+          "pass": null,
+          "report_id": null,
+          "content_hash": null,
+          "exporter_version": null,
+          "file_size_bytes": null
+        }
+      ]
+    },
+    "P07": {
+      "label": "PDF 缓存命中",
+      "unit": "ms",
+      "cases": [
+        {
+          "id": "P07-a",
+          "name": "同报告同内容哈希同导出器版本再次导出",
+          "baseline": null,
+          "budget": 300,
+          "budget_source": "设计目标",
+          "samples": [],
+          "median": null,
+          "pass": null,
+          "cache_key": null
+        }
+      ]
+    },
+    "P08": {
+      "label": "移动视口溢出和交互耗时",
+      "unit": "mixed",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "overflow": {
+        "rule": "document.documentElement.scrollWidth <= document.documentElement.clientWidth",
+        "pages": [
+          {"page": "任务列表", "scroll_width": null, "client_width": null, "pass": null},
+          {"page": "任务详情", "scroll_width": null, "client_width": null, "pass": null},
+          {"page": "报告", "scroll_width": null, "client_width": null, "pass": null},
+          {"page": "历史列表", "scroll_width": null, "client_width": null, "pass": null}
+        ],
+        "pass": null
+      },
+      "interaction": [
+        {"id": "P08-a", "name": "开始分析按钮", "baseline": null, "budget": null, "samples": [], "median": null, "pass": null},
+        {"id": "P08-b", "name": "暂停按钮", "baseline": null, "budget": null, "samples": [], "median": null, "pass": null},
+        {"id": "P08-c", "name": "取消按钮", "baseline": null, "budget": null, "samples": [], "median": null, "pass": null},
+        {"id": "P08-d", "name": "打开报告", "baseline": null, "budget": null, "samples": [], "median": null, "pass": null}
+      ]
+    }
+  },
+  "regressions": [],
+  "verdict": null
+}
