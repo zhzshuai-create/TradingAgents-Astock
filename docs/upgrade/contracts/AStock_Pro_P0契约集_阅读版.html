@@ -3169,7 +3169,7 @@ data: {&quot;seq&quot;:128,&quot;job_id&quot;:&quot;5b1c...&quot;,&quot;type&quo
 </tr>
 <tr>
 <td>B3 发现未登记阶段产物</td>
-<td><code>status_changed</code> 到 <code>interrupted</code> 之后补一条 <code>error</code>，<code>code</code> 用 <code>reconcile_note</code>，<code>fatal = false</code></td>
+<td><code>status_changed</code> 到 <code>interrupted</code>，<code>detail = "unregistered_stage_output"</code>；事件表里的对账备注只入库，不广播</td>
 </tr>
 <tr>
 <td>B5 报告已提交、完成事件未发</td>
