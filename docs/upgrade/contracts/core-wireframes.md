@@ -1,4 +1,5 @@
 ﻿# 核心页面线框（P0 Day 5）
+版本：v1（2026-10-29 冻结）
 
 日期：2026-10-29
 状态：冻结候选
@@ -130,7 +131,7 @@
 - 阶段报告用底部抽屉，抽屉内单独滚动，页面本身不出现双层滚动。
 - SSE 断线时顶部黄条「正在重连，阶段可能延迟」，重连成功自动消失；410 时黄条换成「刷新以恢复」并给刷新按钮。
 
-状态必须逐一见到的：queued、running、pause_requested、paused、cancel_requested、cancelled、succeeded、failed、interrupted，以及 SSE 重连中/已过期、任务不存在。
+状态必须逐一见到的：queued、running、pause_requested、paused、cancel_requested、cancelled、succeeded、failed、interrupted，以及 SSE 重连中/已过期、任务 ID 无效（404，按禁用词规则措辞）。
 
 依赖：`GET /jobs/{id}`、`GET /jobs/{id}/stages/{stageId}`、`POST /jobs/{id}/actions`、`POST /jobs/{id}/retry`、`GET /jobs/{id}/events`。
 

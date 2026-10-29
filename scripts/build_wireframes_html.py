@@ -651,7 +651,7 @@ SCREENS = [
          deps=["GET /jobs?status=&ticker=&date_from=&date_to=&active="]),
     dict(id="w04", code="W04", title="任务详情", route="/jobs/:jobId", d=w04_d(), m=w04_m(),
          goal="看清 12 个阶段与控制效果；展开单个阶段读报告；异常时给出下一步。",
-         states=["queued/running/paused/failed/interrupted/succeeded", "SSE 重连中", "410 过期", "任务不存在"],
+         states=["queued/running/paused/failed/interrupted/succeeded", "SSE 重连中", "410 过期", "任务 ID 无效（404）"],
          deps=["GET /jobs/{id}", "GET /jobs/{id}/stages/{stageId}", "POST /jobs/{id}/actions",
                "POST /jobs/{id}/retry", "GET /jobs/{id}/events"]),
     dict(id="w05", code="W05", title="报告库", route="/reports", d=w05_d(), m=w05_m(),
