@@ -29,6 +29,7 @@ DOCS = [
     ("api-v1.md", "接口契约 v1：任务、报告与市场数据"),
     ("sse-events-v1.md", "SSE 事件流契约 v1"),
     ("error-codes-v1.md", "错误响应字典 v1"),
+    ("routes.md", "路由与返回规则"),
     ("core-wireframes.md", "核心页面线框（十屏）"),
     ("interaction-checklist.md", "交互走查清单"),
 ]

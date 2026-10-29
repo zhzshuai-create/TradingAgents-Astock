@@ -27,6 +27,7 @@ article{max-width:1080px;margin:0 auto;padding:44px 56px 72px;background:var(--s
 <li><a href="#api-v1">接口契约 v1：任务、报告与市场数据</a></li>
 <li><a href="#sse-events-v1">SSE 事件流契约 v1</a></li>
 <li><a href="#error-codes-v1">错误响应字典 v1</a></li>
+<li><a href="#routes">路由与返回规则</a></li>
 <li><a href="#core-wireframes">核心页面线框（十屏）</a></li>
 <li><a href="#interaction-checklist">交互走查清单</a></li>
 </ul></div></details>
@@ -3610,6 +3611,188 @@ data: {&quot;seq&quot;:128,&quot;job_id&quot;:&quot;5b1c...&quot;,&quot;type&quo
 <li>内部主机名或 IP 直连地址。</li>
 </ol>
 <p><code>tests/test_upgrade_market_envelope.py</code> 对五份样本做这四项扫描；服务端实现阶段加同一份断言的集成测试。</p>
+</section>
+<section id="routes"><h1>路由与返回规则</h1>
+<p>日期：2026-10-29
+状态：冻结候选
+配套：<code>api-v1.md</code>、<code>core-wireframes.md</code>、<code>interaction-checklist.md</code></p>
+<p>目标：先定「从哪来、回哪去、刷新后还在不在」，再画页面。九条路由的六项属性在本文件写死，线框与 P1 前端都按此实现。</p>
+<hr />
+<h2 id="1">1. 九条路由</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>路由</th>
+<th>页面</th>
+<th>谁能进来（默认入口）</th>
+<th>返回目标</th>
+<th>要保留的筛选</th>
+<th>要恢复的滚动位置</th>
+<th>刷新后怎么恢复</th>
+<th>活动任务入口</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/workbench</code></td>
+<td>工作台首页</td>
+<td>根路径、品牌 logo、所有「返回工作台」</td>
+<td>无（根）</td>
+<td>无</td>
+<td>无</td>
+<td>重拉最近任务与今日市场摘要</td>
+<td>顶部任务条</td>
+</tr>
+<tr>
+<td><code>/market</code></td>
+<td>市场</td>
+<td>顶部导航「市场」</td>
+<td><code>/workbench</code></td>
+<td>行业排名 TopN、强势股日期</td>
+<td>行业列表位置</td>
+<td>从 query 恢复筛选，列表回到顶部</td>
+<td>顶部任务条</td>
+</tr>
+<tr>
+<td><code>/stocks/:ticker</code></td>
+<td>股票工作区</td>
+<td>市场行业钻取、任务页标的、报告页标的、搜索</td>
+<td>来路页面；无来路回 <code>/market</code></td>
+<td>当前 tab（估值/K线/分时/新闻/报告）、K 线周期、分时日期</td>
+<td>各 tab 内独立位置</td>
+<td>query 存 tab 与周期；分时日期非法时回最近交易日</td>
+<td>顶部任务条</td>
+</tr>
+<tr>
+<td><code>/jobs</code></td>
+<td>任务列表</td>
+<td>顶部导航「任务」</td>
+<td><code>/workbench</code></td>
+<td>状态多选、股票代码、日期范围</td>
+<td>列表位置</td>
+<td>从 query 恢复筛选与游标</td>
+<td>顶部任务条</td>
+</tr>
+<tr>
+<td><code>/jobs/:jobId</code></td>
+<td>任务详情</td>
+<td>任务列表、工作台最近任务、顶部任务条、通知</td>
+<td><code>/jobs</code> 并恢复来时的筛选</td>
+<td>无（阶段展开状态是本地偏好）</td>
+<td>当前阶段所在位置</td>
+<td>重新订阅 SSE；<code>Last-Event-ID</code> 存在本地，过期则整页重建</td>
+<td>本页即入口</td>
+</tr>
+<tr>
+<td><code>/reports</code></td>
+<td>报告库</td>
+<td>顶部导航「报告」</td>
+<td><code>/workbench</code></td>
+<td>股票代码、日期范围、评级</td>
+<td>列表位置</td>
+<td>从 query 恢复筛选与游标</td>
+<td>顶部任务条</td>
+</tr>
+<tr>
+<td><code>/reports/:reportId</code></td>
+<td>报告阅读器</td>
+<td>报告库、任务详情、股票工作区</td>
+<td>来路页面并恢复筛选</td>
+<td>无</td>
+<td>当前章节位置</td>
+<td>用 <code>#sec-xxx</code> 恢复章节；章节不存在回顶部</td>
+<td>顶部任务条</td>
+</tr>
+<tr>
+<td><code>/journal</code></td>
+<td>交易日志</td>
+<td>顶部导航「日志」、设置页</td>
+<td><code>/workbench</code></td>
+<td>无</td>
+<td>无</td>
+<td>重新探测日志服务可用性</td>
+<td>顶部任务条</td>
+</tr>
+<tr>
+<td><code>/settings</code></td>
+<td>设置</td>
+<td>顶部导航「设置」、更多菜单</td>
+<td><code>/workbench</code></td>
+<td>分组（基本/模型/数据源/关于）</td>
+<td>分组位置</td>
+<td>用 <code>#group-xxx</code> 恢复分组</td>
+<td>顶部任务条</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="2">2. 全局规则</h2>
+<ol>
+<li><strong>活动任务条</strong>：有活动任务时，所有页面顶部常驻一条「当前阶段 + 进度 + 查看」；点击进 <code>/jobs/:jobId</code>。没有活动任务时不占位。多个活动任务时显示最近创建的一个，并给「还有 1 个」的入口。</li>
+<li><strong>返回不清筛选</strong>：从 <code>/jobs</code> 进详情再返回，状态多选、股票、日期范围必须原样恢复；从 <code>/reports</code> 进阅读器再返回同理。实现上用 <code>history.back()</code> 优先，直接打开时用 query 重建。</li>
+<li><strong>深链接必须可刷新</strong>：任何页面刷新后不得丢失身份（ticker、jobId、reportId、筛选、tab、章节）。</li>
+<li><strong>未知路由</strong>：给 404 页，两个出口——回工作台、回任务列表；不自动跳转。</li>
+<li><strong>非法 ticker</strong>：<code>/stocks/abc</code> 这类解析不到的路径给 400 页，文案「没有这只股票」，给搜索框与回市场；不静默改写到别的票。</li>
+<li><strong>不存在的 job/report</strong>：404 页，文案分别是「没有找到这个任务」「没有找到这份报告」，只给返回列表；<strong>不创建、不自动补</strong>（对应 <code>idempotency-conflicts.md</code> 第 2 节）。</li>
+<li><strong>移动底部导航</strong>五个：工作台、市场、任务、报告、更多（更多里放日志与设置）。桌面用顶部导航，二者路由完全一致。</li>
+<li><strong>报告章节深链接</strong>：<code>/reports/:id#sec-decision</code> 直接滚到该章；章节不存在时停在顶部，不报错。</li>
+<li><strong>不把状态写进路径</strong>：路径只含身份（ticker、jobId、reportId），筛选与 tab 走 query。这样同一份报告可以被两条不同筛选路径引用而不产生两套 URL。</li>
+<li><strong>刷新恢复的优先级</strong>：query &gt; 本地记忆 &gt; 服务端默认。三者冲突时以 query 为准。</li>
+</ol>
+<h2 id="3">3. 页面之间的主链路</h2>
+<pre><code class="language-text">/workbench
+  ├─ 搜索股票 → /stocks/:ticker（未创建任务时只读看盘）
+  ├─ 点「开始分析」→ 创建任务 → /jobs/:jobId
+  └─ 最近任务 → /jobs/:jobId
+
+/market
+  ├─ 行业行 → 行业成分股抽屉 → /stocks/:ticker?tab=valuation
+  ├─ 强势股行 → /stocks/:ticker
+  └─ 快讯 → 原文链接（外链，新窗口）
+
+/jobs → /jobs/:jobId
+  ├─ 已完成的报告 → /reports/:reportId
+  ├─ 运行中 → 停在详情看阶段
+  └─ 中断 → 「从检查点继续」创建新任务 → /jobs/:newId
+
+/reports → /reports/:reportId
+  ├─ 「重新分析」→ 创建新任务 → /jobs/:newId
+  └─ 「导出 PDF」→ 停在阅读器，右下角显示导出进度
+</code></pre>
+<h2 id="4">4. 与契约的对应</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>本文件规则</th>
+<th>契约依据</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>顶部任务条显示当前阶段</td>
+<td><code>JobDetail.stages</code> 与 <code>current_stage</code></td>
+</tr>
+<tr>
+<td>详情页按钮只按 <code>allowed_actions</code></td>
+<td><code>api-v1.md</code> 1.6</td>
+</tr>
+<tr>
+<td>打开任务 URL 不创建任务</td>
+<td><code>idempotency-conflicts.md</code> 第 2 节</td>
+</tr>
+<tr>
+<td>刷新后 SSE 续传</td>
+<td><code>sse-events-v1.md</code> 第 4 节</td>
+</tr>
+<tr>
+<td>报告章节 id 固定</td>
+<td><code>report-schema-v1.md</code> 第 3 节</td>
+</tr>
+<tr>
+<td>市场页三态</td>
+<td><code>api-v1.md</code> 3.0 与信封 Schema</td>
+</tr>
+</tbody>
+</table></div>
 </section>
 <section id="core-wireframes"><h1>核心页面线框（十屏）</h1>
 <p>日期：2026-10-29
