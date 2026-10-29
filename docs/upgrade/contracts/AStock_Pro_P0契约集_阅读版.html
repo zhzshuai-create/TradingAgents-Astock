@@ -2227,6 +2227,16 @@ Idempotency-Key: &lt;uuid&gt;        （必需）
 <td>是</td>
 <td>服务端预置配置的 id，如 <code>deepseek-default</code>；非法值报 422 <code>config_invalid_value</code> 并返回允许值</td>
 </tr>
+<tr>
+<td><code>config.parallel_analysts</code></td>
+<td>否</td>
+<td>缺省取服务端默认值</td>
+</tr>
+<tr>
+<td><code>config.stage_toggles</code></td>
+<td>否</td>
+<td>缺省全部开启；关掉的阶段在 <code>stages</code> 里显示 <code>skipped</code></td>
+</tr>
 </tbody>
 </table>
 <p>客户端不能提交 <code>backend_url</code>、<code>api_key</code>、模型名以外的服务端配置——这三类一律按 <code>config_unknown_key</code> 拒绝。</p>
@@ -2423,12 +2433,13 @@ Idempotency-Key: &lt;uuid&gt;        （必需）
 </tr>
 <tr>
 <td><code>resume_from_checkpoint</code></td>
-<td>interrupted, paused 且指纹匹配</td>
+<td>interrupted</td>
 <td><code>resume_of_job_id = 原 id</code>，<code>resume_from_stage</code> = 首个未完成阶段</td>
-<td>保持原终态</td>
+<td>保持 <code>interrupted</code></td>
 </tr>
 </tbody>
 </table>
+<p><code>paused</code> 的「继续」不走本接口，走 1.6 的 <code>resume</code> 动作：同一个 job、同一个 id，这是暂停与中断的关键区别。暂停状态下检查点缺失时，对账已把它改判 <code>interrupted</code>，届时才用 <code>resume_from_checkpoint</code>。</p>
 <ul>
 <li>该接口会产生新的模型费用，因此必须带 <code>Idempotency-Key</code>，判定顺序与 1.3 相同。</li>
 <li><code>resume_from_checkpoint</code> 时 <code>config_digest</code> 或 <code>graph_version</code> 不匹配，返回 409 <code>resume_fingerprint_mismatch</code>，界面只给「重新分析」。</li>
@@ -2748,7 +2759,7 @@ GET /api/v1/stocks/{ticker}/intraday?date=2026-10-29
 <tr>
 <td><code>bars</code></td>
 <td>array</td>
-<td><code>{date, open, high, low, close, volume, amount}</code>，<code>date</code> 为 YYYY-MM-DD，按时间升序</td>
+<td><code>{date, open, high, low, close, volume, amount}</code>，<code>date</code> 为 YYYY-MM-DD，按时间升序；<code>amount</code> 取不到时为 null</td>
 </tr>
 <tr>
 <td><code>units</code></td>
