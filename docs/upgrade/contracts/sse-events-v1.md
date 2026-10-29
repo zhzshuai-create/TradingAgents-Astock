@@ -205,6 +205,6 @@ data: {"seq":128,"job_id":"5b1c...","type":"status_changed","at":"2026-10-29T10:
 | 用户点暂停 | `status_changed` 到 `pause_requested`，`pending_action = pause`；阶段边界后 `status_changed` 到 `paused` |
 | 用户点取消，收尾期间图完成（T14） | `status_changed` 到 `succeeded`，`detail = cancel_noop`，界面提示「任务在取消请求到达前已完成」 |
 | 服务重启对账（T16–T18） | 重连首帧 `snapshot` 即为 `interrupted`；随后 `status_changed` 的 `reason = reconcile` |
-| B3 发现未登记阶段产物 | `status_changed` 到 `interrupted` 之后补一条 `error`，`code` 用 `reconcile_note`，`fatal = false` |
+| B3 发现未登记阶段产物 | `status_changed` 到 `interrupted`，`detail = "unregistered_stage_output"`；事件表里的对账备注只入库，不广播 |
 | B5 报告已提交、完成事件未发 | 启动时补发 `report_ready`（新序号），重连客户端从 `Last-Event-ID` 之后拿到 |
 | 任务已终态再订阅 | `snapshot` 后立即关闭 |
