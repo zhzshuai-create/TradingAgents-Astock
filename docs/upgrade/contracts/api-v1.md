@@ -519,7 +519,7 @@ GET /api/v1/market/newsflash?limit=30
 2. 不返回任何 API Key、环境变量、内部主机名。
 3. 不返回文件系统路径；下载一律给 `/api/v1/...` 形式的 URL。
 4. 不接受前端提交 `backend_url`、`api_key`、任意模型接口地址；模型与 Base URL 由服务端 `llm_profile` 白名单决定。
-5. 报告正文、新闻、快讯、题材归因等外部文本默认不可信：API 原样传递并标 `untrusted`，前端纯文本渲染，不注入 HTML。
+5. 报告正文与外部文本默认不可信：报告正文按清洗后的 markdown 传递，前端渲染必须禁用原始 HTML；新闻、快讯、题材归因标 `data.untrusted = true`，按纯文本渲染，不执行脚本、不自动加载外部图片。
 6. 错误响应也带 `X-Request-Id`，与日志可对账。
 
 ### 4.3 前端不得推断的事项
