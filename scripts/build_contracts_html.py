@@ -29,13 +29,22 @@ DOCS = [
     ("api-v1.md", "接口契约 v1：任务、报告与市场数据"),
     ("sse-events-v1.md", "SSE 事件流契约 v1"),
     ("error-codes-v1.md", "错误响应字典 v1"),
+    ("core-wireframes.md", "核心页面线框（十屏）"),
+    ("interaction-checklist.md", "交互走查清单"),
 ]
+
+
+TABLE_WRAP = """<style>
+.table-wrap{overflow-x:auto;max-width:100%;margin:0 0 1rem}
+.table-wrap table{width:max-content;min-width:100%;margin:0}
+</style>"""
 
 
 def main() -> None:
     head = SRC_HTML.read_text(encoding="utf-8").split("<body><article>")[0]
     head = re.sub(r"<title>.*?</title>", "<title>AStock Pro P0 契约集</title>",
                   head, count=1, flags=re.S)
+    head = head.replace("</head>", TABLE_WRAP + "</head>", 1)
 
     md = markdown.Markdown(extensions=["extra", "toc", "sane_lists"])
     parts = []
@@ -45,6 +54,8 @@ def main() -> None:
         text = (CONTRACTS / fname).read_text(encoding="utf-8-sig")
         text = re.sub(r"\A#\s.*\n", "", text, count=1)
         body = md.convert(text)
+        body = body.replace("<table>", '<div class="table-wrap"><table>')
+        body = body.replace("</table>", "</table></div>")
         anchor = fname.replace(".md", "")
         toc.append(f'<li><a href="#{anchor}">{title}</a></li>')
         parts.append(f'<section id="{anchor}"><h1>{title}</h1>\n{body}\n</section>')
