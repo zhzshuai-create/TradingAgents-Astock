@@ -26,6 +26,9 @@ DOCS = [
     ("p1-state-machine-tests.md", "P1 状态机测试用例清单"),
     ("report-schema-v1.md", "报告结构契约 v1"),
     ("report-consistency-tests.md", "报告一致性测试清单"),
+    ("api-v1.md", "接口契约 v1：任务、报告与市场数据"),
+    ("sse-events-v1.md", "SSE 事件流契约 v1"),
+    ("error-codes-v1.md", "错误响应字典 v1"),
 ]
 
 

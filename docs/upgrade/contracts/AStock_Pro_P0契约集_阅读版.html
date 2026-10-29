@@ -21,6 +21,9 @@ article{max-width:1080px;margin:0 auto;padding:44px 56px 72px;background:var(--s
 <li><a href="#p1-state-machine-tests">P1 状态机测试用例清单</a></li>
 <li><a href="#report-schema-v1">报告结构契约 v1</a></li>
 <li><a href="#report-consistency-tests">报告一致性测试清单</a></li>
+<li><a href="#api-v1">接口契约 v1：任务、报告与市场数据</a></li>
+<li><a href="#sse-events-v1">SSE 事件流契约 v1</a></li>
+<li><a href="#error-codes-v1">错误响应字典 v1</a></li>
 </ul></div></details>
 <section id="semantic-dictionary"><h1>核心语义词典</h1>
 <p>目的：让每个用户操作只对应一个服务端语义。前后端、文档、测试一律使用本表的词与文案，不再用页面文案猜状态。</p>
@@ -1893,5 +1896,1578 @@ interrupted
 <li>T14–T17 对应「同股票同日期两个版本可以同时存在」与导出规则。</li>
 <li>合计 17 个用例编号位。</li>
 </ul>
+</section>
+<section id="api-v1"><h1>接口契约 v1：任务、报告与市场数据</h1>
+<p>日期：2026-10-29
+状态：冻结候选（Day 4 交付）
+配套文件：<code>market-data-envelope-v1.json</code>（数据信封 Schema）、<code>sse-events-v1.md</code>（事件流）、<code>error-codes-v1.md</code>（错误字典）、<code>job-state-machine.md</code>、<code>idempotency-conflicts.md</code>、<code>report-schema-v1.md</code></p>
+<p>目标：前端只依赖本契约就能画完所有页面，不读 LangGraph 原始对象、不解析 markdown 猜状态、不自己决定按钮能不能点。</p>
+<hr />
+<h2 id="0">0. 通则</h2>
+<table>
+<thead>
+<tr>
+<th>项</th>
+<th>规定</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>前缀</td>
+<td>所有接口在 <code>/api/v1</code> 下，版本号进路径</td>
+</tr>
+<tr>
+<td>编码</td>
+<td>请求与响应均为 <code>application/json; charset=utf-8</code>，Markdown 与 PDF 接口除外</td>
+</tr>
+<tr>
+<td>字段命名</td>
+<td><code>snake_case</code>，沿用 <code>report-schema-v1</code>，不做 camelCase 转换</td>
+</tr>
+<tr>
+<td>时间</td>
+<td>时间点用 ISO8601 带时区，如 <code>2026-10-29T09:31:05+08:00</code>；日期用 <code>YYYY-MM-DD</code></td>
+</tr>
+<tr>
+<td>请求 ID</td>
+<td>每个响应带 <code>X-Request-Id</code>；客户端可自带，服务端生成时优先用自带的</td>
+</tr>
+<tr>
+<td>未知字段</td>
+<td>响应新增字段客户端必须忽略；请求含白名单外字段一律 422，不静默丢弃</td>
+</tr>
+<tr>
+<td>分页</td>
+<td><code>limit</code> 默认 20、最大 100；<code>cursor</code> 为不透明字符串；响应 <code>{items, next_cursor}</code>，<code>next_cursor</code> 为 null 表示到底</td>
+</tr>
+<tr>
+<td>金额与百分比</td>
+<td>价格单位元；<code>change_pct</code> 为百分数原值（<code>2.35</code> 表示 +2.35%）；<code>amount_wan</code> 单位万元；资金流各项单位元</td>
+</tr>
+<tr>
+<td>鉴权</td>
+<td>P0 为本机单用户，不做鉴权；契约保留 <code>unauthorized</code> 错误码，未来加鉴权不改路径</td>
+</tr>
+<tr>
+<td>未实现接口</td>
+<td>P0 只冻结市场接口结构、不实现；调用返回 501 <code>not_implemented</code>，不用 404 冒充</td>
+</tr>
+</tbody>
+</table>
+<p>数据类接口（第 3 章）统一使用 <code>market-data-envelope-v1</code> 信封；任务与报告接口不使用信封，直接用错误体。</p>
+<p>数据源失败与接口失败的分工：</p>
+<ul>
+<li>数据源取不到数据：HTTP 200，信封 <code>status = error</code> 或该区块 <code>error</code>，<code>error_code</code> 用 <code>upstream_timeout</code> 等数据源码。</li>
+<li>请求本身不合法、对象不存在、状态冲突：HTTP 4xx/5xx，错误体见 <code>error-codes-v1.md</code>。</li>
+</ul>
+<p>前端据此区分「接口坏了」与「这只票今天没数据」，两种情况显示不同文案。</p>
+<hr />
+<h2 id="1">1. 任务接口</h2>
+<h3 id="11">1.1 两个任务形态</h3>
+<p><code>JobSummary</code> 用于列表，<code>JobDetail</code> 用于详情与 SSE 首帧。两者字段一致，只有 <code>stages</code> 一处差别：列表不带 12 个阶段的明细。</p>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>类型</th>
+<th>必需</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>job_id</code></td>
+<td>string(uuid)</td>
+<td>是</td>
+<td>创建时生成，永不复用</td>
+</tr>
+<tr>
+<td><code>status</code></td>
+<td>enum</td>
+<td>是</td>
+<td>九个状态之一，见 <code>job-state-machine.md</code>；文案映射用 <code>semantic-dictionary.md</code> 的表，不用状态字符串拼中文</td>
+</tr>
+<tr>
+<td><code>pending_action</code></td>
+<td>enum: pause, cancel, null</td>
+<td>是</td>
+<td>已受理但未生效的控制请求；与 <code>pause_requested / cancel_requested</code> 状态一一对应</td>
+</tr>
+<tr>
+<td><code>ticker_code</code></td>
+<td>string(6)</td>
+<td>是</td>
+<td>已归一化，如 <code>000629</code></td>
+</tr>
+<tr>
+<td><code>ticker_name</code></td>
+<td>string 或 null</td>
+<td>否</td>
+<td>解析不到名称时为 null，前端回退显示代码，不编造</td>
+</tr>
+<tr>
+<td><code>analysis_date</code></td>
+<td>string(YYYY-MM-DD)</td>
+<td>是</td>
+<td>分析标的日期</td>
+</tr>
+<tr>
+<td><code>created_at</code></td>
+<td>ISO8601</td>
+<td>是</td>
+<td></td>
+</tr>
+<tr>
+<td><code>updated_at</code></td>
+<td>ISO8601</td>
+<td>是</td>
+<td>任何字段变化都更新</td>
+</tr>
+<tr>
+<td><code>started_at</code></td>
+<td>ISO8601 或 null</td>
+<td>是</td>
+<td>首次进入 running 的时间</td>
+</tr>
+<tr>
+<td><code>finished_at</code></td>
+<td>ISO8601 或 null</td>
+<td>是</td>
+<td>进入任一终态的时间</td>
+</tr>
+<tr>
+<td><code>current_stage</code></td>
+<td>object 或 null</td>
+<td>是</td>
+<td><code>{id, name, index, total, status}</code>；queued 与终态为 null</td>
+</tr>
+<tr>
+<td><code>stages</code></td>
+<td>array</td>
+<td>仅详情</td>
+<td>固定 12 项，顺序固定，见 1.2</td>
+</tr>
+<tr>
+<td><code>stats</code></td>
+<td>object</td>
+<td>是</td>
+<td><code>{model_calls, tokens_in, tokens_out, elapsed_ms}</code>；未开始全为 0</td>
+</tr>
+<tr>
+<td><code>report_id</code></td>
+<td>string(uuid) 或 null</td>
+<td>是</td>
+<td>仅 succeeded 且报告已提交时非空</td>
+</tr>
+<tr>
+<td><code>error</code></td>
+<td>object 或 null</td>
+<td>是</td>
+<td><code>{code, message}</code>，只放安全文案，不使用堆栈</td>
+</tr>
+<tr>
+<td><code>config_digest</code></td>
+<td>string</td>
+<td>是</td>
+<td>配置指纹，续跑时用于匹配</td>
+</tr>
+<tr>
+<td><code>graph_version</code></td>
+<td>string</td>
+<td>是</td>
+<td>图版本，续跑时用于匹配</td>
+</tr>
+<tr>
+<td><code>retry_of_job_id</code></td>
+<td>string 或 null</td>
+<td>是</td>
+<td>重试来源</td>
+</tr>
+<tr>
+<td><code>resume_of_job_id</code></td>
+<td>string 或 null</td>
+<td>是</td>
+<td>续跑来源</td>
+</tr>
+<tr>
+<td><code>resume_from_stage</code></td>
+<td>string 或 null</td>
+<td>是</td>
+<td>续跑起始阶段 id</td>
+</tr>
+<tr>
+<td><code>allowed_actions</code></td>
+<td>array<enum></td>
+<td>是</td>
+<td>见 1.6；前端按钮只按它渲染，不自己推状态表</td>
+</tr>
+<tr>
+<td><code>links</code></td>
+<td>object</td>
+<td>是</td>
+<td><code>{self, events, report}</code>，report 为 null 当无报告</td>
+</tr>
+</tbody>
+</table>
+<h3 id="12-id-12">1.2 阶段 id（固定 12 个）</h3>
+<p>来源 <code>web/progress.py::PIPELINE_STAGES</code>。顺序即执行顺序，<code>index</code> 从 1 开始。</p>
+<table>
+<thead>
+<tr>
+<th>序号</th>
+<th>id</th>
+<th>名称</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>market</td>
+<td>技术分析</td>
+</tr>
+<tr>
+<td>2</td>
+<td>social</td>
+<td>情绪分析</td>
+</tr>
+<tr>
+<td>3</td>
+<td>news</td>
+<td>新闻舆情</td>
+</tr>
+<tr>
+<td>4</td>
+<td>fundamentals</td>
+<td>基本面</td>
+</tr>
+<tr>
+<td>5</td>
+<td>policy</td>
+<td>政策分析</td>
+</tr>
+<tr>
+<td>6</td>
+<td>hot_money</td>
+<td>游资追踪</td>
+</tr>
+<tr>
+<td>7</td>
+<td>lockup</td>
+<td>解禁监控</td>
+</tr>
+<tr>
+<td>8</td>
+<td>quality_gate</td>
+<td>质量门控</td>
+</tr>
+<tr>
+<td>9</td>
+<td>debate</td>
+<td>多空辩论</td>
+</tr>
+<tr>
+<td>10</td>
+<td>trader</td>
+<td>交易决策</td>
+</tr>
+<tr>
+<td>11</td>
+<td>risk</td>
+<td>风控评估</td>
+</tr>
+<tr>
+<td>12</td>
+<td>pm</td>
+<td>最终决策</td>
+</tr>
+</tbody>
+</table>
+<p>阶段状态枚举：<code>pending | active | done | failed | skipped</code>。<code>skipped</code> 只由阶段开关关闭导致，前端显示「已跳过」，不显示为失败。</p>
+<h3 id="13">1.3 创建任务</h3>
+<pre><code class="language-text">POST /api/v1/jobs
+Idempotency-Key: &lt;uuid&gt;        （必需）
+</code></pre>
+<p>请求体：</p>
+<pre><code class="language-json">{
+  &quot;ticker&quot;: &quot;000629&quot;,
+  &quot;analysis_date&quot;: &quot;2026-10-29&quot;,
+  &quot;config&quot;: {
+    &quot;llm_profile&quot;: &quot;deepseek-default&quot;,
+    &quot;parallel_analysts&quot;: true,
+    &quot;stage_toggles&quot;: {&quot;policy&quot;: true, &quot;hot_money&quot;: true, &quot;lockup&quot;: true}
+  }
+}
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>必需</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ticker</code></td>
+<td>是</td>
+<td>6 位代码或中文名；服务端按 <code>resolve_ticker</code> 归一化后回填 <code>ticker_code</code>。中文名模糊匹配到多只时报 422 <code>ticker_ambiguous</code>，<code>details.candidates</code> 最多 5 个</td>
+</tr>
+<tr>
+<td><code>analysis_date</code></td>
+<td>是</td>
+<td>不接受未来日期，报 422 <code>invalid_date</code></td>
+</tr>
+<tr>
+<td><code>config</code></td>
+<td>是</td>
+<td>只允许白名单键：<code>llm_profile</code>、<code>parallel_analysts</code>、<code>stage_toggles</code>。多一个键报 422 <code>config_unknown_key</code></td>
+</tr>
+<tr>
+<td><code>config.llm_profile</code></td>
+<td>是</td>
+<td>服务端预置配置的 id，如 <code>deepseek-default</code>；非法值报 422 <code>config_invalid_value</code> 并返回允许值</td>
+</tr>
+</tbody>
+</table>
+<p>客户端不能提交 <code>backend_url</code>、<code>api_key</code>、模型名以外的服务端配置——这三类一律按 <code>config_unknown_key</code> 拒绝。</p>
+<p>响应按 <code>idempotency-conflicts.md</code> 第 1 节的五步判定：</p>
+<table>
+<thead>
+<tr>
+<th>情况</th>
+<th>状态码</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>新建成功</td>
+<td>201</td>
+<td>返回 <code>JobDetail</code>，<code>status = queued</code></td>
+</tr>
+<tr>
+<td>同键同体重放</td>
+<td>200</td>
+<td>返回原 job，<code>Idempotency-Replayed: 1</code> 响应头</td>
+</tr>
+<tr>
+<td>同键不同体</td>
+<td>409 <code>idempotency_mismatch</code></td>
+<td></td>
+</tr>
+<tr>
+<td>无键但同活动指纹</td>
+<td>200</td>
+<td>返回该 job，响应头 <code>X-Existing-Job: &lt;job_id&gt;</code></td>
+</tr>
+<tr>
+<td>同票同日不同配置且已有活动任务</td>
+<td>409 <code>active_conflict</code></td>
+<td><code>details.active_job_id</code> 给出当前活动任务，由用户决定等待或取消</td>
+</tr>
+<tr>
+<td>没带 <code>Idempotency-Key</code></td>
+<td>400 <code>idempotency_key_required</code></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><code>Idempotency-Key</code> 作用域为创建接口，保留 24 小时；24 小时内重放返回当时的响应体与状态码。</p>
+<h3 id="14">1.4 任务列表</h3>
+<pre><code class="language-text">GET /api/v1/jobs?status=running,failed&amp;ticker=000629&amp;limit=20&amp;cursor=...
+</code></pre>
+<ul>
+<li><code>status</code> 可逗号分隔多值；<code>ticker</code> 精确匹配代码。</li>
+<li>排序固定 <code>created_at</code> 倒序；同秒内按 <code>job_id</code> 升序，保证分页稳定。</li>
+<li>返回 <code>{items: JobSummary[], next_cursor}</code>。</li>
+<li>该接口零副作用，不改变任何 job 状态。</li>
+</ul>
+<h3 id="15">1.5 任务详情</h3>
+<pre><code class="language-text">GET /api/v1/jobs/{jobId}
+</code></pre>
+<ul>
+<li>返回 <code>JobDetail</code>。</li>
+<li><code>jobId</code> 不存在返回 404 <code>job_not_found</code>；<strong>不自动创建任务</strong>（旧版 <code>get_or_create_job</code> 的行为在本契约中废止）。</li>
+<li>零副作用：不触发对账、不改状态、不发事件。</li>
+</ul>
+<h3 id="16">1.6 控制接口：受理不等于生效</h3>
+<pre><code class="language-text">POST /api/v1/jobs/{jobId}/actions
+</code></pre>
+<p>请求体：</p>
+<pre><code class="language-json">{&quot;action&quot;: &quot;pause&quot;}
+</code></pre>
+<p><code>action</code> 枚举：<code>pause | resume | cancel</code>。</p>
+<p>语义：这三个动作都是异步请求。服务端只写请求标记，真正生效落在阶段边界（暂停、取消）或 Worker 空闲时（继续）。</p>
+<table>
+<thead>
+<tr>
+<th>结果</th>
+<th>状态码</th>
+<th>响应</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>已受理</td>
+<td>202</td>
+<td><code>{job_id, accepted: true, action, accepted_at, expected_effect: "at_stage_boundary", status}</code></td>
+</tr>
+<tr>
+<td>重复提交同一动作</td>
+<td>200</td>
+<td><code>{job_id, accepted: false, reason: "already_pending", status}</code>，不写第二条请求</td>
+</tr>
+<tr>
+<td>状态不允许该动作</td>
+<td>409 <code>illegal_transition</code></td>
+<td><code>details.from / details.action / details.rule</code> 指向非法转换编号（I01–I11）</td>
+</tr>
+</tbody>
+</table>
+<p>按钮可用性完全由 <code>allowed_actions</code> 决定：</p>
+<table>
+<thead>
+<tr>
+<th>状态</th>
+<th>allowed_actions</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>queued</td>
+<td>cancel</td>
+</tr>
+<tr>
+<td>running</td>
+<td>pause, cancel</td>
+</tr>
+<tr>
+<td>pause_requested</td>
+<td>cancel</td>
+</tr>
+<tr>
+<td>paused</td>
+<td>resume, cancel</td>
+</tr>
+<tr>
+<td>cancel_requested</td>
+<td>空数组</td>
+</tr>
+<tr>
+<td>cancelled</td>
+<td>reanalyze</td>
+</tr>
+<tr>
+<td>succeeded</td>
+<td>retry, reanalyze</td>
+</tr>
+<tr>
+<td>failed</td>
+<td>retry, reanalyze</td>
+</tr>
+<tr>
+<td>interrupted</td>
+<td>resume_from_checkpoint, retry, reanalyze</td>
+</tr>
+</tbody>
+</table>
+<p>六个动作对应的真实调用：</p>
+<table>
+<thead>
+<tr>
+<th>allowed_actions 项</th>
+<th>调用</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>pause / resume / cancel</td>
+<td><code>POST /jobs/{id}/actions</code></td>
+</tr>
+<tr>
+<td>retry</td>
+<td><code>POST /jobs/{id}/retry</code>，<code>mode = same_config</code></td>
+</tr>
+<tr>
+<td>resume_from_checkpoint</td>
+<td><code>POST /jobs/{id}/retry</code>，<code>mode = resume_from_checkpoint</code></td>
+</tr>
+<tr>
+<td>reanalyze</td>
+<td><code>POST /jobs</code>，用当前界面配置，全新幂等键</td>
+</tr>
+</tbody>
+</table>
+<h3 id="17">1.7 重试与续跑：创建新任务</h3>
+<pre><code class="language-text">POST /api/v1/jobs/{jobId}/retry
+Idempotency-Key: &lt;uuid&gt;        （必需）
+</code></pre>
+<p>请求体：</p>
+<pre><code class="language-json">{&quot;mode&quot;: &quot;same_config&quot;}
+</code></pre>
+<table>
+<thead>
+<tr>
+<th><code>mode</code></th>
+<th>适用状态</th>
+<th>新 job 字段</th>
+<th>原 job</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>same_config</code></td>
+<td>failed, interrupted, succeeded</td>
+<td><code>retry_of_job_id = 原 id</code>，配置取原 job 深拷贝</td>
+<td>保持原终态</td>
+</tr>
+<tr>
+<td><code>resume_from_checkpoint</code></td>
+<td>interrupted, paused 且指纹匹配</td>
+<td><code>resume_of_job_id = 原 id</code>，<code>resume_from_stage</code> = 首个未完成阶段</td>
+<td>保持原终态</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>该接口会产生新的模型费用，因此必须带 <code>Idempotency-Key</code>，判定顺序与 1.3 相同。</li>
+<li><code>resume_from_checkpoint</code> 时 <code>config_digest</code> 或 <code>graph_version</code> 不匹配，返回 409 <code>resume_fingerprint_mismatch</code>，界面只给「重新分析」。</li>
+<li>成功返回 201 + 新 <code>JobDetail</code>；原 job 任何字段不变。</li>
+</ul>
+<h3 id="18">1.8 消息面：配置选项</h3>
+<pre><code class="language-text">GET /api/v1/meta/options
+</code></pre>
+<p>返回前端表单需要的枚举，避免前端硬编码服务端配置：</p>
+<pre><code class="language-json">{
+  &quot;llm_profiles&quot;: [{&quot;id&quot;: &quot;deepseek-default&quot;, &quot;label&quot;: &quot;DeepSeek 默认&quot;}],
+  &quot;stage_toggles&quot;: [{&quot;id&quot;: &quot;policy&quot;, &quot;label&quot;: &quot;政策分析&quot;, &quot;default&quot;: true}],
+  &quot;limits&quot;: {&quot;max_active_jobs&quot;: 1, &quot;max_date_ahead_days&quot;: 0},
+  &quot;contract_version&quot;: &quot;api-v1&quot;
+}
+</code></pre>
+<p>零副作用。这是本契约在计划清单之外补充的两个接口之一（另一个是 2.5 的导出状态查询），理由都写在评审记录里。</p>
+<h3 id="19">1.9 任务事件流</h3>
+<pre><code class="language-text">GET /api/v1/jobs/{jobId}/events
+</code></pre>
+<p>只读事件流，只接受 GET，<code>Accept: text/event-stream</code>，重连带 <code>Last-Event-ID</code>。订阅与续传不写任何表、不创建任务。事件类型、首帧快照、断线续传、心跳、限频与终态关闭全部见 <code>sse-events-v1.md</code>。</p>
+<hr />
+<h2 id="2">2. 报告接口</h2>
+<p>报告结构一律用 <code>report-schema-v1</code> 的 ReportDTO，本契约不再重复字段。</p>
+<h3 id="21">2.1 报告列表</h3>
+<pre><code class="language-text">GET /api/v1/reports?ticker=000629&amp;date_from=2026-09-01&amp;date_to=2026-10-29&amp;limit=20&amp;cursor=...
+</code></pre>
+<p>返回 <code>{items: ReportSummary[], next_cursor}</code>，<code>ReportSummary</code> 是 ReportDTO 去掉 <code>sections</code> 的部分，附加 <code>summary_available: true</code>。</p>
+<p>排序：<code>generated_at</code> 倒序，<code>generated_at</code> 为 null 的历史报告排最后（与 <code>report-schema-v1</code> 第 4.2 条一致）。</p>
+<h3 id="22">2.2 报告详情</h3>
+<pre><code class="language-text">GET /api/v1/reports/{reportId}
+</code></pre>
+<ul>
+<li>返回完整 ReportDTO。</li>
+<li>零副作用：不拉行情、不生成 PDF、不写文件、不改 <code>chart_snapshot_status</code>。</li>
+<li><code>reportId</code> 不存在返回 404 <code>report_not_found</code>。</li>
+</ul>
+<h3 id="23-markdown">2.3 报告 Markdown</h3>
+<pre><code class="language-text">GET /api/v1/reports/{reportId}/markdown
+</code></pre>
+<ul>
+<li>返回 <code>text/markdown; charset=utf-8</code>，内容由同一份 ReportDTO 生成。</li>
+<li>响应头 <code>ETag: "&lt;content_hash&gt;"</code>；带 <code>If-None-Match</code> 且命中时返回 304，无正文。</li>
+<li>零副作用。</li>
+</ul>
+<h3 id="24-pdf">2.4 导出 PDF</h3>
+<pre><code class="language-text">POST /api/v1/reports/{reportId}/exports/pdf
+</code></pre>
+<p>请求体（可选）：</p>
+<pre><code class="language-json">{&quot;template&quot;: &quot;default&quot;}
+</code></pre>
+<p><code>template</code> 只允许服务端白名单值。响应：</p>
+<table>
+<thead>
+<tr>
+<th>情况</th>
+<th>状态码</th>
+<th>正文</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>首次导出</td>
+<td>202</td>
+<td><code>{export_id, status: "queued", poll_url}</code>，<code>Location</code> 指向 2.5</td>
+</tr>
+<tr>
+<td>命中缓存</td>
+<td>200</td>
+<td>同结构，<code>status</code> 可能已是 <code>ready</code>，响应头 <code>X-Export-Cached: 1</code></td>
+</tr>
+</tbody>
+</table>
+<p>缓存键固定为 <code>report_id + content_hash + exporter_version</code>，命中不重新渲染。这是唯一允许写文件的报告接口，且必须由用户显式触发。</p>
+<h3 id="25">2.5 导出状态与文件（补充接口）</h3>
+<pre><code class="language-text">GET /api/v1/exports/{exportId}
+GET /api/v1/exports/{exportId}/file
+</code></pre>
+<p>状态对象：</p>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>类型</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>export_id</code></td>
+<td>string(uuid)</td>
+<td></td>
+</tr>
+<tr>
+<td><code>report_id</code></td>
+<td>string(uuid)</td>
+<td></td>
+</tr>
+<tr>
+<td><code>status</code></td>
+<td>enum: queued, rendering, ready, failed</td>
+<td></td>
+</tr>
+<tr>
+<td><code>download_url</code></td>
+<td>string 或 null</td>
+<td>仅 ready 时非空，形如 <code>/api/v1/exports/{id}/file</code>，<strong>不是</strong>服务器文件系统路径</td>
+</tr>
+<tr>
+<td><code>error</code></td>
+<td>object 或 null</td>
+<td><code>{code, message}</code></td>
+</tr>
+<tr>
+<td><code>created_at</code></td>
+<td>ISO8601</td>
+<td></td>
+</tr>
+<tr>
+<td><code>ready_at</code></td>
+<td>ISO8601 或 null</td>
+<td></td>
+</tr>
+<tr>
+<td><code>exporter_version</code></td>
+<td>string</td>
+<td>参与缓存键</td>
+</tr>
+</tbody>
+</table>
+<p><code>/file</code> 仅在 ready 时返回 <code>application/pdf</code>，其余状态 409 <code>export_not_ready</code>。</p>
+<h3 id="26">2.6 报告接口零副作用清单</h3>
+<p>以下行为在契约中禁止，实现与测试都按「调用前后报告表、job 表、事件表、文件系统 mtime 均不变」断言：</p>
+<ul>
+<li>打开报告详情或列表时请求行情、生成图表快照。</li>
+<li>打开报告时生成或续跑 PDF。</li>
+<li>Markdown 接口写临时文件。</li>
+<li>任何 GET 改变 <code>chart_snapshot_status</code>、<code>generated_at</code>、<code>content_hash</code>。</li>
+</ul>
+<hr />
+<h2 id="3">3. 市场与股票接口</h2>
+<p>P0 不实现本章接口，只冻结结构与错误语义。所有响应使用 <code>market-data-envelope-v1</code> 信封，五份样本在 <code>tests/fixtures/upgrade/</code>：<code>market_ok.json</code>、<code>market_empty.json</code>、<code>market_error.json</code>、<code>market_stale.json</code>、<code>market_partial.json</code>。</p>
+<h3 id="30">3.0 信封与陈旧判定</h3>
+<p>信封最小字段：<code>status</code>（<code>ok | empty | error | stale</code>）、<code>source</code>、<code>as_of</code>、<code>fetched_at</code>、<code>is_stale</code>、<code>error_code</code>、<code>data</code>。完整定义见 Schema。</p>
+<p>三条不可混淆的规则：</p>
+<ol>
+<li><code>status = empty</code>：数据源正常响应但今天没有数据（非交易日、板块无成分股、新闻为空）。<code>data = null</code>，<code>error_code = null</code>，<code>as_of = null</code>。</li>
+<li><code>status = error</code>：数据源失败且无法给出可用数据。<code>data = null</code>，<code>error_code</code> 必填（数据源码），<code>as_of = null</code>。</li>
+<li><code>status = stale</code>：有数据但不可信或过期。<code>data</code> 非空，<code>as_of</code> 非空，<code>is_stale = true</code>，<code>stale_reason</code> 必填。</li>
+</ol>
+<p><code>is_stale</code> 恒等于 <code>status == "stale"</code>；保留该布尔字段是为了客户端不必做字符串比较。</p>
+<p><code>as_of</code> 的取值：单区块接口取该块的数据时间；多区块接口取主区块的时间（快照为 <code>quote</code>，市场概览为 <code>indices</code>），主区块不可用时取第一个可用区块。逐块时间始终在 <code>blocks</code> 里，顶层只是给列表和标题用。</p>
+<p>多区块接口（快照、市场概览）必须给 <code>blocks</code>，每块独立状态；部分成功用 <code>partial = true</code> 加 <code>failed_blocks</code> 表达，不能用总状态掩盖某一块的失败。合并规则：</p>
+<table>
+<thead>
+<tr>
+<th>各区块状态</th>
+<th>顶层 status</th>
+<th>partial</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>全部 ok</td>
+<td>ok</td>
+<td>false</td>
+</tr>
+<tr>
+<td>全部 empty</td>
+<td>empty</td>
+<td>false</td>
+</tr>
+<tr>
+<td>全部 error</td>
+<td>error</td>
+<td>false</td>
+</tr>
+<tr>
+<td>至少一个可用（ok/stale），其余 empty 或 error</td>
+<td>按可用区块：有 stale 则 stale，否则 ok</td>
+<td>有 empty/error 区块时为 true</td>
+</tr>
+<tr>
+<td>可用区块里 ok 与 stale 混合</td>
+<td>stale</td>
+<td>按需</td>
+</tr>
+</tbody>
+</table>
+<p><code>stale_reason</code> 枚举：<code>ttl_exceeded</code>（超过该接口的新鲜度阈值）、<code>trading_day_mismatch</code>（数据日期早于最近交易日）、<code>upstream_fallback</code>（用了备用数据源）。</p>
+<p>各接口的新鲜度阈值（超过即 stale，仍然返回数据）：</p>
+<table>
+<thead>
+<tr>
+<th>接口</th>
+<th>stale_after</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>股票搜索</td>
+<td>24 小时（名称表每日重建）</td>
+</tr>
+<tr>
+<td>快照·行情块</td>
+<td>60 秒</td>
+</tr>
+<tr>
+<td>快照·估值块</td>
+<td>4 小时</td>
+</tr>
+<tr>
+<td>快照·板块块</td>
+<td>24 小时</td>
+</tr>
+<tr>
+<td>日/周/月 K 线</td>
+<td>5 分钟</td>
+</tr>
+<tr>
+<td>分时（当日）</td>
+<td>30 秒</td>
+</tr>
+<tr>
+<td>分时（历史日期）</td>
+<td>1 小时</td>
+</tr>
+<tr>
+<td>个股新闻</td>
+<td>5 分钟</td>
+</tr>
+<tr>
+<td>市场概览·指数块</td>
+<td>10 秒</td>
+</tr>
+<tr>
+<td>市场概览·北向块</td>
+<td>30 秒</td>
+</tr>
+<tr>
+<td>行业排名</td>
+<td>5 分钟</td>
+</tr>
+<tr>
+<td>行业成分股</td>
+<td>2 分钟</td>
+</tr>
+<tr>
+<td>强势股</td>
+<td>1 小时</td>
+</tr>
+<tr>
+<td>资金流</td>
+<td>60 秒</td>
+</tr>
+<tr>
+<td>快讯</td>
+<td>2 分钟</td>
+</tr>
+</tbody>
+</table>
+<h3 id="31">3.1 股票搜索</h3>
+<pre><code class="language-text">GET /api/v1/market/search?q=宁德&amp;limit=10
+</code></pre>
+<p><code>data</code>：</p>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>类型</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>items</code></td>
+<td>array</td>
+<td><code>{ticker_code, ticker_name, market}</code>，market ∈ sh, sz, bj</td>
+</tr>
+<tr>
+<td><code>truncated</code></td>
+<td>bool</td>
+<td>命中数超过 limit 时为 true</td>
+</tr>
+</tbody>
+</table>
+<p>搜索不做消歧报错：多只命中时如实列出。消歧报错只发生在创建任务（1.3 的 <code>ticker_ambiguous</code>）。<code>q</code> 为空返回 <code>empty</code>，不报错。</p>
+<h3 id="32">3.2 个股快照</h3>
+<pre><code class="language-text">GET /api/v1/stocks/{ticker}/snapshot
+</code></pre>
+<p>三块：<code>quote</code>（腾讯实时）、<code>valuation</code>（一致预期 EPS、动态 PE、PEG、消化估值年数）、<code>sector_blocks</code>（百度行业/概念/地域）。</p>
+<p><code>data.quote</code> 字段沿用旧代码 <code>tencent_quote</code> 的键：<code>name, price, last_close, open, high, low, change_pct, change_amt, amount_wan, turnover_pct, pe_ttm, pb, amplitude_pct, float_mcap_yi, mcap_yi, limit_up</code>。</p>
+<p><code>data.valuation</code>：<code>eps_forecast</code>、<code>pe_forward</code>、<code>peg</code>、<code>pe_digestion_years</code>，任一无法计算时为 null，不用 0 或空字符串冒充。</p>
+<p><code>data.sector_blocks</code>：<code>{industry: [], concept: [], region: []}</code>，每项 <code>{name, change_pct, desc}</code>。</p>
+<p><code>data.units</code>：<code>{price: "元", amount: "万元", mcap: "亿元"}</code>。</p>
+<p>三块可分别 stale 或 error；例如行情块 ok、板块块超时，则顶层 <code>status = ok</code>、<code>partial = true</code>、<code>failed_blocks = ["sector_blocks"]</code>。</p>
+<h3 id="33-k">3.3 K 线与分时</h3>
+<pre><code class="language-text">GET /api/v1/stocks/{ticker}/kline?period=day&amp;limit=120
+GET /api/v1/stocks/{ticker}/intraday?date=2026-10-29
+</code></pre>
+<p>K 线参数：<code>period ∈ day | week | month</code>，<code>limit</code> 1–5000，默认 120。</p>
+<p>K 线 <code>data</code>：</p>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>类型</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>adjust</code></td>
+<td>string</td>
+<td>固定 <code>none</code>（不复权）；未来加复权必须新字段 <code>adjust_mode</code></td>
+</tr>
+<tr>
+<td><code>bars</code></td>
+<td>array</td>
+<td><code>{date, open, high, low, close, volume, amount}</code>，<code>date</code> 为 YYYY-MM-DD，按时间升序</td>
+</tr>
+<tr>
+<td><code>units</code></td>
+<td>object</td>
+<td><code>{price: "元", volume: "手", amount: "元"}</code></td>
+</tr>
+</tbody>
+</table>
+<p>分时 <code>date</code> 省略时取最近交易日。<code>data</code>：</p>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>类型</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>date</code></td>
+<td>string</td>
+<td>实际交易日，可能不同于请求日期（非交易日回退）</td>
+</tr>
+<tr>
+<td><code>points</code></td>
+<td>array</td>
+<td><code>{time: "HH:MM", price, volume, avg_price}</code>, <code>avg_price</code> 可为 null</td>
+</tr>
+<tr>
+<td><code>session_gaps</code></td>
+<td>array</td>
+<td>固定 <code>[["11:30", "13:00"]]</code>，前端据此断开午休</td>
+</tr>
+<tr>
+<td><code>units</code></td>
+<td>object</td>
+<td>同上</td>
+</tr>
+</tbody>
+</table>
+<p>历史分时超出数据源保留期时返回 <code>empty</code>，不是 <code>error</code>。</p>
+<h3 id="34">3.4 个股新闻与股票报告</h3>
+<pre><code class="language-text">GET /api/v1/stocks/{ticker}/news?limit=20
+GET /api/v1/stocks/{ticker}/reports?limit=20&amp;cursor=...
+</code></pre>
+<p>新闻 <code>data.items</code>：<code>{title, content, published_at, source, url}</code>，<code>data.untrusted = true</code>。字段内容一律视为不可信文本：前端只做纯文本渲染，不执行 HTML、不解析其中的 URL 协议以外的内容。</p>
+<p>股票报告与 <code>GET /api/v1/reports?ticker=</code> 同构，只是把 ticker 放进了路径。</p>
+<h3 id="35">3.5 市场概览</h3>
+<pre><code class="language-text">GET /api/v1/market/overview
+</code></pre>
+<p><code>data</code>：</p>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>类型</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>market_session</code></td>
+<td>enum: pre_open, trading, lunch_break, closed</td>
+<td>服务端按北京时间判定，前端不自己算</td>
+</tr>
+<tr>
+<td><code>indices</code></td>
+<td>array</td>
+<td><code>{code, name, price, change_pct, change_amt}</code>，固定三大指数</td>
+</tr>
+<tr>
+<td><code>northbound</code></td>
+<td>object 或 null</td>
+<td><code>{points: [{time, hgt_yi, sgt_yi}], latest: {hgt_yi, sgt_yi} 或 null}</code></td>
+</tr>
+</tbody>
+</table>
+<p>两块独立状态：指数正常、北向源失败时，顶层 ok + partial + <code>failed_blocks = ["northbound"]</code>。</p>
+<h3 id="36">3.6 行业、强势股、资金流、快讯</h3>
+<pre><code class="language-text">GET /api/v1/market/industries?top=20
+GET /api/v1/market/industries/{boardCode}/stocks?limit=10
+GET /api/v1/market/strong-stocks?date=2026-10-29
+GET /api/v1/stocks/{ticker}/fund-flow
+GET /api/v1/market/newsflash?limit=30
+</code></pre>
+<p>行业 <code>data</code>：<code>{top: [], bottom: [], total}</code>，行结构 <code>{rank, name, code, change_pct, up_count, down_count, leader, leader_change}</code>。<code>bottom</code> 为涨幅末位，按与 <code>top</code> 相同的排序规则反向取。</p>
+<p>行业成分股 <code>data.items</code>：<code>{code, name, price, change_pct}</code>，停牌等取不到价格时为 null。</p>
+<p>强势股 <code>data.items</code>：<code>{ticker_code, name, reason, market, change_pct, change_amt, close, turnover_pct}</code>。非交易日返回 <code>empty</code> 并附 <code>data = null</code>，界面文案「非交易日或盘后未更新」，不显示成加载失败。</p>
+<p>资金流 <code>data.items</code>：<code>{time, main_net, small_net, mid_net, large_net, super_net}</code>，单位元，按时间升序。</p>
+<p>快讯 <code>data.items</code>：<code>{title, content, published_at}</code>，<code>untrusted = true</code>。</p>
+<hr />
+<h2 id="4">4. 错误与安全边界</h2>
+<h3 id="41">4.1 错误体</h3>
+<p>非 2xx 响应统一：</p>
+<pre><code class="language-json">{
+  &quot;error&quot;: {
+    &quot;code&quot;: &quot;active_conflict&quot;,
+    &quot;message&quot;: &quot;该股票今日已有进行中的分析&quot;,
+    &quot;request_id&quot;: &quot;req_01J...&quot;,
+    &quot;details&quot;: {&quot;active_job_id&quot;: &quot;...&quot;}
+  }
+}
+</code></pre>
+<p><code>message</code> 是可直接展示给用户的安全文案；<code>details</code> 只放白名单字段（任务 id、字段名、允许值），不放内部异常文本。</p>
+<h3 id="42">4.2 安全规则（实现与测试都按此断言）</h3>
+<ol>
+<li>不返回服务端堆栈、异常类名、代码行号。</li>
+<li>不返回任何 API Key、环境变量、内部主机名。</li>
+<li>不返回文件系统路径；下载一律给 <code>/api/v1/...</code> 形式的 URL。</li>
+<li>不接受前端提交 <code>backend_url</code>、<code>api_key</code>、任意模型接口地址；模型与 Base URL 由服务端 <code>llm_profile</code> 白名单决定。</li>
+<li>报告正文与外部文本默认不可信：报告正文按清洗后的 markdown 传递，前端渲染必须禁用原始 HTML；新闻、快讯、题材归因标 <code>data.untrusted = true</code>，按纯文本渲染，不执行脚本、不自动加载外部图片。</li>
+<li>错误响应也带 <code>X-Request-Id</code>，与日志可对账。</li>
+</ol>
+<h3 id="43">4.3 前端不得推断的事项</h3>
+<ul>
+<li>不解析 <code>sections</code> 文本猜评级、目标价、止损：只用 <code>meta.rating / price_target / stop_reference / time_horizon</code>。</li>
+<li>不用 <code>status</code> 自己推按钮：只用 <code>allowed_actions</code>。</li>
+<li>不把 <code>empty</code> 当 <code>error</code>，不把 <code>stale</code> 当 <code>ok</code>：三者在信封里是三个值，文案见 <code>semantic-dictionary.md</code>。</li>
+<li>不在 SSE 断线时调用创建接口：重连只带 <code>Last-Event-ID</code>（见 <code>sse-events-v1.md</code>）。</li>
+</ul>
+<hr />
+<h2 id="5">5. 验收映射</h2>
+<table>
+<thead>
+<tr>
+<th>Day 4 验收项</th>
+<th>本契约对应条款</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>前端不读 LangGraph 原始对象即可做页面设计</td>
+<td>1.1 的 <code>stages</code> 与 <code>allowed_actions</code>、2.2 的 ReportDTO、3.x 的固定 <code>data</code> 结构</td>
+</tr>
+<tr>
+<td>所有付费动作有幂等规则</td>
+<td>1.3、1.7 强制 <code>Idempotency-Key</code>；判定顺序引用 <code>idempotency-conflicts.md</code></td>
+</tr>
+<tr>
+<td>报告读取接口明确无副作用</td>
+<td>2.2、2.3、2.6</td>
+</tr>
+<tr>
+<td>空、错误、陈旧不可混淆</td>
+<td>3.0 三条规则 + <code>market-data-envelope-v1.json</code> 的条件约束 + 五份样本</td>
+</tr>
+<tr>
+<td>SSE 重连没有创建任务语义</td>
+<td><code>sse-events-v1.md</code> 第 4 节；本契约 2.6 与 <code>idempotency-conflicts.md</code> 第 2 节</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="sse-events-v1"><h1>SSE 事件流契约 v1</h1>
+<p>日期：2026-10-29
+状态：冻结候选（Day 4 交付）
+配套：<code>api-v1.md</code>（JobDetail 字段）、<code>job-state-machine.md</code>（状态与转换）、<code>crash-boundaries.md</code>（B5 补发事件）、<code>error-codes-v1.md</code></p>
+<p>目标：任务页的进度、阶段、统计和完成通知只走一条只读事件流；断线重连只补历史，绝不产生新任务。</p>
+<hr />
+<h2 id="1">1. 端点与握手</h2>
+<pre><code class="language-text">GET /api/v1/jobs/{jobId}/events
+Accept: text/event-stream
+Last-Event-ID: 128        （可选，重连时带）
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>情况</th>
+<th>响应</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>正常订阅</td>
+<td>200，<code>Content-Type: text/event-stream; charset=utf-8</code>，<code>Cache-Control: no-cache</code>，<code>X-Accel-Buffering: no</code></td>
+</tr>
+<tr>
+<td><code>jobId</code> 不存在</td>
+<td>404 <code>job_not_found</code></td>
+</tr>
+<tr>
+<td>用 POST 或其他方法</td>
+<td>405 <code>method_not_allowed</code></td>
+</tr>
+<tr>
+<td><code>Accept</code> 不是事件流</td>
+<td>400 <code>invalid_request</code></td>
+</tr>
+<tr>
+<td><code>Last-Event-ID</code> 非整数</td>
+<td>400 <code>invalid_request</code></td>
+</tr>
+<tr>
+<td>游标超出保留窗口</td>
+<td>410 <code>sse_cursor_expired</code>（见第 4 节）</td>
+</tr>
+</tbody>
+</table>
+<p>一次连接只订阅一个任务，不做多任务复用。P0 无鉴权，跨域默认不开。</p>
+<hr />
+<h2 id="2">2. 帧格式</h2>
+<p>标准 SSE 帧，<code>data</code> 为单行 JSON：</p>
+<pre><code class="language-text">retry: 3000
+
+id: 128
+event: status_changed
+data: {&quot;seq&quot;:128,&quot;job_id&quot;:&quot;5b1c...&quot;,&quot;type&quot;:&quot;status_changed&quot;,&quot;at&quot;:&quot;2026-10-29T10:31:07+08:00&quot;,&quot;payload&quot;:{&quot;from&quot;:&quot;running&quot;,&quot;to&quot;:&quot;succeeded&quot;,&quot;reason&quot;:&quot;worker&quot;,&quot;detail&quot;:null,&quot;pending_action&quot;:null,&quot;error&quot;:null}}
+
+: ping
+</code></pre>
+<p>规则：</p>
+<ul>
+<li>每条事件帧的 <code>event</code> 行与 <code>data.type</code> 必须相同；客户端用哪个都行，二者不等即为服务端缺陷。</li>
+<li>除心跳外，每条事件的 <code>data</code> 都含五个字段：<code>seq</code>、<code>job_id</code>、<code>type</code>、<code>at</code>、<code>payload</code>。</li>
+<li><code>seq</code> 在同一个 job 内从 1 开始严格递增且连续，不跳号、不复用。</li>
+<li>心跳是一行注释 <code>: ping</code>，不占 <code>seq</code>，不影响 <code>Last-Event-ID</code>。</li>
+<li>服务端在流开始时先发 <code>retry: 3000</code>（毫秒），客户端按此间隔自动重连。</li>
+</ul>
+<hr />
+<h2 id="3">3. 六类事件</h2>
+<table>
+<thead>
+<tr>
+<th>type</th>
+<th>何时发</th>
+<th>载荷</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>snapshot</code></td>
+<td>连接建立、或重连后需要重建视图时，作为首帧</td>
+<td><code>{job: JobDetail, last_seq: int}</code></td>
+</tr>
+<tr>
+<td><code>stage_changed</code></td>
+<td>阶段开始、结束、失败、跳过</td>
+<td>见 3.1</td>
+</tr>
+<tr>
+<td><code>stats</code></td>
+<td>统计值变化且满足限频；终态前必发一条</td>
+<td>见 3.2</td>
+</tr>
+<tr>
+<td><code>status_changed</code></td>
+<td>任何状态转换（T01–T19、对账改判）</td>
+<td>见 3.3</td>
+</tr>
+<tr>
+<td><code>report_ready</code></td>
+<td>报告提交成功，紧跟在 succeeded 的 <code>status_changed</code> 之后</td>
+<td>见 3.4</td>
+</tr>
+<tr>
+<td><code>error</code></td>
+<td>传输层或服务端内部错误，不改变任务状态</td>
+<td>见 3.5</td>
+</tr>
+</tbody>
+</table>
+<h3 id="31-stage_changed">3.1 stage_changed</h3>
+<pre><code class="language-json">{
+  &quot;stage_id&quot;: &quot;news&quot;,
+  &quot;stage_name&quot;: &quot;新闻舆情&quot;,
+  &quot;stage_status&quot;: &quot;done&quot;,
+  &quot;index&quot;: 3,
+  &quot;total&quot;: 12,
+  &quot;started_at&quot;: &quot;2026-10-29T10:02:11+08:00&quot;,
+  &quot;finished_at&quot;: &quot;2026-10-29T10:06:48+08:00&quot;,
+  &quot;duration_ms&quot;: 277000
+}
+</code></pre>
+<p><code>stage_status</code> 枚举：<code>started | done | failed | skipped</code>。<code>skipped</code> 只来自阶段开关关闭，界面显示「已跳过」，不算失败。</p>
+<h3 id="32-stats">3.2 stats</h3>
+<pre><code class="language-json">{&quot;model_calls&quot;: 14, &quot;tokens_in&quot;: 182430, &quot;tokens_out&quot;: 41208, &quot;elapsed_ms&quot;: 612000}
+</code></pre>
+<h3 id="33-status_changed">3.3 status_changed</h3>
+<pre><code class="language-json">{
+  &quot;from&quot;: &quot;running&quot;,
+  &quot;to&quot;: &quot;pause_requested&quot;,
+  &quot;reason&quot;: &quot;user&quot;,
+  &quot;detail&quot;: &quot;pause&quot;,
+  &quot;pending_action&quot;: &quot;pause&quot;,
+  &quot;error&quot;: null
+}
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>reason</code></td>
+<td><code>user</code>（用户动作）、<code>worker</code>（执行推进）、<code>reconcile</code>（启动对账改判）</td>
+</tr>
+<tr>
+<td><code>detail</code></td>
+<td>补充说明，如 <code>lease_expired</code>、<code>checkpoint_missing</code>、<code>pause</code>、<code>cancel</code>；无则 null</td>
+</tr>
+<tr>
+<td><code>pending_action</code></td>
+<td>新状态对应的未决控制请求，没有则 null</td>
+</tr>
+<tr>
+<td><code>error</code></td>
+<td>仅 <code>to = failed</code> 时非空：<code>{code, message}</code>，安全文案</td>
+</tr>
+</tbody>
+</table>
+<h3 id="34-report_ready">3.4 report_ready</h3>
+<pre><code class="language-json">{&quot;report_id&quot;: &quot;7f2a...&quot;, &quot;content_hash&quot;: &quot;sha256:9c1e...&quot;, &quot;rating&quot;: &quot;Overweight&quot;, &quot;signal&quot;: &quot;Buy&quot;, &quot;url&quot;: &quot;/api/v1/reports/7f2a...&quot;}
+</code></pre>
+<p><code>rating</code> 与 <code>signal</code> 取自 ReportDTO 的 <code>meta</code>，前端不解析正文。</p>
+<h3 id="35-error">3.5 error</h3>
+<pre><code class="language-json">{&quot;code&quot;: &quot;internal_error&quot;, &quot;message&quot;: &quot;事件流暂时不可用&quot;, &quot;request_id&quot;: &quot;req_01J...&quot;, &quot;fatal&quot;: true}
+</code></pre>
+<p><code>fatal = true</code> 时服务端发完即关闭连接，客户端应 GET 一次任务详情重建视图；<code>fatal = false</code> 表示流仍可用，客户端不必重连。</p>
+<p>任务执行失败不走这里：那是 <code>status_changed</code> 到 <code>failed</code>，<code>payload.error</code> 带错误码。两者混用会让「任务失败」和「网络断了」在界面上分不清。</p>
+<hr />
+<h2 id="4">4. 首帧、续传与保留窗口</h2>
+<h3 id="41">4.1 首帧快照</h3>
+<p>不带 <code>Last-Event-ID</code> 连接时，服务端先发一条 <code>snapshot</code>：</p>
+<ul>
+<li><code>payload.job</code> 是完整的 JobDetail（含 12 个阶段），前端据此直接画出进度条与按钮。</li>
+<li><code>payload.last_seq</code> 是当前事件表的最大序号，没有事件时为 0。</li>
+<li><code>snapshot</code> 的 <code>seq</code> 等于 <code>last_seq</code>，不写入事件表、不推进序号。</li>
+</ul>
+<h3 id="42">4.2 断线续传</h3>
+<p>带 <code>Last-Event-ID: N</code> 重连：</p>
+<ol>
+<li>服务端从事件表补发 <code>seq &gt; N</code> 的所有事件，顺序按 <code>seq</code>。</li>
+<li>补发完毕再进入实时推送。</li>
+<li>若 <code>N</code> 小于保留窗口内最小序号减一，返回 410 <code>sse_cursor_expired</code>，客户端改用 <code>GET /api/v1/jobs/{jobId}</code> 重建视图。</li>
+</ol>
+<h3 id="43">4.3 保留窗口</h3>
+<ul>
+<li>每个 job 的事件保留 24 小时，或最近 2000 条，先到者为准。</li>
+<li>窗口外的 <code>Last-Event-ID</code> 一律 410，不猜、不跳过、不静默丢事件。</li>
+<li>对账补发的事件（如 B5 的 <code>report_ready</code>）在启动时分配新序号追加到尾部，不插入历史位置，因此序号始终连续。</li>
+</ul>
+<h3 id="44">4.4 终态任务的订阅</h3>
+<p>任务已到终态后再连接：服务端发一条 <code>snapshot</code> 后立即关闭。这是正常结束，不算错误。</p>
+<hr />
+<h2 id="5">5. 心跳与限频</h2>
+<table>
+<thead>
+<tr>
+<th>项</th>
+<th>规则</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>心跳</td>
+<td>无数据 15 秒发一次 <code>: ping</code>；有心跳不代表任务在推进，只代表连接活着</td>
+</tr>
+<tr>
+<td><code>stats</code> 限频</td>
+<td>同一 job 每 2 秒最多一条；期间多次变化合并为最后一条；值没变不发</td>
+</tr>
+<tr>
+<td>终态前的 stats</td>
+<td>必须发一条最终值，不受限频约束</td>
+</tr>
+<tr>
+<td>其他事件</td>
+<td>不合并、不丢弃；<code>status_changed</code> 与 <code>stage_changed</code> 必须逐条送达</td>
+</tr>
+</tbody>
+</table>
+<p>前端展示「上次更新 x 秒前」用 <code>stats</code> 或心跳时间都行，但不得把心跳当进度。</p>
+<hr />
+<h2 id="6">6. 终态关闭</h2>
+<p>进入任一终态后，服务端按固定顺序发完再关闭连接：</p>
+<ol>
+<li><code>stats</code>（最终值）</li>
+<li><code>status_changed</code>（到终态）</li>
+<li><code>report_ready</code>（仅 succeeded 且报告已提交）</li>
+<li>关闭连接，不再发心跳</li>
+</ol>
+<p>前端收到 EOF 后做一次 <code>GET /api/v1/jobs/{jobId}</code> 校验终态与 <code>report_id</code>，然后停止重连。若 EOF 后连不上，按普通断线处理，重连带 <code>Last-Event-ID</code>。</p>
+<p><code>cancelled / failed / interrupted</code> 不发 <code>report_ready</code>；阶段报告是否可读看 <code>report_id</code> 与报告列表，不在事件流里广播。</p>
+<hr />
+<h2 id="7">7. 重连不得创建任务（硬规则）</h2>
+<p>以下四条是验收项「SSE 重连没有创建任务语义」的落地条款：</p>
+<ol>
+<li>本端点只有 GET；POST 一律 405。</li>
+<li>订阅与续传只读事件表与 job 表，不写任何行（<code>idempotency-conflicts.md</code> 第 2 节）。</li>
+<li><code>Last-Event-ID</code> 只用于定位事件，不参与任何创建判定。</li>
+<li>410 <code>sse_cursor_expired</code> 的客户端动作固定为：读任务详情，不创建、不重试、不续跑。</li>
+</ol>
+<p>实现与测试按「订阅前后 job 表、事件表、报告表行数不变」断言。</p>
+<hr />
+<h2 id="8">8. 与状态机、崩溃边界的对应</h2>
+<table>
+<thead>
+<tr>
+<th>场景</th>
+<th>事件表现</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>用户点暂停</td>
+<td><code>status_changed</code> 到 <code>pause_requested</code>，<code>pending_action = pause</code>；阶段边界后 <code>status_changed</code> 到 <code>paused</code></td>
+</tr>
+<tr>
+<td>用户点取消，收尾期间图完成（T14）</td>
+<td><code>status_changed</code> 到 <code>succeeded</code>，<code>detail = cancel_noop</code>，界面提示「任务在取消请求到达前已完成」</td>
+</tr>
+<tr>
+<td>服务重启对账（T16–T18）</td>
+<td>重连首帧 <code>snapshot</code> 即为 <code>interrupted</code>；随后 <code>status_changed</code> 的 <code>reason = reconcile</code></td>
+</tr>
+<tr>
+<td>B3 发现未登记阶段产物</td>
+<td><code>status_changed</code> 到 <code>interrupted</code> 之后补一条 <code>error</code>，<code>code</code> 用 <code>reconcile_note</code>，<code>fatal = false</code></td>
+</tr>
+<tr>
+<td>B5 报告已提交、完成事件未发</td>
+<td>启动时补发 <code>report_ready</code>（新序号），重连客户端从 <code>Last-Event-ID</code> 之后拿到</td>
+</tr>
+<tr>
+<td>任务已终态再订阅</td>
+<td><code>snapshot</code> 后立即关闭</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="error-codes-v1"><h1>错误响应字典 v1</h1>
+<p>日期：2026-10-29
+状态：冻结候选（Day 4 交付）
+配套：<code>api-v1.md</code>、<code>market-data-envelope-v1.json</code></p>
+<p>两条出口，不要混用：</p>
+<ul>
+<li><strong>接口错误</strong>：请求不合法、对象不存在、状态冲突、服务端故障。用 HTTP 4xx/5xx + 错误体。</li>
+<li><strong>数据源错误</strong>：接口本身正常，但某个数据源取不到数据。用 HTTP 200 + 信封 <code>status = error</code>，<code>error_code</code> 取第 4 节的源码。这样前端能区分「后端坏了」和「这只票今天没数据」。</li>
+</ul>
+<hr />
+<h2 id="1">1. 错误体形状</h2>
+<pre><code class="language-json">{
+  &quot;error&quot;: {
+    &quot;code&quot;: &quot;active_conflict&quot;,
+    &quot;message&quot;: &quot;该股票今日已有进行中的分析&quot;,
+    &quot;request_id&quot;: &quot;req_01J8Z3K4&quot;,
+    &quot;details&quot;: {&quot;active_job_id&quot;: &quot;5b1c...&quot;}
+  }
+}
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>字段</th>
+<th>必需</th>
+<th>规则</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>code</code></td>
+<td>是</td>
+<td>本文件第 2、4 节的枚举值，机器判定用</td>
+</tr>
+<tr>
+<td><code>message</code></td>
+<td>是</td>
+<td>可直接展示的中文安全文案；同码文案固定，不做变量拼接以外的拼装</td>
+</tr>
+<tr>
+<td><code>request_id</code></td>
+<td>是</td>
+<td>与响应头 <code>X-Request-Id</code> 相同，日志可对账</td>
+</tr>
+<tr>
+<td><code>details</code></td>
+<td>否</td>
+<td>白名单字段：对象 id、字段名、允许值、冲突任务 id。禁止异常文本、堆栈、路径、密钥</td>
+</tr>
+</tbody>
+</table>
+<p><code>details</code> 里允许出现的键只有：<code>job_id</code>、<code>report_id</code>、<code>export_id</code>、<code>active_job_id</code>、<code>field</code>、<code>allowed_values</code>、<code>candidates</code>、<code>from</code>、<code>to</code>、<code>rule</code>、<code>retry_after_ms</code>。多一个键即视为契约违规。</p>
+<hr />
+<h2 id="2">2. 接口错误码</h2>
+<table>
+<thead>
+<tr>
+<th>code</th>
+<th>HTTP</th>
+<th>触发条件</th>
+<th>安全文案</th>
+<th>客户端动作</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>invalid_request</code></td>
+<td>400</td>
+<td>JSON 解析失败、类型不对、超出长度上限</td>
+<td>请求格式不正确</td>
+<td>修请求；不要重试</td>
+</tr>
+<tr>
+<td><code>idempotency_key_required</code></td>
+<td>400</td>
+<td>创建任务或重试未带 <code>Idempotency-Key</code></td>
+<td>缺少幂等键</td>
+<td>生成 UUID 后重发</td>
+</tr>
+<tr>
+<td><code>method_not_allowed</code></td>
+<td>405</td>
+<td>方法不对，如对 SSE 端点发 POST</td>
+<td>不支持该请求方法</td>
+<td>修调用</td>
+</tr>
+<tr>
+<td><code>job_not_found</code></td>
+<td>404</td>
+<td>job id 不存在</td>
+<td>没有找到这个任务</td>
+<td>回任务列表；不要自动创建</td>
+</tr>
+<tr>
+<td><code>report_not_found</code></td>
+<td>404</td>
+<td>report id 不存在</td>
+<td>没有找到这份报告</td>
+<td>回报告列表</td>
+</tr>
+<tr>
+<td><code>export_not_found</code></td>
+<td>404</td>
+<td>export id 不存在</td>
+<td>没有找到这个导出任务</td>
+<td>重新发起导出</td>
+</tr>
+<tr>
+<td><code>sse_cursor_expired</code></td>
+<td>410</td>
+<td>重连的 <code>Last-Event-ID</code> 早于事件保留窗口</td>
+<td>事件流已过期，请刷新任务页</td>
+<td>用 GET 任务详情重建页面，<strong>不创建任务</strong></td>
+</tr>
+<tr>
+<td><code>idempotency_mismatch</code></td>
+<td>409</td>
+<td>同一幂等键提交了不同请求体</td>
+<td>该请求与之前的提交不一致</td>
+<td>换新幂等键，或复用原请求体</td>
+</tr>
+<tr>
+<td><code>active_conflict</code></td>
+<td>409</td>
+<td>同票同日已有活动任务且配置不同</td>
+<td>该股票今日已有进行中的分析</td>
+<td>等它结束，或先取消</td>
+</tr>
+<tr>
+<td><code>illegal_transition</code></td>
+<td>409</td>
+<td>当前状态不允许该动作，对应 I01–I11</td>
+<td>当前状态不支持这个操作</td>
+<td>刷新任务详情，按 <code>allowed_actions</code> 重画按钮</td>
+</tr>
+<tr>
+<td><code>resume_fingerprint_mismatch</code></td>
+<td>409</td>
+<td>续跑时配置指纹或图版本不一致</td>
+<td>配置已变化，无法从检查点继续</td>
+<td>只给「重新分析」</td>
+</tr>
+<tr>
+<td><code>export_not_ready</code></td>
+<td>409</td>
+<td>导出尚未 ready 时请求文件</td>
+<td>导出尚未完成</td>
+<td>轮询导出状态</td>
+</tr>
+<tr>
+<td><code>ticker_unresolved</code></td>
+<td>422</td>
+<td>代码或名称解析不到</td>
+<td>找不到这只股票</td>
+<td>改输入；搜索接口可给候选</td>
+</tr>
+<tr>
+<td><code>ticker_ambiguous</code></td>
+<td>422</td>
+<td>中文名匹配到多只</td>
+<td>匹配到多只股票，请选择一只</td>
+<td>用 <code>details.candidates</code> 让用户选</td>
+</tr>
+<tr>
+<td><code>invalid_date</code></td>
+<td>422</td>
+<td>日期格式错误或晚于今天</td>
+<td>分析日期不正确</td>
+<td>修日期</td>
+</tr>
+<tr>
+<td><code>config_unknown_key</code></td>
+<td>422</td>
+<td><code>config</code> 出现白名单外键</td>
+<td>不支持的配置项</td>
+<td>删掉该键；服务端配置不可由前端提交</td>
+</tr>
+<tr>
+<td><code>config_invalid_value</code></td>
+<td>422</td>
+<td>枚举值非法</td>
+<td>配置取值不支持</td>
+<td>按 <code>details.allowed_values</code> 修</td>
+</tr>
+<tr>
+<td><code>rate_limited</code></td>
+<td>429</td>
+<td>超出并发或频率上限</td>
+<td>操作太频繁，请稍后再试</td>
+<td>按 <code>details.retry_after_ms</code> 退避</td>
+</tr>
+<tr>
+<td><code>internal_error</code></td>
+<td>500</td>
+<td>未预期异常</td>
+<td>服务暂时不可用</td>
+<td>重试一次，仍失败则报 request id</td>
+</tr>
+<tr>
+<td><code>not_implemented</code></td>
+<td>501</td>
+<td>P0 未实现的市场接口</td>
+<td>该功能尚未开放</td>
+<td>显示「建设中」，不重试</td>
+</tr>
+<tr>
+<td><code>upstream_error</code></td>
+<td>502</td>
+<td>服务端依赖的外部服务报错，且无降级数据</td>
+<td>数据服务暂时不可用</td>
+<td>稍后重试</td>
+</tr>
+<tr>
+<td><code>upstream_timeout</code></td>
+<td>504</td>
+<td>外部服务超时，且无降级数据</td>
+<td>数据服务响应超时</td>
+<td>稍后重试</td>
+</tr>
+<tr>
+<td><code>unauthorized</code></td>
+<td>401</td>
+<td>预留：未来启用鉴权后使用</td>
+<td>未授权</td>
+<td>重新登录</td>
+</tr>
+</tbody>
+</table>
+<p>注意：数据源失败如果发生在市场接口内部，优先用 HTTP 200 + 信封表达（第 4 节），不要用 502/504 顶替。502/504 只用于「整个接口都拿不到任何可用数据，且无法形成信封」的极端情况。</p>
+<hr />
+<h2 id="3">3. 状态冲突与转换编号</h2>
+<p><code>illegal_transition</code> 的 <code>details.rule</code> 取 <code>job-state-machine.md</code> 的编号：</p>
+<ul>
+<li>I01–I11：非法状态转换，任何入口一律 409。</li>
+<li><code>paused → cancelled</code> 走 I11，必须先 <code>cancel_requested</code> 再收尾。</li>
+<li>重复提交同一控制动作不算非法转换：返回 200 <code>accepted = false, reason = already_pending</code>（见 <code>api-v1.md</code> 1.6）。</li>
+</ul>
+<hr />
+<h2 id="4-error_code">4. 数据源错误码（信封内 <code>error_code</code>）</h2>
+<table>
+<thead>
+<tr>
+<th>code</th>
+<th>含义</th>
+<th>典型来源</th>
+<th>顶层 status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>upstream_timeout</code></td>
+<td>数据源超时</td>
+<td>mootdx / 腾讯 / 东财 / 同花顺</td>
+<td>error</td>
+</tr>
+<tr>
+<td><code>upstream_error</code></td>
+<td>数据源返回错误或非预期结构</td>
+<td>同上</td>
+<td>error</td>
+</tr>
+<tr>
+<td><code>upstream_rate_limited</code></td>
+<td>数据源限流</td>
+<td>东财、同花顺</td>
+<td>error</td>
+</tr>
+<tr>
+<td><code>data_parse_error</code></td>
+<td>数据源有响应但字段解析失败</td>
+<td>腾讯行情、东财资金流</td>
+<td>error</td>
+</tr>
+</tbody>
+</table>
+<p>四个码都允许出现在区块级（<code>blocks.*.error_code</code>）。顶层 <code>status = error</code> 时顶层 <code>error_code</code> 必填；顶层 <code>status</code> 为 ok / empty / stale 时顶层 <code>error_code</code> 必须为 null，失败信息只留在 <code>blocks</code> 里。</p>
+<p><code>stale_reason</code> 不属于错误码，取值见 <code>api-v1.md</code> 3.0：<code>ttl_exceeded</code>、<code>trading_day_mismatch</code>、<code>upstream_fallback</code>。</p>
+<hr />
+<h2 id="5">5. 不许出现的内容（实现与测试断言）</h2>
+<p>错误体与信封的任何字符串字段都不得包含：</p>
+<ol>
+<li>Python 堆栈特征：<code>Traceback (most recent call last)</code>、<code>File "</code>、<code>line</code>。</li>
+<li>密钥特征：<code>sk-</code>、<code>api_key</code>、<code>Authorization</code>、<code>token=</code>。</li>
+<li>路径特征：Windows 盘符路径、<code>/home/</code>、<code>/Users/</code>、<code>C:\</code>。</li>
+<li>内部主机名或 IP 直连地址。</li>
+</ol>
+<p><code>tests/test_upgrade_market_envelope.py</code> 对五份样本做这四项扫描；服务端实现阶段加同一份断言的集成测试。</p>
 </section>
 </article></body></html>
