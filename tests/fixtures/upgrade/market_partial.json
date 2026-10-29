@@ -1,0 +1,44 @@
+{
+  "schema_version": "market-envelope-v1",
+  "status": "ok",
+  "source": "mixed",
+  "as_of": "2026-10-29T10:15:00+08:00",
+  "fetched_at": "2026-10-29T10:15:01+08:00",
+  "is_stale": false,
+  "stale_reason": null,
+  "error_code": null,
+  "error_message": null,
+  "partial": true,
+  "failed_blocks": ["northbound"],
+  "blocks": {
+    "indices": {
+      "status": "ok",
+      "source": "tencent",
+      "as_of": "2026-10-29T10:15:00+08:00",
+      "fetched_at": "2026-10-29T10:15:01+08:00",
+      "is_stale": false,
+      "stale_reason": null,
+      "error_code": null,
+      "error_message": null
+    },
+    "northbound": {
+      "status": "error",
+      "source": "hexin",
+      "as_of": null,
+      "fetched_at": "2026-10-29T10:15:01+08:00",
+      "is_stale": false,
+      "stale_reason": null,
+      "error_code": "upstream_error",
+      "error_message": "数据服务暂时不可用"
+    }
+  },
+  "data": {
+    "market_session": "trading",
+    "indices": [
+      {"code": "000001", "name": "上证指数", "price": 3412.66, "change_pct": 0.42, "change_amt": 14.28},
+      {"code": "399001", "name": "深证成指", "price": 11086.31, "change_pct": 0.67, "change_amt": 73.82},
+      {"code": "399006", "name": "创业板指", "price": 2287.54, "change_pct": 0.91, "change_amt": 20.63}
+    ],
+    "northbound": null
+  }
+}

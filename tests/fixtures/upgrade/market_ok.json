@@ -1,0 +1,85 @@
+{
+  "schema_version": "market-envelope-v1",
+  "status": "ok",
+  "source": "mixed",
+  "as_of": "2026-10-29T10:15:03+08:00",
+  "fetched_at": "2026-10-29T10:15:04+08:00",
+  "is_stale": false,
+  "stale_reason": null,
+  "error_code": null,
+  "error_message": null,
+  "partial": false,
+  "failed_blocks": [],
+  "blocks": {
+    "quote": {
+      "status": "ok",
+      "source": "tencent",
+      "as_of": "2026-10-29T10:15:03+08:00",
+      "fetched_at": "2026-10-29T10:15:04+08:00",
+      "is_stale": false,
+      "stale_reason": null,
+      "error_code": null,
+      "error_message": null
+    },
+    "valuation": {
+      "status": "ok",
+      "source": "ths",
+      "as_of": "2026-10-28T18:00:00+08:00",
+      "fetched_at": "2026-10-29T10:15:04+08:00",
+      "is_stale": false,
+      "stale_reason": null,
+      "error_code": null,
+      "error_message": null
+    },
+    "sector_blocks": {
+      "status": "ok",
+      "source": "baidu",
+      "as_of": "2026-10-29T09:20:00+08:00",
+      "fetched_at": "2026-10-29T10:15:04+08:00",
+      "is_stale": false,
+      "stale_reason": null,
+      "error_code": null,
+      "error_message": null
+    }
+  },
+  "data": {
+    "ticker_code": "300750",
+    "quote": {
+      "name": "宁德时代",
+      "price": 186.42,
+      "last_close": 183.9,
+      "open": 184.5,
+      "high": 187.1,
+      "low": 183.8,
+      "change_pct": 1.37,
+      "change_amt": 2.52,
+      "amount_wan": 428615.0,
+      "turnover_pct": 0.62,
+      "pe_ttm": 21.3,
+      "pb": 3.84,
+      "amplitude_pct": 1.8,
+      "float_mcap_yi": 7284.5,
+      "mcap_yi": 8195.0,
+      "limit_up": 202.29
+    },
+    "valuation": {
+      "eps_forecast": 9.62,
+      "pe_forward": 19.38,
+      "peg": 1.08,
+      "pe_digestion_years": 0.0
+    },
+    "sector_blocks": {
+      "industry": [
+        {"name": "电池", "change_pct": 0.94, "desc": "动力电池与储能电池制造"}
+      ],
+      "concept": [
+        {"name": "储能", "change_pct": 1.21, "desc": "储能电芯与系统集成"},
+        {"name": "新能源汽车", "change_pct": 0.76, "desc": "新能源整车产业链"}
+      ],
+      "region": [
+        {"name": "福建板块", "change_pct": 0.41, "desc": "福建省上市公司"}
+      ]
+    },
+    "units": {"price": "元", "amount": "万元", "mcap": "亿元"}
+  }
+}

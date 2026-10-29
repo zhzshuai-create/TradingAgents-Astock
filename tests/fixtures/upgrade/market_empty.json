@@ -1,0 +1,14 @@
+{
+  "schema_version": "market-envelope-v1",
+  "status": "empty",
+  "source": "ths",
+  "as_of": null,
+  "fetched_at": "2026-10-25T10:02:11+08:00",
+  "is_stale": false,
+  "stale_reason": null,
+  "error_code": null,
+  "error_message": null,
+  "partial": false,
+  "failed_blocks": [],
+  "data": null
+}

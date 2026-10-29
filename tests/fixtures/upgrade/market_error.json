@@ -1,0 +1,14 @@
+{
+  "schema_version": "market-envelope-v1",
+  "status": "error",
+  "source": "mootdx",
+  "as_of": null,
+  "fetched_at": "2026-10-29T10:16:40+08:00",
+  "is_stale": false,
+  "stale_reason": null,
+  "error_code": "upstream_timeout",
+  "error_message": "数据服务响应超时",
+  "partial": false,
+  "failed_blocks": [],
+  "data": null
+}

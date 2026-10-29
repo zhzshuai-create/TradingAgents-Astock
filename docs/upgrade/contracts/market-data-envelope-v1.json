@@ -1,0 +1,184 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "market-data-envelope-v1.json",
+  "title": "AStock Pro 市场数据信封 v1",
+  "description": "所有市场与股票接口的统一响应外壳。四态 ok/empty/error/stale 互斥；多区块接口用 blocks 与 partial 表达部分成功。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "status",
+    "source",
+    "as_of",
+    "fetched_at",
+    "is_stale",
+    "stale_reason",
+    "error_code",
+    "error_message",
+    "partial",
+    "failed_blocks",
+    "data"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "market-envelope-v1"
+    },
+    "status": {
+      "enum": ["ok", "empty", "error", "stale"]
+    },
+    "source": {
+      "type": "string",
+      "minLength": 1,
+      "description": "数据来源标识；多源聚合写 mixed"
+    },
+    "as_of": {
+      "type": ["string", "null"],
+      "description": "数据自身时间：ISO8601 时间点，或日线等只有日期时的 YYYY-MM-DD。ok/stale 必填，empty/error 必须为 null"
+    },
+    "fetched_at": {
+      "type": "string",
+      "minLength": 10,
+      "description": "服务端取数时间，ISO8601 带时区"
+    },
+    "is_stale": {
+      "type": "boolean",
+      "description": "恒等于 status == stale"
+    },
+    "stale_reason": {
+      "enum": ["ttl_exceeded", "trading_day_mismatch", "upstream_fallback", null],
+      "description": "status == stale 时必填"
+    },
+    "error_code": {
+      "type": ["string", "null"],
+      "description": "数据源码，取值见 error-codes-v1.md 第 4 节；status == error 时必填"
+    },
+    "error_message": {
+      "type": ["string", "null"],
+      "description": "安全文案，不含堆栈、路径、密钥"
+    },
+    "partial": {
+      "type": "boolean",
+      "description": "多区块接口里有区块处于 empty 或 error，但整体仍有可用数据"
+    },
+    "failed_blocks": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "处于 empty 或 error 的区块名；partial 为 true 时非空"
+    },
+    "blocks": {
+      "type": "object",
+      "description": "多区块接口的逐块状态；单区块接口可省略",
+      "additionalProperties": {"$ref": "#/$defs/block"}
+    },
+    "data": {
+      "type": ["object", "array", "null"],
+      "description": "ok/stale 时必须非 null；empty/error 时必须为 null"
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"status": {"const": "error"}}, "required": ["status"]},
+      "then": {
+        "properties": {
+          "error_code": {"type": "string", "minLength": 1},
+          "error_message": {"type": "string", "minLength": 1},
+          "data": {"type": "null"},
+          "as_of": {"type": "null"},
+          "is_stale": {"const": false},
+          "stale_reason": {"type": "null"}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"status": {"const": "empty"}}, "required": ["status"]},
+      "then": {
+        "properties": {
+          "error_code": {"type": "null"},
+          "error_message": {"type": "null"},
+          "data": {"type": "null"},
+          "as_of": {"type": "null"},
+          "is_stale": {"const": false},
+          "stale_reason": {"type": "null"}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"status": {"const": "ok"}}, "required": ["status"]},
+      "then": {
+        "properties": {
+          "error_code": {"type": "null"},
+          "error_message": {"type": "null"},
+          "data": {"not": {"type": "null"}},
+          "as_of": {"type": "string", "minLength": 4},
+          "is_stale": {"const": false},
+          "stale_reason": {"type": "null"}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"status": {"const": "stale"}}, "required": ["status"]},
+      "then": {
+        "properties": {
+          "error_code": {"type": "null"},
+          "error_message": {"type": "null"},
+          "data": {"not": {"type": "null"}},
+          "as_of": {"type": "string", "minLength": 4},
+          "is_stale": {"const": true},
+          "stale_reason": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"partial": {"const": true}}, "required": ["partial"]},
+      "then": {"properties": {"failed_blocks": {"minItems": 1}}},
+      "else": {"properties": {"failed_blocks": {"maxItems": 0}}}
+    }
+  ],
+  "$defs": {
+    "block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "source", "as_of", "fetched_at", "is_stale", "stale_reason", "error_code", "error_message"],
+      "properties": {
+        "status": {"enum": ["ok", "empty", "error", "stale"]},
+        "source": {"type": "string", "minLength": 1},
+        "as_of": {"type": ["string", "null"]},
+        "fetched_at": {"type": "string", "minLength": 10},
+        "is_stale": {"type": "boolean"},
+        "stale_reason": {"enum": ["ttl_exceeded", "trading_day_mismatch", "upstream_fallback", null]},
+        "error_code": {"type": ["string", "null"]},
+        "error_message": {"type": ["string", "null"]}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"status": {"const": "error"}}, "required": ["status"]},
+          "then": {
+            "properties": {
+              "error_code": {"type": "string", "minLength": 1},
+              "error_message": {"type": "string", "minLength": 1}
+            }
+          }
+        },
+        {
+          "if": {"properties": {"status": {"enum": ["ok", "stale", "empty"]}}, "required": ["status"]},
+          "then": {"properties": {"error_code": {"type": "null"}, "error_message": {"type": "null"}}}
+        },
+        {
+          "if": {"properties": {"status": {"const": "stale"}}, "required": ["status"]},
+          "then": {
+            "properties": {
+              "is_stale": {"const": true},
+              "stale_reason": {"type": "string", "minLength": 1}
+            }
+          },
+          "else": {
+            "properties": {
+              "is_stale": {"const": false},
+              "stale_reason": {"type": "null"}
+            }
+          }
+        }
+      ]
+    }
+  }
+}
