@@ -113,6 +113,8 @@ Idempotency-Key: <uuid>        （必需）
 | `analysis_date` | 是 | 不接受未来日期，报 422 `invalid_date` |
 | `config` | 是 | 只允许白名单键：`llm_profile`、`parallel_analysts`、`stage_toggles`。多一个键报 422 `config_unknown_key` |
 | `config.llm_profile` | 是 | 服务端预置配置的 id，如 `deepseek-default`；非法值报 422 `config_invalid_value` 并返回允许值 |
+| `config.parallel_analysts` | 否 | 缺省取服务端默认值 |
+| `config.stage_toggles` | 否 | 缺省全部开启；关掉的阶段在 `stages` 里显示 `skipped` |
 
 客户端不能提交 `backend_url`、`api_key`、模型名以外的服务端配置——这三类一律按 `config_unknown_key` 拒绝。
 
@@ -211,7 +213,9 @@ Idempotency-Key: <uuid>        （必需）
 | `mode` | 适用状态 | 新 job 字段 | 原 job |
 | --- | --- | --- | --- |
 | `same_config` | failed, interrupted, succeeded | `retry_of_job_id = 原 id`，配置取原 job 深拷贝 | 保持原终态 |
-| `resume_from_checkpoint` | interrupted, paused 且指纹匹配 | `resume_of_job_id = 原 id`，`resume_from_stage` = 首个未完成阶段 | 保持原终态 |
+| `resume_from_checkpoint` | interrupted | `resume_of_job_id = 原 id`，`resume_from_stage` = 首个未完成阶段 | 保持 `interrupted` |
+
+`paused` 的「继续」不走本接口，走 1.6 的 `resume` 动作：同一个 job、同一个 id，这是暂停与中断的关键区别。暂停状态下检查点缺失时，对账已把它改判 `interrupted`，届时才用 `resume_from_checkpoint`。
 
 - 该接口会产生新的模型费用，因此必须带 `Idempotency-Key`，判定顺序与 1.3 相同。
 - `resume_from_checkpoint` 时 `config_digest` 或 `graph_version` 不匹配，返回 409 `resume_fingerprint_mismatch`，界面只给「重新分析」。
@@ -431,7 +435,7 @@ K 线 `data`：
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
 | `adjust` | string | 固定 `none`（不复权）；未来加复权必须新字段 `adjust_mode` |
-| `bars` | array | `{date, open, high, low, close, volume, amount}`，`date` 为 YYYY-MM-DD，按时间升序 |
+| `bars` | array | `{date, open, high, low, close, volume, amount}`，`date` 为 YYYY-MM-DD，按时间升序；`amount` 取不到时为 null |
 | `units` | object | `{price: "元", volume: "手", amount: "元"}` |
 
 分时 `date` 省略时取最近交易日。`data`：
