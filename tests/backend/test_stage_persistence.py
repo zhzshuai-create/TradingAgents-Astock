@@ -206,7 +206,8 @@ def _client(env) -> TestClient:
 
 def test_gf03_full_run_persists_24_stage_events_and_13_stats(env):
     job_id = _create_job(env)
-    job, result = _run_worker(env)
+    outcome = _run_worker(env)
+    result = outcome.result
 
     events = _events(env, job_id)
     assert [event.type for event in events if event.seq is None] == ["created"]
@@ -359,7 +360,7 @@ def test_gf13_b3_report_written_without_done_event(env):
 def test_sm03_stage_reports_match_the_fake_graph_output(env):
     expected = _fake_stage_texts()
     job_id = _create_job(env)
-    _job, result = _run_worker(env)
+    result = _run_worker(env).result
 
     rows = _stage_rows(env, job_id)
     for spec in fake.STAGES:

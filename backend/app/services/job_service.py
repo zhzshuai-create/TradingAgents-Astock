@@ -1,4 +1,4 @@
-"""Job lifecycle writes: creation, stage boundaries, stats and audit notes.
+"""Job lifecycle writes: creation, control requests, stage boundaries and stats.
 
 Creation is the single write path for POST /api/v1/jobs and follows
 idempotency-conflicts.md section 1. Concurrent creates are decided by the
@@ -6,6 +6,12 @@ uniq_active_fingerprint partial index, not by a read-before-write check: a
 losing insert retries and re-reads the winner. Every key that resolves to a
 job is recorded, including keys that hit step 3 against an already-active
 job, so a later replay compares at step 2.
+
+Control actions (P1-08) are accepted asynchronously: pause and cancel write a
+pending marker and take effect at the next stage boundary; resume either
+re-attaches a live idle worker (T09) or queues the checkpoint (T10). Illegal
+requests write a ``transition_rejected`` audit record with ``seq`` NULL, so
+the replayable stream stays gapless.
 
 Stage methods commit one boundary at a time (P1-07): the stage row, its
 stage_changed event and the cumulative stats event land together, so a crash
@@ -21,7 +27,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
-from sqlalchemy import Engine, select
+from sqlalchemy import Engine, select, update
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import Session
 
@@ -30,6 +36,7 @@ from backend.app.models.event import JobEvent
 from backend.app.models.idempotency import JobIdempotencyKey
 from backend.app.models.job import ACTIVE_STATUSES, Job
 from backend.app.models.stage import STAGE_IDS, STAGE_NAMES, JobStage
+from backend.app.models.worker_lease import LEASE_ROW_ID, WorkerLease
 from backend.app.services.config_snapshot import (
     InvalidConfigValue,
     UnknownConfigKey,
@@ -48,6 +55,7 @@ from backend.app.services.tickers import (
 CST = timezone(timedelta(hours=8))
 MAX_ATTEMPTS = 3
 REQUEST_KEYS = ("ticker", "analysis_date", "config")
+CONTROL_ACTIONS = ("pause", "resume", "cancel")
 
 
 class JobCreateError(Exception):
@@ -73,6 +81,32 @@ class JobCreateError(Exception):
             "active_job_id": active_job_id,
         }
         self.details = {key: value for key, value in details.items() if value is not None}
+
+
+class JobControlError(Exception):
+    """A rejected control action, carrying the contract error and details."""
+
+    def __init__(
+        self,
+        code: str,
+        *,
+        status_code: int | None = None,
+        details: dict[str, Any] | None = None,
+    ) -> None:
+        super().__init__(code)
+        self.code = code
+        self.status_code = status_code or (404 if code == "job_not_found" else 409)
+        self.details = details or {}
+
+
+@dataclass(frozen=True)
+class ControlOutcome:
+    status_code: int
+    job: Job
+    accepted: bool
+    action: str
+    accepted_at: str | None = None
+    reason: str | None = None
 
 
 @dataclass(frozen=True)
@@ -399,6 +433,440 @@ class JobService:
             raise JobCreateError("invalid_date")
         if parsed > self._clock().astimezone(CST).date():
             raise JobCreateError("invalid_date")
+
+    # -- control actions ------------------------------------------------
+    def control(self, job_id: str, action: str) -> ControlOutcome:
+        if action == "pause":
+            return self.request_pause(job_id)
+        if action == "resume":
+            return self.request_resume(job_id)
+        if action == "cancel":
+            return self.request_cancel(job_id)
+        raise JobControlError(
+            "invalid_request", status_code=400, details={"field": "action"}
+        )
+
+    def request_pause(self, job_id: str) -> ControlOutcome:
+        """T05: record the pause marker; the worker lands it at a boundary."""
+        now = self._now()
+        for _ in range(MAX_ATTEMPTS):
+            with Session(self._engine, expire_on_commit=False) as session:
+                job = session.get(Job, job_id)
+                if job is None:
+                    raise JobControlError("job_not_found", status_code=404)
+                status = job.status
+                if status == "pause_requested":
+                    return ControlOutcome(
+                        200, job, False, "pause", reason="already_pending"
+                    )
+                if status != "running":
+                    rule = {"queued": "I06", "cancel_requested": "I07"}.get(status)
+                    self._record_rejection(session, job, "pause", rule, now)
+                    raise JobControlError(
+                        "illegal_transition",
+                        details={"from": status, "action": "pause", "rule": rule},
+                    )
+
+                result = session.execute(
+                    update(Job)
+                    .where(Job.id == job_id, Job.status == "running")
+                    .values(
+                        status="pause_requested",
+                        pending_action="pause",
+                        updated_at=now,
+                    )
+                )
+                if result.rowcount != 1:
+                    session.rollback()
+                    continue
+                self._append_status(
+                    session,
+                    job_id,
+                    from_status="running",
+                    to_status="pause_requested",
+                    reason="user",
+                    detail="pause",
+                    pending_action="pause",
+                    created_at=now,
+                )
+                session.commit()
+                job = session.get(Job, job_id, populate_existing=True)
+                return ControlOutcome(202, job, True, "pause", accepted_at=now)
+        raise JobControlError("internal_error", status_code=500)
+
+    def request_resume(self, job_id: str) -> ControlOutcome:
+        """T09 (worker idle) or T10 (worker busy): resume the same job."""
+        now = self._now()
+        for _ in range(MAX_ATTEMPTS):
+            with Session(self._engine, expire_on_commit=False) as session:
+                job = session.get(Job, job_id)
+                if job is None:
+                    raise JobControlError("job_not_found", status_code=404)
+                status = job.status
+                if status != "paused":
+                    self._record_rejection(session, job, "resume", None, now)
+                    raise JobControlError(
+                        "illegal_transition",
+                        details={"from": status, "action": "resume", "rule": None},
+                    )
+                if not self._resume_fingerprint_ok(job):
+                    raise JobControlError(
+                        "resume_fingerprint_mismatch",
+                        details={"field": "config_digest"},
+                    )
+
+                checkpoint = self._first_unfinished_in(session, job_id)
+                target = "running" if self._worker_idle(session) else "queued"
+                result = session.execute(
+                    update(Job)
+                    .where(Job.id == job_id, Job.status == "paused")
+                    .values(
+                        status=target,
+                        pending_action=None,
+                        resume_from_stage=checkpoint,
+                        lease_owner=None,
+                        lease_expires_at=None,
+                        updated_at=now,
+                    )
+                )
+                if result.rowcount != 1:
+                    session.rollback()
+                    continue
+                self._append_status(
+                    session,
+                    job_id,
+                    from_status="paused",
+                    to_status=target,
+                    reason="user",
+                    detail="resume",
+                    pending_action=None,
+                    created_at=now,
+                )
+                session.commit()
+                job = session.get(Job, job_id, populate_existing=True)
+                return ControlOutcome(202, job, True, "resume", accepted_at=now)
+        raise JobControlError("internal_error", status_code=500)
+
+    def request_cancel(self, job_id: str) -> ControlOutcome:
+        """T19 (queued, immediate) or T11/T12/T20 (pending, worker lands it)."""
+        now = self._now()
+        for _ in range(MAX_ATTEMPTS):
+            with Session(self._engine, expire_on_commit=False) as session:
+                job = session.get(Job, job_id)
+                if job is None:
+                    raise JobControlError("job_not_found", status_code=404)
+                status = job.status
+                if status == "cancel_requested":
+                    return ControlOutcome(
+                        200, job, False, "cancel", reason="already_pending"
+                    )
+                if status == "queued":
+                    result = session.execute(
+                        update(Job)
+                        .where(Job.id == job_id, Job.status == "queued")
+                        .values(
+                            status="cancelled",
+                            pending_action=None,
+                            finished_at=now,
+                            lease_owner=None,
+                            lease_expires_at=None,
+                            updated_at=now,
+                        )
+                    )
+                    if result.rowcount != 1:
+                        session.rollback()
+                        continue
+                    append_event(
+                        session,
+                        job_id=job_id,
+                        event_type="stats",
+                        payload=self._latest_stats_payload_in(session, job_id),
+                        created_at=now,
+                    )
+                    self._append_status(
+                        session,
+                        job_id,
+                        from_status="queued",
+                        to_status="cancelled",
+                        reason="user",
+                        detail="cancel",
+                        pending_action=None,
+                        created_at=now,
+                    )
+                    session.commit()
+                    job = session.get(Job, job_id, populate_existing=True)
+                    return ControlOutcome(202, job, True, "cancel", accepted_at=now)
+                if status in ("running", "pause_requested", "paused"):
+                    result = session.execute(
+                        update(Job)
+                        .where(Job.id == job_id, Job.status == status)
+                        .values(
+                            status="cancel_requested",
+                            pending_action="cancel",
+                            updated_at=now,
+                        )
+                    )
+                    if result.rowcount != 1:
+                        session.rollback()
+                        continue
+                    self._append_status(
+                        session,
+                        job_id,
+                        from_status=status,
+                        to_status="cancel_requested",
+                        reason="user",
+                        detail="cancel",
+                        pending_action="cancel",
+                        created_at=now,
+                    )
+                    session.commit()
+                    job = session.get(Job, job_id, populate_existing=True)
+                    return ControlOutcome(202, job, True, "cancel", accepted_at=now)
+
+                self._record_rejection(session, job, "cancel", None, now)
+                raise JobControlError(
+                    "illegal_transition",
+                    details={"from": status, "action": "cancel", "rule": None},
+                )
+        raise JobControlError("internal_error", status_code=500)
+
+    def pause_at_boundary(self, job_id: str) -> bool:
+        """T06: pause_requested -> paused, releasing the per-job lease."""
+        now = self._now()
+        with Session(self._engine) as session:
+            checkpoint = self._first_unfinished_in(session, job_id)
+            result = session.execute(
+                update(Job)
+                .where(Job.id == job_id, Job.status == "pause_requested")
+                .values(
+                    status="paused",
+                    pending_action=None,
+                    resume_from_stage=checkpoint,
+                    lease_owner=None,
+                    lease_expires_at=None,
+                    updated_at=now,
+                )
+            )
+            if result.rowcount != 1:
+                session.rollback()
+                return False
+            self._append_status(
+                session,
+                job_id,
+                from_status="pause_requested",
+                to_status="paused",
+                reason="worker",
+                detail="pause",
+                pending_action=None,
+                created_at=now,
+            )
+            session.commit()
+            return True
+
+    def cancel_at_boundary(self, job_id: str) -> bool:
+        """T13: cancel_requested -> cancelled; the last stats event precedes it."""
+        now = self._now()
+        with Session(self._engine) as session:
+            result = session.execute(
+                update(Job)
+                .where(Job.id == job_id, Job.status == "cancel_requested")
+                .values(
+                    status="cancelled",
+                    pending_action=None,
+                    finished_at=now,
+                    lease_owner=None,
+                    lease_expires_at=None,
+                    updated_at=now,
+                )
+            )
+            if result.rowcount != 1:
+                session.rollback()
+                return False
+            append_event(
+                session,
+                job_id=job_id,
+                event_type="stats",
+                payload=self._latest_stats_payload_in(session, job_id),
+                created_at=now,
+            )
+            self._append_status(
+                session,
+                job_id,
+                from_status="cancel_requested",
+                to_status="cancelled",
+                reason="worker",
+                detail="cancel",
+                pending_action=None,
+                created_at=now,
+            )
+            session.commit()
+            return True
+
+    def finish_success(
+        self, job_id: str, *, detail: str, stats: StatsSnapshot
+    ) -> bool:
+        """T07/T14: the graph finished while pause/cancel was pending."""
+        now = self._now()
+        with Session(self._engine) as session:
+            job = session.get(Job, job_id)
+            if job is None:
+                return False
+            from_status = job.status
+            if from_status not in ("pause_requested", "cancel_requested"):
+                return False
+            result = session.execute(
+                update(Job)
+                .where(Job.id == job_id, Job.status == from_status)
+                .values(
+                    status="succeeded",
+                    pending_action=None,
+                    finished_at=now,
+                    lease_owner=None,
+                    lease_expires_at=None,
+                    updated_at=now,
+                )
+            )
+            if result.rowcount != 1:
+                session.rollback()
+                return False
+            append_event(
+                session,
+                job_id=job_id,
+                event_type="stats",
+                payload=stats.as_payload(),
+                created_at=now,
+            )
+            self._append_status(
+                session,
+                job_id,
+                from_status=from_status,
+                to_status="succeeded",
+                reason="worker",
+                detail=detail,
+                pending_action=None,
+                created_at=now,
+            )
+            session.commit()
+            return True
+
+    def job_status(self, job_id: str) -> str | None:
+        with Session(self._engine) as session:
+            job = session.get(Job, job_id)
+            return job.status if job is not None else None
+
+    def latest_stats(self, job_id: str) -> StatsSnapshot:
+        with Session(self._engine) as session:
+            return StatsSnapshot(
+                **self._latest_stats_payload_in(session, job_id)
+            )
+
+    def first_unfinished_stage(self, job_id: str) -> str | None:
+        with Session(self._engine) as session:
+            return self._first_unfinished_in(session, job_id)
+
+    def _resume_fingerprint_ok(self, job: Job) -> bool:
+        if job.graph_version != self._config.graph_version:
+            return False
+        return config_hash(job.config_snapshot, job.graph_version) == job.config_hash
+
+    def _worker_idle(self, session: Session) -> bool:
+        """A live worker with no running row is idle and can take T09."""
+        lease = session.get(WorkerLease, LEASE_ROW_ID)
+        if lease is None or not lease.owner or not lease.expires_at:
+            return False
+        try:
+            expires = datetime.fromisoformat(lease.expires_at)
+        except ValueError:
+            return False
+        if expires <= self._clock():
+            return False
+        busy = session.scalar(
+            select(Job.id)
+            .where(
+                Job.lease_owner == lease.owner,
+                Job.status.in_(
+                    ("running", "pause_requested", "cancel_requested")
+                ),
+            )
+            .limit(1)
+        )
+        return busy is None
+
+    def _first_unfinished_in(self, session: Session, job_id: str) -> str | None:
+        statuses = {
+            row.stage_id: row.status
+            for row in session.scalars(
+                select(JobStage).where(JobStage.job_id == job_id)
+            )
+        }
+        for stage_id in STAGE_IDS:
+            if statuses.get(stage_id) not in ("done", "skipped"):
+                return stage_id
+        return None
+
+    def _latest_stats_payload_in(
+        self, session: Session, job_id: str
+    ) -> dict[str, int]:
+        event = session.scalars(
+            select(JobEvent)
+            .where(JobEvent.job_id == job_id, JobEvent.type == "stats")
+            .order_by(JobEvent.id.desc())
+            .limit(1)
+        ).first()
+        if event is None:
+            return StatsSnapshot().as_payload()
+        return _stats_payload(event.payload)
+
+    def _append_status(
+        self,
+        session: Session,
+        job_id: str,
+        *,
+        from_status: str,
+        to_status: str,
+        reason: str,
+        detail: str | None,
+        pending_action: str | None,
+        created_at: str,
+    ) -> None:
+        append_event(
+            session,
+            job_id=job_id,
+            event_type="status_changed",
+            payload={
+                "from": from_status,
+                "to": to_status,
+                "reason": reason,
+                "detail": detail,
+                "pending_action": pending_action,
+                "error": None,
+            },
+            created_at=created_at,
+        )
+
+    def _record_rejection(
+        self,
+        session: Session,
+        job: Job,
+        action: str,
+        rule: str | None,
+        created_at: str,
+    ) -> None:
+        """Audit-only rejection: seq NULL, not broadcast, status unchanged."""
+        append_event(
+            session,
+            job_id=job.id,
+            event_type="transition_rejected",
+            payload={
+                "from": job.status,
+                "action": action,
+                "rule": rule,
+                "reason": "illegal_transition",
+            },
+            created_at=created_at,
+            broadcast=False,
+        )
+        session.commit()
 
     # -- stage persistence ---------------------------------------------
     def start_stage(

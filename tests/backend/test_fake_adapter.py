@@ -333,7 +333,7 @@ def test_worker_run_once_claims_then_runs_the_fake_graph(worker_env, monkeypatch
         outcome = worker.run_once()
 
         assert outcome is not None
-        job, result = outcome
+        job, result = outcome.job, outcome.result
         assert job.id == job_id
         assert result.stats == S00_STATS
         assert result.stages_completed == fake.STAGE_IDS
@@ -377,7 +377,7 @@ def test_worker_executor_is_injectable(worker_env):
         outcome = worker.run_once()
 
         assert outcome is not None
-        assert outcome[0].id == job_id
+        assert outcome.job.id == job_id
         assert stub.requests == [
             AnalysisRequest(ticker_code="000629", analysis_date="2026-10-30")
         ]

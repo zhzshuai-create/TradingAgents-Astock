@@ -8,7 +8,7 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-from backend.app.services.job_service import JobCreateError
+from backend.app.services.job_service import JobControlError, JobCreateError
 
 CODE_STATUS: dict[str, int] = {
     "invalid_request": 400,
@@ -80,6 +80,10 @@ class ApiError(Exception):
 
     @classmethod
     def from_create_error(cls, exc: JobCreateError) -> "ApiError":
+        return cls(exc.code, status_code=exc.status_code, details=exc.details)
+
+    @classmethod
+    def from_control_error(cls, exc: JobControlError) -> "ApiError":
         return cls(exc.code, status_code=exc.status_code, details=exc.details)
 
 

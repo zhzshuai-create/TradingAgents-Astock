@@ -15,6 +15,13 @@ the contract's no-auto-rerun rule (job-state-machine.md section 4).
 
 T02 writes its status_changed event in the same transaction as the UPDATE, so
 a claimed job always starts its SSE sequence at seq 1.
+
+P1-08 adds two attach-only claims with no status event of their own:
+
+* ``claim_resumed_job`` re-attaches a job the user resumed to running (T09);
+  the paused -> running event was already written by the control action.
+* ``claim_control_job`` attaches a cancel_requested job that no worker is
+  executing (T20 from paused), so the worker can write T13 promptly.
 """
 
 from __future__ import annotations
@@ -186,6 +193,85 @@ class LeaseService:
                     },
                     created_at=now_text,
                 )
+                session.commit()
+                return session.get(Job, candidate)
+        return None
+
+    def claim_resumed_job(self, owner: str) -> Job | None:
+        """Attach a T09 row (running, no lease) without rewriting its status."""
+        if not self.holds(owner):
+            return None
+
+        for _ in range(CLAIM_ATTEMPTS):
+            now = self._clock()
+            with Session(self._engine, expire_on_commit=False) as session:
+                candidate = session.scalar(
+                    select(Job.id)
+                    .where(
+                        Job.status == "running",
+                        Job.lease_owner.is_(None),
+                        Job.pending_action.is_(None),
+                    )
+                    .order_by(Job.updated_at, Job.id)
+                    .limit(1)
+                )
+                if candidate is None:
+                    return None
+
+                result = session.execute(
+                    update(Job)
+                    .where(
+                        Job.id == candidate,
+                        Job.status == "running",
+                        Job.lease_owner.is_(None),
+                    )
+                    .values(
+                        lease_owner=owner,
+                        lease_expires_at=_format(now + self._ttl),
+                    )
+                )
+                if result.rowcount != 1:
+                    session.rollback()
+                    continue
+                session.commit()
+                return session.get(Job, candidate)
+        return None
+
+    def claim_control_job(self, owner: str) -> Job | None:
+        """Attach a paused-origin cancel_requested row so T13 can finish it."""
+        if not self.holds(owner):
+            return None
+
+        for _ in range(CLAIM_ATTEMPTS):
+            now = self._clock()
+            with Session(self._engine, expire_on_commit=False) as session:
+                candidate = session.scalar(
+                    select(Job.id)
+                    .where(
+                        Job.status == "cancel_requested",
+                        Job.lease_owner.is_(None),
+                    )
+                    .order_by(Job.updated_at, Job.id)
+                    .limit(1)
+                )
+                if candidate is None:
+                    return None
+
+                result = session.execute(
+                    update(Job)
+                    .where(
+                        Job.id == candidate,
+                        Job.status == "cancel_requested",
+                        Job.lease_owner.is_(None),
+                    )
+                    .values(
+                        lease_owner=owner,
+                        lease_expires_at=_format(now + self._ttl),
+                    )
+                )
+                if result.rowcount != 1:
+                    session.rollback()
+                    continue
                 session.commit()
                 return session.get(Job, candidate)
         return None

@@ -2,19 +2,25 @@
 
 P1-05 covers ownership and claiming; P1-06 adds the executor call; P1-07
 persists every stage boundary (row + stage_changed + stats) and writes each
-stage report before its ``done`` commit. Control requests (P1-08) and terminal
-transitions (P1-09) extend this seam instead of replacing it.
+stage report before its ``done`` commit. P1-08 turns the run into a loop that
+honours control requests at stage boundaries:
 
-* exactly one worker owns the lease at a time; a second worker's acquire
-  returns False and it must not claim anything;
-* the heartbeat renews the row at a fixed interval and flags `lost` on the
-  first failure, so the owning loop can stop touching jobs;
-* shutdown releases the lease only if this owner still holds it;
-* the executor defaults to the deterministic fake graph; real models need
-  both the environment variable and the server config flag (AD-01);
-* stage commit order is started -> report file -> done -> stats, so the only
-  crash window is a written file without its done event (B3), never a done
-  event without its report.
+* pause_requested -> paused (T06), releasing the per-job lease so the worker
+  can take another job;
+* cancel_requested -> cancelled (T13) with a final stats event first;
+* a graph that finishes while pause/cancel is pending ends succeeded with
+  detail ``pause_noop`` / ``cancel_noop`` (T07/T14);
+* paused -> running (T09) rows are re-attached without a second T02 event and
+  restart at ``resume_from_stage``, so completed stages are not re-executed;
+* a cancel_requested row with no lease (T20 from paused) is claimed and
+  finished without running the graph;
+* every boundary checks ``lost`` first; a lost lease stops all writes and
+  leaves the row for P1-10 reconciliation.
+
+Everything else stays where it was: exactly one worker owns the global lease,
+the heartbeat renews it, shutdown releases only its own lease, and the default
+executor is the deterministic fake graph (real models need both the env flag
+and the server config flag, AD-01).
 """
 
 from __future__ import annotations
@@ -22,10 +28,12 @@ from __future__ import annotations
 import logging
 import threading
 import uuid
+from dataclasses import dataclass
 from datetime import timedelta
 
 from backend.app.core.server_config import ServerConfig
 from backend.app.models.job import Job
+from backend.app.models.stage import STAGE_IDS
 from backend.app.services.analysis_runner import (
     AnalysisExecutor,
     AnalysisRequest,
@@ -38,6 +46,21 @@ from backend.app.services.lease import DEFAULT_HEARTBEAT_INTERVAL, LeaseService
 from backend.app.services.report_store import ReportStore
 
 logger = logging.getLogger(__name__)
+
+
+class _Stopped(Exception):
+    def __init__(self, reason: str) -> None:
+        super().__init__(reason)
+        self.reason = reason
+
+
+@dataclass(frozen=True)
+class WorkerOutcome:
+    """One claim's result: a full run, a control stop, or a lost lease."""
+
+    job: Job
+    result: RunResult | None = None
+    stopped: str | None = None
 
 
 class Heartbeat:
@@ -127,20 +150,41 @@ class Worker:
         return True
 
     def claim(self) -> Job | None:
+        """Priority: control finish, T09 re-attach, then a queued job."""
         if not self._acquired or self._heartbeat.lost:
             return None
+        control = self._lease.claim_control_job(self.owner)
+        if control is not None:
+            return control
+        resumed = self._lease.claim_resumed_job(self.owner)
+        if resumed is not None:
+            return resumed
         return self._lease.claim_next_job(self.owner)
 
-    def run_once(self) -> tuple[Job, RunResult] | None:
-        """Claim one queued job, run it, and persist every stage boundary."""
+    def run_once(self) -> WorkerOutcome | None:
+        """Claim one job and run it until it pauses, cancels, completes or dies."""
         job = self.claim()
         if job is None:
             return None
-        cumulative = StatsSnapshot()
+        if job.status == "cancel_requested":
+            self._jobs.cancel_at_boundary(job.id)
+            return WorkerOutcome(
+                job=self._jobs.get_job(job.id) or job, stopped="cancelled"
+            )
+        return self._run(job)
+
+    def _run(self, job: Job) -> WorkerOutcome:
+        cumulative = self._jobs.latest_stats(job.id)
+        resume_from = job.resume_from_stage or self._jobs.first_unfinished_stage(
+            job.id
+        )
+        if resume_from == STAGE_IDS[0]:
+            resume_from = None
 
         def on_stage(progress: StageProgress) -> None:
             nonlocal cumulative
             if progress.phase == "started":
+                self._check_boundary(job.id)
                 self._jobs.start_stage(
                     job.id,
                     progress.stage_id,
@@ -169,23 +213,58 @@ class Worker:
                 duration_ms=progress.duration_ms,
             )
 
-        result = self._executor.run(
-            AnalysisRequest(
-                ticker_code=job.ticker_code, analysis_date=job.analysis_date
-            ),
-            on_stage=on_stage,
-        )
+        try:
+            result = self._executor.run(
+                AnalysisRequest(
+                    ticker_code=job.ticker_code,
+                    analysis_date=job.analysis_date,
+                    resume_from_stage=resume_from,
+                ),
+                on_stage=on_stage,
+            )
+        except _Stopped as stop:
+            return WorkerOutcome(
+                job=self._jobs.get_job(job.id) or job, stopped=stop.reason
+            )
+
+        # The graph finished during the request window: T07/T14 win over the
+        # pending control, which is recorded as a no-op detail.
+        status = self._jobs.job_status(job.id)
+        if status in ("pause_requested", "cancel_requested"):
+            detail = "pause_noop" if status == "pause_requested" else "cancel_noop"
+            self._jobs.finish_success(job.id, detail=detail, stats=cumulative)
+            return WorkerOutcome(
+                job=self._jobs.get_job(job.id) or job,
+                result=result,
+                stopped=status,
+            )
+        if self._heartbeat.lost:
+            return WorkerOutcome(
+                job=self._jobs.get_job(job.id) or job,
+                result=result,
+                stopped="lost",
+            )
         # The 13th stats event lands before the terminal transition (P1-09).
-        self._jobs.record_stats(
-            job.id,
-            StatsSnapshot(
-                model_calls=result.stats.model_calls,
-                tokens_in=result.stats.tokens_in,
-                tokens_out=result.stats.tokens_out,
-                elapsed_ms=result.stats.elapsed_ms,
-            ),
-        )
-        return job, result
+        self._jobs.record_stats(job.id, cumulative)
+        return WorkerOutcome(job=self._jobs.get_job(job.id) or job, result=result)
+
+    def _check_boundary(self, job_id: str) -> None:
+        """Must run before a stage starts; raises _Stopped to leave the loop."""
+        if self._heartbeat.lost:
+            raise _Stopped("lost")
+        status = self._jobs.job_status(job_id)
+        if status == "cancel_requested":
+            self._jobs.cancel_at_boundary(job_id)
+            raise _Stopped("cancelled")
+        if status == "pause_requested":
+            if self._jobs.pause_at_boundary(job_id):
+                raise _Stopped("paused")
+            if self._jobs.job_status(job_id) == "cancel_requested":
+                self._jobs.cancel_at_boundary(job_id)
+                raise _Stopped("cancelled")
+            raise _Stopped("stopped")
+        if status != "running":
+            raise _Stopped("stopped")
 
     def shutdown(self) -> None:
         if not self._acquired:

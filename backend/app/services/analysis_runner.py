@@ -39,6 +39,7 @@ class AnalysisRunError(RuntimeError):
 class AnalysisRequest:
     ticker_code: str
     analysis_date: str
+    resume_from_stage: str | None = None
 
 
 @dataclass(frozen=True)
@@ -123,6 +124,16 @@ class FakeAnalysisExecutor:
                 "假图阶段目录与冻结契约不一致",
             )
 
+        start_index = 0
+        if request.resume_from_stage is not None:
+            try:
+                start_index = stage_ids.index(request.resume_from_stage)
+            except ValueError as exc:
+                raise AnalysisRunError(
+                    "resume_stage_unknown",
+                    "续跑起始阶段不在冻结阶段目录里",
+                ) from exc
+
         graph = fake.FakeAnalysisGraph(request.ticker_code, request.analysis_date)
 
         init_state, args, _meta = graph.prepare_graph_run(
@@ -136,6 +147,16 @@ class FakeAnalysisExecutor:
         try:
             stream = graph.stream(init_state, **args)
             for index, spec in enumerate(fake.STAGES, 1):
+                if index <= start_index:
+                    # Checkpoint prefix: advance the stream so the graph state
+                    # is whole, but never re-report or re-count a done stage.
+                    try:
+                        last_chunk = next(stream)
+                    except StopIteration:
+                        raise AnalysisRunError(
+                            "graph_stream_ended", "假图在阶段完成前结束"
+                        ) from None
+                    continue
                 if on_stage is not None:
                     on_stage(
                         StageProgress(
