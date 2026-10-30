@@ -3,7 +3,7 @@
 DB-05 status accepts exactly the nine frozen statuses.
 DB-06 duplicate (job_id, seq) rejected; audit rows keep seq NULL and may repeat.
 DB-07 deleting a job cascades to stages and events.
-DB-08 downgrade to 0001 removes only the three new tables.
+DB-08 downgrade to 0001 removes every later table.
 
 DB-09 and DB-10 are new ids for constraints this ticket introduces ahead of
 P1-04: the partial unique active-fingerprint index and the enum CHECKs.
@@ -161,7 +161,7 @@ def test_db07_deleting_job_cascades_to_stages_and_events(engine):
         assert session.scalars(select(JobEvent).where(JobEvent.job_id == job_id)).all() == []
 
 
-def test_db08_downgrade_to_0001_removes_only_the_three_tables(jobs_db_path):
+def test_db08_downgrade_to_0001_removes_later_tables(jobs_db_path):
     cfg = _alembic_config()
     command.upgrade(cfg, "head")
     assert _tables(jobs_db_path) == {
@@ -171,6 +171,7 @@ def test_db08_downgrade_to_0001_removes_only_the_three_tables(jobs_db_path):
         "job_stages",
         "job_events",
         "job_idempotency_keys",
+        "worker_lease",
     }
 
     command.downgrade(cfg, "0001")
