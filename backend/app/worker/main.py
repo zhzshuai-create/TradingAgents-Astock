@@ -1,14 +1,17 @@
-"""Worker shell: global lease ownership plus a background heartbeat.
+"""Worker shell: global lease ownership, background heartbeat, execution seam.
 
-P1-05 stops at claiming. Executing a claimed job arrives with P1-06, and
-pause/cancel interception with P1-08, so nothing here guesses how the graph
-runs. The important invariants already live here:
+P1-05 covers ownership and claiming; P1-06 adds the executor call after a
+claim. Stage persistence (P1-07), control requests (P1-08) and terminal
+transitions (P1-09) extend this seam instead of replacing it. The important
+invariants already live here:
 
 * exactly one worker owns the lease at a time; a second worker's acquire
   returns False and it must not claim anything;
 * the heartbeat renews the row at a fixed interval and flags `lost` on the
   first failure, so the owning loop can stop touching jobs;
-* shutdown releases the lease only if this owner still holds it.
+* shutdown releases the lease only if this owner still holds it;
+* the executor defaults to the deterministic fake graph; real models need
+  both the environment variable and the server config flag (AD-01).
 """
 
 from __future__ import annotations
@@ -18,7 +21,14 @@ import threading
 import uuid
 from datetime import timedelta
 
+from backend.app.core.server_config import ServerConfig
 from backend.app.models.job import Job
+from backend.app.services.analysis_runner import (
+    AnalysisExecutor,
+    AnalysisRequest,
+    RunResult,
+    create_analysis_executor,
+)
 from backend.app.services.lease import DEFAULT_HEARTBEAT_INTERVAL, LeaseService
 
 logger = logging.getLogger(__name__)
@@ -75,10 +85,17 @@ class Worker:
         *,
         owner: str | None = None,
         heartbeat_interval: timedelta = DEFAULT_HEARTBEAT_INTERVAL,
+        executor: AnalysisExecutor | None = None,
+        server_config: ServerConfig | None = None,
     ) -> None:
         self.owner = owner or f"worker-{uuid.uuid4().hex[:8]}"
         self._lease = lease
         self._heartbeat = Heartbeat(lease, self.owner, heartbeat_interval)
+        self._executor = (
+            executor
+            if executor is not None
+            else create_analysis_executor(server_config)
+        )
         self._acquired = False
 
     @property
@@ -103,6 +120,18 @@ class Worker:
         if not self._acquired or self._heartbeat.lost:
             return None
         return self._lease.claim_next_job(self.owner)
+
+    def run_once(self) -> tuple[Job, RunResult] | None:
+        """Claim one queued job and execute it; None when the queue is empty."""
+        job = self.claim()
+        if job is None:
+            return None
+        result = self._executor.run(
+            AnalysisRequest(
+                ticker_code=job.ticker_code, analysis_date=job.analysis_date
+            )
+        )
+        return job, result
 
     def shutdown(self) -> None:
         if not self._acquired:

@@ -26,6 +26,7 @@ class ServerConfig:
     stage_toggles: dict[str, bool] = field(
         default_factory=lambda: dict(DEFAULT_STAGE_TOGGLES)
     )
+    real_runner_enabled: bool = False
 
     def config_defaults(self) -> dict:
         return {
