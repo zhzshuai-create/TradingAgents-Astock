@@ -65,8 +65,14 @@ def test_db01_upgrade_head_on_empty_directory(jobs_db):
     command.upgrade(_alembic_config(), "head")
 
     assert jobs_db.exists()
-    assert _tables(jobs_db) == {"alembic_version", "job_kernel_meta"}
-    assert _scalar(jobs_db, "SELECT version_num FROM alembic_version") == "0001"
+    assert _tables(jobs_db) == {
+        "alembic_version",
+        "job_kernel_meta",
+        "jobs",
+        "job_stages",
+        "job_events",
+    }
+    assert _scalar(jobs_db, "SELECT version_num FROM alembic_version") == "0002"
     assert (
         _scalar(jobs_db, "SELECT value FROM job_kernel_meta WHERE key = 'schema_contract'")
         == "p0-contracts-v1"
@@ -99,7 +105,13 @@ def test_db03_downgrade_and_upgrade_round_trip_twice(jobs_db):
 
     command.upgrade(cfg, "head")
     command.upgrade(cfg, "head")
-    assert _tables(jobs_db) == {"alembic_version", "job_kernel_meta"}
+    assert _tables(jobs_db) == {
+        "alembic_version",
+        "job_kernel_meta",
+        "jobs",
+        "job_stages",
+        "job_events",
+    }
     assert _scalar(jobs_db, "SELECT COUNT(*) FROM alembic_version") == 1
 
 

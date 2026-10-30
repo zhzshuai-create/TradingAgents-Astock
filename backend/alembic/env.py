@@ -18,6 +18,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from backend.app.core.db import build_engine, jobs_db_url  # noqa: E402
+from backend.app.models import Base  # noqa: E402
 
 config = context.config
 
@@ -27,7 +28,7 @@ if config.config_file_name is not None:
         format="%(levelname)-5.5s [%(name)s] %(message)s",
     )
 
-target_metadata = None
+target_metadata = Base.metadata
 
 
 def run_migrations_offline() -> None:
