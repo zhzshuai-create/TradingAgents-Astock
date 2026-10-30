@@ -1,8 +1,9 @@
-"""Job routes: create, detail, control actions and per-stage reports.
+"""Job routes: create, detail, control actions, retry and stage reports.
 
-api-v1.md sections 1.3, 1.5, 1.6 and 1.10. Control actions only record the
-request (or refuse it); the worker lands pause/cancel at a stage boundary and
-resume on a free worker. The stage endpoint is read-only: it does not
+api-v1.md sections 1.3, 1.5, 1.6, 1.7 and 1.10. Control actions only record
+the request (or refuse it); the worker lands pause/cancel at a stage boundary
+and resume on a free worker. Retry/resume always creates a new job and leaves
+the original untouched. The stage endpoint is read-only: it does not
 reconcile, change status, emit events or rerun a stage.
 """
 
@@ -36,6 +37,12 @@ class ControlRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     action: Literal["pause", "resume", "cancel"]
+
+
+class RetryRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    mode: Literal["same_config", "resume_from_checkpoint"]
 
 
 @router.post("")
@@ -100,6 +107,35 @@ def control_job(
         "expected_effect": EXPECTED_EFFECT,
         "status": outcome.job.status,
     }
+
+
+@router.post("/{job_id}/retry")
+def retry_job(
+    job_id: str,
+    payload: RetryRequest,
+    request: Request,
+    response: Response,
+) -> dict[str, Any]:
+    idempotency_key = (request.headers.get("Idempotency-Key") or "").strip()
+    if not idempotency_key:
+        raise ApiError("idempotency_key_required")
+
+    service = request.app.state.job_service
+    try:
+        outcome = service.retry_job(
+            job_id, mode=payload.mode, idempotency_key=idempotency_key
+        )
+    except JobControlError as exc:
+        raise ApiError.from_control_error(exc) from exc
+    except JobCreateError as exc:
+        raise ApiError.from_create_error(exc) from exc
+
+    if outcome.replayed:
+        response.headers["Idempotency-Replayed"] = "1"
+    if outcome.existing:
+        response.headers["X-Existing-Job"] = outcome.job.id
+    response.status_code = outcome.status_code
+    return job_detail(outcome.job, **service.detail_parts(outcome.job.id))
 
 
 @router.get("/{job_id}/stages/{stage_id}")

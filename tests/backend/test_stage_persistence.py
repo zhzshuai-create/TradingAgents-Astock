@@ -1,13 +1,13 @@
 """P1-07 acceptance tests: stage persistence, stats events and stage reports.
 
 GF-03: a full fake run persists 24 stage_changed events and 13 stats events in
-       a fixed order, with a gapless seq starting at the T02 claim event.
+       a fixed order, with a gapless seq starting at the T02 claim event. P1-09
+       appends the succeeded status event and report_ready after the last stats
+       event and commits the report row in the same transaction.
 GF-13: B3 evidence (report file written, done event missing) is detected and
        recorded as a reconcile_note with seq NULL. P1-10 owns the interrupted
        transition; P1-07 only supplies detection and the audit note.
-SM-03: every stage report on disk matches the fake graph output. The final
-       ReportDTO row and its content hash stay in P1-09, as recorded in
-       docs/upgrade/P1进度存档.md.
+SM-03: every stage report on disk matches the fake graph output.
 ST-01: stage report paths are isolated per job and stage and never overwrite a
        previous attempt.
 """
@@ -37,7 +37,7 @@ from backend.app.core.config import JOBS_DB_ENV  # noqa: E402
 from backend.app.core.db import build_engine  # noqa: E402
 from backend.app.core.server_config import ServerConfig  # noqa: E402
 from backend.app.main import create_app  # noqa: E402
-from backend.app.models import JobEvent, JobStage  # noqa: E402
+from backend.app.models import JobEvent, JobStage, Report  # noqa: E402
 from backend.app.services.job_service import (  # noqa: E402
     CST,
     JobService,
@@ -213,12 +213,12 @@ def test_gf03_full_run_persists_24_stage_events_and_13_stats(env):
     assert [event.type for event in events if event.seq is None] == ["created"]
     sse = [event for event in events if event.seq is not None]
     assert [event.seq for event in sse] == list(range(1, len(sse) + 1))
-    assert len(sse) == 38
+    assert len(sse) == 40
 
     expected_types = ["status_changed"]
     for _ in fake.STAGE_IDS:
         expected_types += ["stage_changed", "stage_changed", "stats"]
-    expected_types.append("stats")
+    expected_types += ["stats", "status_changed", "report_ready"]
     assert [event.type for event in sse] == expected_types
 
     assert sse[0].payload == {
@@ -275,7 +275,49 @@ def test_gf03_full_run_persists_24_stage_events_and_13_stats(env):
         assert row.report_path == f"{job_id}/{spec.id}/attempt-1.md"
 
     assert env.jobs.detect_unregistered_stage_outputs(job_id) == []
-    assert env.jobs.get_job(job_id).status == "running"
+
+    terminal = sse[-2]
+    assert terminal.type == "status_changed"
+    assert terminal.payload == {
+        "from": "running",
+        "to": "succeeded",
+        "reason": "worker",
+        "detail": None,
+        "pending_action": None,
+        "error": None,
+    }
+    golden = fake.load_golden_report()
+    ready = sse[-1]
+    assert ready.type == "report_ready"
+    assert ready.payload == {
+        "report_id": fake.report_id_for(job_id),
+        "content_hash": golden["meta"]["content_hash"],
+        "rating": golden["meta"]["rating"],
+        "signal": golden["meta"]["signal"],
+        "url": f"/api/v1/reports/{fake.report_id_for(job_id)}",
+    }
+
+    job = env.jobs.get_job(job_id)
+    assert job.status == "succeeded"
+    assert job.report_id == fake.report_id_for(job_id)
+    assert job.finished_at is not None
+    assert job.lease_owner is None
+    with Session(env.engine) as session:
+        row = session.get(Report, job.report_id)
+        assert row is not None
+        assert row.job_id == job_id
+        assert row.content_hash == golden["meta"]["content_hash"]
+        assert row.rating == golden["meta"]["rating"]
+        assert row.signal == golden["meta"]["signal"]
+        assert row.schema_version == "report-v1"
+        assert row.origin == "new"
+        assert row.generated_at_source == "job_clock"
+        assert row.config_digest == job.config_hash
+        assert row.data_quality_status == golden["meta"]["data_quality_status"]
+        assert row.chart_snapshot_status == golden["meta"]["chart_snapshot_status"]
+        assert row.payload["meta"]["job_id"] == job_id
+        assert row.payload["meta"]["content_hash"] == row.content_hash
+        assert row.payload["sections"] == golden["sections"]
 
 
 def test_gf13_b3_report_written_without_done_event(env):

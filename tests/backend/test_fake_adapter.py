@@ -340,8 +340,9 @@ def test_worker_run_once_claims_then_runs_the_fake_graph(worker_env, monkeypatch
 
         with Session(worker_env.engine) as session:
             row = session.get(Job, job_id)
-            assert row.status == "running"
-            assert row.lease_owner == "worker-1"
+            assert row.status == "succeeded"
+            assert row.report_id is not None
+            assert row.lease_owner is None
         assert worker.run_once() is None
     finally:
         worker.shutdown()
@@ -379,7 +380,16 @@ def test_worker_executor_is_injectable(worker_env):
         assert outcome is not None
         assert outcome.job.id == job_id
         assert stub.requests == [
-            AnalysisRequest(ticker_code="000629", analysis_date="2026-10-30")
+            AnalysisRequest(
+                ticker_code="000629",
+                analysis_date="2026-10-30",
+                job_id=job_id,
+                generated_at=datetime(2026, 10, 30, 9, 0, tzinfo=CST),
+            )
         ]
+        with Session(worker_env.engine) as session:
+            row = session.get(Job, job_id)
+            assert row.status == "succeeded"
+            assert row.report_id is None
     finally:
         worker.shutdown()

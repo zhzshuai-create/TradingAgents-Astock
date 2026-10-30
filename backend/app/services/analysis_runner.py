@@ -18,6 +18,7 @@ import importlib
 import os
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any, Protocol, runtime_checkable
 
 from backend.app.core.server_config import ServerConfig
@@ -40,6 +41,12 @@ class AnalysisRequest:
     ticker_code: str
     analysis_date: str
     resume_from_stage: str | None = None
+    # Job identity is optional so adapter-level tests can run a bare graph.
+    # The worker always supplies it together with generated_at; the adapter
+    # only builds a ReportDTO when both are present.
+    job_id: str | None = None
+    generated_at: datetime | None = None
+    retry_of_job_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -70,6 +77,7 @@ class RunResult:
     stats: RunStats
     stages_completed: tuple[str, ...]
     last_chunk: dict[str, Any] = field(repr=False, compare=False)
+    report: dict[str, Any] | None = field(default=None, repr=False, compare=False)
 
 
 StageHook = Callable[[StageProgress], None]
@@ -205,6 +213,14 @@ class FakeAnalysisExecutor:
         finally:
             graph.close_graph_run()
 
+        report = None
+        if request.job_id is not None and request.generated_at is not None:
+            report = graph.build_report(
+                request.job_id,
+                generated_at=request.generated_at,
+                retry_of_job_id=request.retry_of_job_id,
+            )
+
         return RunResult(
             signal=str(signal),
             stats=RunStats(
@@ -215,6 +231,7 @@ class FakeAnalysisExecutor:
             ),
             stages_completed=tuple(completed),
             last_chunk=last_chunk,
+            report=report,
         )
 
 

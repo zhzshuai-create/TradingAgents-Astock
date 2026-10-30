@@ -9,8 +9,8 @@ SM-08: paused -> queued (T10) when the worker is busy; the checkpoint rows,
 SM-09: running -> cancel_requested -> cancelled; completed stage reports stay
        readable and the cancel finishes with a final stats event (T13).
 SM-10: a graph that finishes while cancel is pending ends succeeded with
-       detail cancel_noop (T14); the cancel is a no-op. The report row and
-       report_ready stay in P1-09.
+       detail cancel_noop (T14); the cancel is a no-op. The completed run's
+       report is committed and report_ready follows the terminal status event.
 SM-11: cancel on pause_requested goes straight to cancel_requested (T12),
        never paused; a duplicate cancel is 200 already_pending.
 SM-12: queued -> cancelled directly (T19) with zero calls, one zero stats
@@ -370,8 +370,9 @@ def test_sm07_resume_reuses_checkpoint_without_reexecuting(env):
     assert outcome.result.stages_completed == fake.STAGE_IDS[3:]
 
     job = _job(env, job_id)
-    assert job.status == "running"
-    assert job.finished_at is None
+    assert job.status == "succeeded"
+    assert job.finished_at is not None
+    assert job.report_id == fake.report_id_for(job_id)
 
     rows = _stage_rows(env, job_id)
     assert set(rows) == set(fake.STAGE_IDS)
@@ -381,8 +382,14 @@ def test_sm07_resume_reuses_checkpoint_without_reexecuting(env):
     assert len(_report_files(env)) == 12
 
     sse = _sse(env, job_id)
-    assert len(sse) == 41
-    assert _status_tos(sse) == ["running", "pause_requested", "paused", "running"]
+    assert len(sse) == 43
+    assert _status_tos(sse) == [
+        "running",
+        "pause_requested",
+        "paused",
+        "running",
+        "succeeded",
+    ]
     resume_event = [
         event
         for event in sse
@@ -403,7 +410,9 @@ def test_sm07_resume_reuses_checkpoint_without_reexecuting(env):
     stats = [event for event in sse if event.type == "stats"]
     assert len(stats) == 13
     assert stats[-1].payload == S00_STATS
-    assert not any(event.type == "report_ready" for event in sse)
+    ready = [event for event in sse if event.type == "report_ready"]
+    assert len(ready) == 1
+    assert ready[0].payload["report_id"] == fake.report_id_for(job_id)
 
 
 def test_sm08_busy_worker_resume_queues_and_keeps_checkpoint(env):
@@ -515,14 +524,14 @@ def test_sm10_cancel_late_ends_succeeded_with_cancel_noop(env):
     assert job.status == "succeeded"
     assert job.pending_action is None
     assert job.finished_at == "2026-10-30T09:00:00+08:00"
-    assert job.report_id is None  # report row is P1-09
+    assert job.report_id == fake.report_id_for(job_id)
 
     sse = _sse(env, job_id)
-    assert len(sse) == 40
+    assert len(sse) == 41
     assert _status_tos(sse) == ["running", "cancel_requested", "succeeded"]
-    assert sse[-2].type == "stats"
-    assert sse[-2].payload == S00_STATS
-    assert sse[-1].payload == {
+    assert sse[-3].type == "stats"
+    assert sse[-3].payload == S00_STATS
+    assert sse[-2].payload == {
         "from": "cancel_requested",
         "to": "succeeded",
         "reason": "worker",
@@ -530,7 +539,9 @@ def test_sm10_cancel_late_ends_succeeded_with_cancel_noop(env):
         "pending_action": None,
         "error": None,
     }
-    assert not any(event.type == "report_ready" for event in sse)
+    assert sse[-1].type == "report_ready"
+    assert sse[-1].payload["report_id"] == fake.report_id_for(job_id)
+    assert sse[-1].payload["url"] == f"/api/v1/reports/{fake.report_id_for(job_id)}"
 
     rows = _stage_rows(env, job_id)
     assert len(rows) == 12 and all(row.status == "done" for row in rows.values())

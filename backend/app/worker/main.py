@@ -9,7 +9,10 @@ honours control requests at stage boundaries:
   can take another job;
 * cancel_requested -> cancelled (T13) with a final stats event first;
 * a graph that finishes while pause/cancel is pending ends succeeded with
-  detail ``pause_noop`` / ``cancel_noop`` (T07/T14);
+  detail ``pause_noop`` / ``cancel_noop`` (T07/T14), and the completed run's
+  report is still committed with ``report_ready`` (P1-09);
+* an executor exception lands ``failed`` with the active stage marked failed
+  (detail ``stage_failed``) or, between stages, ``post_stage_error``;
 * paused -> running (T09) rows are re-attached without a second T02 event and
   restart at ``resume_from_stage``, so completed stages are not re-executed;
 * a cancel_requested row with no lease (T20 from paused) is claimed and
@@ -219,6 +222,9 @@ class Worker:
                     ticker_code=job.ticker_code,
                     analysis_date=job.analysis_date,
                     resume_from_stage=resume_from,
+                    job_id=job.id,
+                    generated_at=self._jobs.now(),
+                    retry_of_job_id=job.retry_of_job_id,
                 ),
                 on_stage=on_stage,
             )
@@ -226,13 +232,37 @@ class Worker:
             return WorkerOutcome(
                 job=self._jobs.get_job(job.id) or job, stopped=stop.reason
             )
+        except Exception as exc:
+            if self._heartbeat.lost:
+                return WorkerOutcome(
+                    job=self._jobs.get_job(job.id) or job, stopped="lost"
+                )
+            if self._jobs.job_status(job.id) not in (
+                "running",
+                "pause_requested",
+                "cancel_requested",
+            ):
+                return WorkerOutcome(
+                    job=self._jobs.get_job(job.id) or job, stopped="stopped"
+                )
+            code = getattr(exc, "code", None) or "internal_error"
+            message = getattr(exc, "message", None) or "分析执行失败"
+            self._jobs.finish_failure(
+                job.id, code=str(code), message=str(message), stats=cumulative
+            )
+            return WorkerOutcome(
+                job=self._jobs.get_job(job.id) or job, stopped="failed"
+            )
 
         # The graph finished during the request window: T07/T14 win over the
-        # pending control, which is recorded as a no-op detail.
+        # pending control, which is recorded as a no-op detail. The report and
+        # its report_ready are committed either way.
         status = self._jobs.job_status(job.id)
         if status in ("pause_requested", "cancel_requested"):
             detail = "pause_noop" if status == "pause_requested" else "cancel_noop"
-            self._jobs.finish_success(job.id, detail=detail, stats=cumulative)
+            self._jobs.finish_success(
+                job.id, detail=detail, stats=cumulative, report=result.report
+            )
             return WorkerOutcome(
                 job=self._jobs.get_job(job.id) or job,
                 result=result,
@@ -244,8 +274,11 @@ class Worker:
                 result=result,
                 stopped="lost",
             )
-        # The 13th stats event lands before the terminal transition (P1-09).
-        self._jobs.record_stats(job.id, cumulative)
+        # T03: one transaction writes the report row, the 13th stats event,
+        # the terminal status event and report_ready.
+        self._jobs.finish_success(
+            job.id, detail=None, stats=cumulative, report=result.report
+        )
         return WorkerOutcome(job=self._jobs.get_job(job.id) or job, result=result)
 
     def _check_boundary(self, job_id: str) -> None:

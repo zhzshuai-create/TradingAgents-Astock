@@ -16,10 +16,18 @@ the replayable stream stays gapless.
 Stage methods commit one boundary at a time (P1-07): the stage row, its
 stage_changed event and the cumulative stats event land together, so a crash
 can only leave a report file without its done event (B3), never the reverse.
+
+Terminal writes (P1-09) are once-only via a conditional status UPDATE: the
+succeeded path commits the report row, ``jobs.report_id``, the final stats
+event, the terminal status event and ``report_ready`` in one transaction; the
+failed path marks the still-active stage first and records the error on the
+row and in the status event. Retry/resume always creates a new job and never
+touches the original.
 """
 
 from __future__ import annotations
 
+import copy
 import hashlib
 import uuid
 from collections.abc import Callable, Mapping
@@ -35,6 +43,7 @@ from backend.app.core.server_config import ServerConfig
 from backend.app.models.event import JobEvent
 from backend.app.models.idempotency import JobIdempotencyKey
 from backend.app.models.job import ACTIVE_STATUSES, Job
+from backend.app.models.report import Report
 from backend.app.models.stage import STAGE_IDS, STAGE_NAMES, JobStage
 from backend.app.models.worker_lease import LEASE_ROW_ID, WorkerLease
 from backend.app.services.config_snapshot import (
@@ -45,6 +54,10 @@ from backend.app.services.config_snapshot import (
     normalize_config,
 )
 from backend.app.services.event_log import append_event
+from backend.app.services.report_document import (
+    finalize_report,
+    report_ready_payload,
+)
 from backend.app.services.report_store import ReportStore
 from backend.app.services.tickers import (
     TickerAmbiguous,
@@ -56,6 +69,9 @@ CST = timezone(timedelta(hours=8))
 MAX_ATTEMPTS = 3
 REQUEST_KEYS = ("ticker", "analysis_date", "config")
 CONTROL_ACTIONS = ("pause", "resume", "cancel")
+RETRY_MODES = ("same_config", "resume_from_checkpoint")
+SAME_CONFIG_RETRYABLE = ("failed", "interrupted", "succeeded")
+FINISHABLE_STATUSES = ("running", "pause_requested", "cancel_requested")
 
 
 class JobCreateError(Exception):
@@ -124,6 +140,10 @@ class _PreparedCreate:
     body_hash: str
     snapshot: dict[str, Any] = field(repr=False)
     config_hash: str
+    ticker_name: str | None = None
+    retry_of_job_id: str | None = None
+    resume_of_job_id: str | None = None
+    resume_from_stage: str | None = None
 
 
 @dataclass(frozen=True)
@@ -173,6 +193,9 @@ class JobService:
         self._reports = reports
 
     # -- reads ---------------------------------------------------------
+    def now(self) -> datetime:
+        return self._clock()
+
     def get_job(self, job_id: str) -> Job | None:
         with Session(self._engine) as session:
             return session.get(Job, job_id)
@@ -228,7 +251,7 @@ class JobService:
         job = Job(
             id=str(uuid.uuid4()),
             ticker_code=prepared.ticker_code,
-            ticker_name=None,
+            ticker_name=prepared.ticker_name,
             analysis_date=prepared.analysis_date,
             status="queued",
             pending_action=None,
@@ -237,6 +260,9 @@ class JobService:
             graph_version=self._config.graph_version,
             idempotency_key=idempotency_key,
             idempotency_body_hash=prepared.body_hash,
+            retry_of_job_id=prepared.retry_of_job_id,
+            resume_of_job_id=prepared.resume_of_job_id,
+            resume_from_stage=prepared.resume_from_stage,
             created_at=now,
             updated_at=now,
         )
@@ -358,6 +384,91 @@ class JobService:
             )
         )
         return CreateOutcome(200, job, existing=True)
+
+    # -- retry / resume ------------------------------------------------
+    def retry_job(
+        self, job_id: str, *, mode: str, idempotency_key: str
+    ) -> CreateOutcome:
+        """api-v1.md 1.7: retry/resume always creates a new job, original intact."""
+        if mode not in RETRY_MODES:
+            raise JobControlError(
+                "invalid_request", status_code=400, details={"field": "mode"}
+            )
+        body_hash = hashlib.sha256(
+            canonical_json({"job_id": job_id, "mode": mode}).encode("utf-8")
+        ).hexdigest()
+        now = self._now()
+        for _ in range(MAX_ATTEMPTS):
+            try:
+                with Session(self._engine, expire_on_commit=False) as session:
+                    key_row = session.get(JobIdempotencyKey, idempotency_key)
+                    if key_row is not None:
+                        return self._replay(session, key_row, body_hash)
+                    job = session.get(Job, job_id)
+                    if job is None:
+                        raise JobControlError("job_not_found", status_code=404)
+                    prepared = self._prepare_retry(session, job, mode, body_hash)
+                    outcome = self._create_once(
+                        session, prepared, idempotency_key, now
+                    )
+                    session.commit()
+                    return outcome
+            except (IntegrityError, OperationalError) as exc:
+                if (
+                    isinstance(exc, OperationalError)
+                    and "locked" not in str(exc).lower()
+                ):
+                    raise
+                continue
+        raise JobCreateError("internal_error")
+
+    def _prepare_retry(
+        self,
+        session: Session,
+        job: Job,
+        mode: str,
+        body_hash: str,
+    ) -> _PreparedCreate:
+        if mode == "resume_from_checkpoint":
+            if job.status != "interrupted":
+                raise JobControlError(
+                    "illegal_transition",
+                    details={
+                        "from": job.status,
+                        "action": "resume_from_checkpoint",
+                        "rule": None,
+                    },
+                )
+            if not self._resume_fingerprint_ok(job):
+                raise JobControlError(
+                    "resume_fingerprint_mismatch",
+                    details={"field": "config_digest"},
+                )
+            retry_of: str | None = None
+            resume_of: str | None = job.id
+            checkpoint = self._first_unfinished_in(session, job.id)
+        else:
+            if job.status not in SAME_CONFIG_RETRYABLE:
+                raise JobControlError(
+                    "illegal_transition",
+                    details={"from": job.status, "action": "retry", "rule": None},
+                )
+            retry_of = job.id
+            resume_of = None
+            checkpoint = None
+
+        snapshot = copy.deepcopy(job.config_snapshot)
+        return _PreparedCreate(
+            ticker_code=job.ticker_code,
+            analysis_date=job.analysis_date,
+            body_hash=body_hash,
+            snapshot=snapshot,
+            config_hash=config_hash(snapshot, self._config.graph_version),
+            ticker_name=job.ticker_name,
+            retry_of_job_id=retry_of,
+            resume_of_job_id=resume_of,
+            resume_from_stage=checkpoint,
+        )
 
     # -- request validation --------------------------------------------
     def _prepare(self, payload: Mapping[str, Any]) -> _PreparedCreate:
@@ -703,16 +814,28 @@ class JobService:
             return True
 
     def finish_success(
-        self, job_id: str, *, detail: str, stats: StatsSnapshot
+        self,
+        job_id: str,
+        *,
+        detail: str | None,
+        stats: StatsSnapshot,
+        report: Mapping[str, Any] | None = None,
     ) -> bool:
-        """T07/T14: the graph finished while pause/cancel was pending."""
+        """T03/T07/T14: succeeded once, with its report in the same commit.
+
+        The conditional UPDATE is the write-once gate: a racing cancel
+        confirmation (T13) and this commit cannot both land. The report row,
+        ``jobs.report_id``, the 13th stats event, the terminal status event and
+        ``report_ready`` share one transaction, so B5 can only ever mean "all
+        of it is missing", never a half-written report.
+        """
         now = self._now()
         with Session(self._engine) as session:
             job = session.get(Job, job_id)
             if job is None:
                 return False
             from_status = job.status
-            if from_status not in ("pause_requested", "cancel_requested"):
+            if from_status not in FINISHABLE_STATUSES:
                 return False
             result = session.execute(
                 update(Job)
@@ -729,6 +852,49 @@ class JobService:
             if result.rowcount != 1:
                 session.rollback()
                 return False
+
+            ready = None
+            if report is not None:
+                payload = finalize_report(
+                    report,
+                    job_id=job_id,
+                    ticker_code=job.ticker_code,
+                    ticker_name=job.ticker_name,
+                    analysis_date=job.analysis_date,
+                    generated_at=now,
+                    config_digest=job.config_hash,
+                    retry_of_job_id=job.retry_of_job_id,
+                )
+                meta = payload["meta"]
+                session.add(
+                    Report(
+                        report_id=meta["report_id"],
+                        job_id=job_id,
+                        ticker_code=job.ticker_code,
+                        ticker_name=job.ticker_name,
+                        analysis_date=job.analysis_date,
+                        generated_at=meta["generated_at"],
+                        generated_at_source=meta["generated_at_source"],
+                        origin=meta["origin"],
+                        schema_version=meta["schema_version"],
+                        content_hash=meta["content_hash"],
+                        config_digest=meta["config_digest"],
+                        data_quality_status=meta["data_quality_status"],
+                        chart_snapshot_status=meta["chart_snapshot_status"],
+                        retry_of_job_id=job.retry_of_job_id,
+                        rating=meta["rating"],
+                        signal=meta["signal"],
+                        payload=payload,
+                        created_at=now,
+                    )
+                )
+                session.execute(
+                    update(Job)
+                    .where(Job.id == job_id)
+                    .values(report_id=meta["report_id"])
+                )
+                ready = report_ready_payload(payload)
+
             append_event(
                 session,
                 job_id=job_id,
@@ -745,6 +911,100 @@ class JobService:
                 detail=detail,
                 pending_action=None,
                 created_at=now,
+            )
+            if ready is not None:
+                append_event(
+                    session,
+                    job_id=job_id,
+                    event_type="report_ready",
+                    payload=ready,
+                    created_at=now,
+                )
+            session.commit()
+            return True
+
+    def finish_failure(
+        self,
+        job_id: str,
+        *,
+        code: str,
+        message: str,
+        stats: StatsSnapshot,
+    ) -> bool:
+        """T04/T08/T15: failed once; stage_failed vs post_stage_error.
+
+        A stage still ``active`` when the executor raised is marked failed and
+        gets its own stage_changed first. When the exception escaped between
+        stages there is no active row, so the detail is ``post_stage_error``.
+        """
+        now = self._now()
+        with Session(self._engine) as session:
+            job = session.get(Job, job_id)
+            if job is None:
+                return False
+            from_status = job.status
+            if from_status not in FINISHABLE_STATUSES:
+                return False
+            result = session.execute(
+                update(Job)
+                .where(Job.id == job_id, Job.status == from_status)
+                .values(
+                    status="failed",
+                    pending_action=None,
+                    finished_at=now,
+                    lease_owner=None,
+                    lease_expires_at=None,
+                    error_code=code,
+                    error_message=message,
+                    updated_at=now,
+                )
+            )
+            if result.rowcount != 1:
+                session.rollback()
+                return False
+
+            active = list(
+                session.scalars(
+                    select(JobStage).where(
+                        JobStage.job_id == job_id, JobStage.status == "active"
+                    )
+                )
+            )
+            for row in active:
+                row.status = "failed"
+                row.ended_at = now
+                append_event(
+                    session,
+                    job_id=job_id,
+                    event_type="stage_changed",
+                    payload=self._stage_payload(
+                        row.stage_id,
+                        "failed",
+                        index=STAGE_IDS.index(row.stage_id) + 1,
+                        total=len(STAGE_IDS),
+                        started_at=row.started_at,
+                        finished_at=now,
+                        duration_ms=_elapsed_ms(row.started_at, now),
+                    ),
+                    created_at=now,
+                )
+            append_event(
+                session,
+                job_id=job_id,
+                event_type="stats",
+                payload=stats.as_payload(),
+                created_at=now,
+            )
+            self._append_status(
+                session,
+                job_id,
+                from_status=from_status,
+                to_status="failed",
+                reason="worker",
+                detail="stage_failed" if active else "post_stage_error",
+                pending_action=None,
+                created_at=now,
+                error={"code": code, "message": message},
             )
             session.commit()
             return True
@@ -828,6 +1088,7 @@ class JobService:
         detail: str | None,
         pending_action: str | None,
         created_at: str,
+        error: Mapping[str, Any] | None = None,
     ) -> None:
         append_event(
             session,
@@ -839,7 +1100,7 @@ class JobService:
                 "reason": reason,
                 "detail": detail,
                 "pending_action": pending_action,
-                "error": None,
+                "error": dict(error) if error is not None else None,
             },
             created_at=created_at,
         )
@@ -1071,7 +1332,7 @@ class JobService:
             .where(JobEvent.job_id == job_id, JobEvent.type == "stage_changed")
             .order_by(JobEvent.id)
         ):
-            if event.payload.get("stage_status") == "done":
+            if event.payload.get("stage_status") in ("done", "failed"):
                 durations[event.payload.get("stage_id")] = event.payload.get(
                     "duration_ms"
                 )
@@ -1087,7 +1348,7 @@ class JobService:
                 }
                 continue
             duration = durations.get(stage_id)
-            if duration is None and row.status == "done":
+            if duration is None and row.status in ("done", "failed"):
                 duration = _elapsed_ms(row.started_at, row.ended_at or "")
             views[stage_id] = {
                 "status": row.status,
