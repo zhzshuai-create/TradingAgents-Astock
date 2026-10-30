@@ -23,6 +23,21 @@ STAGE_IDS = (
 )
 STAGE_STATUSES = ("pending", "active", "done", "failed", "skipped")
 
+STAGE_NAMES = {
+    "market": "技术分析",
+    "social": "情绪分析",
+    "news": "新闻舆情",
+    "fundamentals": "基本面",
+    "policy": "政策分析",
+    "hot_money": "游资追踪",
+    "lockup": "解禁监控",
+    "quality_gate": "质量门控",
+    "debate": "多空辩论",
+    "trader": "交易决策",
+    "risk": "风控评估",
+    "pm": "最终决策",
+}
+
 
 class JobStage(Base):
     __tablename__ = "job_stages"

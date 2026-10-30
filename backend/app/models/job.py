@@ -27,6 +27,20 @@ ACTIVE_STATUSES = ("queued", "running", "pause_requested", "paused", "cancel_req
 TERMINAL_STATUSES = ("cancelled", "succeeded", "failed", "interrupted")
 PENDING_ACTIONS = ("pause", "cancel")
 
+# api-v1.md section 1.6: buttons are rendered from this table, never inferred
+# from the status string by the client.
+ALLOWED_ACTIONS: dict[str, tuple[str, ...]] = {
+    "queued": ("cancel",),
+    "running": ("pause", "cancel"),
+    "pause_requested": ("cancel",),
+    "paused": ("resume", "cancel"),
+    "cancel_requested": (),
+    "cancelled": ("reanalyze",),
+    "succeeded": ("retry", "reanalyze"),
+    "failed": ("retry", "reanalyze"),
+    "interrupted": ("resume_from_checkpoint", "retry", "reanalyze"),
+}
+
 
 class Job(Base):
     __tablename__ = "jobs"

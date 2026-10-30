@@ -170,6 +170,7 @@ def test_db08_downgrade_to_0001_removes_only_the_three_tables(jobs_db_path):
         "jobs",
         "job_stages",
         "job_events",
+        "job_idempotency_keys",
     }
 
     command.downgrade(cfg, "0001")
