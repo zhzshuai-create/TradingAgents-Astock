@@ -18,7 +18,15 @@ honours control requests at stage boundaries:
 * a cancel_requested row with no lease (T20 from paused) is claimed and
   finished without running the graph;
 * every boundary checks ``lost`` first; a lost lease stops all writes and
-  leaves the row for P1-10 reconciliation.
+  leaves the row for startup reconciliation (P1-10);
+* ``acquire`` runs the startup reconcile once, after taking the global lease
+  and before any claim: orphaned running/pause_requested/cancel_requested rows
+  become ``interrupted`` (never auto-rerun), a paused row whose artifacts are
+  gone becomes ``interrupted(checkpoint_missing)``, and B5 appends the missing
+  ``report_ready``. ``TA_STARTUP_RECONCILE=0`` turns the scan off;
+* before the terminal transaction the executor's report is written to
+  ``<job>/report.json``; a crash between that write and the commit is B4, and
+  reconcile records it without importing it.
 
 Everything else stays where it was: exactly one worker owns the global lease,
 the heartbeat renews it, shutdown releases only its own lease, and the default
@@ -29,10 +37,13 @@ and the server config flag, AD-01).
 from __future__ import annotations
 
 import logging
+import os
 import threading
 import uuid
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import timedelta
+from typing import Any
 
 from backend.app.core.server_config import ServerConfig
 from backend.app.models.job import Job
@@ -47,8 +58,19 @@ from backend.app.services.analysis_runner import (
 from backend.app.services.job_service import JobService, StatsSnapshot
 from backend.app.services.lease import DEFAULT_HEARTBEAT_INTERVAL, LeaseService
 from backend.app.services.report_store import ReportStore
+from backend.app.worker.reconcile import Reconciler
 
 logger = logging.getLogger(__name__)
+
+RECONCILE_ENV = "TA_STARTUP_RECONCILE"
+
+
+def startup_reconcile_enabled(
+    environ: Mapping[str, str] | None = None,
+) -> bool:
+    """On by default; ``TA_STARTUP_RECONCILE=0`` is the rollback switch."""
+    env = os.environ if environ is None else environ
+    return env.get(RECONCILE_ENV, "1") != "0"
 
 
 class _Stopped(Exception):
@@ -121,6 +143,7 @@ class Worker:
         heartbeat_interval: timedelta = DEFAULT_HEARTBEAT_INTERVAL,
         executor: AnalysisExecutor | None = None,
         server_config: ServerConfig | None = None,
+        reconcile_on_start: bool | None = None,
     ) -> None:
         self.owner = owner or f"worker-{uuid.uuid4().hex[:8]}"
         self._lease = lease
@@ -131,6 +154,14 @@ class Worker:
             executor
             if executor is not None
             else create_analysis_executor(server_config)
+        )
+        self._reconcile_on_start = (
+            startup_reconcile_enabled()
+            if reconcile_on_start is None
+            else reconcile_on_start
+        )
+        self._reconciler = Reconciler(
+            jobs, reports, lease=lease, owner=self.owner, clock=jobs.now
         )
         self._acquired = False
 
@@ -143,13 +174,20 @@ class Worker:
         return self._heartbeat.lost
 
     def acquire(self) -> bool:
-        """Take the global lease and start renewing it; False if taken."""
+        """Take the global lease and start renewing it; False if taken.
+
+        The startup reconcile runs once, after the lease is ours and before
+        the first claim. It cannot touch the job this worker is about to run,
+        because nothing is claimed yet.
+        """
         if self._acquired:
             return True
         if not self._lease.acquire(self.owner):
             return False
         self._acquired = True
         self._heartbeat.start()
+        if self._reconcile_on_start:
+            self._reconciler.run()
         return True
 
     def claim(self) -> Job | None:
@@ -260,6 +298,7 @@ class Worker:
         status = self._jobs.job_status(job.id)
         if status in ("pause_requested", "cancel_requested"):
             detail = "pause_noop" if status == "pause_requested" else "cancel_noop"
+            self._publish_report(job.id, result.report)
             self._jobs.finish_success(
                 job.id, detail=detail, stats=cumulative, report=result.report
             )
@@ -275,11 +314,33 @@ class Worker:
                 stopped="lost",
             )
         # T03: one transaction writes the report row, the 13th stats event,
-        # the terminal status event and report_ready.
+        # the terminal status event and report_ready. The report file goes to
+        # disk first; a crash in between is B4 and reconcile only notes it.
+        self._publish_report(job.id, result.report)
         self._jobs.finish_success(
             job.id, detail=None, stats=cumulative, report=result.report
         )
         return WorkerOutcome(job=self._jobs.get_job(job.id) or job, result=result)
+
+    def _publish_report(
+        self, job_id: str, report: Mapping[str, Any] | None
+    ) -> None:
+        """Write the complete report to ``<job>/report.json`` before commit.
+
+        The file is evidence for reconciliation (B4), never a source of truth:
+        a crash after this write leaves a worker-held row next to a full
+        report, which reconcile marks ``unregistered_report`` and never
+        imports. A failed write must not fail the run itself; the database
+        commit is authoritative.
+        """
+        if report is None or self._heartbeat.lost:
+            return
+        try:
+            self._reports.write_final_report(job_id, report)
+        except OSError:
+            logger.exception(
+                "failed to write the final report artifact for %s", job_id
+            )
 
     def _check_boundary(self, job_id: str) -> None:
         """Must run before a stage starts; raises _Stopped to leave the loop."""

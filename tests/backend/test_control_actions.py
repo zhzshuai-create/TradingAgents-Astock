@@ -660,17 +660,20 @@ def test_sm14_paused_cancel_goes_through_cancel_requested(env):
     job_id = _create_job(env)
     _pause_job(env, job_id)
 
-    response = _action(env, job_id, "cancel")
-    assert response.status_code == 202
-    assert response.json()["status"] == "cancel_requested"
-
-    job = _job(env, job_id)
-    assert job.status == "cancel_requested"
-    assert job.pending_action == "cancel"
-    assert job.finished_at is None
-    assert _detail(env, job_id)["allowed_actions"] == []
-
+    # The worker stays up for the request: startup reconcile would treat an
+    # orphan cancel_requested row as a crashed worker (T16-T18 -> interrupted),
+    # but a live worker must honour T20 and finish the cancel itself.
     with _worker(env) as worker:
+        response = _action(env, job_id, "cancel")
+        assert response.status_code == 202
+        assert response.json()["status"] == "cancel_requested"
+
+        job = _job(env, job_id)
+        assert job.status == "cancel_requested"
+        assert job.pending_action == "cancel"
+        assert job.finished_at is None
+        assert _detail(env, job_id)["allowed_actions"] == []
+
         outcome = worker.run_once()
 
     assert outcome is not None

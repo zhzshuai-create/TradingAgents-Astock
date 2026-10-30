@@ -145,6 +145,24 @@ class LeaseService:
             expires = _parse(row.expires_at)
             return expires is not None and expires > now
 
+    def live_owner(self) -> str | None:
+        """The owner of an unexpired global lease, or None.
+
+        Reconciliation uses this to leave a live worker's jobs alone: a
+        heartbeat that has not lapsed means the execution process is up, so
+        nothing is an orphan (job.lease_expires_at is not renewed and is
+        therefore not a heartbeat).
+        """
+        now = self._clock()
+        with Session(self._engine) as session:
+            row = session.get(WorkerLease, LEASE_ROW_ID)
+            if row is None or row.owner is None:
+                return None
+            expires = _parse(row.expires_at)
+            if expires is None or expires <= now:
+                return None
+            return row.owner
+
     def claim_next_job(self, owner: str) -> Job | None:
         """Claim the oldest queued job, or None. Requires the global lease."""
         if not self.holds(owner):

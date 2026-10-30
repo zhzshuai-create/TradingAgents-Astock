@@ -5,6 +5,12 @@ without rewriting rows. Every write opens a new ``attempt-<n>.md`` with
 exclusive create: a retry after a crash adds evidence instead of clobbering
 the previous attempt (ST-01).
 
+The final report is a separate ``<job>/report.json`` written just before the
+terminal transaction (P1-10). If the process dies between that write and the
+commit, the file is B4 evidence: reconciliation never registers it, it only
+records an ``unregistered_report`` note. The write goes through a temp file and
+``os.replace`` so a crash mid-write never leaves a complete-looking document.
+
 The root is ``TA_JOB_REPORTS_DIR``, defaulting to
 ``~/.tradingagents/job_reports``. That is deliberately not the legacy
 ``~/.tradingagents/logs`` directory, which the old Streamlit runner owns.
@@ -15,14 +21,17 @@ Contract api-v1.md 1.10: a read keeps the first 128 KiB of UTF-8 and reports
 
 from __future__ import annotations
 
+import json
 import os
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import Any
 
 JOB_REPORTS_ENV = "TA_JOB_REPORTS_DIR"
 MAX_STAGE_REPORT_BYTES = 128 * 1024
+FINAL_REPORT_NAME = "report.json"
 _CST = timezone(timedelta(hours=8))
 
 
@@ -86,6 +95,41 @@ class ReportStore:
             stage_id: path.relative_to(self._root).as_posix()
             for stage_id, (_attempt, path) in latest.items()
         }
+
+    def write_final_report(self, job_id: str, payload: Mapping[str, Any]) -> str:
+        """Write the pre-commit report artifact and return its relative path."""
+        directory = self._root / _component(job_id)
+        directory.mkdir(parents=True, exist_ok=True)
+        target = directory / FINAL_REPORT_NAME
+        temp = directory / f"{FINAL_REPORT_NAME}.tmp"
+        temp.write_text(
+            json.dumps(
+                payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+            ),
+            encoding="utf-8",
+            newline="",
+        )
+        os.replace(temp, target)
+        return target.relative_to(self._root).as_posix()
+
+    def read_final_report(self, job_id: str) -> dict[str, Any] | None:
+        """Return the artifact only when it is a complete report document."""
+        path = self._root / _component(job_id) / FINAL_REPORT_NAME
+        if not path.is_file():
+            return None
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return None
+        if not isinstance(data, dict):
+            return None
+        meta = data.get("meta")
+        sections = data.get("sections")
+        if not isinstance(meta, dict) or not isinstance(sections, dict):
+            return None
+        if not sections:
+            return None
+        return data
 
     def read_stage_report(self, relative_path: str) -> StageReport | None:
         path = self._resolve(relative_path)

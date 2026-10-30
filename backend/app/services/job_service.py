@@ -23,6 +23,14 @@ event, the terminal status event and ``report_ready`` in one transaction; the
 failed path marks the still-active stage first and records the error on the
 row and in the status event. Retry/resume always creates a new job and never
 touches the original.
+
+Startup reconciliation (P1-10) is also a conditional UPDATE: a job in one of
+the three worker-held states, or a paused job whose checkpoint artifacts are
+gone, becomes ``interrupted`` with one ``status_changed(reconcile)`` event.
+B3/B4 audit notes are written in the same transaction (``seq`` NULL). A
+succeeded job whose report committed but whose ``report_ready`` did not is the
+only case where reconcile appends a broadcast event, and it never changes the
+status.
 """
 
 from __future__ import annotations
@@ -30,7 +38,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import uuid
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
 from typing import Any
@@ -72,6 +80,12 @@ CONTROL_ACTIONS = ("pause", "resume", "cancel")
 RETRY_MODES = ("same_config", "resume_from_checkpoint")
 SAME_CONFIG_RETRYABLE = ("failed", "interrupted", "succeeded")
 FINISHABLE_STATUSES = ("running", "pause_requested", "cancel_requested")
+INTERRUPTIBLE_STATUSES = (
+    "running",
+    "pause_requested",
+    "cancel_requested",
+    "paused",
+)
 
 
 class JobCreateError(Exception):
@@ -446,7 +460,12 @@ class JobService:
                 )
             retry_of: str | None = None
             resume_of: str | None = job.id
-            checkpoint = self._first_unfinished_in(session, job.id)
+            # Reconcile stores the B3-aware point (a stage whose report is on
+            # disk counts as finished even without its done row); an
+            # interrupted row that predates that scan falls back to stage rows.
+            checkpoint = job.resume_from_stage or self._first_unfinished_in(
+                session, job.id
+            )
         else:
             if job.status not in SAME_CONFIG_RETRYABLE:
                 raise JobControlError(
@@ -1278,6 +1297,127 @@ class JobService:
             for stage_id in STAGE_IDS
             if stage_id in files and stage_id not in done and stage_id in active
         ]
+
+    # -- startup reconcile (P1-10) -------------------------------------
+    def reconcile_scan(self) -> list[tuple[str, str, str | None]]:
+        """All jobs as ``(id, status, resume_from_stage)`` in creation order."""
+        with Session(self._engine) as session:
+            rows = session.execute(
+                select(Job.id, Job.status, Job.resume_from_stage).order_by(
+                    Job.created_at, Job.id
+                )
+            )
+            return [(job_id, status, resume) for job_id, status, resume in rows]
+
+    def stage_locations(self, job_id: str) -> dict[str, StageLocation]:
+        with Session(self._engine) as session:
+            rows = session.scalars(
+                select(JobStage).where(JobStage.job_id == job_id)
+            )
+            return {
+                row.stage_id: StageLocation(
+                    status=row.status, report_path=row.report_path
+                )
+                for row in rows
+            }
+
+    def mark_interrupted(
+        self,
+        job_id: str,
+        *,
+        detail: str,
+        notes: Sequence[ReconcileNote] = (),
+        resume_from_stage: str | None = None,
+    ) -> bool:
+        """T16/T17/T18 and checkpoint loss: status plus one reconcile event.
+
+        The conditional UPDATE is the only deciding write: a row that moved
+        since the scan loses and writes nothing, so a live transition is never
+        overwritten. Notes are audit records (``seq`` NULL) committed together
+        with the status event. Reconcile never runs the graph.
+        """
+        now = self._now()
+        with Session(self._engine) as session:
+            job = session.get(Job, job_id)
+            if job is None:
+                return False
+            from_status = job.status
+            if from_status not in INTERRUPTIBLE_STATUSES:
+                return False
+            result = session.execute(
+                update(Job)
+                .where(Job.id == job_id, Job.status == from_status)
+                .values(
+                    status="interrupted",
+                    pending_action=None,
+                    finished_at=now,
+                    lease_owner=None,
+                    lease_expires_at=None,
+                    resume_from_stage=resume_from_stage,
+                    updated_at=now,
+                )
+            )
+            if result.rowcount != 1:
+                session.rollback()
+                return False
+            for note in notes:
+                append_event(
+                    session,
+                    job_id=job_id,
+                    event_type="reconcile_note",
+                    payload=note.as_payload(),
+                    created_at=note.at or now,
+                    broadcast=False,
+                )
+            self._append_status(
+                session,
+                job_id,
+                from_status=from_status,
+                to_status="interrupted",
+                reason="reconcile",
+                detail=detail,
+                pending_action=None,
+                created_at=now,
+            )
+            session.commit()
+            return True
+
+    def append_report_ready_if_missing(self, job_id: str) -> bool:
+        """B5: the report and status committed, the broadcast did not.
+
+        Only appends the event; the status and the report row stay untouched.
+        A succeeded job without a report row is left alone rather than
+        inventing a payload.
+        """
+        now = self._now()
+        with Session(self._engine) as session:
+            job = session.get(Job, job_id)
+            if job is None or job.status != "succeeded":
+                return False
+            report = session.scalars(
+                select(Report).where(Report.job_id == job_id)
+            ).first()
+            if report is None:
+                return False
+            exists = session.scalar(
+                select(JobEvent.id)
+                .where(
+                    JobEvent.job_id == job_id,
+                    JobEvent.type == "report_ready",
+                )
+                .limit(1)
+            )
+            if exists is not None:
+                return False
+            append_event(
+                session,
+                job_id=job_id,
+                event_type="report_ready",
+                payload=report_ready_payload(report.payload),
+                created_at=now,
+            )
+            session.commit()
+            return True
 
     # -- projections ---------------------------------------------------
     def detail_parts(self, job_id: str) -> dict[str, Any]:
