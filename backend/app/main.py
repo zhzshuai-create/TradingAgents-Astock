@@ -15,12 +15,14 @@ from backend.app.api.v1.jobs import router as jobs_router
 from backend.app.core.db import build_engine
 from backend.app.core.server_config import ServerConfig, load_server_config
 from backend.app.services.job_service import JobService
+from backend.app.services.report_store import ReportStore
 
 
 def create_app(
     *,
     service: JobService | None = None,
     server_config: ServerConfig | None = None,
+    report_store: ReportStore | None = None,
 ) -> FastAPI:
     config = server_config or load_server_config()
     job_service = service or JobService(build_engine(), config)
@@ -28,6 +30,7 @@ def create_app(
     app = FastAPI(title="AStock Pro API", version="0.9.0")
     app.state.server_config = config
     app.state.job_service = job_service
+    app.state.report_store = report_store or ReportStore.from_env()
     install_error_handlers(app)
 
     @app.middleware("http")

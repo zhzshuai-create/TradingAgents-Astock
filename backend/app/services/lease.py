@@ -12,6 +12,9 @@ Two layers:
 Expired job leases are never re-claimed here: a running row is not queued, so
 it stays running until the P1-10 reconcile turns it into interrupted. That is
 the contract's no-auto-rerun rule (job-state-machine.md section 4).
+
+T02 writes its status_changed event in the same transaction as the UPDATE, so
+a claimed job always starts its SSE sequence at seq 1.
 """
 
 from __future__ import annotations
@@ -24,6 +27,7 @@ from sqlalchemy.orm import Session
 
 from backend.app.models.job import Job
 from backend.app.models.worker_lease import LEASE_ROW_ID, WorkerLease
+from backend.app.services.event_log import append_event
 from backend.app.services.job_service import CST
 
 DEFAULT_LEASE_TTL = timedelta(seconds=30)
@@ -166,6 +170,22 @@ class LeaseService:
                 if result.rowcount != 1:
                     session.rollback()
                     continue
+                # T02 lives in the same transaction as the UPDATE so a claimed
+                # row always has its status_changed event (sse-events-v1.md 3.3).
+                append_event(
+                    session,
+                    job_id=candidate,
+                    event_type="status_changed",
+                    payload={
+                        "from": "queued",
+                        "to": "running",
+                        "reason": "worker",
+                        "detail": None,
+                        "pending_action": None,
+                        "error": None,
+                    },
+                    created_at=now_text,
+                )
                 session.commit()
                 return session.get(Job, candidate)
         return None

@@ -52,6 +52,7 @@ class StageProgress:
     model_calls: int = 0
     tokens_in: int = 0
     tokens_out: int = 0
+    duration_ms: int = 0
 
 
 @dataclass(frozen=True)
@@ -173,6 +174,7 @@ class FakeAnalysisExecutor:
                             model_calls=spec.model_calls,
                             tokens_in=spec.tokens_in,
                             tokens_out=spec.tokens_out,
+                            duration_ms=spec.duration_ms,
                         )
                     )
 

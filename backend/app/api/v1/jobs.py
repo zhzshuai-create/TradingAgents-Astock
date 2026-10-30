@@ -1,4 +1,8 @@
-"""Job routes: create and detail (api-v1.md sections 1.3 and 1.5)."""
+"""Job routes: create, detail and per-stage reports.
+
+api-v1.md sections 1.3, 1.5 and 1.10. The stage endpoint is read-only: it does
+not reconcile, change status, emit events or rerun a stage.
+"""
 
 from __future__ import annotations
 
@@ -9,6 +13,7 @@ from pydantic import BaseModel, ConfigDict
 
 from backend.app.api.errors import ApiError
 from backend.app.api.v1.serializers import job_detail
+from backend.app.models.stage import STAGE_IDS, STAGE_NAMES
 from backend.app.services.job_service import JobCreateError
 
 router = APIRouter(prefix="/api/v1/jobs", tags=["jobs"])
@@ -43,12 +48,49 @@ def create_job(
     if outcome.existing:
         response.headers["X-Existing-Job"] = outcome.job.id
     response.status_code = outcome.status_code
-    return job_detail(outcome.job)
+    return job_detail(outcome.job, **service.detail_parts(outcome.job.id))
 
 
 @router.get("/{job_id}")
 def get_job(job_id: str, request: Request) -> dict[str, Any]:
-    job = request.app.state.job_service.get_job(job_id)
+    service = request.app.state.job_service
+    job = service.get_job(job_id)
     if job is None:
         raise ApiError("job_not_found")
-    return job_detail(job)
+    return job_detail(job, **service.detail_parts(job_id))
+
+
+@router.get("/{job_id}/stages/{stage_id}")
+def get_stage_report(job_id: str, stage_id: str, request: Request) -> dict[str, Any]:
+    if stage_id not in STAGE_IDS:
+        raise ApiError("stage_not_found")
+
+    location = request.app.state.job_service.get_stage_location(job_id, stage_id)
+    if location is None:
+        raise ApiError("job_not_found")
+
+    markdown = None
+    truncated = False
+    full_length = 0
+    updated_at = None
+    if location.status in ("done", "failed") and location.report_path:
+        report = request.app.state.report_store.read_stage_report(
+            location.report_path
+        )
+        if report is not None:
+            markdown = report.markdown
+            truncated = report.truncated
+            full_length = report.full_length
+            updated_at = report.updated_at
+
+    return {
+        "job_id": job_id,
+        "stage_id": stage_id,
+        "stage_name": STAGE_NAMES[stage_id],
+        "index": STAGE_IDS.index(stage_id) + 1,
+        "status": location.status,
+        "markdown": markdown,
+        "truncated": truncated,
+        "full_length": full_length,
+        "updated_at": updated_at,
+    }

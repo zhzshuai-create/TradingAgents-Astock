@@ -2,23 +2,25 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from typing import Any
 
-from backend.app.models.job import ALLOWED_ACTIONS, Job
+from backend.app.models.job import ALLOWED_ACTIONS, TERMINAL_STATUSES, Job
 from backend.app.models.stage import STAGE_IDS, STAGE_NAMES
 
+TOTAL_STAGES = len(STAGE_IDS)
+STATS_KEYS = ("model_calls", "tokens_in", "tokens_out", "elapsed_ms")
 
-def job_detail(job: Job) -> dict[str, Any]:
-    stages = [
-        {
-            "id": stage_id,
-            "name": STAGE_NAMES[stage_id],
-            "index": index,
-            "status": "pending",
-            "started_at": None,
-            "finished_at": None,
-            "duration_ms": None,
-        }
+
+def job_detail(
+    job: Job,
+    *,
+    stages: Mapping[str, Mapping[str, Any]] | None = None,
+    stats: Mapping[str, int] | None = None,
+    reconcile_notes: Sequence[Mapping[str, str]] = (),
+) -> dict[str, Any]:
+    entries = [
+        _stage_entry(stage_id, index, (stages or {}).get(stage_id))
         for index, stage_id in enumerate(STAGE_IDS, 1)
     ]
     return {
@@ -32,14 +34,9 @@ def job_detail(job: Job) -> dict[str, Any]:
         "updated_at": job.updated_at,
         "started_at": job.started_at,
         "finished_at": job.finished_at,
-        "current_stage": None,
-        "stages": stages,
-        "stats": {
-            "model_calls": 0,
-            "tokens_in": 0,
-            "tokens_out": 0,
-            "elapsed_ms": 0,
-        },
+        "current_stage": _current_stage(job.status, entries),
+        "stages": entries,
+        "stats": {key: int((stats or {}).get(key, 0)) for key in STATS_KEYS},
         "report_id": job.report_id,
         "error": (
             {"code": job.error_code, "message": job.error_message}
@@ -59,5 +56,37 @@ def job_detail(job: Job) -> dict[str, Any]:
                 f"/api/v1/reports/{job.report_id}" if job.report_id else None
             ),
         },
-        "reconcile_notes": [],
+        "reconcile_notes": [dict(note) for note in reconcile_notes],
+    }
+
+
+def _stage_entry(
+    stage_id: str, index: int, view: Mapping[str, Any] | None
+) -> dict[str, Any]:
+    view = view or {}
+    return {
+        "id": stage_id,
+        "name": STAGE_NAMES[stage_id],
+        "index": index,
+        "status": view.get("status", "pending"),
+        "started_at": view.get("started_at"),
+        "finished_at": view.get("finished_at"),
+        "duration_ms": view.get("duration_ms"),
+    }
+
+
+def _current_stage(
+    status: str, entries: Sequence[Mapping[str, Any]]
+) -> dict[str, Any] | None:
+    if status == "queued" or status in TERMINAL_STATUSES:
+        return None
+    active = next((entry for entry in entries if entry["status"] == "active"), None)
+    if active is None:
+        return None
+    return {
+        "id": active["id"],
+        "name": active["name"],
+        "index": active["index"],
+        "total": TOTAL_STAGES,
+        "status": active["status"],
     }

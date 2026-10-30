@@ -39,6 +39,7 @@ from backend.app.models import Job, JobEvent, WorkerLease  # noqa: E402
 from backend.app.models.worker_lease import LEASE_ROW_ID  # noqa: E402
 from backend.app.services.job_service import CST, JobService  # noqa: E402
 from backend.app.services.lease import LeaseService  # noqa: E402
+from backend.app.services.report_store import ReportStore  # noqa: E402
 from backend.app.worker.main import Worker  # noqa: E402
 
 BACKEND = ROOT / "backend"
@@ -90,6 +91,7 @@ def env(tmp_path, monkeypatch):
             jobs=jobs,
             clock=clock,
             db_path=path,
+            reports=ReportStore(tmp_path / "reports"),
             lease=lambda **kwargs: LeaseService(engine, clock=clock, **kwargs),
         )
     finally:
@@ -180,8 +182,12 @@ def test_cb01_b1_restart_reclaims_queued_job_once_without_new_job(env):
 
 def test_wk01_second_worker_cannot_acquire_lease_or_claim(env):
     job_id = _create_job(env)
-    first = Worker(env.lease(), owner="worker-1")
-    second = Worker(env.lease(), owner="worker-2")
+    first = Worker(
+        env.lease(), jobs=env.jobs, reports=env.reports, owner="worker-1"
+    )
+    second = Worker(
+        env.lease(), jobs=env.jobs, reports=env.reports, owner="worker-2"
+    )
     try:
         assert first.acquire() is True
         assert second.acquire() is False
@@ -206,7 +212,11 @@ def test_wk01_second_worker_cannot_acquire_lease_or_claim(env):
 def test_wk02_heartbeat_renews_expiry_on_interval(env):
     lease = env.lease(ttl=timedelta(seconds=2))
     worker = Worker(
-        lease, owner="worker-hb", heartbeat_interval=timedelta(milliseconds=50)
+        lease,
+        jobs=env.jobs,
+        reports=env.reports,
+        owner="worker-hb",
+        heartbeat_interval=timedelta(milliseconds=50),
     )
     try:
         assert worker.acquire() is True
@@ -299,7 +309,11 @@ def test_expired_global_lease_can_be_taken_over(env):
 def test_heartbeat_flags_lost_when_the_lease_moves_away(env):
     lease = env.lease(ttl=timedelta(seconds=30))
     worker = Worker(
-        lease, owner="worker-old", heartbeat_interval=FAST_HEARTBEAT
+        lease,
+        jobs=env.jobs,
+        reports=env.reports,
+        owner="worker-old",
+        heartbeat_interval=FAST_HEARTBEAT,
     )
     try:
         assert worker.acquire() is True

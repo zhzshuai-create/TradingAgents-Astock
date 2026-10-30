@@ -1,10 +1,15 @@
-"""Job creation: the single write path for POST /api/v1/jobs.
+"""Job lifecycle writes: creation, stage boundaries, stats and audit notes.
 
-The five-step decision order is fixed by idempotency-conflicts.md section 1.
-Concurrent creates are decided by the uniq_active_fingerprint partial index,
-not by a read-before-write check: a losing insert retries and re-reads the
-winner. Every key that resolves to a job is recorded, including keys that hit
-step 3 against an already-active job, so a later replay compares at step 2.
+Creation is the single write path for POST /api/v1/jobs and follows
+idempotency-conflicts.md section 1. Concurrent creates are decided by the
+uniq_active_fingerprint partial index, not by a read-before-write check: a
+losing insert retries and re-reads the winner. Every key that resolves to a
+job is recorded, including keys that hit step 3 against an already-active
+job, so a later replay compares at step 2.
+
+Stage methods commit one boundary at a time (P1-07): the stage row, its
+stage_changed event and the cumulative stats event land together, so a crash
+can only leave a report file without its done event (B3), never the reverse.
 """
 
 from __future__ import annotations
@@ -24,6 +29,7 @@ from backend.app.core.server_config import ServerConfig
 from backend.app.models.event import JobEvent
 from backend.app.models.idempotency import JobIdempotencyKey
 from backend.app.models.job import ACTIVE_STATUSES, Job
+from backend.app.models.stage import STAGE_IDS, STAGE_NAMES, JobStage
 from backend.app.services.config_snapshot import (
     InvalidConfigValue,
     UnknownConfigKey,
@@ -31,6 +37,8 @@ from backend.app.services.config_snapshot import (
     config_hash,
     normalize_config,
 )
+from backend.app.services.event_log import append_event
+from backend.app.services.report_store import ReportStore
 from backend.app.services.tickers import (
     TickerAmbiguous,
     TickerUnresolved,
@@ -84,6 +92,38 @@ class _PreparedCreate:
     config_hash: str
 
 
+@dataclass(frozen=True)
+class StatsSnapshot:
+    model_calls: int = 0
+    tokens_in: int = 0
+    tokens_out: int = 0
+    elapsed_ms: int = 0
+
+    def as_payload(self) -> dict[str, int]:
+        return {
+            "model_calls": self.model_calls,
+            "tokens_in": self.tokens_in,
+            "tokens_out": self.tokens_out,
+            "elapsed_ms": self.elapsed_ms,
+        }
+
+
+@dataclass(frozen=True)
+class ReconcileNote:
+    code: str
+    message: str
+    at: str
+
+    def as_payload(self) -> dict[str, str]:
+        return {"code": self.code, "message": self.message, "at": self.at}
+
+
+@dataclass(frozen=True)
+class StageLocation:
+    status: str
+    report_path: str | None
+
+
 class JobService:
     def __init__(
         self,
@@ -91,10 +131,12 @@ class JobService:
         config: ServerConfig,
         *,
         clock: Callable[[], datetime] | None = None,
+        reports: ReportStore | None = None,
     ) -> None:
         self._engine = engine
         self._config = config
         self._clock = clock or (lambda: datetime.now(CST))
+        self._reports = reports
 
     # -- reads ---------------------------------------------------------
     def get_job(self, job_id: str) -> Job | None:
@@ -357,3 +399,279 @@ class JobService:
             raise JobCreateError("invalid_date")
         if parsed > self._clock().astimezone(CST).date():
             raise JobCreateError("invalid_date")
+
+    # -- stage persistence ---------------------------------------------
+    def start_stage(
+        self, job_id: str, stage_id: str, *, index: int, total: int
+    ) -> None:
+        """Mark one stage active and append its ``started`` event."""
+        now = self._now()
+        with Session(self._engine) as session:
+            row = session.get(JobStage, (job_id, stage_id))
+            if row is None:
+                row = JobStage(job_id=job_id, stage_id=stage_id)
+                session.add(row)
+            row.status = "active"
+            row.started_at = now
+            row.ended_at = None
+            row.report_path = None
+            append_event(
+                session,
+                job_id=job_id,
+                event_type="stage_changed",
+                payload=self._stage_payload(
+                    stage_id,
+                    "started",
+                    index=index,
+                    total=total,
+                    started_at=now,
+                    finished_at=None,
+                    duration_ms=None,
+                ),
+                created_at=now,
+            )
+            session.commit()
+
+    def finish_stage(
+        self,
+        job_id: str,
+        stage_id: str,
+        *,
+        index: int,
+        total: int,
+        stats: StatsSnapshot,
+        report_path: str | None = None,
+        duration_ms: int | None = None,
+    ) -> None:
+        """Mark one stage done, then append its ``done`` and ``stats`` events."""
+        now = self._now()
+        with Session(self._engine) as session:
+            row = session.get(JobStage, (job_id, stage_id))
+            if row is None:
+                raise ValueError(f"stage {stage_id} was never started")
+            if duration_ms is None:
+                duration_ms = _elapsed_ms(row.started_at, now)
+            row.status = "done"
+            row.ended_at = now
+            row.report_path = report_path
+            append_event(
+                session,
+                job_id=job_id,
+                event_type="stage_changed",
+                payload=self._stage_payload(
+                    stage_id,
+                    "done",
+                    index=index,
+                    total=total,
+                    started_at=row.started_at,
+                    finished_at=now,
+                    duration_ms=duration_ms,
+                ),
+                created_at=now,
+            )
+            append_event(
+                session,
+                job_id=job_id,
+                event_type="stats",
+                payload=stats.as_payload(),
+                created_at=now,
+            )
+            session.commit()
+
+    def record_stats(self, job_id: str, stats: StatsSnapshot) -> None:
+        now = self._now()
+        with Session(self._engine) as session:
+            append_event(
+                session,
+                job_id=job_id,
+                event_type="stats",
+                payload=stats.as_payload(),
+                created_at=now,
+            )
+            session.commit()
+
+    def record_reconcile_note(
+        self, job_id: str, *, code: str, message: str
+    ) -> ReconcileNote:
+        """Audit-only: seq stays NULL so the replayable stream has no gap."""
+        now = self._now()
+        note = ReconcileNote(code=code, message=message, at=now)
+        with Session(self._engine) as session:
+            append_event(
+                session,
+                job_id=job_id,
+                event_type="reconcile_note",
+                payload=note.as_payload(),
+                created_at=now,
+                broadcast=False,
+            )
+            session.commit()
+        return note
+
+    def detect_unregistered_stage_outputs(self, job_id: str) -> list[ReconcileNote]:
+        """B3 evidence: a stage report file exists but its done event does not.
+
+        P1-07 only detects and describes; P1-10 wires this into the startup
+        reconcile that flips the job to interrupted.
+        """
+        if self._reports is None:
+            return []
+        files = self._reports.stage_report_paths(job_id)
+        if not files:
+            return []
+        with Session(self._engine) as session:
+            rows = {
+                row.stage_id: row
+                for row in session.scalars(
+                    select(JobStage).where(JobStage.job_id == job_id)
+                )
+            }
+            active = {
+                stage_id for stage_id, row in rows.items() if row.status == "active"
+            }
+            done = {
+                event.payload.get("stage_id")
+                for event in session.scalars(
+                    select(JobEvent).where(
+                        JobEvent.job_id == job_id,
+                        JobEvent.type == "stage_changed",
+                    )
+                )
+                if event.payload.get("stage_status") == "done"
+            }
+        now = self._now()
+        return [
+            ReconcileNote(
+                code="unregistered_stage_output",
+                message=f"发现未登记的阶段产物：{STAGE_NAMES[stage_id]}",
+                at=now,
+            )
+            for stage_id in STAGE_IDS
+            if stage_id in files and stage_id not in done and stage_id in active
+        ]
+
+    # -- projections ---------------------------------------------------
+    def detail_parts(self, job_id: str) -> dict[str, Any]:
+        """Stage views, latest stats and reconcile notes for JobDetail."""
+        with Session(self._engine) as session:
+            stages = self._stage_views(session, job_id)
+            latest_stats = session.scalars(
+                select(JobEvent)
+                .where(JobEvent.job_id == job_id, JobEvent.type == "stats")
+                .order_by(JobEvent.id.desc())
+                .limit(1)
+            ).first()
+            notes = [
+                _note_payload(event.payload)
+                for event in session.scalars(
+                    select(JobEvent)
+                    .where(
+                        JobEvent.job_id == job_id,
+                        JobEvent.type == "reconcile_note",
+                    )
+                    .order_by(JobEvent.id)
+                )
+            ]
+            stats = _stats_payload(latest_stats.payload) if latest_stats else None
+        return {
+            "stages": stages,
+            "stats": stats,
+            "reconcile_notes": notes,
+        }
+
+    def get_stage_location(self, job_id: str, stage_id: str) -> StageLocation | None:
+        with Session(self._engine) as session:
+            if session.get(Job, job_id) is None:
+                return None
+            row = session.get(JobStage, (job_id, stage_id))
+            if row is None:
+                return StageLocation(status="pending", report_path=None)
+            return StageLocation(status=row.status, report_path=row.report_path)
+
+    def _stage_views(
+        self, session: Session, job_id: str
+    ) -> dict[str, dict[str, Any]]:
+        rows = {
+            row.stage_id: row
+            for row in session.scalars(
+                select(JobStage).where(JobStage.job_id == job_id)
+            )
+        }
+        durations: dict[str, int | None] = {}
+        for event in session.scalars(
+            select(JobEvent)
+            .where(JobEvent.job_id == job_id, JobEvent.type == "stage_changed")
+            .order_by(JobEvent.id)
+        ):
+            if event.payload.get("stage_status") == "done":
+                durations[event.payload.get("stage_id")] = event.payload.get(
+                    "duration_ms"
+                )
+        views: dict[str, dict[str, Any]] = {}
+        for stage_id in STAGE_IDS:
+            row = rows.get(stage_id)
+            if row is None:
+                views[stage_id] = {
+                    "status": "pending",
+                    "started_at": None,
+                    "finished_at": None,
+                    "duration_ms": None,
+                }
+                continue
+            duration = durations.get(stage_id)
+            if duration is None and row.status == "done":
+                duration = _elapsed_ms(row.started_at, row.ended_at or "")
+            views[stage_id] = {
+                "status": row.status,
+                "started_at": row.started_at,
+                "finished_at": row.ended_at,
+                "duration_ms": duration,
+            }
+        return views
+
+    def _stage_payload(
+        self,
+        stage_id: str,
+        stage_status: str,
+        *,
+        index: int,
+        total: int,
+        started_at: str | None,
+        finished_at: str | None,
+        duration_ms: int | None,
+    ) -> dict[str, Any]:
+        return {
+            "stage_id": stage_id,
+            "stage_name": STAGE_NAMES[stage_id],
+            "stage_status": stage_status,
+            "index": index,
+            "total": total,
+            "started_at": started_at,
+            "finished_at": finished_at,
+            "duration_ms": duration_ms,
+        }
+
+    def _now(self) -> str:
+        return self._clock().isoformat(timespec="seconds")
+
+
+def _elapsed_ms(started_at: str | None, finished_at: str) -> int:
+    if not started_at or not finished_at:
+        return 0
+    delta = datetime.fromisoformat(finished_at) - datetime.fromisoformat(started_at)
+    return max(0, int(delta.total_seconds() * 1000))
+
+
+def _stats_payload(payload: Mapping[str, Any]) -> dict[str, int]:
+    return {
+        key: int(payload.get(key, 0))
+        for key in ("model_calls", "tokens_in", "tokens_out", "elapsed_ms")
+    }
+
+
+def _note_payload(payload: Mapping[str, Any]) -> dict[str, str]:
+    return {
+        "code": payload.get("code", ""),
+        "message": payload.get("message", ""),
+        "at": payload.get("at", ""),
+    }

@@ -45,6 +45,7 @@ from backend.app.services.analysis_runner import (  # noqa: E402
 )
 from backend.app.services.job_service import CST, JobService  # noqa: E402
 from backend.app.services.lease import LeaseService  # noqa: E402
+from backend.app.services.report_store import ReportStore  # noqa: E402
 from backend.app.worker.main import Worker  # noqa: E402
 from web.progress import STAGE_IDS as REAL_STAGE_IDS  # noqa: E402
 from web.progress import ProgressTracker  # noqa: E402
@@ -294,6 +295,7 @@ def worker_env(tmp_path, monkeypatch):
             engine=engine,
             jobs=jobs,
             lease=LeaseService(engine, clock=clock),
+            reports=ReportStore(tmp_path / "reports"),
         )
     finally:
         engine.dispose()
@@ -320,7 +322,12 @@ def test_worker_run_once_claims_then_runs_the_fake_graph(worker_env, monkeypatch
     monkeypatch.delenv(REAL_RUNNER_ENV, raising=False)
     job_id = _create_job(worker_env)
 
-    worker = Worker(worker_env.lease, owner="worker-1")
+    worker = Worker(
+        worker_env.lease,
+        jobs=worker_env.jobs,
+        reports=worker_env.reports,
+        owner="worker-1",
+    )
     try:
         assert worker.acquire() is True
         outcome = worker.run_once()
@@ -358,7 +365,13 @@ def test_worker_executor_is_injectable(worker_env):
 
     job_id = _create_job(worker_env)
     stub = _StubExecutor()
-    worker = Worker(worker_env.lease, owner="worker-1", executor=stub)
+    worker = Worker(
+        worker_env.lease,
+        jobs=worker_env.jobs,
+        reports=worker_env.reports,
+        owner="worker-1",
+        executor=stub,
+    )
     try:
         assert worker.acquire() is True
         outcome = worker.run_once()
