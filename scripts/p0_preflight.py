@@ -4,7 +4,7 @@
     .venv/Scripts/python.exe scripts/p0_preflight.py --full --smoke
 
 默认跑结构、冻结哈希、文档、回滚点、假图 S00 与 8 条 CT 测试，约 10 秒。
---full 追加全量 pytest（约 51 秒），并核对 372 passed / 4 skipped。
+--full 追加全量 pytest（约 51 秒），并核对测试数不低于 372、跳过仍为 4。
 --smoke 临时在 8599 端口启动旧版 Streamlit，健康检查通过后关闭。
 
 脚本不改仓库文件。任一项 FAIL 时退出码为 1。
@@ -253,7 +253,9 @@ def check_full_suite() -> str:
     assert out.returncode == 0, f"全量测试失败：{out.stdout[-1200:]}"
     passed = preg(out.stdout, r"(\d+) passed")
     skipped = preg(out.stdout, r"(\d+) skipped")
-    assert passed == EXPECTED_TESTS["passed"], f"通过 {passed}，应为 {EXPECTED_TESTS['passed']}"
+    assert passed >= EXPECTED_TESTS["passed"], (
+        f"通过 {passed}，不应少于 {EXPECTED_TESTS['passed']}"
+    )
     assert skipped == EXPECTED_TESTS["skipped"], f"跳过 {skipped}，应为 {EXPECTED_TESTS['skipped']}"
     return f"{passed} passed / {skipped} skipped"
 

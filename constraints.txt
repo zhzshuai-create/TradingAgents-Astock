@@ -57,3 +57,10 @@ setuptools==84.0.0
 
 # 测试
 pytest==9.1.1
+
+# 任务内核（P1-01 新增，2026-10-30，装于 .venv Python 3.13.3）
+fastapi==0.162.0
+starlette==1.9.0
+sqlalchemy==2.1.6
+alembic==1.20.1
+Mako==1.4.3
