@@ -9,12 +9,40 @@ import {
 } from "react-router-dom";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
-import type { JobSummary } from "../../api/types";
+import type { JobSummary, MetaOptions } from "../../api/types";
 import { relativeTime } from "../../lib/jobStatus";
 import { WorkbenchPage } from "./WorkbenchPage";
 
 const ORIGIN = "http://localhost:3000";
 const JOBS_URL = `${ORIGIN}/api/v1/jobs`;
+const META_URL = `${ORIGIN}/api/v1/meta/options`;
+const SEARCH_URL = `${ORIGIN}/api/v1/market/search`;
+
+const META: MetaOptions = {
+  app_version: "0.9.0",
+  server_time: "2026-11-05T09:30:00+08:00",
+  default_analysis_date: "2026-11-05",
+  llm_profiles: [{ id: "deepseek-default", label: "DeepSeek 默认" }],
+  stage_toggles: [{ id: "policy", label: "政策分析", default: true }],
+  limits: { max_active_jobs: 1, max_date_ahead_days: 0 },
+  journal: { available: false, entry_url: "http://127.0.0.1:8502", reason: null },
+  contract_version: "api-v1",
+};
+
+const SEARCH_EMPTY = {
+  schema_version: "market-envelope-v1",
+  status: "ok",
+  source: "static",
+  as_of: "2026-11-05T09:00:00+08:00",
+  fetched_at: "2026-11-05T09:00:00+08:00",
+  is_stale: false,
+  stale_reason: null,
+  error_code: null,
+  error_message: null,
+  partial: false,
+  failed_blocks: [],
+  data: { items: [], truncated: false },
+};
 
 const server = setupServer();
 beforeAll(() => server.listen({ onUnhandledFrame: "error" }));
@@ -85,6 +113,8 @@ function useApi(state: ApiState): void {
       state.limits.push(url.searchParams.get("limit"));
       return HttpResponse.json({ items: state.recent, next_cursor: null });
     }),
+    http.get(META_URL, () => HttpResponse.json(META)),
+    http.get(SEARCH_URL, () => HttpResponse.json(SEARCH_EMPTY)),
     http.post(JOBS_URL, () => {
       state.posts += 1;
       return HttpResponse.json({}, { status: 201 });
@@ -190,8 +220,9 @@ describe("WEB-08 workbench home", () => {
       await screen.findByRole("dialog", { name: "分析启动器" }),
     ).toBeInTheDocument();
     expect(router.state.location.search).toBe("?launch=1");
+    expect(await screen.findByLabelText("分析日期")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "知道了" }));
+    fireEvent.click(screen.getByRole("button", { name: "取消" }));
     await waitFor(() =>
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
     );
@@ -250,11 +281,12 @@ describe("WEB-08 workbench home", () => {
 
     const input = screen.getByLabelText("搜索要分析的股票");
     fireEvent.change(input, { target: { value: "600519" } });
-    fireEvent.submit(input.closest("form") as HTMLFormElement);
+    fireEvent.keyDown(input, { key: "Enter" });
 
     expect(
       await screen.findByRole("dialog", { name: "分析启动器" }),
-    ).toHaveTextContent("已选择股票 600519");
+    ).toBeInTheDocument();
+    expect(await screen.findByText("600519")).toBeInTheDocument();
     expect(router.state.location.search).toBe("?launch=1&ticker=600519");
     expect(state.posts).toBe(0);
   });

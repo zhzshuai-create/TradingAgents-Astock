@@ -173,9 +173,8 @@ describe("WEB-03 invalid ticker", () => {
       target: { value: "600519" },
     });
     fireEvent.submit(input.closest("form") as HTMLFormElement);
-    expect(await screen.findByRole("dialog", { name: "分析启动器" })).toHaveTextContent(
-      "已选择股票 600519",
-    );
+    const dialog = await screen.findByRole("dialog", { name: "分析启动器" });
+    expect(within(dialog).getByText("600519")).toBeInTheDocument();
     expect(router.state.location.pathname).toBe("/workbench");
     expect(router.state.location.search).toBe("?launch=1&ticker=600519");
   });

@@ -368,6 +368,45 @@ describe("request construction", () => {
   });
 });
 
+// Create job response ------------------------------------------------
+
+describe("create job response envelope", () => {
+  it("reports a 201 without an existing job", async () => {
+    server.use(
+      http.post(`${API}/jobs`, () =>
+        HttpResponse.json(JOB_DETAIL, { status: 201 }),
+      ),
+    );
+
+    const result = await createJob(FORM, "key-201");
+
+    expect(result.status).toBe(201);
+    expect(result.existingJobId).toBeNull();
+    expect(result.replayed).toBe(false);
+    expect(result.job.job_id).toBe("job-1");
+  });
+
+  it("reads the existing job and replay headers from a 200", async () => {
+    server.use(
+      http.post(`${API}/jobs`, () =>
+        HttpResponse.json(JOB_DETAIL, {
+          status: 200,
+          headers: {
+            "X-Existing-Job": "job-9",
+            "Idempotency-Replayed": "1",
+          },
+        }),
+      ),
+    );
+
+    const result = await createJob(FORM, "key-200");
+
+    expect(result.status).toBe(200);
+    expect(result.existingJobId).toBe("job-9");
+    expect(result.replayed).toBe(true);
+  });
+});
+
 // WEB-05 ---------------------------------------------------------------
 
 describe("WEB-05 idempotency and invalidation", () => {

@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
+import type { JobDetail } from "../../api/types";
+import { LauncherDialog } from "../launcher/LauncherDialog";
+import type { TickerSelection } from "../launcher/types";
 import { SearchBox } from "../search/SearchBox";
-import { Button, Dialog } from "../../ui";
+import { Button } from "../../ui";
 import { ActiveJobCard } from "./ActiveJobCard";
 import styles from "./WorkbenchPage.module.css";
 import { RecentJobs } from "./RecentJobs";
@@ -11,10 +14,12 @@ const CODE_PATTERN = /^\d{6}$/;
 
 export function WorkbenchPage() {
   const [params, setParams] = useSearchParams();
+  const navigate = useNavigate();
   const launchRequested = params.get("launch") === "1";
   const requestedTicker = params.get("ticker") ?? "";
   const launchTicker = CODE_PATTERN.test(requestedTicker) ? requestedTicker : "";
   const [launcherOpen, setLauncherOpen] = useState(launchRequested);
+  const [pickedTicker, setPickedTicker] = useState<TickerSelection | null>(null);
   const [reportsOpen, setReportsOpen] = useState(false);
 
   useEffect(() => {
@@ -23,23 +28,43 @@ export function WorkbenchPage() {
     }
   }, [launchRequested]);
 
+  const initialTicker: TickerSelection | null =
+    launchTicker === ""
+      ? null
+      : {
+          code: launchTicker,
+          name: pickedTicker?.code === launchTicker ? pickedTicker.name : null,
+        };
+
   function openLauncher() {
     setLauncherOpen(true);
+    setPickedTicker(null);
     if (!launchRequested) {
-      setParams(
-        launchTicker === ""
-          ? { launch: "1" }
-          : { launch: "1", ticker: launchTicker },
-        { replace: true },
-      );
+      setParams({ launch: "1" }, { replace: true });
     }
+  }
+
+  function launchFromSearch(selection: TickerSelection) {
+    setLauncherOpen(true);
+    setPickedTicker(selection);
+    setParams(
+      { launch: "1", ticker: selection.code },
+      { replace: true },
+    );
   }
 
   function closeLauncher() {
     setLauncherOpen(false);
+    setPickedTicker(null);
     if (params.has("launch") || params.has("ticker")) {
       setParams({}, { replace: true });
     }
+  }
+
+  function created(job: JobDetail) {
+    setLauncherOpen(false);
+    setPickedTicker(null);
+    navigate(`/jobs/${job.job_id}`, { replace: true });
   }
 
   return (
@@ -62,6 +87,7 @@ export function WorkbenchPage() {
           <SearchBox
             label="搜索要分析的股票"
             className={styles.heroSearch}
+            onSelect={launchFromSearch}
           />
           <Button
             variant="primary"
@@ -119,23 +145,14 @@ export function WorkbenchPage() {
         </div>
       </section>
 
-      <Dialog
-        open={launcherOpen}
-        title="分析启动器"
-        onClose={closeLauncher}
-        footer={
-          <Button variant="primary" onClick={closeLauncher}>
-            知道了
-          </Button>
-        }
-      >
-        <p>
-          {launchTicker
-            ? `已选择股票 ${launchTicker}。`
-            : "选择一只股票开始分析。"}
-          启动器将在 P2-08 接入，当前版本不会创建任务或消耗额度。
-        </p>
-      </Dialog>
+      {launcherOpen ? (
+        <LauncherDialog
+          open
+          initialTicker={initialTicker}
+          onClose={closeLauncher}
+          onCreated={created}
+        />
+      ) : null}
     </section>
   );
 }

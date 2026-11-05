@@ -65,6 +65,35 @@
   border-top: 1px solid var(--color-border-subtle);
 }
 
+@media (max-width: 767px) {
+  .backdropFull {
+    padding: 0;
+    place-items: stretch;
+  }
+
+  .panelFull {
+    width: 100%;
+    max-width: none;
+    height: 100vh;
+    height: 100dvh;
+    max-height: 100dvh;
+    border: none;
+    border-radius: 0;
+    overflow: hidden;
+  }
+
+  .panelFull .body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  .panelFull .footer {
+    flex: 0 0 auto;
+    padding-bottom: calc(var(--space-5) + env(safe-area-inset-bottom));
+  }
+}
+
 @keyframes fade-in {
   from {
     opacity: 0;

@@ -248,7 +248,9 @@ def open_launcher(page: Page) -> None:
 
 
 def close_launcher(page: Page) -> None:
-    page.get_by_role("button", name="知道了").click()
+    page.get_by_role("dialog", name="分析启动器").get_by_role(
+        "button", name="取消"
+    ).click()
     page.get_by_role("dialog", name="分析启动器").wait_for(state="detached")
     page.wait_for_url(lambda url: "launch" not in url and "ticker" not in url)
 

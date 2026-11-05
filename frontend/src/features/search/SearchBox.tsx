@@ -20,11 +20,19 @@ const MARKET_LABELS: Record<MarketId, string> = {
   bj: "北交所",
 };
 
+export interface SearchSelection {
+  code: string;
+  /** Present when the user picked a suggestion; null for a typed 6-digit code. */
+  name: string | null;
+}
+
 export interface SearchBoxProps {
   compact?: boolean;
   autoFocus?: boolean;
   label?: string;
   className?: string;
+  /** When set, a selection goes here instead of navigating to the target page. */
+  onSelect?: (selection: SearchSelection) => void;
 }
 
 export function SearchBox({
@@ -32,6 +40,7 @@ export function SearchBox({
   autoFocus = false,
   label = "搜索股票",
   className,
+  onSelect,
 }: SearchBoxProps) {
   const [value, setValue] = useState("");
   const [open, setOpen] = useState(false);
@@ -57,15 +66,24 @@ export function SearchBox({
       : `/stocks/${code}`;
   }
 
-  function finish(path: string) {
-    navigate(path);
+  function resetInput() {
     setValue("");
     setActive(-1);
     setOpen(false);
     inputRef.current?.blur();
   }
 
+  function finish(path: string) {
+    navigate(path);
+    resetInput();
+  }
+
   function choose(item: MarketSearchItem) {
+    if (onSelect) {
+      onSelect({ code: item.ticker_code, name: item.ticker_name });
+      resetInput();
+      return;
+    }
     finish(targetFor(item.ticker_code));
   }
 
@@ -73,6 +91,11 @@ export function SearchBox({
     const code = trimmed;
     if (!CODE_PATTERN.test(code)) {
       return false;
+    }
+    if (onSelect) {
+      onSelect({ code, name: null });
+      resetInput();
+      return true;
     }
     finish(targetFor(code));
     return true;
@@ -125,14 +148,12 @@ export function SearchBox({
     execute();
   }
 
-  return (
-    <form
-      role="search"
-      className={[styles.form, compact ? styles.compact : "", className]
-        .filter(Boolean)
-        .join(" ")}
-      onSubmit={onSubmit}
-    >
+  const className_ = [styles.form, compact ? styles.compact : "", className]
+    .filter(Boolean)
+    .join(" ");
+
+  const content = (
+    <>
       <label className={styles.label} htmlFor={inputId}>
         {label}
       </label>
@@ -168,7 +189,12 @@ export function SearchBox({
           }
           aria-invalid={showError ? true : undefined}
         />
-        <button type="submit" className={styles.submit} aria-label="提交搜索">
+        <button
+          type={onSelect === undefined ? "submit" : "button"}
+          className={styles.submit}
+          aria-label="提交搜索"
+          onClick={onSelect === undefined ? undefined : execute}
+        >
           {compact ? <Icon name="search" size={16} /> : "搜索"}
         </button>
       </div>
@@ -212,6 +238,21 @@ export function SearchBox({
           ) : null}
         </div>
       ) : null}
+    </>
+  );
+
+  // Embedded search must not nest a form inside the launcher form.
+  if (onSelect !== undefined) {
+    return (
+      <div role="search" className={className_}>
+        {content}
+      </div>
+    );
+  }
+
+  return (
+    <form role="search" className={className_} onSubmit={onSubmit}>
+      {content}
     </form>
   );
 }

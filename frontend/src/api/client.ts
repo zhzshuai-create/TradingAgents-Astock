@@ -14,6 +14,12 @@ export interface ApiRequestOptions {
   signal?: AbortSignal;
 }
 
+export interface ApiEnvelope<T> {
+  data: T;
+  status: number;
+  headers: Headers;
+}
+
 function resolveUrl(path: string): string {
   if (/^[a-z][a-z0-9+.-]*:\/\//i.test(path)) {
     return path;
@@ -36,10 +42,10 @@ async function readJson(response: Response): Promise<unknown> {
   }
 }
 
-export async function apiRequest<T>(
+export async function apiRequestEnvelope<T>(
   path: string,
   options: ApiRequestOptions = {},
-): Promise<T> {
+): Promise<ApiEnvelope<T>> {
   const headers: Record<string, string> = { Accept: "application/json" };
   const init: RequestInit = {
     method: options.method ?? "GET",
@@ -71,5 +77,12 @@ export async function apiRequest<T>(
   if (payload === undefined) {
     throw invalidResponseError(response.status);
   }
-  return payload as T;
+  return { data: payload as T, status: response.status, headers: response.headers };
+}
+
+export async function apiRequest<T>(
+  path: string,
+  options: ApiRequestOptions = {},
+): Promise<T> {
+  return (await apiRequestEnvelope<T>(path, options)).data;
 }

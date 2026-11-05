@@ -1,6 +1,6 @@
 /** Job endpoints from api-v1.md section 1. */
 
-import { apiRequest } from "./client";
+import { apiRequest, apiRequestEnvelope } from "./client";
 import type {
   ControlAction,
   ControlResponse,
@@ -53,15 +53,30 @@ export function getJob(
   });
 }
 
-export function createJob(
+export interface CreateJobResult {
+  job: JobDetail;
+  status: number;
+  /** Only from X-Existing-Job; never inferred from the job id. */
+  existingJobId: string | null;
+  /** Idempotency-Replayed: 1 means this was the same intent replayed. */
+  replayed: boolean;
+}
+
+export async function createJob(
   payload: CreateJobRequest,
   idempotencyKey: string,
-): Promise<JobDetail> {
-  return apiRequest<JobDetail>("/api/v1/jobs", {
+): Promise<CreateJobResult> {
+  const envelope = await apiRequestEnvelope<JobDetail>("/api/v1/jobs", {
     method: "POST",
     body: payload,
     idempotencyKey,
   });
+  return {
+    job: envelope.data,
+    status: envelope.status,
+    existingJobId: envelope.headers.get("X-Existing-Job"),
+    replayed: envelope.headers.get("Idempotency-Replayed") === "1",
+  };
 }
 
 export function controlJob(

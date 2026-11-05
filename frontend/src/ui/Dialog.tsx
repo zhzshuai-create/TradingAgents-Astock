@@ -10,9 +10,18 @@ export interface DialogProps {
   children: ReactNode;
   onClose: () => void;
   footer?: ReactNode;
+  /** Below 767px the panel fills the viewport and keeps the footer reachable. */
+  fullscreenOnMobile?: boolean;
 }
 
-export function Dialog({ open, title, children, onClose, footer }: DialogProps) {
+export function Dialog({
+  open,
+  title,
+  children,
+  onClose,
+  footer,
+  fullscreenOnMobile = false,
+}: DialogProps) {
   const titleId = useId();
   const panelRef = useDialogFocus(open, onClose);
 
@@ -22,7 +31,9 @@ export function Dialog({ open, title, children, onClose, footer }: DialogProps) 
 
   return createPortal(
     <div
-      className={styles.backdrop}
+      className={`${styles.backdrop} ${
+        fullscreenOnMobile ? styles.backdropFull : ""
+      }`}
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) {
           onClose();
@@ -31,7 +42,7 @@ export function Dialog({ open, title, children, onClose, footer }: DialogProps) 
     >
       <div
         ref={panelRef}
-        className={styles.panel}
+        className={`${styles.panel} ${fullscreenOnMobile ? styles.panelFull : ""}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
