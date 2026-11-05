@@ -62,6 +62,8 @@ backend = [
     "alembic>=1.20.1,<2",
     # P1-12 用 report-schema-v1.json 校验黄金 DTO；测试依赖，随 backend extra 安装
     "jsonschema>=4.26,<5",
+    # P2-01 scripts/dev_backend.py 的 ASGI 服务器
+    "uvicorn>=0.54.0,<1",
 ]
 
 [project.scripts]
