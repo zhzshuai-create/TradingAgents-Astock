@@ -1,0 +1,139 @@
+.wrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  min-width: 0;
+}
+
+.card {
+  display: grid;
+  flex: 1 1 420px;
+  grid-template-columns: minmax(0, auto) minmax(0, 1fr) 120px auto;
+  align-items: center;
+  gap: var(--space-3) var(--space-5);
+  min-width: 0;
+  min-height: 56px;
+  padding: var(--space-3) var(--space-6);
+  border: 1px solid var(--color-border-subtle);
+  border-left: 3px solid var(--color-accent);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  text-decoration: none;
+  transition: border-color var(--duration-fast) var(--ease-standard);
+}
+
+.card:hover {
+  border-color: var(--color-accent);
+}
+
+.head {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2) var(--space-3);
+  min-width: 0;
+}
+
+.name {
+  max-width: 220px;
+  overflow: hidden;
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.code {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.stage {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.progress {
+  display: block;
+  width: 120px;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--color-bg-inset);
+}
+
+.fill {
+  display: block;
+  height: 100%;
+  background: var(--color-accent);
+}
+
+.view {
+  grid-column: -2;
+  color: var(--color-accent);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+.more {
+  flex: none;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  text-decoration: none;
+}
+
+.more:hover {
+  color: var(--color-text-primary);
+  text-decoration: underline;
+}
+
+@media (max-width: 767px) {
+  .wrap {
+    gap: var(--space-2);
+  }
+
+  .card {
+    flex-basis: 100%;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--space-2) var(--space-4);
+    min-height: 88px;
+    padding: var(--space-4) var(--space-5);
+  }
+
+  .head {
+    grid-column: 1 / -1;
+  }
+
+  .name {
+    max-width: 180px;
+  }
+
+  .stage {
+    grid-column: 1;
+  }
+
+  .progress {
+    display: none;
+  }
+
+  .view {
+    grid-column: 2;
+    grid-row: 2;
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+
+  .more {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    margin-inline-start: var(--space-2);
+  }
+}

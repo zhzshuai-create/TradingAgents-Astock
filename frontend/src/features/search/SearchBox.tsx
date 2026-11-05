@@ -23,9 +23,16 @@ const MARKET_LABELS: Record<MarketId, string> = {
 export interface SearchBoxProps {
   compact?: boolean;
   autoFocus?: boolean;
+  label?: string;
+  className?: string;
 }
 
-export function SearchBox({ compact = false, autoFocus = false }: SearchBoxProps) {
+export function SearchBox({
+  compact = false,
+  autoFocus = false,
+  label = "搜索股票",
+  className,
+}: SearchBoxProps) {
   const [value, setValue] = useState("");
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
@@ -121,11 +128,13 @@ export function SearchBox({ compact = false, autoFocus = false }: SearchBoxProps
   return (
     <form
       role="search"
-      className={`${styles.form} ${compact ? styles.compact : ""}`}
+      className={[styles.form, compact ? styles.compact : "", className]
+        .filter(Boolean)
+        .join(" ")}
       onSubmit={onSubmit}
     >
       <label className={styles.label} htmlFor={inputId}>
-        搜索股票
+        {label}
       </label>
       <div className={`${styles.field} ${showError ? styles.fieldInvalid : ""}`}>
         <span className={styles.icon} aria-hidden="true">

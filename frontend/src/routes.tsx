@@ -1,5 +1,6 @@
 import { Navigate, type RouteObject } from "react-router-dom";
 
+import { WorkbenchPage } from "./features/workbench/WorkbenchPage";
 import { InvalidTickerPage } from "./pages/InvalidTickerPage";
 import { JobDetailPage } from "./pages/JobDetailPage";
 import { JobsPage } from "./pages/JobsPage";
@@ -10,7 +11,6 @@ import { ReportDetailPage } from "./pages/ReportDetailPage";
 import { ReportsPage } from "./pages/ReportsPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { StockPage } from "./pages/StockPage";
-import { WorkbenchPage } from "./pages/WorkbenchPage";
 import { AppShell } from "./shell/AppShell";
 
 export const routes: RouteObject[] = [

@@ -343,7 +343,7 @@ def mobile_flow(browser: Browser, base: str) -> None:
 
     page.goto(f"{base}/workbench")
     page.get_by_role("button", name="打开搜索").click()
-    search = page.locator('input[type="search"]:visible')
+    search = page.locator('header input[type="search"]:visible')
     search.fill("600519")
     search.press("Enter")
     page.wait_for_url(lambda url: "launch=1" in url and "ticker=600519" in url)

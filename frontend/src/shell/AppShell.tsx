@@ -25,6 +25,9 @@ export function AppShell() {
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const { theme, toggle } = useTheme();
   const { pathname } = useLocation();
+  // The workbench puts the active job in its own content block; elsewhere the
+  // shell keeps one strip above the page.
+  const showActiveBar = pathname !== "/workbench";
 
   useEffect(() => {
     try {
@@ -57,7 +60,7 @@ export function AppShell() {
           theme={theme}
           onToggleTheme={toggle}
         />
-        <ActiveJobBar />
+        {showActiveBar ? <ActiveJobBar /> : null}
         <main id="main-content" className={styles.content} tabIndex={-1}>
           <Outlet />
         </main>

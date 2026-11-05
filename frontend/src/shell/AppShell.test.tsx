@@ -168,10 +168,11 @@ describe("WEB-03 invalid ticker", () => {
 
   it("opens the launcher from the workbench search box", async () => {
     const router = renderAt("/workbench");
-    fireEvent.change(screen.getByLabelText("搜索股票"), {
+    const input = screen.getByLabelText("搜索股票");
+    fireEvent.change(input, {
       target: { value: "600519" },
     });
-    fireEvent.submit(screen.getByRole("search"));
+    fireEvent.submit(input.closest("form") as HTMLFormElement);
     expect(await screen.findByRole("dialog", { name: "分析启动器" })).toHaveTextContent(
       "已选择股票 600519",
     );
@@ -181,10 +182,11 @@ describe("WEB-03 invalid ticker", () => {
 
   it("opens the stock page from another page's search box", async () => {
     renderAt("/market");
-    fireEvent.change(screen.getByLabelText("搜索股票"), {
+    const input = screen.getByLabelText("搜索股票");
+    fireEvent.change(input, {
       target: { value: "600519" },
     });
-    fireEvent.submit(screen.getByRole("search"));
+    fireEvent.submit(input.closest("form") as HTMLFormElement);
     expect(await screen.findByTestId("page-stock")).toHaveTextContent(
       "600519 股票工作区",
     );
