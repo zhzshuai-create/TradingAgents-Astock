@@ -13,7 +13,9 @@ from fastapi import FastAPI, Request
 from backend.app.api.errors import install_error_handlers
 from backend.app.api.v1.jobs import router as jobs_router
 from backend.app.api.v1.market import router as market_router
+from backend.app.api.v1.meta import router as meta_router
 from backend.app.core.db import build_engine
+from backend.app.core.journal_probe import JournalProbe
 from backend.app.core.server_config import ServerConfig, load_server_config
 from backend.app.services.event_stream import EventStream
 from backend.app.services.job_service import JobService
@@ -28,6 +30,7 @@ def create_app(
     report_store: ReportStore | None = None,
     event_stream: EventStream | None = None,
     ticker_directory: TickerDirectory | None = None,
+    journal_probe: JournalProbe | None = None,
 ) -> FastAPI:
     config = server_config or load_server_config()
     job_service = service or JobService(build_engine(), config)
@@ -38,6 +41,7 @@ def create_app(
     app.state.report_store = report_store or ReportStore.from_env()
     app.state.event_stream = event_stream or EventStream(job_service)
     app.state.ticker_directory = ticker_directory or TickerDirectory()
+    app.state.journal_probe = journal_probe or JournalProbe()
     install_error_handlers(app)
 
     @app.middleware("http")
@@ -52,4 +56,5 @@ def create_app(
 
     app.include_router(jobs_router)
     app.include_router(market_router)
+    app.include_router(meta_router)
     return app

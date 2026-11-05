@@ -9,17 +9,25 @@ reconcile, change status, emit events or rerun a stage.
 
 from __future__ import annotations
 
+from datetime import date, datetime
 from typing import Any, Literal
 
-from fastapi import APIRouter, Request, Response
+from fastapi import APIRouter, Query, Request, Response
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict
 
 from backend.app.api.errors import ApiError
-from backend.app.api.v1.serializers import job_detail
+from backend.app.api.v1.serializers import job_detail, job_summary
+from backend.app.models.job import JOB_STATUSES
 from backend.app.models.stage import STAGE_IDS, STAGE_NAMES
 from backend.app.services.event_stream import CursorExpired
-from backend.app.services.job_service import JobControlError, JobCreateError
+from backend.app.services.job_service import (
+    CST,
+    LIST_DEFAULT_LIMIT,
+    InvalidCursor,
+    JobControlError,
+    JobCreateError,
+)
 
 router = APIRouter(prefix="/api/v1/jobs", tags=["jobs"])
 
@@ -45,6 +53,55 @@ class RetryRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     mode: Literal["same_config", "resume_from_checkpoint"]
+
+
+@router.get("")
+def list_jobs(
+    request: Request,
+    status: str | None = Query(default=None),
+    ticker: str | None = Query(default=None),
+    date_from: str | None = Query(default=None),
+    date_to: str | None = Query(default=None),
+    active: str | None = Query(default=None),
+    limit: int = Query(default=LIST_DEFAULT_LIMIT),
+    cursor: str | None = Query(default=None),
+) -> dict[str, Any]:
+    """api-v1.md 1.4: list is a pure read; it never reconciles or writes."""
+    if _has_value(active) and _has_value(status):
+        raise ApiError("invalid_request", details={"field": "active"})
+    statuses = _status_values(status)
+    active_only = _active_flag(active)
+    from_date = _validated_date(date_from, "date_from")
+    to_date = _validated_date(date_to, "date_to")
+
+    service = request.app.state.job_service
+    try:
+        page = service.list_jobs(
+            statuses=statuses,
+            ticker=ticker.strip() if _has_value(ticker) else None,
+            date_from=from_date,
+            date_to=to_date,
+            active=active_only,
+            limit=limit,
+            cursor=cursor.strip() if _has_value(cursor) else None,
+        )
+    except InvalidCursor as exc:
+        raise ApiError("invalid_request", details={"field": "cursor"}) from exc
+
+    directory = getattr(request.app.state, "ticker_directory", None)
+    return {
+        "items": [
+            job_summary(
+                job,
+                stages=page.views.get(job.id),
+                stats=page.stats.get(job.id),
+                reconcile_notes=page.notes.get(job.id, ()),
+                ticker_directory=directory,
+            )
+            for job in page.jobs
+        ],
+        "next_cursor": page.next_cursor,
+    }
 
 
 @router.post("")
@@ -103,6 +160,50 @@ def stream_job_events(job_id: str, request: Request) -> StreamingResponse:
         media_type="text/event-stream; charset=utf-8",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+def _has_value(raw: str | None) -> bool:
+    return raw is not None and raw.strip() != ""
+
+
+def _active_flag(raw: str | None) -> bool:
+    if not _has_value(raw):
+        return False
+    text = raw.strip().lower()
+    if text == "true":
+        return True
+    if text == "false":
+        return False
+    raise ApiError("invalid_request", details={"field": "active"})
+
+
+def _status_values(raw: str | None) -> tuple[str, ...]:
+    if not _has_value(raw):
+        return ()
+    values = [part.strip() for part in raw.split(",") if part.strip()]
+    if any(value not in JOB_STATUSES for value in values):
+        raise ApiError(
+            "invalid_request",
+            details={"field": "status", "allowed_values": list(JOB_STATUSES)},
+        )
+    return tuple(dict.fromkeys(values))
+
+
+def _beijing_today() -> date:
+    return datetime.now(CST).date()
+
+
+def _validated_date(raw: str | None, field: str) -> str | None:
+    if not _has_value(raw):
+        return None
+    text = raw.strip()
+    try:
+        parsed = date.fromisoformat(text)
+    except ValueError as exc:
+        raise ApiError("invalid_date", details={"field": field}) from exc
+    if parsed.isoformat() != text or parsed > _beijing_today():
+        raise ApiError("invalid_date", details={"field": field})
+    return text
 
 
 def _event_cursor(raw: str | None) -> int | None:
@@ -191,9 +292,7 @@ def get_stage_report(job_id: str, stage_id: str, request: Request) -> dict[str, 
     full_length = 0
     updated_at = None
     if location.status in ("done", "failed") and location.report_path:
-        report = request.app.state.report_store.read_stage_report(
-            location.report_path
-        )
+        report = request.app.state.report_store.read_stage_report(location.report_path)
         if report is not None:
             markdown = report.markdown
             truncated = report.truncated

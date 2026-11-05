@@ -35,6 +35,8 @@ status.
 
 from __future__ import annotations
 
+import base64
+import binascii
 import copy
 import hashlib
 import uuid
@@ -43,7 +45,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
-from sqlalchemy import Engine, select, update
+from sqlalchemy import Engine, and_, func, or_, select, update
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import Session
 
@@ -86,6 +88,13 @@ INTERRUPTIBLE_STATUSES = (
     "cancel_requested",
     "paused",
 )
+LIST_DEFAULT_LIMIT = 20
+LIST_MAX_LIMIT = 100
+CURSOR_SEPARATOR = "\x1f"
+
+
+class InvalidCursor(Exception):
+    """An opaque list cursor that cannot be decoded (400 invalid_request)."""
 
 
 class JobCreateError(Exception):
@@ -110,7 +119,9 @@ class JobCreateError(Exception):
             "candidates": candidates,
             "active_job_id": active_job_id,
         }
-        self.details = {key: value for key, value in details.items() if value is not None}
+        self.details = {
+            key: value for key, value in details.items() if value is not None
+        }
 
 
 class JobControlError(Exception):
@@ -192,6 +203,17 @@ class StageLocation:
     report_path: str | None
 
 
+@dataclass(frozen=True)
+class JobListPage:
+    """One page of jobs plus its batch-loaded projection parts."""
+
+    jobs: list[Job]
+    views: dict[str, dict[str, dict[str, Any]]]
+    stats: dict[str, dict[str, int]]
+    notes: dict[str, list[dict[str, str]]]
+    next_cursor: str | None
+
+
 class JobService:
     def __init__(
         self,
@@ -219,6 +241,73 @@ class JobService:
         with Session(self._engine) as session:
             return session.get(Job, job_id)
 
+    def list_jobs(
+        self,
+        *,
+        statuses: Sequence[str] = (),
+        ticker: str | None = None,
+        date_from: str | None = None,
+        date_to: str | None = None,
+        active: bool = False,
+        limit: int = LIST_DEFAULT_LIMIT,
+        cursor: str | None = None,
+    ) -> JobListPage:
+        """api-v1.md 1.4: read-only, keyset paginated, zero side effects.
+
+        Order is ``created_at DESC, id ASC``; the cursor carries exactly that
+        pair so a page boundary can never skip or repeat a row. Stage, stats
+        and note projections are batched over the page's ids instead of being
+        queried per job.
+        """
+        conditions = []
+        if active:
+            conditions.append(Job.status.in_(ACTIVE_STATUSES))
+        elif statuses:
+            conditions.append(Job.status.in_(list(statuses)))
+        if ticker:
+            conditions.append(Job.ticker_code == ticker)
+        if date_from:
+            conditions.append(Job.analysis_date >= date_from)
+        if date_to:
+            conditions.append(Job.analysis_date <= date_to)
+
+        limit = max(1, min(limit, LIST_MAX_LIMIT))
+        after = decode_cursor(cursor) if cursor else None
+        with Session(self._engine) as session:
+            statement = select(Job).where(*conditions)
+            if after is not None:
+                created_at, job_id = after
+                statement = statement.where(
+                    or_(
+                        Job.created_at < created_at,
+                        and_(
+                            Job.created_at == created_at,
+                            Job.id > job_id,
+                        ),
+                    )
+                )
+            rows = list(
+                session.scalars(
+                    statement.order_by(Job.created_at.desc(), Job.id.asc()).limit(
+                        limit + 1
+                    )
+                )
+            )
+            has_more = len(rows) > limit
+            jobs = rows[:limit]
+            views, stats, notes = self._page_parts(session, [job.id for job in jobs])
+        return JobListPage(
+            jobs=jobs,
+            views=views,
+            stats=stats,
+            notes=notes,
+            next_cursor=(
+                encode_cursor(created_at=jobs[-1].created_at, job_id=jobs[-1].id)
+                if has_more and jobs
+                else None
+            ),
+        )
+
     # -- create --------------------------------------------------------
     def create_job(
         self, payload: Mapping[str, Any], *, idempotency_key: str
@@ -229,13 +318,14 @@ class JobService:
         for _ in range(MAX_ATTEMPTS):
             try:
                 with Session(self._engine, expire_on_commit=False) as session:
-                    outcome = self._create_once(
-                        session, prepared, idempotency_key, now
-                    )
+                    outcome = self._create_once(session, prepared, idempotency_key, now)
                     session.commit()
                     return outcome
             except (IntegrityError, OperationalError) as exc:
-                if isinstance(exc, OperationalError) and "locked" not in str(exc).lower():
+                if (
+                    isinstance(exc, OperationalError)
+                    and "locked" not in str(exc).lower()
+                ):
                     raise
                 continue
         return self._settle_after_race(prepared, idempotency_key, now)
@@ -350,7 +440,10 @@ class JobService:
                             "active_conflict", active_job_id=conflict.id
                         )
             except (IntegrityError, OperationalError) as exc:
-                if isinstance(exc, OperationalError) and "locked" not in str(exc).lower():
+                if (
+                    isinstance(exc, OperationalError)
+                    and "locked" not in str(exc).lower()
+                ):
                     raise
                 continue
         raise JobCreateError("internal_error")
@@ -427,9 +520,7 @@ class JobService:
                     if job is None:
                         raise JobControlError("job_not_found", status_code=404)
                     prepared = self._prepare_retry(session, job, mode, body_hash)
-                    outcome = self._create_once(
-                        session, prepared, idempotency_key, now
-                    )
+                    outcome = self._create_once(session, prepared, idempotency_key, now)
                     session.commit()
                     return outcome
             except (IntegrityError, OperationalError) as exc:
@@ -523,9 +614,7 @@ class JobService:
         except TickerUnresolved as exc:
             raise JobCreateError("ticker_unresolved") from exc
         except TickerAmbiguous as exc:
-            raise JobCreateError(
-                "ticker_ambiguous", candidates=exc.candidates
-            ) from exc
+            raise JobCreateError("ticker_ambiguous", candidates=exc.candidates) from exc
 
         try:
             snapshot = normalize_config(
@@ -548,9 +637,7 @@ class JobService:
             "analysis_date": analysis_date,
             "config": raw_config,
         }
-        body_hash = hashlib.sha256(
-            canonical_json(body).encode("utf-8")
-        ).hexdigest()
+        body_hash = hashlib.sha256(canonical_json(body).encode("utf-8")).hexdigest()
         return _PreparedCreate(
             ticker_code=ticker_code,
             analysis_date=analysis_date,
@@ -1040,9 +1127,7 @@ class JobService:
 
     def latest_stats(self, job_id: str) -> StatsSnapshot:
         with Session(self._engine) as session:
-            return StatsSnapshot(
-                **self._latest_stats_payload_in(session, job_id)
-            )
+            return StatsSnapshot(**self._latest_stats_payload_in(session, job_id))
 
     def first_unfinished_stage(self, job_id: str) -> str | None:
         with Session(self._engine) as session:
@@ -1068,9 +1153,7 @@ class JobService:
             select(Job.id)
             .where(
                 Job.lease_owner == lease.owner,
-                Job.status.in_(
-                    ("running", "pause_requested", "cancel_requested")
-                ),
+                Job.status.in_(("running", "pause_requested", "cancel_requested")),
             )
             .limit(1)
         )
@@ -1088,9 +1171,7 @@ class JobService:
                 return stage_id
         return None
 
-    def _latest_stats_payload_in(
-        self, session: Session, job_id: str
-    ) -> dict[str, int]:
+    def _latest_stats_payload_in(self, session: Session, job_id: str) -> dict[str, int]:
         event = session.scalars(
             select(JobEvent)
             .where(JobEvent.job_id == job_id, JobEvent.type == "stats")
@@ -1316,9 +1397,7 @@ class JobService:
 
     def stage_locations(self, job_id: str) -> dict[str, StageLocation]:
         with Session(self._engine) as session:
-            rows = session.scalars(
-                select(JobStage).where(JobStage.job_id == job_id)
-            )
+            rows = session.scalars(select(JobStage).where(JobStage.job_id == job_id))
             return {
                 row.stage_id: StageLocation(
                     status=row.status, report_path=row.report_path
@@ -1462,46 +1541,68 @@ class JobService:
                 return StageLocation(status="pending", report_path=None)
             return StageLocation(status=row.status, report_path=row.report_path)
 
-    def _stage_views(
-        self, session: Session, job_id: str
-    ) -> dict[str, dict[str, Any]]:
+    def _stage_views(self, session: Session, job_id: str) -> dict[str, dict[str, Any]]:
         rows = {
             row.stage_id: row
             for row in session.scalars(
                 select(JobStage).where(JobStage.job_id == job_id)
             )
         }
-        durations: dict[str, int | None] = {}
+        return _stage_views_from(
+            rows, _stage_durations(session, [job_id]).get(job_id, {})
+        )
+
+    def _page_parts(
+        self, session: Session, job_ids: Sequence[str]
+    ) -> tuple[
+        dict[str, dict[str, dict[str, Any]]],
+        dict[str, dict[str, int]],
+        dict[str, list[dict[str, str]]],
+    ]:
+        """Batch projections for one list page: five queries regardless of size."""
+        if not job_ids:
+            return {}, {}, {}
+
+        rows_by_job: dict[str, dict[str, JobStage]] = {job_id: {} for job_id in job_ids}
+        for row in session.scalars(
+            select(JobStage).where(JobStage.job_id.in_(job_ids))
+        ):
+            rows_by_job[row.job_id][row.stage_id] = row
+        durations = _stage_durations(session, job_ids)
+
+        stats = {job_id: StatsSnapshot().as_payload() for job_id in job_ids}
+        latest = dict(
+            session.execute(
+                select(JobEvent.job_id, func.max(JobEvent.id))
+                .where(
+                    JobEvent.job_id.in_(job_ids),
+                    JobEvent.type == "stats",
+                )
+                .group_by(JobEvent.job_id)
+            ).all()
+        )
+        if latest:
+            for event in session.scalars(
+                select(JobEvent).where(JobEvent.id.in_(latest.values()))
+            ):
+                stats[event.job_id] = _stats_payload(event.payload)
+
+        notes: dict[str, list[dict[str, str]]] = {job_id: [] for job_id in job_ids}
         for event in session.scalars(
             select(JobEvent)
-            .where(JobEvent.job_id == job_id, JobEvent.type == "stage_changed")
+            .where(
+                JobEvent.job_id.in_(job_ids),
+                JobEvent.type == "reconcile_note",
+            )
             .order_by(JobEvent.id)
         ):
-            if event.payload.get("stage_status") in ("done", "failed"):
-                durations[event.payload.get("stage_id")] = event.payload.get(
-                    "duration_ms"
-                )
-        views: dict[str, dict[str, Any]] = {}
-        for stage_id in STAGE_IDS:
-            row = rows.get(stage_id)
-            if row is None:
-                views[stage_id] = {
-                    "status": "pending",
-                    "started_at": None,
-                    "finished_at": None,
-                    "duration_ms": None,
-                }
-                continue
-            duration = durations.get(stage_id)
-            if duration is None and row.status in ("done", "failed"):
-                duration = _elapsed_ms(row.started_at, row.ended_at or "")
-            views[stage_id] = {
-                "status": row.status,
-                "started_at": row.started_at,
-                "finished_at": row.ended_at,
-                "duration_ms": duration,
-            }
-        return views
+            notes[event.job_id].append(_note_payload(event.payload))
+
+        views = {
+            job_id: _stage_views_from(rows_by_job[job_id], durations.get(job_id, {}))
+            for job_id in job_ids
+        }
+        return views, stats, notes
 
     def _stage_payload(
         self,
@@ -1527,6 +1628,72 @@ class JobService:
 
     def _now(self) -> str:
         return self._clock().isoformat(timespec="seconds")
+
+
+def encode_cursor(*, created_at: str, job_id: str) -> str:
+    raw = f"{created_at}{CURSOR_SEPARATOR}{job_id}".encode("utf-8")
+    return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
+
+
+def decode_cursor(cursor: str) -> tuple[str, str]:
+    """Inverse of :func:`encode_cursor`; raises InvalidCursor on anything else."""
+    try:
+        padded = cursor + "=" * (-len(cursor) % 4)
+        raw = base64.b64decode(
+            padded.encode("ascii"), altchars=b"-_", validate=True
+        ).decode("utf-8")
+    except (ValueError, UnicodeError, binascii.Error) as exc:
+        raise InvalidCursor() from exc
+    created_at, separator, job_id = raw.partition(CURSOR_SEPARATOR)
+    if not separator or not created_at or not job_id:
+        raise InvalidCursor()
+    return created_at, job_id
+
+
+def _stage_durations(
+    session: Session, job_ids: Sequence[str]
+) -> dict[str, dict[str, int | None]]:
+    durations: dict[str, dict[str, int | None]] = {job_id: {} for job_id in job_ids}
+    for event in session.scalars(
+        select(JobEvent)
+        .where(
+            JobEvent.job_id.in_(job_ids),
+            JobEvent.type == "stage_changed",
+        )
+        .order_by(JobEvent.id)
+    ):
+        if event.payload.get("stage_status") in ("done", "failed"):
+            durations[event.job_id][event.payload.get("stage_id")] = event.payload.get(
+                "duration_ms"
+            )
+    return durations
+
+
+def _stage_views_from(
+    rows: Mapping[str, JobStage],
+    durations: Mapping[str, int | None],
+) -> dict[str, dict[str, Any]]:
+    views: dict[str, dict[str, Any]] = {}
+    for stage_id in STAGE_IDS:
+        row = rows.get(stage_id)
+        if row is None:
+            views[stage_id] = {
+                "status": "pending",
+                "started_at": None,
+                "finished_at": None,
+                "duration_ms": None,
+            }
+            continue
+        duration = durations.get(stage_id)
+        if duration is None and row.status in ("done", "failed"):
+            duration = _elapsed_ms(row.started_at, row.ended_at or "")
+        views[stage_id] = {
+            "status": row.status,
+            "started_at": row.started_at,
+            "finished_at": row.ended_at,
+            "duration_ms": duration,
+        }
+    return views
 
 
 def _elapsed_ms(started_at: str | None, finished_at: str) -> int:
