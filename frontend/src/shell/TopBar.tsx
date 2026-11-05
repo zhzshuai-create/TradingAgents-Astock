@@ -1,6 +1,9 @@
+import { useQuery } from "@tanstack/react-query";
+
+import { SearchBox } from "../features/search/SearchBox";
+import { metaOptionsQuery } from "../lib/query";
 import { Badge } from "../ui";
 import { Icon } from "./icons";
-import { SearchSlot } from "./SearchSlot";
 import styles from "./TopBar.module.css";
 import type { Theme } from "./useTheme";
 
@@ -9,15 +12,33 @@ export interface TopBarProps {
   onToggleTheme: () => void;
 }
 
+function ServiceStatus() {
+  const { status } = useQuery(metaOptionsQuery);
+  const badge =
+    status === "pending"
+      ? { tone: "neutral" as const, label: "检测中" }
+      : status === "error"
+        ? { tone: "danger" as const, label: "服务不可用" }
+        : { tone: "success" as const, label: "服务正常" };
+
+  return (
+    <div
+      className={styles.serviceSlot}
+      data-testid="service-status"
+      title="来自服务端元信息"
+    >
+      <Badge tone={badge.tone} dot>
+        {badge.label}
+      </Badge>
+    </div>
+  );
+}
+
 export function TopBar({ theme, onToggleTheme }: TopBarProps) {
   return (
     <header className={styles.topbar}>
-      <SearchSlot />
+      <SearchBox />
       <div className={styles.slots}>
-        <div className={styles.activeSlot} data-testid="active-job-slot">
-          <span className={styles.slotLabel}>进行中</span>
-          <span className={styles.slotValue}>暂无任务</span>
-        </div>
         <button
           type="button"
           className={styles.iconButton}
@@ -27,15 +48,7 @@ export function TopBar({ theme, onToggleTheme }: TopBarProps) {
         >
           <Icon name={theme === "dark" ? "sun" : "moon"} size={18} />
         </button>
-        <div
-          className={styles.serviceSlot}
-          data-testid="service-status"
-          title="服务状态将在 P2-04 接入"
-        >
-          <Badge tone="neutral" dot>
-            状态未知
-          </Badge>
-        </div>
+        <ServiceStatus />
       </div>
     </header>
   );
@@ -80,7 +93,7 @@ export function MobileTopBar({
       </div>
       {searchOpen ? (
         <div className={styles.mobileSearch}>
-          <SearchSlot compact autoFocus />
+          <SearchBox compact autoFocus />
         </div>
       ) : null}
     </header>

@@ -1,0 +1,97 @@
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-2) var(--space-8);
+  border-bottom: 1px solid var(--color-border-subtle);
+  background: var(--color-bg-surface);
+  font-size: var(--font-size-xs);
+}
+
+.identity {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  min-width: 0;
+  color: var(--color-text-primary);
+  text-decoration: none;
+}
+
+.identity:hover .ticker {
+  text-decoration: underline;
+}
+
+.ticker {
+  max-width: 200px;
+  overflow: hidden;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.code {
+  color: var(--color-text-muted);
+}
+
+.stage {
+  color: var(--color-text-secondary);
+}
+
+.progress {
+  width: 90px;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--color-bg-inset);
+}
+
+.progressFill {
+  display: block;
+  height: 100%;
+  background: var(--color-accent);
+}
+
+.view {
+  color: var(--color-accent);
+  font-weight: var(--font-weight-semibold);
+  text-decoration: none;
+}
+
+.view:hover {
+  text-decoration: underline;
+}
+
+.more {
+  color: var(--color-text-muted);
+  text-decoration: none;
+}
+
+.more:hover {
+  color: var(--color-text-primary);
+  text-decoration: underline;
+}
+
+@media (max-width: 767px) {
+  .bar {
+    gap: var(--space-2) var(--space-3);
+    padding: var(--space-2) var(--space-4);
+  }
+
+  .ticker {
+    max-width: 130px;
+  }
+
+  .progress {
+    display: none;
+  }
+
+  .view,
+  .more {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    margin-block: calc(var(--space-2) * -1);
+  }
+}

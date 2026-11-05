@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 
+import { ActiveJobBar } from "./ActiveJobBar";
 import styles from "./AppShell.module.css";
 import { MobileNav } from "./MobileNav";
 import { pageTitle } from "./navigation";
@@ -56,6 +57,7 @@ export function AppShell() {
           theme={theme}
           onToggleTheme={toggle}
         />
+        <ActiveJobBar />
         <main id="main-content" className={styles.content} tabIndex={-1}>
           <Outlet />
         </main>

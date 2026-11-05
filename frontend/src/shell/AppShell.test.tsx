@@ -1,14 +1,51 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { routes } from "../routes";
 import { SIDEBAR_STORAGE_KEY } from "./AppShell";
 import { THEME_STORAGE_KEY } from "./useTheme";
 
+vi.mock("../api/jobs", () => ({
+  listJobs: vi.fn(async () => ({ items: [], next_cursor: null })),
+  getJob: vi.fn(),
+  createJob: vi.fn(),
+  controlJob: vi.fn(),
+  retryJob: vi.fn(),
+}));
+
+vi.mock("../api/meta", () => ({
+  getMetaOptions: vi.fn(async () => ({})),
+}));
+
+vi.mock("../api/market", () => ({
+  searchStocks: vi.fn(async () => ({
+    schema_version: "market-envelope-v1",
+    status: "ok",
+    source: "static",
+    as_of: null,
+    fetched_at: "2026-11-05T09:00:00+08:00",
+    is_stale: false,
+    stale_reason: null,
+    error_code: null,
+    error_message: null,
+    partial: false,
+    failed_blocks: [],
+    data: { items: [], truncated: false },
+  })),
+}));
+
 function renderAt(path: string) {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: 0 } },
+  });
   const router = createMemoryRouter(routes, { initialEntries: [path] });
-  render(<RouterProvider router={router} />);
+  render(
+    <QueryClientProvider client={client}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>,
+  );
   return router;
 }
 
@@ -129,8 +166,21 @@ describe("WEB-03 invalid ticker", () => {
     },
   );
 
-  it("navigates to the stock workspace from the search box", async () => {
-    renderAt("/workbench");
+  it("opens the launcher from the workbench search box", async () => {
+    const router = renderAt("/workbench");
+    fireEvent.change(screen.getByLabelText("搜索股票"), {
+      target: { value: "600519" },
+    });
+    fireEvent.submit(screen.getByRole("search"));
+    expect(await screen.findByRole("dialog", { name: "分析启动器" })).toHaveTextContent(
+      "已选择股票 600519",
+    );
+    expect(router.state.location.pathname).toBe("/workbench");
+    expect(router.state.location.search).toBe("?launch=1&ticker=600519");
+  });
+
+  it("opens the stock page from another page's search box", async () => {
+    renderAt("/market");
     fireEvent.change(screen.getByLabelText("搜索股票"), {
       target: { value: "600519" },
     });
@@ -138,15 +188,6 @@ describe("WEB-03 invalid ticker", () => {
     expect(await screen.findByTestId("page-stock")).toHaveTextContent(
       "600519 股票工作区",
     );
-  });
-
-  it("rejects a non six digit code in the search box", () => {
-    renderAt("/workbench");
-    fireEvent.change(screen.getByLabelText("搜索股票"), {
-      target: { value: "茅台" },
-    });
-    fireEvent.submit(screen.getByRole("search"));
-    expect(screen.getByRole("alert")).toHaveTextContent("请输入 6 位股票代码");
   });
 });
 

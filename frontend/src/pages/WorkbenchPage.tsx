@@ -1,10 +1,30 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 
 import { Button, Dialog } from "../ui";
 import { Placeholder } from "./Placeholder";
 
+const CODE_PATTERN = /^\d{6}$/;
+
 export function WorkbenchPage() {
-  const [launcherOpen, setLauncherOpen] = useState(false);
+  const [params, setParams] = useSearchParams();
+  const requested =
+    params.get("launch") === "1" ? (params.get("ticker") ?? "") : "";
+  const launchTicker = CODE_PATTERN.test(requested) ? requested : "";
+  const [launcherOpen, setLauncherOpen] = useState(launchTicker !== "");
+
+  useEffect(() => {
+    if (launchTicker !== "") {
+      setLauncherOpen(true);
+    }
+  }, [launchTicker]);
+
+  function closeLauncher() {
+    setLauncherOpen(false);
+    if (params.has("launch") || params.has("ticker")) {
+      setParams({}, { replace: true });
+    }
+  }
 
   return (
     <>
@@ -25,15 +45,18 @@ export function WorkbenchPage() {
       <Dialog
         open={launcherOpen}
         title="分析启动器"
-        onClose={() => setLauncherOpen(false)}
+        onClose={closeLauncher}
         footer={
-          <Button variant="primary" onClick={() => setLauncherOpen(false)}>
+          <Button variant="primary" onClick={closeLauncher}>
             知道了
           </Button>
         }
       >
         <p>
-          分析启动器将在 P3 接入。当前版本只提供导航与页面骨架，不会创建任务或消耗额度。
+          {launchTicker
+            ? `已选择股票 ${launchTicker}。`
+            : "分析启动器将在 P3 接入。"}
+          当前版本只提供导航与页面骨架，不会创建任务或消耗额度。
         </p>
       </Dialog>
     </>

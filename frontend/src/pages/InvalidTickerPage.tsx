@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 
-import { SearchSlot } from "../shell/SearchSlot";
+import { SearchBox } from "../features/search/SearchBox";
 import styles from "./pages.module.css";
 
 export function InvalidTickerPage({ ticker }: { ticker: string }) {
@@ -14,7 +14,7 @@ export function InvalidTickerPage({ ticker }: { ticker: string }) {
         不是 6 位数字。请重新输入，或回到市场重新选择。
       </p>
       <div className={styles.searchBox}>
-        <SearchSlot />
+        <SearchBox />
       </div>
       <div className={styles.actions}>
         <Link className={styles.textLink} to="/market">

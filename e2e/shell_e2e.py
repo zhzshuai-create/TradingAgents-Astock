@@ -22,7 +22,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-from playwright.sync_api import Browser, Page, sync_playwright
+from playwright.sync_api import Browser, BrowserContext, Page, sync_playwright
 
 ROOT = Path(__file__).resolve().parent.parent
 FRONTEND = ROOT / "frontend"
@@ -138,6 +138,61 @@ def watch_errors(page: Page) -> list[str]:
     return errors
 
 
+META_OPTIONS = {
+    "app_version": "0.9.0",
+    "server_time": "2026-11-05T09:30:00+08:00",
+    "default_analysis_date": "2026-11-05",
+    "llm_profiles": [{"id": "deepseek-default", "label": "DeepSeek 默认"}],
+    "stage_toggles": [{"id": "policy", "label": "政策分析", "default": True}],
+    "limits": {"max_active_jobs": 1, "max_date_ahead_days": 0},
+    "journal": {
+        "available": False,
+        "entry_url": "http://127.0.0.1:8502",
+        "reason": "not_running",
+    },
+    "contract_version": "api-v1",
+}
+
+SEARCH_EMPTY = {
+    "schema_version": "market-envelope-v1",
+    "status": "ok",
+    "source": "static",
+    "as_of": "2026-11-05T09:00:00+08:00",
+    "fetched_at": "2026-11-05T09:00:00+08:00",
+    "is_stale": False,
+    "stale_reason": None,
+    "error_code": None,
+    "error_message": None,
+    "partial": False,
+    "failed_blocks": [],
+    "data": {"items": [], "truncated": False},
+}
+
+
+def stub_api(context: BrowserContext) -> None:
+    """Keep shell E2E offline: the shell now polls jobs and meta on mount."""
+
+    def fulfill(route: object, payload: dict) -> None:
+        route.fulfill(
+            status=200,
+            content_type="application/json",
+            body=json.dumps(payload),
+        )
+
+    context.route(
+        "**/api/v1/jobs**",
+        lambda route: fulfill(route, {"items": [], "next_cursor": None}),
+    )
+    context.route(
+        "**/api/v1/meta/options**",
+        lambda route: fulfill(route, META_OPTIONS),
+    )
+    context.route(
+        "**/api/v1/market/search**",
+        lambda route: fulfill(route, SEARCH_EMPTY),
+    )
+
+
 def assert_route(page: Page, base: str, path: str) -> None:
     test_id, heading = ROUTES[path]
     page.goto(f"{base}{path}")
@@ -148,6 +203,7 @@ def assert_route(page: Page, base: str, path: str) -> None:
 
 def desktop_flow(browser: Browser, base: str) -> None:
     context = browser.new_context(viewport={"width": 1440, "height": 900})
+    stub_api(context)
     page = context.new_page()
     errors = watch_errors(page)
 
@@ -156,6 +212,11 @@ def desktop_flow(browser: Browser, base: str) -> None:
 
     nav = page.get_by_role("complementary", name="主导航")
     page.goto(f"{base}/workbench")
+    page.get_by_test_id("service-status").get_by_text("服务正常").wait_for()
+    check(
+        page.get_by_test_id("active-job-bar").count() == 0,
+        "desktop has no bar without active jobs",
+    )
     sidebar = page.locator("aside")
     expanded_width = sidebar.bounding_box()
     page.get_by_role("button", name="收起侧栏").click()
@@ -223,6 +284,7 @@ def mobile_flow(browser: Browser, base: str) -> None:
         is_mobile=True,
         has_touch=True,
     )
+    stub_api(context)
     page = context.new_page()
     errors = watch_errors(page)
     page.goto(f"{base}/workbench")
@@ -284,9 +346,13 @@ def mobile_flow(browser: Browser, base: str) -> None:
     search = page.locator('input[type="search"]:visible')
     search.fill("600519")
     search.press("Enter")
-    page.wait_for_url("**/stocks/600519")
-    page.get_by_test_id("page-stock").wait_for(state="visible")
-    check(page.url.endswith("/stocks/600519"), "mobile header search opens stock page")
+    page.wait_for_url(lambda url: "launch=1" in url and "ticker=600519" in url)
+    dialog = page.get_by_role("dialog", name="分析启动器")
+    dialog.wait_for(state="visible")
+    check(
+        "600519" in dialog.inner_text(),
+        "mobile header search opens the workbench launcher",
+    )
 
     page.goto(f"{base}/workbench")
     page.get_by_test_id("page-workbench").wait_for(state="visible")
@@ -302,6 +368,7 @@ def overflow_flow(browser: Browser, base: str, width: int, height: int) -> None:
         is_mobile=True,
         has_touch=True,
     )
+    stub_api(context)
     page = context.new_page()
     errors = watch_errors(page)
     for path in [*ROUTES, "/no-such-page", "/stocks/abc", "/stocks"]:

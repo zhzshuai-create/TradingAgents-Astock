@@ -16,26 +16,6 @@
   flex: none;
 }
 
-.activeSlot {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  min-width: 96px;
-  padding-inline: var(--space-4);
-  border-inline-start: 1px solid var(--color-border-subtle);
-  line-height: var(--line-height-tight);
-}
-
-.slotLabel {
-  color: var(--color-text-muted);
-  font-size: var(--font-size-2xs);
-}
-
-.slotValue {
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-xs);
-}
-
 .iconButton {
   display: inline-flex;
   align-items: center;
