@@ -60,6 +60,8 @@ backend = [
     "fastapi>=0.162.0,<1",
     "sqlalchemy>=2.1.6,<3",
     "alembic>=1.20.1,<2",
+    # P1-12 用 report-schema-v1.json 校验黄金 DTO；测试依赖，随 backend extra 安装
+    "jsonschema>=4.26,<5",
 ]
 
 [project.scripts]
