@@ -1,4 +1,27 @@
-/** Small display helpers shared by the table and the mobile cards. */
+/** Small display helpers shared by the job list and the detail page. */
+
+export interface MarkdownPreview {
+  text: string;
+  hasMore: boolean;
+}
+
+/** Cut a long stage report to a short preview without splitting a line. */
+export function markdownPreview(
+  markdown: string,
+  maxLines = 12,
+  maxChars = 1200,
+): MarkdownPreview {
+  const lines = markdown.split("\n");
+  let text = "";
+  for (let index = 0; index < lines.length; index += 1) {
+    const next = text === "" ? lines[index] : `${text}\n${lines[index]}`;
+    if (next.length > maxChars || index >= maxLines) {
+      return { text: text === "" ? next.slice(0, maxChars) : text, hasMore: true };
+    }
+    text = next;
+  }
+  return { text, hasMore: false };
+}
 
 export function formatDuration(ms: number): string {
   if (!Number.isFinite(ms) || ms <= 0) {

@@ -122,4 +122,23 @@ describe("WEB-02 UI 基础组件", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(document.activeElement).toBe(opener);
   });
+
+  it("Drawer 锁住 body 与 data-scroll-lock 容器并恢复原值", async () => {
+    const user = userEvent.setup();
+    const scroller = document.createElement("div");
+    scroller.setAttribute("data-scroll-lock", "");
+    scroller.style.overflow = "auto";
+    document.body.appendChild(scroller);
+    const previousBody = document.body.style.overflow;
+    render(<DrawerHarness />);
+
+    await user.click(screen.getByRole("button", { name: "打开抽屉" }));
+    expect(document.body.style.overflow).toBe("hidden");
+    expect(scroller.style.overflow).toBe("hidden");
+
+    await user.keyboard("{Escape}");
+    expect(document.body.style.overflow).toBe(previousBody);
+    expect(scroller.style.overflow).toBe("auto");
+    scroller.remove();
+  });
 });

@@ -9,7 +9,44 @@ import { THEME_STORAGE_KEY } from "./useTheme";
 
 vi.mock("../api/jobs", () => ({
   listJobs: vi.fn(async () => ({ items: [], next_cursor: null })),
-  getJob: vi.fn(),
+  getJob: vi.fn(async () => ({
+    job_id: "job-1",
+    status: "running",
+    pending_action: null,
+    ticker_code: "600519",
+    ticker_name: "贵州茅台",
+    analysis_date: "2026-11-05",
+    created_at: "2026-11-05T09:03:00+08:00",
+    updated_at: "2026-11-05T09:04:00+08:00",
+    started_at: "2026-11-05T09:03:01+08:00",
+    finished_at: null,
+    current_stage: null,
+    stages: Array.from({ length: 12 }, (_, index) => ({
+      id: `stage-${index + 1}`,
+      name: `阶段 ${index + 1}`,
+      index: index + 1,
+      status: "pending",
+      started_at: null,
+      finished_at: null,
+      duration_ms: null,
+    })),
+    stats: { model_calls: 0, tokens_in: 0, tokens_out: 0, elapsed_ms: 0 },
+    report_id: null,
+    error: null,
+    config_digest: "hash",
+    graph_version: "graph-v1",
+    retry_of_job_id: null,
+    resume_of_job_id: null,
+    resume_from_stage: null,
+    allowed_actions: [],
+    links: {
+      self: "/api/v1/jobs/job-1",
+      events: "/api/v1/jobs/job-1/events",
+      report: null,
+    },
+    reconcile_notes: [],
+  })),
+  getStageReport: vi.fn(),
   createJob: vi.fn(),
   controlJob: vi.fn(),
   retryJob: vi.fn(),
@@ -59,7 +96,7 @@ const ROUTES = [
   ["/market", "page-market", "市场"],
   ["/stocks/600519", "page-stock", "600519 股票工作区"],
   ["/jobs", "page-jobs", "任务"],
-  ["/jobs/job-1", "page-job-detail", "任务 job-1"],
+  ["/jobs/job-1", "page-job-detail", "贵州茅台"],
   ["/reports", "page-reports", "报告"],
   ["/reports/report-1", "page-report-detail", "报告 report-1"],
   ["/journal", "page-journal", "交易日志"],
@@ -67,12 +104,12 @@ const ROUTES = [
 ] as const;
 
 describe("WEB-03 routes", () => {
-  it.each(ROUTES)("renders %s", (path, testId, heading) => {
+  it.each(ROUTES)("renders %s", async (path, testId, heading) => {
     renderAt(path);
     const region = screen.getByTestId(testId);
-    expect(within(region).getByRole("heading", { level: 1 })).toHaveTextContent(
-      heading,
-    );
+    expect(
+      await within(region).findByRole("heading", { level: 1 }),
+    ).toHaveTextContent(heading);
   });
 
   it("redirects the root to the workbench", async () => {

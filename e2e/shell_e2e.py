@@ -33,7 +33,7 @@ ROUTES: dict[str, tuple[str, str]] = {
     "/market": ("page-market", "市场"),
     "/stocks/600519": ("page-stock", "600519 股票工作区"),
     "/jobs": ("page-jobs", "任务"),
-    "/jobs/job-1": ("page-job-detail", "任务 job-1"),
+    "/jobs/job-1": ("page-job-detail", "600519"),
     "/reports": ("page-reports", "报告"),
     "/reports/report-1": ("page-report-detail", "报告 report-1"),
     "/journal": ("page-journal", "交易日志"),
@@ -168,6 +168,67 @@ SEARCH_EMPTY = {
     "data": {"items": [], "truncated": False},
 }
 
+JOB_STAGES = [
+    ("market", "技术分析"),
+    ("social", "情绪分析"),
+    ("news", "新闻舆情"),
+    ("fundamentals", "基本面"),
+    ("policy", "政策分析"),
+    ("hot_money", "游资追踪"),
+    ("lockup", "解禁监控"),
+    ("quality_gate", "质量门控"),
+    ("debate", "多空辩论"),
+    ("trader", "交易决策"),
+    ("risk", "风控评估"),
+    ("pm", "最终决策"),
+]
+
+JOB_DETAIL = {
+    "job_id": "job-1",
+    "status": "queued",
+    "pending_action": None,
+    "ticker_code": "600519",
+    "ticker_name": None,
+    "analysis_date": "2026-11-05",
+    "created_at": "2026-11-05T09:00:00+08:00",
+    "updated_at": "2026-11-05T09:00:00+08:00",
+    "started_at": None,
+    "finished_at": None,
+    "current_stage": None,
+    "stages": [
+        {
+            "id": stage_id,
+            "name": name,
+            "index": index,
+            "status": "pending",
+            "started_at": None,
+            "finished_at": None,
+            "duration_ms": None,
+        }
+        for index, (stage_id, name) in enumerate(JOB_STAGES, 1)
+    ],
+    "stats": {
+        "model_calls": 0,
+        "tokens_in": 0,
+        "tokens_out": 0,
+        "elapsed_ms": 0,
+    },
+    "report_id": None,
+    "error": None,
+    "config_digest": "0" * 64,
+    "graph_version": "graph-v1",
+    "retry_of_job_id": None,
+    "resume_of_job_id": None,
+    "resume_from_stage": None,
+    "allowed_actions": ["cancel"],
+    "links": {
+        "self": "/api/v1/jobs/job-1",
+        "events": "/api/v1/jobs/job-1/events",
+        "report": None,
+    },
+    "reconcile_notes": [],
+}
+
 
 def stub_api(context: BrowserContext) -> None:
     """Keep shell E2E offline: the shell now polls jobs and meta on mount."""
@@ -182,6 +243,11 @@ def stub_api(context: BrowserContext) -> None:
     context.route(
         "**/api/v1/jobs**",
         lambda route: fulfill(route, {"items": [], "next_cursor": None}),
+    )
+    # Registered after the wildcard so the detail route wins for /jobs/job-1.
+    context.route(
+        "**/api/v1/jobs/job-1",
+        lambda route: fulfill(route, JOB_DETAIL),
     )
     context.route(
         "**/api/v1/meta/options**",

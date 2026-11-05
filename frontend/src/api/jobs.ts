@@ -9,6 +9,7 @@ import type {
   JobListFilters,
   JobListResponse,
   RetryMode,
+  StageReport,
 } from "./types";
 
 function listPath(filters: JobListFilters): string {
@@ -51,6 +52,17 @@ export function getJob(
   return apiRequest<JobDetail>(`/api/v1/jobs/${encodeURIComponent(jobId)}`, {
     signal,
   });
+}
+
+export function getStageReport(
+  jobId: string,
+  stageId: string,
+  signal?: AbortSignal,
+): Promise<StageReport> {
+  return apiRequest<StageReport>(
+    `/api/v1/jobs/${encodeURIComponent(jobId)}/stages/${encodeURIComponent(stageId)}`,
+    { signal },
+  );
 }
 
 export interface CreateJobResult {

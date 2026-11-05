@@ -1,12 +1,20 @@
 /** One status vocabulary for the bar, the workbench and later job pages. */
 
-import type { CurrentStage, JobStatus } from "../api/types";
+import type { CurrentStage, JobStatus, StageStatus } from "../api/types";
 import type { BadgeTone } from "../ui";
 
 export interface JobStatusMeta {
   label: string;
   tone: BadgeTone;
 }
+
+export const STAGE_STATUS_LABELS: Record<StageStatus, string> = {
+  pending: "等待中",
+  active: "执行中",
+  done: "已完成",
+  failed: "失败",
+  skipped: "已跳过",
+};
 
 export const JOB_STATUS_META: Record<JobStatus, JobStatusMeta> = {
   queued: { label: "排队中", tone: "neutral" },

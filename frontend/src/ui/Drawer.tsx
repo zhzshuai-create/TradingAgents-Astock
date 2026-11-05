@@ -1,10 +1,10 @@
-import { useId, type ReactNode } from "react";
+import { useEffect, useId, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 import styles from "./Drawer.module.css";
 import { useDialogFocus } from "./useDialogFocus";
 
-export type DrawerSide = "left" | "right";
+export type DrawerSide = "left" | "right" | "bottom";
 
 export interface DrawerProps {
   open: boolean;
@@ -25,6 +25,27 @@ export function Drawer({
 }: DrawerProps) {
   const titleId = useId();
   const panelRef = useDialogFocus(open, onClose);
+
+  // The page behind a drawer must not scroll with it. The shell scrolls a
+  // content element, not body, so both kinds of container are locked.
+  useEffect(() => {
+    if (!open) {
+      return undefined;
+    }
+    const targets = [
+      document.body,
+      ...document.querySelectorAll<HTMLElement>("[data-scroll-lock]"),
+    ];
+    const previous = targets.map((target) => target.style.overflow);
+    for (const target of targets) {
+      target.style.overflow = "hidden";
+    }
+    return () => {
+      targets.forEach((target, index) => {
+        target.style.overflow = previous[index] ?? "";
+      });
+    };
+  }, [open]);
 
   if (!open) {
     return null;
@@ -60,7 +81,7 @@ export function Drawer({
             ×
           </button>
         </header>
-        <div className={styles.body}>{children}</div>
+        <div className={styles.body} data-testid="drawer-body">{children}</div>
         {footer === undefined ? null : (
           <footer className={styles.footer}>{footer}</footer>
         )}

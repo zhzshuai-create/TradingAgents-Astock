@@ -61,7 +61,12 @@ export function AppShell() {
           onToggleTheme={toggle}
         />
         {showActiveBar ? <ActiveJobBar /> : null}
-        <main id="main-content" className={styles.content} tabIndex={-1}>
+        <main
+          id="main-content"
+          className={styles.content}
+          data-scroll-lock
+          tabIndex={-1}
+        >
           <Outlet />
         </main>
       </div>

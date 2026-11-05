@@ -115,6 +115,19 @@ export interface JobListResponse {
   next_cursor: string | null;
 }
 
+/** api-v1.md 1.10: one stage's markdown output, read on demand. */
+export interface StageReport {
+  job_id: string;
+  stage_id: StageId;
+  stage_name: string;
+  index: number;
+  status: StageStatus;
+  markdown: string | null;
+  truncated: boolean;
+  full_length: number;
+  updated_at: string | null;
+}
+
 export interface JobListFilters {
   status?: JobStatus[];
   ticker?: string;
