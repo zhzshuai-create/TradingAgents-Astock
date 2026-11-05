@@ -1,0 +1,151 @@
+{
+  "schema_version": "perf-result-v1",
+  "run": {
+    "run_id": "perf-20261105-223601",
+    "date": "2026-11-05",
+    "commit": "b19c089",
+    "operator": "qoder-agent",
+    "notes": "P2-13 只补界面段 P05-c。P05-a 与 P05-b 不重测，引用 P1-13 的 JSON；P05 合计 = P05-a 中位 + P05-c 中位。P05-c 的到达时刻取页面内 reader.read() 解析出 stage_changed 的 performance.now()（详情页用 fetch 流读取，不使用 EventSource，CDP 的 eventSourceMessageReceived 不会触发），可见时刻取同一页面时钟下 MutationObserver 记录的首个 stage-<id> 文案变化；两时刻同钟，无需校准。配对规则：同一 stage_id 的帧到达后，该阶段按钮的第一次文案变化。"
+  },
+  "environment": {
+    "python": "3.13.3",
+    "browser": "Chromium 148.0.7778.96",
+    "os": "nt-10.26200",
+    "viewport": "1440x900",
+    "stage_delay_ms": 1500
+  },
+  "method": {
+    "script": "scripts/p05_ui_latency.py",
+    "measurement": "page reader.read() timestamp of a stage_changed SSE block -> first MutationObserver change of stage-<id>",
+    "clock": "single page clock (performance.now)",
+    "pairing": "first matching stage-id text change after the frame",
+    "samples_per_metric": 25,
+    "statistic": "median",
+    "jobs": [
+      {
+        "job_id": "aecd5084-dba0-471d-bcff-eea5e22c9a44",
+        "stage_frames": 22,
+        "stream_chunks": 29,
+        "mutations": 14,
+        "samples": 7,
+        "dropped_over_5000ms": 0,
+        "seconds": 18.7
+      },
+      {
+        "job_id": "c1c543d7-ab23-40d5-90cc-b94e4952ea46",
+        "stage_frames": 22,
+        "stream_chunks": 29,
+        "mutations": 18,
+        "samples": 9,
+        "dropped_over_5000ms": 0,
+        "seconds": 18.7
+      },
+      {
+        "job_id": "da4ed396-7817-4e75-ab98-9c4220ef8672",
+        "stage_frames": 22,
+        "stream_chunks": 27,
+        "mutations": 18,
+        "samples": 9,
+        "dropped_over_5000ms": 0,
+        "seconds": 18.8
+      }
+    ]
+  },
+  "metrics": {
+    "P01": null,
+    "P02": null,
+    "P03": null,
+    "P04": null,
+    "P05": {
+      "label": "任务事件延迟",
+      "unit": "ms",
+      "cases": [
+        {
+          "id": "P05-a",
+          "name": "事件产生到 SSE 帧可读（服务端，引用 P1-13）",
+          "baseline": null,
+          "budget": 500,
+          "budget_source": "硬线",
+          "samples": [
+            4,
+            4,
+            4,
+            4,
+            3
+          ],
+          "median": 4,
+          "source": "docs/upgrade/reviews/2026-11-05_P1-13性能结果.json",
+          "pass": true
+        },
+        {
+          "id": "P05-b",
+          "name": "阶段间隔偏差（引用 P1-13）",
+          "unit": "percent",
+          "budget": 5,
+          "samples": [
+            1.424,
+            1.265,
+            1.195,
+            0.965,
+            2.788,
+            2.288,
+            1.795,
+            2.028,
+            2.205,
+            2.028,
+            1.984
+          ],
+          "median": 1.984,
+          "source": "docs/upgrade/reviews/2026-11-05_P1-13性能结果.json",
+          "pass": true
+        },
+        {
+          "id": "P05-c",
+          "name": "SSE 帧到达浏览器到阶段文案可见",
+          "baseline": null,
+          "budget": 500,
+          "budget_source": "P2-13 新增",
+          "samples": [
+            4.1,
+            4.3,
+            5.5,
+            6.2,
+            8.0,
+            8.1,
+            8.2,
+            8.4,
+            8.7,
+            8.9,
+            9.1,
+            9.1,
+            9.3,
+            9.4,
+            9.7,
+            9.8,
+            9.9,
+            9.9,
+            10.1,
+            10.5,
+            10.8,
+            11.0,
+            12.0,
+            12.1,
+            12.4
+          ],
+          "median": 9.3,
+          "p95": 12.1,
+          "pass": true
+        },
+        {
+          "id": "P05",
+          "name": "合计（P05-a 中位 + P05-c 中位）",
+          "baseline": null,
+          "budget": 500,
+          "budget_source": "硬线",
+          "median": 13.3,
+          "pass": true
+        }
+      ]
+    }
+  }
+}

@@ -38,6 +38,8 @@ afterAll(() => server.close());
 let requests: URLSearchParams[] = [];
 beforeEach(() => {
   requests = [];
+  sessionStorage.clear();
+  document.getElementById("main-content")?.remove();
 });
 
 function job(overrides: Partial<JobSummary> = {}): JobSummary {
@@ -128,6 +130,22 @@ function renderPage(initialEntry: string) {
     </QueryClientProvider>,
   );
   return router;
+}
+
+function mountScrollContainer(): HTMLElement {
+  // jsdom has no layout, so scrollTop needs a writable stand-in.
+  const main = document.createElement("div");
+  main.id = "main-content";
+  let scrollTop = 0;
+  Object.defineProperty(main, "scrollTop", {
+    configurable: true,
+    get: () => scrollTop,
+    set: (value: number) => {
+      scrollTop = value;
+    },
+  });
+  document.body.appendChild(main);
+  return main;
 }
 
 describe("WEB-10 job list", () => {
@@ -423,5 +441,91 @@ describe("WEB-10 job list", () => {
       within(rows[1]).queryByTestId("stage-progress"),
     ).not.toBeInTheDocument();
     expect(within(rows[1]).getByText("等待开始")).toBeInTheDocument();
+  });
+
+  it("restores the saved scroll position once and clears the key", async () => {
+    serveJobs(() => ({ body: page([job()]) }));
+    const main = mountScrollContainer();
+    sessionStorage.setItem("ta:jobs-scroll:/jobs?status=failed", "1200");
+
+    renderPage("/jobs?status=failed");
+
+    await screen.findByTestId("job-row");
+    await waitFor(() => expect(main.scrollTop).toBe(1200));
+    expect(sessionStorage.getItem("ta:jobs-scroll:/jobs?status=failed")).toBeNull();
+  });
+
+  it("saves the scroll position when the list unmounts", async () => {
+    serveJobs(() => ({ body: page([job()]) }));
+    const main = mountScrollContainer();
+    const router = renderPage("/jobs");
+
+    await screen.findByTestId("job-row");
+    main.scrollTop = 640;
+    main.dispatchEvent(new Event("scroll"));
+    // Removing the list clamps the real container to 0 before cleanup runs.
+    main.scrollTop = 0;
+    await router.navigate("/workbench");
+
+    await waitFor(() =>
+      expect(sessionStorage.getItem("ta:jobs-scroll:/jobs")).toBe("640"),
+    );
+  });
+
+  it("keeps loaded pages after leaving and coming back", async () => {
+    const first = Array.from({ length: 20 }, (_, index) =>
+      job({ job_id: `job-${index}` }),
+    );
+    serveJobs((params) =>
+      params.get("cursor") === "c1"
+        ? { body: page([job({ job_id: "job-20" })]) }
+        : { body: page(first, "c1") },
+    );
+    const router = renderPage("/jobs");
+
+    await waitFor(() =>
+      expect(screen.getAllByTestId("job-row")).toHaveLength(20),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "加载更多" }));
+    await waitFor(() =>
+      expect(screen.getAllByTestId("job-row")).toHaveLength(21),
+    );
+    await waitFor(() =>
+      expect(router.state.location.search).toContain("cursor=c1"),
+    );
+
+    await router.navigate("/jobs/job-0");
+    await screen.findByTestId("location");
+    await router.navigate(-1);
+
+    await waitFor(() =>
+      expect(screen.getAllByTestId("job-row")).toHaveLength(21),
+    );
+    // The stale refetch must rebuild both pages, not collapse onto the cursor.
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect(screen.getAllByTestId("job-row")).toHaveLength(21);
+  });
+
+  it("rebuilds every loaded page from a cursor deep link", async () => {
+    const first = Array.from({ length: 20 }, (_, index) =>
+      job({ job_id: `job-${index}` }),
+    );
+    serveJobs((params) =>
+      params.get("cursor") === "c1"
+        ? { body: page([job({ job_id: "job-20" })]) }
+        : { body: page(first, "c1") },
+    );
+    const router = renderPage(
+      "/jobs?status=succeeded&ticker=000629&cursor=c1",
+    );
+
+    await waitFor(() =>
+      expect(screen.getAllByTestId("job-row")).toHaveLength(21),
+    );
+    expect(requests.map((params) => params.get("cursor"))).toEqual([
+      null,
+      "c1",
+    ]);
+    expect(router.state.location.search).toContain("cursor=c1");
   });
 });
