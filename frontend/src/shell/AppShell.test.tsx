@@ -56,6 +56,21 @@ vi.mock("../api/meta", () => ({
   getMetaOptions: vi.fn(async () => ({})),
 }));
 
+vi.mock("../api/sse", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../api/sse")>();
+  return {
+    ...actual,
+    streamJobEvents: vi.fn(
+      (_jobId: string, options: { signal: AbortSignal }) =>
+        new Promise<void>((resolve) => {
+          options.signal.addEventListener("abort", () => resolve(), {
+            once: true,
+          });
+        }),
+    ),
+  };
+});
+
 vi.mock("../api/market", () => ({
   searchStocks: vi.fn(async () => ({
     schema_version: "market-envelope-v1",

@@ -11,6 +11,7 @@ import { StageReportBody, StageReportView } from "./StageReportView";
 import { StageTimeline } from "./StageTimeline";
 import { StatsBar } from "./StatsBar";
 import { StatusHeader } from "./StatusHeader";
+import { useJobStream } from "./useJobStream";
 import styles from "./JobDetailPage.module.css";
 
 function isJobNotFound(error: unknown): boolean {
@@ -60,10 +61,14 @@ export function JobDetailPage() {
   const query = useQuery({
     ...jobDetailQuery(jobId),
     enabled: jobId !== "",
+    // The stream is authoritative while mounted; a focus refetch could
+    // resolve late and overwrite a newer snapshot.
+    refetchOnWindowFocus: false,
   });
   const [expandedStageId, setExpandedStageId] = useState<StageId | null>(null);
   const [drawerStageId, setDrawerStageId] = useState<StageId | null>(null);
   const autoExpandedFor = useRef<string | null>(null);
+  const stream = useJobStream(jobId, jobId !== "" && query.data !== undefined);
 
   useEffect(() => {
     autoExpandedFor.current = null;
@@ -146,6 +151,29 @@ export function JobDetailPage() {
   return (
     <section className={styles.page} data-testid="page-job-detail">
       <StatusHeader job={job} />
+      {stream.expired ? (
+        <div
+          className={styles.streamBanner}
+          role="status"
+          aria-live="polite"
+          data-testid="job-stream-expired"
+        >
+          <span>事件流已超出保留窗口，当前进度可能不是最新的。刷新以恢复。</span>
+          <Button size="sm" onClick={() => window.location.reload()}>
+            刷新
+          </Button>
+        </div>
+      ) : null}
+      {stream.reconnecting ? (
+        <div
+          className={styles.streamBanner}
+          role="status"
+          aria-live="polite"
+          data-testid="job-stream-reconnecting"
+        >
+          正在重连，阶段可能延迟
+        </div>
+      ) : null}
       <StageTimeline
         stages={job.stages}
         currentStageId={currentStageId}

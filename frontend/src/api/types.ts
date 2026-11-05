@@ -115,6 +115,71 @@ export interface JobListResponse {
   next_cursor: string | null;
 }
 
+export type JobSseEventType =
+  | "snapshot"
+  | "stage_changed"
+  | "stats"
+  | "status_changed"
+  | "report_ready"
+  | "error";
+
+export interface SseEnvelope<TType extends JobSseEventType, TPayload> {
+  seq: number;
+  job_id: string;
+  type: TType;
+  at: string;
+  payload: TPayload;
+}
+
+export interface SnapshotPayload {
+  job: JobDetail;
+  last_seq: number;
+}
+
+/** sse-events-v1.md 3.1: `started` is the wire name for the active state. */
+export interface StageChangedPayload {
+  stage_id: StageId;
+  stage_name: string;
+  stage_status: "started" | "done" | "failed" | "skipped";
+  index: number;
+  total: number;
+  started_at: string | null;
+  finished_at: string | null;
+  duration_ms: number | null;
+}
+
+export interface StatusChangedPayload {
+  from: JobStatus;
+  to: JobStatus;
+  reason: "user" | "worker" | "reconcile";
+  detail: string | null;
+  pending_action: PendingAction;
+  error: JobError | null;
+}
+
+export interface ReportReadyPayload {
+  report_id: string;
+  content_hash: string;
+  rating: string | null;
+  signal: string | null;
+  url: string;
+}
+
+export interface SseErrorPayload {
+  code: string;
+  message: string;
+  request_id: string;
+  fatal: boolean;
+}
+
+export type JobSseEvent =
+  | SseEnvelope<"snapshot", SnapshotPayload>
+  | SseEnvelope<"stage_changed", StageChangedPayload>
+  | SseEnvelope<"stats", JobStats>
+  | SseEnvelope<"status_changed", StatusChangedPayload>
+  | SseEnvelope<"report_ready", ReportReadyPayload>
+  | SseEnvelope<"error", SseErrorPayload>;
+
 /** api-v1.md 1.10: one stage's markdown output, read on demand. */
 export interface StageReport {
   job_id: string;

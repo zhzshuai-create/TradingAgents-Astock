@@ -20,7 +20,7 @@ export interface ApiEnvelope<T> {
   headers: Headers;
 }
 
-function resolveUrl(path: string): string {
+export function resolveUrl(path: string): string {
   if (/^[a-z][a-z0-9+.-]*:\/\//i.test(path)) {
     return path;
   }
@@ -40,6 +40,26 @@ async function readJson(response: Response): Promise<unknown> {
   } catch {
     return undefined;
   }
+}
+
+/**
+ * Open a streaming GET without reading the body. Kept here because fetch may
+ * only be called from this module; the SSE parser owns the response body.
+ */
+export function openEventStream(
+  path: string,
+  options: { signal?: AbortSignal; lastEventId?: number | null } = {},
+): Promise<Response> {
+  const headers: Record<string, string> = { Accept: "text/event-stream" };
+  if (options.lastEventId !== undefined && options.lastEventId !== null) {
+    headers["Last-Event-ID"] = String(options.lastEventId);
+  }
+  return fetch(resolveUrl(path), {
+    method: "GET",
+    headers,
+    signal: options.signal,
+    cache: "no-store",
+  });
 }
 
 export async function apiRequestEnvelope<T>(

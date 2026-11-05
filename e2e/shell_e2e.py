@@ -249,6 +249,32 @@ def stub_api(context: BrowserContext) -> None:
         "**/api/v1/jobs/job-1",
         lambda route: fulfill(route, JOB_DETAIL),
     )
+    # Registered after the detail route: the wildcard above also matches
+    # /events, and a JSON 200 there would be a protocol error in the client.
+    context.route(
+        "**/api/v1/jobs/job-1/events",
+        lambda route: route.fulfill(
+            status=200,
+            content_type="text/event-stream",
+            body=(
+                "retry: 3000\n\n"
+                "id: 0\n"
+                "event: snapshot\n"
+                "data: "
+                + json.dumps(
+                    {
+                        "seq": 0,
+                        "job_id": "job-1",
+                        "type": "snapshot",
+                        "at": "2026-11-05T09:00:00+08:00",
+                        "payload": {"job": JOB_DETAIL, "last_seq": 0},
+                    },
+                    ensure_ascii=False,
+                )
+                + "\n\n"
+            ),
+        ),
+    )
     context.route(
         "**/api/v1/meta/options**",
         lambda route: fulfill(route, META_OPTIONS),

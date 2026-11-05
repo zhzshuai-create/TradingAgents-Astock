@@ -47,6 +47,20 @@
   min-width: 0;
 }
 
+.streamBanner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-warning);
+  border-radius: var(--radius-sm);
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+  font-size: var(--font-size-sm);
+}
+
 @media (max-width: 767px) {
   .page {
     gap: var(--space-4);
@@ -57,6 +71,10 @@
   }
 
   .linkButton {
+    min-height: 44px;
+  }
+
+  .streamBanner button {
     min-height: 44px;
   }
 }

@@ -29,6 +29,14 @@ import type {
 } from "../../api/types";
 import { JobDetailPage } from "./JobDetailPage";
 
+const streamState = vi.hoisted(() => ({
+  current: { reconnecting: false, expired: false },
+}));
+
+vi.mock("./useJobStream", () => ({
+  useJobStream: () => streamState.current,
+}));
+
 const ORIGIN = "http://localhost:3000";
 const STAGE_URL = `${ORIGIN}/api/v1/jobs/:jobId/stages/:stageId`;
 
@@ -57,6 +65,7 @@ let detailRequests = 0;
 beforeEach(() => {
   stageRequests = [];
   detailRequests = 0;
+  streamState.current = { reconnecting: false, expired: false };
 });
 
 function makeStages(
@@ -568,6 +577,42 @@ describe("WEB-14 allowed actions and report entry", () => {
       "报告不可用",
     );
     expect(screen.queryByTestId("job-open-report")).toBeNull();
+  });
+});
+
+describe("WEB-12 event stream banners", () => {
+  it("shows the reconnect banner while the stream is retrying", async () => {
+    streamState.current = { reconnecting: true, expired: false };
+    serveDetail({ body: job() });
+    serveStages();
+    renderDetail();
+
+    expect(
+      await screen.findByTestId("job-stream-reconnecting"),
+    ).toHaveTextContent("正在重连，阶段可能延迟");
+    expect(screen.queryByTestId("job-stream-expired")).toBeNull();
+  });
+
+  it("asks for a refresh when the cursor expired and stops showing the reconnect copy", async () => {
+    streamState.current = { reconnecting: false, expired: true };
+    serveDetail({ body: job() });
+    serveStages();
+    renderDetail();
+
+    const banner = await screen.findByTestId("job-stream-expired");
+    expect(banner).toHaveTextContent("刷新以恢复");
+    expect(within(banner).getByRole("button", { name: "刷新" })).toBeVisible();
+    expect(screen.queryByTestId("job-stream-reconnecting")).toBeNull();
+  });
+
+  it("renders neither banner while the stream is connected", async () => {
+    serveDetail({ body: job() });
+    serveStages();
+    renderDetail();
+
+    await screen.findByTestId("job-header");
+    expect(screen.queryByTestId("job-stream-reconnecting")).toBeNull();
+    expect(screen.queryByTestId("job-stream-expired")).toBeNull();
   });
 });
 
