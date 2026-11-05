@@ -207,6 +207,11 @@ class JobService:
         self._reports = reports
 
     # -- reads ---------------------------------------------------------
+    @property
+    def engine(self) -> Engine:
+        """Shared engine for read-only consumers such as the SSE reader."""
+        return self._engine
+
     def now(self) -> datetime:
         return self._clock()
 

@@ -12,11 +12,13 @@ from __future__ import annotations
 from typing import Any, Literal
 
 from fastapi import APIRouter, Request, Response
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict
 
 from backend.app.api.errors import ApiError
 from backend.app.api.v1.serializers import job_detail
 from backend.app.models.stage import STAGE_IDS, STAGE_NAMES
+from backend.app.services.event_stream import CursorExpired
 from backend.app.services.job_service import JobControlError, JobCreateError
 
 router = APIRouter(prefix="/api/v1/jobs", tags=["jobs"])
@@ -76,6 +78,43 @@ def get_job(job_id: str, request: Request) -> dict[str, Any]:
     if job is None:
         raise ApiError("job_not_found")
     return job_detail(job, **service.detail_parts(job_id))
+
+
+@router.get("/{job_id}/events")
+def stream_job_events(job_id: str, request: Request) -> StreamingResponse:
+    """Read-only SSE stream; subscribing never writes a row (contract 7)."""
+    accept = request.headers.get("Accept") or ""
+    if "text/event-stream" not in accept.lower():
+        raise ApiError("invalid_request")
+
+    cursor = _event_cursor(request.headers.get("Last-Event-ID"))
+    service = request.app.state.job_service
+    job = service.get_job(job_id)
+    if job is None:
+        raise ApiError("job_not_found")
+
+    try:
+        frames = request.app.state.event_stream.subscribe(job, cursor)
+    except CursorExpired as exc:
+        raise ApiError("sse_cursor_expired") from exc
+
+    return StreamingResponse(
+        frames,
+        media_type="text/event-stream; charset=utf-8",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+def _event_cursor(raw: str | None) -> int | None:
+    if raw is None or not raw.strip():
+        return None
+    try:
+        cursor = int(raw.strip())
+    except ValueError as exc:
+        raise ApiError("invalid_request") from exc
+    if cursor < 0:
+        raise ApiError("invalid_request")
+    return cursor
 
 
 @router.post("/{job_id}/actions")

@@ -7,6 +7,7 @@ from typing import Any
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from backend.app.services.job_service import JobControlError, JobCreateError
 
@@ -143,6 +144,20 @@ def install_error_handlers(app: FastAPI) -> None:
         field = _field_name(errors[0]) if errors else None
         details = {"field": field} if field else None
         return _error_response(request, "invalid_request", 400, details)
+
+    @app.exception_handler(StarletteHTTPException)
+    async def _handle_http_error(
+        request: Request, exc: StarletteHTTPException
+    ) -> JSONResponse:
+        # Framework-raised 405 (wrong method on an existing path) is plain text
+        # by default; sse-events-v1.md section 1 wants the contract error body.
+        if exc.status_code == 405:
+            return _error_response(request, "method_not_allowed", 405)
+        return JSONResponse(
+            {"detail": exc.detail},
+            status_code=exc.status_code,
+            headers=getattr(exc, "headers", None),
+        )
 
     @app.exception_handler(Exception)
     async def _handle_unexpected(request: Request, _exc: Exception) -> JSONResponse:
