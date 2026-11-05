@@ -148,7 +148,7 @@ UI_STATE = r"""
   return {
     stages: stages,
     actions: actionButtons.length,
-    actionsDisabled: actionButtons.every((button) => button.disabled),
+    actionsEnabled: actionButtons.every((button) => !button.disabled),
     header: header ? header.innerText : "",
     reportLink: Boolean(document.querySelector("[data-testid='job-open-report']")),
     reconnecting: Boolean(
@@ -505,7 +505,7 @@ def a05_refresh_replay(
     )
     check(
         after["actions"] == before["actions"]
-        and after["actionsDisabled"] == before["actionsDisabled"],
+        and after["actionsEnabled"] == before["actionsEnabled"],
         f"A05 action buttons match before/after "
         f"({before['actions']} -> {after['actions']})",
     )
@@ -519,7 +519,7 @@ def a05_refresh_replay(
     assert detail_after is not None
     check(
         after["actions"] == len(detail_after["allowed_actions"])
-        and after["actionsDisabled"],
+        and after["actionsEnabled"],
         f"A05 rendered actions match the API ({after['actions']})",
     )
     check(not after["expired"], "A05 refresh does not show the expired banner")

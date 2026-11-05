@@ -55,6 +55,11 @@ export const marketSearchQuery = (query: string) => ({
   staleTime: 0,
 });
 
+/** Control actions refresh the list without touching the streamed detail. */
+export async function invalidateJobList(client: QueryClient): Promise<void> {
+  await client.invalidateQueries({ queryKey: JOBS_ROOT });
+}
+
 /** Every control action invalidates the list and the addressed detail. */
 export async function invalidateJobQueries(
   client: QueryClient,

@@ -23,14 +23,14 @@ function noticeFor(job: JobDetail): Notice | null {
     case "pause_requested":
       return {
         kind: "warning",
-        title: "正在暂停",
-        body: "正在暂停，将在当前阶段结束后生效。",
+        title: "暂停中",
+        body: "已受理，将在当前阶段结束后生效。",
       };
     case "cancel_requested":
       return {
         kind: "warning",
-        title: "正在取消",
-        body: "正在取消，当前阶段结束后生效。",
+        title: "取消中",
+        body: "已受理，将在当前阶段结束后生效。",
       };
     case "failed":
       return {

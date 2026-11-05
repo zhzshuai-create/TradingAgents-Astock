@@ -531,7 +531,7 @@ describe("WEB-14 allowed actions and report entry", () => {
     expect(screen.queryByTestId("job-actions")).toBeNull();
   });
 
-  it("renders disabled action buttons for the server actions", async () => {
+  it("renders enabled action buttons for the server actions", async () => {
     serveDetail({
       body: job({ allowed_actions: ["pause", "cancel"] }),
     });
@@ -539,8 +539,8 @@ describe("WEB-14 allowed actions and report entry", () => {
     renderDetail();
 
     await screen.findByTestId("job-header");
-    expect(screen.getByTestId("job-action-pause")).toBeDisabled();
-    expect(screen.getByTestId("job-action-cancel")).toBeDisabled();
+    expect(screen.getByTestId("job-action-pause")).toBeEnabled();
+    expect(screen.getByTestId("job-action-cancel")).toBeEnabled();
     expect(screen.getByTestId("job-action-pause")).toHaveTextContent("暂停");
     expect(screen.getByTestId("job-action-cancel")).toHaveTextContent("取消");
   });

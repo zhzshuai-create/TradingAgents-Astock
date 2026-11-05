@@ -280,7 +280,7 @@ def check_actions(page: Page, detail: dict) -> None:
     for action in actions:
         button = page.get_by_test_id(f"job-action-{action}")
         check(button.is_visible(), f"{action} button is visible")
-        check(button.is_disabled(), f"{action} button is disabled in P2-10")
+        check(button.is_enabled(), f"{action} button is enabled after P2-12")
 
 
 def check_stats(page: Page, detail: dict) -> None:

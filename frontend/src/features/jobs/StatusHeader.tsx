@@ -1,18 +1,10 @@
 import { Link } from "react-router-dom";
 
-import type { AllowedAction, JobDetail } from "../../api/types";
+import type { JobDetail } from "../../api/types";
 import { JOB_STATUS_META } from "../../lib/jobStatus";
-import { Badge, Button } from "../../ui";
+import { Badge } from "../../ui";
+import { JobActions } from "./JobActions";
 import styles from "./StatusHeader.module.css";
-
-const ACTION_LABELS: Record<AllowedAction, string> = {
-  pause: "暂停",
-  resume: "继续",
-  cancel: "取消",
-  retry: "使用相同参数重试",
-  reanalyze: "重新分析",
-  resume_from_checkpoint: "从检查点继续",
-};
 
 interface StatusHeaderProps {
   job: JobDetail;
@@ -44,20 +36,7 @@ export function StatusHeader({ job }: StatusHeaderProps) {
       </div>
 
       <div className={styles.side}>
-        {job.allowed_actions.length === 0 ? null : (
-          <div className={styles.actions} data-testid="job-actions">
-            {job.allowed_actions.map((action) => (
-              <Button
-                key={action}
-                size="sm"
-                disabled
-                data-testid={`job-action-${action}`}
-              >
-                {ACTION_LABELS[action]}
-              </Button>
-            ))}
-          </div>
-        )}
+        <JobActions job={job} />
         {job.status === "succeeded" && job.report_id !== null ? (
           <Link
             className={styles.reportLink}

@@ -29,7 +29,8 @@ export function useDialogFocus(open: boolean, onClose: () => void) {
     const focusables = () =>
       Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE));
     const first = focusables()[0];
-    (first ?? container).focus();
+    const preferred = container.querySelector<HTMLElement>("[data-autofocus]");
+    (preferred ?? first ?? container).focus();
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {

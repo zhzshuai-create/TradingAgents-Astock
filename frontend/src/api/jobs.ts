@@ -101,13 +101,28 @@ export function controlJob(
   );
 }
 
-export function retryJob(
+export interface RetryJobResult {
+  job: JobDetail;
+  status: number;
+  /** Only from X-Existing-Job; never inferred from the job id. */
+  existingJobId: string | null;
+  /** Idempotency-Replayed: 1 means this was the same intent replayed. */
+  replayed: boolean;
+}
+
+export async function retryJob(
   jobId: string,
   mode: RetryMode,
   idempotencyKey: string,
-): Promise<JobDetail> {
-  return apiRequest<JobDetail>(
+): Promise<RetryJobResult> {
+  const envelope = await apiRequestEnvelope<JobDetail>(
     `/api/v1/jobs/${encodeURIComponent(jobId)}/retry`,
     { method: "POST", body: { mode }, idempotencyKey },
   );
+  return {
+    job: envelope.data,
+    status: envelope.status,
+    existingJobId: envelope.headers.get("X-Existing-Job"),
+    replayed: envelope.headers.get("Idempotency-Replayed") === "1",
+  };
 }
