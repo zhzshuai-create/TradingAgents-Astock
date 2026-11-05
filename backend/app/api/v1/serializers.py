@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from typing import Any
+from typing import Any, Protocol
 
 from backend.app.models.job import ALLOWED_ACTIONS, TERMINAL_STATUSES, Job
 from backend.app.models.stage import STAGE_IDS, STAGE_NAMES
@@ -12,12 +12,18 @@ TOTAL_STAGES = len(STAGE_IDS)
 STATS_KEYS = ("model_calls", "tokens_in", "tokens_out", "elapsed_ms")
 
 
+class TickerNameLookup(Protocol):
+    def name(self, code: str) -> str | None: ...
+
+
 def job_detail(
     job: Job,
     *,
     stages: Mapping[str, Mapping[str, Any]] | None = None,
     stats: Mapping[str, int] | None = None,
     reconcile_notes: Sequence[Mapping[str, str]] = (),
+    ticker_name: str | None = None,
+    ticker_directory: TickerNameLookup | None = None,
 ) -> dict[str, Any]:
     entries = [
         _stage_entry(stage_id, index, (stages or {}).get(stage_id))
@@ -28,7 +34,7 @@ def job_detail(
         "status": job.status,
         "pending_action": job.pending_action,
         "ticker_code": job.ticker_code,
-        "ticker_name": job.ticker_name,
+        "ticker_name": _resolved_name(job, ticker_name, ticker_directory),
         "analysis_date": job.analysis_date,
         "created_at": job.created_at,
         "updated_at": job.updated_at,
@@ -58,6 +64,31 @@ def job_detail(
         },
         "reconcile_notes": [dict(note) for note in reconcile_notes],
     }
+
+
+def job_summary(job: Job, **kwargs: Any) -> dict[str, Any]:
+    """JobDetail minus ``stages`` (api-v1.md 1.1 JobSummary)."""
+    payload = job_detail(job, **kwargs)
+    payload.pop("stages")
+    return payload
+
+
+def _resolved_name(
+    job: Job,
+    override: str | None,
+    directory: TickerNameLookup | None,
+) -> str | None:
+    if override and override.strip():
+        return override
+    if job.ticker_name and job.ticker_name.strip():
+        return job.ticker_name
+    if directory is None:
+        return None
+    try:
+        return directory.name(job.ticker_code)
+    except Exception:
+        # An injected directory must never turn a job read into an error.
+        return None
 
 
 def _stage_entry(

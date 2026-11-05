@@ -11,8 +11,8 @@ Switches:
 * ``--port``            API port, default 8600;
 * ``--stage-delay-ms``  sleep after each stage boundary, default 0; the fake
                         graph module itself is never modified;
-* ``--ticker-fixture``  offline code -> name JSON, exposed as
-                        ``app.state.ticker_fixture`` for later P2 search work.
+* ``--ticker-fixture``  offline code -> name JSON; it becomes the in-memory
+                        search directory instead of the mootdx disk cache.
 
 The worker keeps retrying the global lease, so a restart after a crash takes
 over once the previous lease expires instead of giving up on startup.
@@ -59,6 +59,7 @@ from backend.app.services.report_store import (  # noqa: E402
     JOB_REPORTS_ENV,
     ReportStore,
 )
+from backend.app.services.ticker_directory import TickerDirectory  # noqa: E402
 from backend.app.worker.main import Worker  # noqa: E402
 
 DEV_ROOT_ENV = "TA_DEV_ROOT"
@@ -198,12 +199,13 @@ def main(argv: list[str] | None = None) -> int:
     server_config = load_server_config()
     reports = ReportStore(reports_path)
     jobs = JobService(engine, server_config, reports=reports)
+    directory = TickerDirectory(fixture) if fixture is not None else None
     app = create_app(
         service=jobs,
         server_config=server_config,
         report_store=reports,
+        ticker_directory=directory,
     )
-    app.state.ticker_fixture = fixture
 
     stop = threading.Event()
     thread: threading.Thread | None = None
