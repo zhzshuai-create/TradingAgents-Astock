@@ -1,0 +1,83 @@
+{
+  "schema_version": "perf-result-v1",
+  "run": {
+    "run_id": "perf-20261105-01",
+    "date": "2026-11-05",
+    "commit": "a6e333b",
+    "operator": "qoder-agent",
+    "notes": "P1 只有服务端，没有界面，本文件按 P1-13 交接卡的口径填 P05：P05-a 测 append_event 提交到已订阅 SSE 帧可读的延迟（不含网络、前端渲染，以及服务端 5ms 轮询上界）；P05-b 在执行器钩子边界测前一阶段结束到下一阶段 started 写入返回的间隔（任务时间戳只有秒级精度，测不了亚秒间隔）。P01-P04、P06-P08 需要网页与 PDF 导出器，P1 未实现，按模板第 4 节填 null；P05 未达标时 verdict 记 fail，否则记 baseline_only。假图的虚拟 30 分钟时长未用于任何指标；P05-b 的 500ms 阶段用真实 sleep 计时。"
+  },
+  "environment": {
+    "python": "3.13.3",
+    "streamlit": null,
+    "browser": null,
+    "os": "Windows-11-10.0.26200-SP0",
+    "port": null
+  },
+  "method": {
+    "script": "tests/backend/perf/p05_latency.py",
+    "measurement": "server-side proxy; P1 has no DOM, so no silence window",
+    "dom_silence_ms": null,
+    "rerun_buffer_ms": null,
+    "first_screen_silence_ms": null,
+    "samples_per_metric": 5,
+    "statistic": "median",
+    "stage_length_ms": 500
+  },
+  "metrics": {
+    "P01": null,
+    "P02": null,
+    "P03": null,
+    "P04": null,
+    "P05": {
+      "label": "任务事件延迟",
+      "unit": "ms",
+      "cases": [
+        {
+          "id": "P05-a",
+          "name": "事件产生到 SSE 帧可读（P1 无界面，服务端代理）",
+          "baseline": null,
+          "budget": 500,
+          "budget_source": "硬线",
+          "samples": [
+            4,
+            4,
+            4,
+            4,
+            3
+          ],
+          "median": 4,
+          "pass": true
+        },
+        {
+          "id": "P05-b",
+          "name": "阶段间隔偏差",
+          "unit": "percent",
+          "baseline": 0,
+          "budget": 5,
+          "budget_source": "偏差上限",
+          "samples": [
+            1.424,
+            1.265,
+            1.195,
+            0.965,
+            2.788,
+            2.288,
+            1.795,
+            2.028,
+            2.205,
+            2.028,
+            1.984
+          ],
+          "median": 1.984,
+          "pass": true
+        }
+      ]
+    },
+    "P06": null,
+    "P07": null,
+    "P08": null
+  },
+  "regressions": [],
+  "verdict": "baseline_only"
+}
