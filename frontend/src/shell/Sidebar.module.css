@@ -1,0 +1,152 @@
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  min-width: 0;
+  height: 100%;
+  padding: var(--space-5) var(--space-4);
+  border-inline-end: 1px solid var(--color-border-subtle);
+  background: var(--color-bg-surface);
+  overflow: hidden;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-height: 44px;
+  padding-inline: var(--space-3);
+  color: var(--color-text-primary);
+  overflow: hidden;
+}
+
+.mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+}
+
+.brandName {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--letter-spacing-tight);
+  white-space: nowrap;
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-height: 0;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-height: 44px;
+  padding-inline: var(--space-4);
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.link:hover {
+  background: var(--color-bg-inset);
+  color: var(--color-text-primary);
+}
+
+.active,
+.active:hover {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+
+.active svg {
+  color: var(--color-accent);
+}
+
+.label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.divider {
+  height: 1px;
+  margin: var(--space-2) var(--space-3);
+  background: var(--color-border-subtle);
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-height: 44px;
+  margin-top: auto;
+  padding-inline: var(--space-4);
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.toggle:hover {
+  background: var(--color-bg-inset);
+  color: var(--color-text-primary);
+}
+
+.collapsed {
+  align-items: center;
+  padding-inline: var(--space-3);
+}
+
+.collapsed .brand {
+  justify-content: center;
+  padding-inline: 0;
+}
+
+.collapsed .brandName,
+.collapsed .label {
+  display: none;
+}
+
+.collapsed .link,
+.collapsed .toggle {
+  justify-content: center;
+  width: 44px;
+  padding-inline: 0;
+}
+
+.collapsed .divider {
+  width: 32px;
+  margin-inline: 0;
+}
+
+@media (max-width: 767px) {
+  .sidebar {
+    display: none;
+  }
+}

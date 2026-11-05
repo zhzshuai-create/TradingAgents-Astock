@@ -69,3 +69,9 @@
 .danger:hover:not(:disabled) {
   background: var(--color-danger-hover);
 }
+
+@media (max-width: 767px) {
+  .button {
+    min-height: 44px;
+  }
+}
