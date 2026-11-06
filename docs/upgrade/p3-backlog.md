@@ -209,6 +209,12 @@ P3-01 只读接口
 
 回退：`alembic downgrade 0005`，删除脚本、服务、模型与测试；已导入的 `reports` 行保留可读，`legacy_imports` 表删除后重复导入会重新建行，需在回退说明里写明。
 
+回退说明：
+
+- `alembic downgrade 0005` 只删 `legacy_imports` 表；已导入的 `reports` 行原样保留，P3-01 的列表、详情与 Markdown 仍可读。
+- 回退后再次 `--apply` 会给同一旧文件生成新的 `report_id` 并新增报告行，旧行不会被覆盖或复用；列表里会出现同股票同日期的多个版本。
+- 删除 `scripts/import_legacy_reports.py`、`legacy_import_service.py`、`legacy_import.py` 与 `test_legacy_import.py` 后导入能力完全移除，报告接口不受影响。
+
 验收：临时根下导入五份样本，第二次扫描零新增；旧版健康检查 ok。
 
 ### P3-03 导出服务
