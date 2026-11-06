@@ -5,11 +5,13 @@ import type { QueryClient, QueryFunctionContext } from "@tanstack/react-query";
 import { getJob, getStageReport, listJobs } from "../api/jobs";
 import { searchStocks } from "../api/market";
 import { getMetaOptions } from "../api/meta";
+import { getReport } from "../api/reports";
 import type { JobListFilters, ReportListFilters } from "../api/types";
 
 const JOBS_ROOT = ["jobs"] as const;
 const JOB_ROOT = ["job"] as const;
 const REPORTS_ROOT = ["reports"] as const;
+const REPORT_ROOT = ["report"] as const;
 
 export const queryKeys = {
   jobs: (filters: JobListFilters = {}) => [JOBS_ROOT[0], filters] as const,
@@ -18,6 +20,7 @@ export const queryKeys = {
     [JOB_ROOT[0], jobId, "stage", stageId] as const,
   reports: (filters: ReportListFilters = {}) =>
     [REPORTS_ROOT[0], filters] as const,
+  report: (reportId: string) => [REPORT_ROOT[0], reportId] as const,
   metaOptions: ["meta", "options"] as const,
   marketSearch: (query: string) => ["market", "search", query] as const,
 };
@@ -42,6 +45,14 @@ export const stageReportQuery = (jobId: string, stageId: string) => ({
   queryFn: ({ signal }: QueryFunctionContext) =>
     getStageReport(jobId, stageId, signal),
   staleTime: 0,
+  retry: false,
+});
+
+/** A report row is immutable; a short stale window prevents remount refetches. */
+export const reportDetailQuery = (reportId: string) => ({
+  queryKey: queryKeys.report(reportId),
+  queryFn: ({ signal }: QueryFunctionContext) => getReport(reportId, signal),
+  staleTime: 60_000,
   retry: false,
 });
 

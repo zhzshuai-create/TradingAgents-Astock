@@ -56,6 +56,40 @@ vi.mock("../api/meta", () => ({
   getMetaOptions: vi.fn(async () => ({})),
 }));
 
+vi.mock("../api/reports", () => ({
+  listReports: vi.fn(async () => ({ items: [], next_cursor: null })),
+  getReport: vi.fn(async () => ({
+    meta: {
+      report_id: "report-1",
+      job_id: "job-1",
+      ticker_code: "600519",
+      ticker_name: "贵州茅台",
+      analysis_date: "2026-11-05",
+      generated_at: "2026-11-05T09:04:00+08:00",
+      generated_at_source: "job_clock",
+      origin: "new",
+      schema_version: "report-v1",
+      content_hash: "hash-1",
+      config_digest: "hash",
+      data_quality_status: "ok",
+      chart_snapshot_status: "frozen",
+      retry_of_job_id: null,
+      rating: "Overweight",
+      signal: "Buy",
+      price_target: null,
+      stop_reference: null,
+      time_horizon: null,
+    },
+    sections: {
+      "sec-decision": {
+        id: "sec-decision",
+        title: "最终交易决策",
+        body: "正文",
+      },
+    },
+  })),
+}));
+
 vi.mock("../api/sse", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../api/sse")>();
   return {
@@ -113,7 +147,7 @@ const ROUTES = [
   ["/jobs", "page-jobs", "任务"],
   ["/jobs/job-1", "page-job-detail", "贵州茅台"],
   ["/reports", "page-reports", "报告"],
-  ["/reports/report-1", "page-report-detail", "报告 report-1"],
+  ["/reports/report-1", "page-report-detail", "贵州茅台"],
   ["/journal", "page-journal", "交易日志"],
   ["/settings", "page-settings", "设置"],
 ] as const;

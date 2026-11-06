@@ -285,6 +285,22 @@ export interface ReportSummary {
   summary_available: true;
 }
 
+/** report-schema-v1 section 3; parts_ref points at an identical section. */
+export interface ReportSection {
+  id: string;
+  title: string;
+  body: string;
+  parts?: Record<string, string>;
+  parts_ref?: Record<string, string>;
+  legacy_aliases?: Record<string, string>;
+}
+
+/** api-v1.md 2.2: the frozen ReportDTO. */
+export interface ReportDetail {
+  meta: ReportMeta;
+  sections: Record<string, ReportSection>;
+}
+
 export interface ReportListResponse {
   items: ReportSummary[];
   next_cursor: string | null;

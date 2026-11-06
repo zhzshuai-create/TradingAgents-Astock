@@ -1,7 +1,11 @@
-/** Report endpoints from api-v1.md section 2.1 (P3-04 reads the list only). */
+/** Report endpoints from api-v1.md section 2.1-2.2 (list and detail only). */
 
 import { apiRequest } from "./client";
-import type { ReportListFilters, ReportListResponse } from "./types";
+import type {
+  ReportDetail,
+  ReportListFilters,
+  ReportListResponse,
+} from "./types";
 
 function listPath(filters: ReportListFilters): string {
   const params = new URLSearchParams();
@@ -32,4 +36,14 @@ export function listReports(
   signal?: AbortSignal,
 ): Promise<ReportListResponse> {
   return apiRequest<ReportListResponse>(listPath(filters), { signal });
+}
+
+export function getReport(
+  reportId: string,
+  signal?: AbortSignal,
+): Promise<ReportDetail> {
+  return apiRequest<ReportDetail>(
+    `/api/v1/reports/${encodeURIComponent(reportId)}`,
+    { signal },
+  );
 }

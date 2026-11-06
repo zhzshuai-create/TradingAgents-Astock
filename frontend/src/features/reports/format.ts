@@ -1,6 +1,11 @@
-/** Display vocabulary for ReportSummary rows (W05). */
+/** Display vocabulary for ReportSummary rows (W05) and the reader (W06). */
 
-import type { ReportRating, ReportSummary } from "../../api/types";
+import type {
+  ReportDataQuality,
+  ReportMeta,
+  ReportRating,
+  ReportSummary,
+} from "../../api/types";
 import type { BadgeTone } from "../../ui";
 
 export interface ReportRatingMeta {
@@ -17,9 +22,15 @@ export const REPORT_RATING_META: Record<ReportRating, ReportRatingMeta> = {
   unknown: { label: "未知", tone: "neutral" },
 };
 
-export function originLabel(report: ReportSummary): string {
+export function originLabel(report: { meta: Pick<ReportMeta, "origin"> }): string {
   return report.meta.origin === "legacy_import" ? "历史导入" : "AI 分析";
 }
+
+export const DATA_QUALITY_LABELS: Record<ReportDataQuality, string> = {
+  ok: "正常",
+  degraded: "部分缺失",
+  absent: "缺失",
+};
 
 function pad(value: number): string {
   return String(value).padStart(2, "0");
