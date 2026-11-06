@@ -1,0 +1,206 @@
+{
+  "ticket": "P4-08",
+  "title": "K 线与分时图表",
+  "measured_at": "2026-11-06T19:46:00+08:00",
+  "environment": {
+    "platform": "Windows-11-10.0.26200-SP0",
+    "node": "22.22.2",
+    "python": "3.13.3",
+    "vite": "7.3.7",
+    "react": "19",
+    "vitest": "5",
+    "new_runtime_dependencies": 0
+  },
+  "commands": {
+    "typecheck": "node node_modules/typescript/bin/tsc --noEmit",
+    "unit": "node node_modules/vitest/vitest.mjs run",
+    "build": "node node_modules/vite/bin/vite.js build",
+    "bundle": "node scripts/check_bundle.mjs --out <临时路径>",
+    "market_e2e": "\"C:/Users/zhzsh/AppData/Local/Programs/Python/Python313/python.exe\" e2e/market_e2e.py",
+    "e2e_p2": "\"C:/Users/zhzsh/AppData/Local/Programs/Python/Python313/python.exe\" e2e/e2e_p2.py",
+    "e2e_p3": "\"C:/Users/zhzsh/AppData/Local/Programs/Python/Python313/python.exe\" e2e/e2e_p3.py",
+    "python": ".venv/Scripts/python.exe -m pytest -q",
+    "browser_probe": "临时 harness（StockPage 挂两张图）vite preview + Playwright；验证后 StockPage 已 git checkout 还原，脚本不入库"
+  },
+  "unit": {
+    "test_files": 30,
+    "tests": 387,
+    "new_test_files": 4,
+    "new_tests": 39,
+    "failures": 0,
+    "result": "pass",
+    "breakdown": {
+      "chartScale.test.ts": 16,
+      "chartCrosshair.test.ts": 5,
+      "KLineChart.test.tsx": 11,
+      "IntradayChart.test.tsx": 7
+    },
+    "note": "首次全量运行 AppShell /workbench 与 /market 两条路由用例在并行负载下超过 1 s 查找超时；把该 it.each 的 findBy 查询超时调到 4 s 后连续两次全量运行均 387/387 通过。只改测试等待，不改产品。"
+  },
+  "typecheck": {
+    "errors": 0,
+    "result": "pass"
+  },
+  "python": {
+    "passed": 789,
+    "skipped": 4,
+    "subtests": 59,
+    "failures": 0,
+    "result": "pass",
+    "note": "本票未改后端；全量复跑与 P4-07 基线一致"
+  },
+  "bundle": {
+    "measured_with": "node:zlib gzipSync level 9 over dist files",
+    "entry_gzip_kb": 123.32,
+    "entry_vite_reported_gzip_kb": 123.51,
+    "entry_budget_gzip_kb": 202.45,
+    "entry_within_budget": true,
+    "route_chunks": 11,
+    "route_chunk_limit_gzip_kb": 60,
+    "largest_route_chunk": {
+      "source": "src/pages/ReportDetailPage.tsx",
+      "file": "assets/ReportDetailPage-Dylp-PP-.js",
+      "gzip_kb": 20.68
+    },
+    "all_route_chunks_within_limit": true,
+    "chart_chunk_probe": {
+      "context": "图表尚未被任何路由引用，干净构建里被 tree-shake；用临时 StockPage harness 同时挂两张图后测量",
+      "file": "assets/StockPage-C2e0xxAw.js",
+      "raw_kb": 20.0,
+      "gzip_kb": 6.92,
+      "includes_test_fixtures": true,
+      "within_60_kb": true
+    },
+    "passed": true
+  },
+  "browser": {
+    "tool": "Playwright Chromium（Python 3.13），临时 StockPage harness",
+    "checks": 22,
+    "failures": [],
+    "desktop": {
+      "viewport": "1440x900",
+      "assertions": [
+        "24 根日 K 与 24 个 candle 元素",
+        "页面无横向溢出（documentElement.scrollWidth <= clientWidth + 1）",
+        "滚轮向上可见窗口 24 -> 19，且不少于 10 根",
+        "向左拖拽后窗口起点 3 -> 0，不越界",
+        "十字光标吸附到 K 线并画出竖线",
+        "切周 K 后 8 根蜡烛，aria-label 含「周K」",
+        "成交量图例隐藏后 K 线成交量柱为 0，恢复后为 8",
+        "分时午饭带 1 个，价格线 2 段",
+        "控制台 0 错误"
+      ]
+    },
+    "mobile": {
+      "viewports": ["390x844", "360x800"],
+      "assertions": [
+        "页面无横向溢出",
+        "K 线容器 scrollWidth > clientWidth 且 overflow-x 为 auto",
+        "分时容器 scrollWidth > clientWidth",
+        "周期按钮高度 44 px"
+      ]
+    },
+    "screenshots": [
+      "ui_shots_p4/P4-08/kline_1440.png",
+      "ui_shots_p4/P4-08/intraday_1440.png",
+      "ui_shots_p4/P4-08/page_1440.png",
+      "ui_shots_p4/P4-08/page_390.png",
+      "ui_shots_p4/P4-08/page_360.png"
+    ]
+  },
+  "e2e_regression": {
+    "market": {
+      "exit_code": 0,
+      "checks": 95,
+      "failures": []
+    },
+    "p2": {
+      "exit_code": 0,
+      "runner_checks": 102,
+      "suite_checks": 493,
+      "suite_failures": {
+        "shell": 0,
+        "workbench": 0,
+        "active_job": 0,
+        "launcher": 0,
+        "jobs": 0,
+        "job_detail": 0,
+        "job_stream": 0,
+        "job_actions": 0
+      },
+      "failures": [],
+      "note": "首次全量运行时 job_stream A05 的会话游标断言因 SSE 帧未到而失败（cursor=None）；单跑与随后全量复跑均 0 failures，属既有时间竞态，本票未改该套件。"
+    },
+    "p3": {
+      "exit_code": 0,
+      "checks": 19,
+      "failures": [],
+      "suite_checks": 260,
+      "suite_failures": {
+        "reports": 0,
+        "report_reader": 0,
+        "legacy_projection": 0
+      },
+      "criteria": {
+        "C1": true,
+        "C2": true,
+        "C3": true,
+        "C4": true
+      }
+    }
+  },
+  "acceptance": {
+    "CHT-01": {
+      "item": "价格/成交量坐标映射",
+      "test": "chartScale.test.ts（extent、平盘域、priceToY、volumeToHeight、niceTicks）+ KLineChart.test.tsx（刻度自上而下递增、成交量按最大量等比）+ IntradayChart 价格刻度",
+      "result": "pass"
+    },
+    "CHT-02": {
+      "item": "周期切换重算",
+      "test": "chartScale.test.ts（initialWindow、slotWidth、sampleIndices）+ KLineChart.test.tsx（点击周期回调、换数据后根数与标签重算）",
+      "result": "pass"
+    },
+    "CHT-03": {
+      "item": "缩放与平移边界",
+      "test": "chartScale.test.ts（锚点缩放、最小 10 根、全量上限、两端夹紧、clampWindow）+ KLineChart.test.tsx（滚轮与拖拽两端的 data-window-*）",
+      "result": "pass"
+    },
+    "CHT-04": {
+      "item": "十字光标读数与吸附",
+      "test": "chartCrosshair.test.ts（最近 K 线/分时点、越界夹紧、y 反算价格）+ KLineChart.test.tsx（data-snapped 与离开复位）+ IntradayChart.test.tsx（指针吸附）",
+      "result": "pass"
+    },
+    "CHT-05": {
+      "item": "图例开关",
+      "test": "KLineChart.test.tsx（K 线/成交量分别隐藏与恢复）+ IntradayChart.test.tsx（价格/均价/成交量分别隐藏）",
+      "result": "pass"
+    },
+    "CHT-06": {
+      "item": "午休断线与均价线",
+      "test": "chartScale.test.ts（09:30->0 至 15:00->330、分钟与 x 往返、跨午休）+ IntradayChart.test.tsx（两段价格线、均价跳过 null、四个时间标签、lunch-gap）",
+      "result": "pass"
+    },
+    "CHT-07": {
+      "item": "空/单点/缺 amount",
+      "test": "KLineChart.test.tsx（空 bars 空态、单根无 NaN、amount=null 显示「—」）+ IntradayChart.test.tsx（空 points、单点画点不画线）",
+      "result": "pass"
+    },
+    "CHT-08": {
+      "item": "容器内滚动、页面无溢出",
+      "test": "KLineChart/IntradayChart.test.tsx（overflow-x:auto、minWidth、SVG min-width 640）+ 浏览器探针在 390/360 断言页面不横滑且容器自身溢出",
+      "result": "pass"
+    }
+  },
+  "notes": [
+    "图表是纯展示组件：只接收 KlineData / IntradayData 与周期，不发请求，不碰 /api/v1；W07 在 P4-09 负责取数与周期状态。",
+    "几何层 chartScale.ts 无 React、无 DOM，缩放/平移/刻度/时间轴全部可用纯函数断言；组件层只做 SVG 与指针事件。",
+    "React 的 onWheel 是 passive，缩放改用 svg 上原生 wheel 监听并 preventDefault；pointer 拖拽用 setPointerCapture，触控指针不进入拖拽，避免与容器横滑抢手势。",
+    "所有断言挂 data-*：svg[data-chart]（bars/period/window/adjust）、candle（index/date/direction）、volume-bar（height/direction）、crosshair、kline-window、kline-readout（data-snapped）、session-gap/lunch-gap、price-line/avg-line 段数。",
+    "移动端不做 CSS 双渲染：SVG 最小宽 640，外层容器 overflow-x:auto 且 min-width:0，横滑只发生在图表容器内；页面级滚动宽度在 390/360 实测不溢出。",
+    "空态与缺省：bars/points 为空走 EmptyState 且不画 SVG；amount=null 读数显示「—」；单根/单点走圆点分支，不生成 polyline，也不产生 NaN 坐标。",
+    "浏览器探针首次失败是断言范围写错：分时图也有 data-role=volume-bar，未限定 svg[data-chart=kline] 时数量永远不为 0/8；产品逻辑本身正确，修正选择器后 22/22 通过。",
+    "截图复核发现并修掉两处观感问题：分时 09:30 标签在中线锚点下被左边缘裁掉（首尾改 start/end 锚点）；周 K 只有 8 根时蜡烛体宽上限 14 px 过细（上限调到 24 px）。",
+    "图表组件尚未被路由引用，干净构建会 tree-shake；验收用的单块尺寸来自临时 harness（含夹具）20.00 kB raw / 6.92 kB gzip，远低于 60 kB。P4-09 接线后再以真实 W07 块复测。",
+    "运行 e2e_p3 会改写 2026-11-06_P3-09性能结果.json，已用 git checkout 还原；check_bundle 用 --out 临时文件，未触碰 P4-04 证据。截图目录被 .gitignore 的 ui_shots_*/ 覆盖。"
+  ]
+}
