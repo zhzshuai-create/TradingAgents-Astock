@@ -1,0 +1,45 @@
+{
+  "ticket": "P3-09",
+  "measured_at": "2026-11-06T15:08:54+08:00",
+  "environment": {
+    "platform": "Windows-11-10.0.26200-SP0",
+    "python": "3.13.3",
+    "sqlite": "3.49.1"
+  },
+  "dataset": {
+    "reports": 10000,
+    "payload_source": "tests/fixtures/upgrade/final_state_v1.json",
+    "list_page_size": 50,
+    "insert_seconds": 1.504
+  },
+  "samples": {
+    "warmups": 3,
+    "measured": 30
+  },
+  "list_filtered": {
+    "median_ms": 163.74,
+    "p95_ms": 177.94
+  },
+  "detail": {
+    "median_ms": 12.78,
+    "p95_ms": 15.77
+  },
+  "hard_line_ms": 500,
+  "conclusion": "pass",
+  "command": ".venv/Scripts/python.exe scripts/p3_reports_perf.py --reports 10000 --samples 30",
+  "pdf_first_render": {
+    "hard_line_ms": 15000,
+    "status": "pass",
+    "source": "tests/backend/test_exports.py::test_exp06_long_report_first_pdf_p95_under_15s"
+  },
+  "pdf_cache_hit": {
+    "hard_line_ms": 500,
+    "status": "pass",
+    "source": "tests/backend/test_exports.py::test_exp07_cache_hit_preparation_under_500ms"
+  },
+  "external_network_calls": {
+    "hard_line": 0,
+    "value": 0,
+    "source": "tests/backend/test_reports_api.py::test_rpt06_reads_are_side_effect_free"
+  }
+}
