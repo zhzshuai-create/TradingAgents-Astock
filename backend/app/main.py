@@ -17,6 +17,7 @@ from backend.app.api.v1.jobs import router as jobs_router
 from backend.app.api.v1.market import router as market_router
 from backend.app.api.v1.meta import router as meta_router
 from backend.app.api.v1.reports import router as reports_router
+from backend.app.api.v1.stocks import router as stocks_router
 from backend.app.core.db import build_engine
 from backend.app.core.journal_probe import JournalProbe
 from backend.app.core.server_config import ServerConfig, load_server_config
@@ -80,5 +81,6 @@ def create_app(
     app.include_router(market_router)
     app.include_router(meta_router)
     app.include_router(reports_router)
+    app.include_router(stocks_router)
     app.include_router(exports_router)
     return app

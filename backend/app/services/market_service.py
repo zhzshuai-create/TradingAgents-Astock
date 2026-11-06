@@ -88,8 +88,8 @@ class MarketService:
         )
         return build_blocks_envelope(
             {
-                "indices": _block(indices),
-                "northbound": _block(northbound),
+                "indices": block_result(indices),
+                "northbound": block_result(northbound),
             },
             extra_data={"market_session": market_session(self._clock())},
         )
@@ -101,7 +101,7 @@ class MarketService:
             lambda: self._providers.industries(top),
             source="eastmoney",
         )
-        return _single(outcome)
+        return single_envelope(outcome)
 
     def constituents(
         self, board_code: str, limit: int = DEFAULT_CONSTITUENTS_LIMIT
@@ -117,7 +117,7 @@ class MarketService:
             lambda: self._providers.constituents(board_code, limit),
             source="eastmoney",
         )
-        return _single(outcome)
+        return single_envelope(outcome)
 
     def strong_stocks(self, date_str: str | None = None) -> dict[str, Any]:
         target = (
@@ -141,7 +141,7 @@ class MarketService:
             lambda: self._providers.strong_stocks(target.isoformat()),
             source="ths",
         )
-        return _single(outcome, untrusted=True)
+        return single_envelope(outcome, untrusted=True)
 
     def newsflash(self, limit: int = DEFAULT_NEWSFLASH_LIMIT) -> dict[str, Any]:
         outcome = self._cache.get_or_fetch(
@@ -150,7 +150,7 @@ class MarketService:
             lambda: self._providers.newsflash(limit),
             source="cls",
         )
-        return _single(outcome, untrusted=True)
+        return single_envelope(outcome, untrusted=True)
 
     # -- helpers -----------------------------------------------------------
     def _known_boards(self) -> set[str] | None:
@@ -165,7 +165,7 @@ class MarketService:
         return {str(row.get("code")) for row in rows if row.get("code")}
 
 
-def _block(outcome: CacheOutcome) -> BlockResult:
+def block_result(outcome: CacheOutcome) -> BlockResult:
     return BlockResult(
         status=outcome.status,
         source=outcome.source,
@@ -178,7 +178,9 @@ def _block(outcome: CacheOutcome) -> BlockResult:
     )
 
 
-def _single(outcome: CacheOutcome, *, untrusted: bool = False) -> dict[str, Any]:
+def single_envelope(
+    outcome: CacheOutcome, *, untrusted: bool = False
+) -> dict[str, Any]:
     data = outcome.data
     if untrusted and outcome.status in ("ok", "stale") and isinstance(data, dict):
         data = {**data, "untrusted": True}

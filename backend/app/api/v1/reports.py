@@ -9,6 +9,7 @@ instead of returning half a report.
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from datetime import date
 from typing import Any
 
@@ -20,6 +21,7 @@ from backend.app.services.report_document import compute_content_hash
 from backend.app.services.report_query import (
     LIST_DEFAULT_LIMIT,
     InvalidCursor,
+    ReportQuery,
     report_summary,
 )
 from backend.app.services.report_render import render_markdown
@@ -41,10 +43,31 @@ def list_reports(
 ) -> dict[str, Any]:
     ticker_code = _ticker(ticker)
     ratings = _ratings(rating)
-    query = request.app.state.report_query
+    return report_page(
+        request.app.state.report_query,
+        ticker=ticker_code,
+        date_from=date_from,
+        date_to=date_to,
+        ratings=ratings,
+        limit=limit,
+        cursor=cursor,
+    )
+
+
+def report_page(
+    query: ReportQuery,
+    *,
+    ticker: str | None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    ratings: Sequence[str] = (),
+    limit: int = LIST_DEFAULT_LIMIT,
+    cursor: str | None = None,
+) -> dict[str, Any]:
+    """Shared list body for ``/reports`` and ``/stocks/{ticker}/reports``."""
     try:
         page = query.list_reports(
-            ticker=ticker_code,
+            ticker=ticker,
             date_from=_lenient_date(date_from),
             date_to=_lenient_date(date_to),
             ratings=ratings,
