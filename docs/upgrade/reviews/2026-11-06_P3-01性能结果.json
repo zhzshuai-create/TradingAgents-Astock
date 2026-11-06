@@ -1,0 +1,30 @@
+{
+  "ticket": "P3-01",
+  "measured_at": "2026-11-06T09:49:27+08:00",
+  "environment": {
+    "platform": "Windows-11-10.0.26200-SP0",
+    "python": "3.13.3",
+    "sqlite": "3.49.1"
+  },
+  "dataset": {
+    "reports": 10000,
+    "payload_source": "tests/fixtures/upgrade/final_state_v1.json",
+    "list_page_size": 50,
+    "insert_seconds": 1.555
+  },
+  "samples": {
+    "warmups": 3,
+    "measured": 30
+  },
+  "list_filtered": {
+    "median_ms": 41.79,
+    "p95_ms": 174.89
+  },
+  "detail": {
+    "median_ms": 12.03,
+    "p95_ms": 15.12
+  },
+  "hard_line_ms": 500,
+  "conclusion": "pass",
+  "command": ".venv/Scripts/python.exe scripts/p3_reports_perf.py --reports 10000 --samples 30"
+}

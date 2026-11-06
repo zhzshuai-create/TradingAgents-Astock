@@ -13,6 +13,7 @@ T8: ``trader_investment_plan`` survives only in ``legacy_aliases``; no time
 T10: ``content_hash`` is stable per DTO and changes with any section body.
 T11: missing data stays missing: no ``sec-quality`` without a summary, decision
     facts are null, nothing is filled in.
+T4: the five golden samples carry no key, token, phone number or e-mail.
 RC-01: legacy keys do not exceed the documented set.
 RC-02: rendering-facing ``signal`` comes from ``rating``, not the legacy scan.
 RC-03: ``content_hash`` recomputes from the converted sections.
@@ -315,3 +316,27 @@ def test_rc02_rendered_signal_ignores_legacy_scan():
 
 def test_rc03_content_hash_recomputes(converted):
     assert compute_content_hash(converted["sections"]) == converted["meta"]["content_hash"]
+
+
+T4_SAMPLES = (
+    "final_state_v1",
+    "legacy_report_v1",
+    "long_report",
+    "missing_fields_report",
+    "unsafe_text_report",
+)
+_SECRET_PATTERNS = (
+    re.compile(r"(?<![A-Za-z0-9])sk-[A-Za-z0-9_-]{8,}"),
+    re.compile(r"(?i)api[_-]?key"),
+    re.compile(r"(?i)\bbearer\s+[A-Za-z0-9._-]+"),
+    re.compile(r"(?<!\d)1[3-9]\d{9}(?!\d)"),
+    re.compile(r"[\w.+-]+@[\w-]+\.[A-Za-z]{2,}"),
+)
+
+
+def test_t4_golden_samples_have_no_secrets_or_private_data():
+    for name in T4_SAMPLES:
+        text = (FIXTURES / f"{name}.json").read_text(encoding="utf-8")
+        for pattern in _SECRET_PATTERNS:
+            match = pattern.search(text)
+            assert match is None, (name, pattern.pattern, match.group(0))

@@ -14,11 +14,13 @@ from backend.app.api.errors import install_error_handlers
 from backend.app.api.v1.jobs import router as jobs_router
 from backend.app.api.v1.market import router as market_router
 from backend.app.api.v1.meta import router as meta_router
+from backend.app.api.v1.reports import router as reports_router
 from backend.app.core.db import build_engine
 from backend.app.core.journal_probe import JournalProbe
 from backend.app.core.server_config import ServerConfig, load_server_config
 from backend.app.services.event_stream import EventStream
 from backend.app.services.job_service import JobService
+from backend.app.services.report_query import ReportQuery
 from backend.app.services.report_store import ReportStore
 from backend.app.services.ticker_directory import TickerDirectory
 
@@ -38,6 +40,7 @@ def create_app(
     app = FastAPI(title="AStock Pro API", version="0.9.0")
     app.state.server_config = config
     app.state.job_service = job_service
+    app.state.report_query = ReportQuery(job_service.engine)
     app.state.report_store = report_store or ReportStore.from_env()
     app.state.event_stream = event_stream or EventStream(job_service)
     app.state.ticker_directory = ticker_directory or TickerDirectory()
@@ -57,4 +60,5 @@ def create_app(
     app.include_router(jobs_router)
     app.include_router(market_router)
     app.include_router(meta_router)
+    app.include_router(reports_router)
     return app
