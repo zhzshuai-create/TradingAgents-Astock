@@ -5,16 +5,19 @@ import type { QueryClient, QueryFunctionContext } from "@tanstack/react-query";
 import { getJob, getStageReport, listJobs } from "../api/jobs";
 import { searchStocks } from "../api/market";
 import { getMetaOptions } from "../api/meta";
-import type { JobListFilters } from "../api/types";
+import type { JobListFilters, ReportListFilters } from "../api/types";
 
 const JOBS_ROOT = ["jobs"] as const;
 const JOB_ROOT = ["job"] as const;
+const REPORTS_ROOT = ["reports"] as const;
 
 export const queryKeys = {
   jobs: (filters: JobListFilters = {}) => [JOBS_ROOT[0], filters] as const,
   job: (jobId: string) => [JOB_ROOT[0], jobId] as const,
   stageReport: (jobId: string, stageId: string) =>
     [JOB_ROOT[0], jobId, "stage", stageId] as const,
+  reports: (filters: ReportListFilters = {}) =>
+    [REPORTS_ROOT[0], filters] as const,
   metaOptions: ["meta", "options"] as const,
   marketSearch: (query: string) => ["market", "search", query] as const,
 };

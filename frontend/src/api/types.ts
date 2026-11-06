@@ -237,6 +237,68 @@ export interface ControlRejected {
 
 export type ControlResponse = ControlAccepted | ControlRejected;
 
+export type ReportRating =
+  | "Buy"
+  | "Overweight"
+  | "Hold"
+  | "Underweight"
+  | "Sell"
+  | "unknown";
+
+export type ReportSignal = "Buy" | "Hold" | "Sell" | "unknown";
+
+export type ReportOrigin = "new" | "legacy_import";
+
+export type ReportGeneratedAtSource = "job_clock" | "import_clock" | "unknown";
+
+export type ReportDataQuality = "ok" | "degraded" | "absent";
+
+export type ReportChartSnapshot = "frozen" | "refetch_needed" | "none";
+
+/** report-schema-v1 section 2; field names stay snake_case. */
+export interface ReportMeta {
+  report_id: string;
+  job_id: string | null;
+  ticker_code: string;
+  ticker_name: string | null;
+  analysis_date: string;
+  generated_at: string | null;
+  generated_at_source: ReportGeneratedAtSource;
+  origin: ReportOrigin;
+  schema_version: string;
+  content_hash: string;
+  config_digest: string | null;
+  data_quality_status: ReportDataQuality;
+  chart_snapshot_status: ReportChartSnapshot;
+  retry_of_job_id: string | null;
+  rating: ReportRating;
+  signal: ReportSignal;
+  signal_legacy?: string | null;
+  price_target?: number | null;
+  stop_reference?: string | null;
+  time_horizon?: string | null;
+}
+
+/** api-v1.md 2.1: the whole ReportDTO minus sections. */
+export interface ReportSummary {
+  meta: ReportMeta;
+  summary_available: true;
+}
+
+export interface ReportListResponse {
+  items: ReportSummary[];
+  next_cursor: string | null;
+}
+
+export interface ReportListFilters {
+  ticker?: string;
+  date_from?: string;
+  date_to?: string;
+  rating?: ReportRating[];
+  limit?: number;
+  cursor?: string;
+}
+
 export interface MetaProfile {
   id: string;
   label: string;
