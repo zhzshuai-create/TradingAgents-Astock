@@ -44,7 +44,10 @@ LOGS = SHOTS / "logs"
 PYTHON = ROOT / ".venv" / "Scripts" / "python.exe"
 PERF_OUT = ROOT / "docs" / "upgrade" / "reviews" / "2026-11-06_P3-09性能结果.json"
 P2_BASELINE_KB = 177.92
-BUNDLE_TRIGGER_KB = 30.0
+# P4-04 D6 retired the P3 total-JS trigger: lazy route chunks are demand
+# loaded, so the budget is the entry chunk plus a cap per route chunk.
+P4_ENTRY_BUDGET_KB = 202.45
+P4_ROUTE_CHUNK_LIMIT_KB = 60.0
 
 SUITES = (
     ("R-01", "reports_e2e.py"),
@@ -173,6 +176,31 @@ def bundle_size(build_output: str) -> dict[str, Any]:
     )
     if js_kb is None:
         js_kb = measured
+    reported_by_name = {name: float(value) for name, value in reported}
+    manifest = json.loads(
+        (FRONTEND / "dist" / ".vite" / "manifest.json").read_text(encoding="utf-8")
+    )
+    entry = next(chunk for chunk in manifest.values() if chunk.get("isEntry"))
+    entry_name = Path(entry["file"]).name
+    entry_kb = reported_by_name.get(
+        entry_name,
+        round(len(gzip.compress((FRONTEND / "dist" / entry["file"]).read_bytes(), 9)) / 1000, 2),
+    )
+    route_kb = {
+        Path(chunk["file"]).name: reported_by_name.get(
+            Path(chunk["file"]).name,
+            round(
+                len(gzip.compress((FRONTEND / "dist" / chunk["file"]).read_bytes(), 9))
+                / 1000,
+                2,
+            ),
+        )
+        for source, chunk in manifest.items()
+        if chunk.get("isDynamicEntry") and source != "index.html"
+    }
+    oversized = {
+        name: value for name, value in route_kb.items() if value > P4_ROUTE_CHUNK_LIMIT_KB
+    }
     return {
         "js_files": [path.name for path in js],
         "js_gzip_kb": js_kb,
@@ -181,9 +209,14 @@ def bundle_size(build_output: str) -> dict[str, Any]:
             sum(len(gzip.compress(path.read_bytes(), 9)) for path in css) / 1000, 2
         ),
         "p2_baseline_kb": P2_BASELINE_KB,
-        "delta_kb": round(js_kb - P2_BASELINE_KB, 2),
-        "trigger_kb": BUNDLE_TRIGGER_KB,
-        "triggered": js_kb - P2_BASELINE_KB > BUNDLE_TRIGGER_KB,
+        "total_delta_kb": round(js_kb - P2_BASELINE_KB, 2),
+        "entry_file": entry_name,
+        "entry_gzip_kb": entry_kb,
+        "entry_budget_kb": P4_ENTRY_BUDGET_KB,
+        "route_chunks": route_kb,
+        "route_chunk_limit_kb": P4_ROUTE_CHUNK_LIMIT_KB,
+        "oversized_route_chunks": oversized,
+        "triggered": entry_kb > P4_ENTRY_BUDGET_KB or bool(oversized),
     }
 
 
@@ -495,8 +528,11 @@ def main(argv: list[str] | None = None) -> int:
         bundle = bundle_size(build_output)
         check(
             not bundle["triggered"],
-            f"R-09 JS gzip {bundle['js_gzip_kb']} kB, "
-            f"delta {bundle['delta_kb']} kB, trigger {bundle['trigger_kb']} kB",
+            f"R-09 entry gzip {bundle['entry_gzip_kb']} kB "
+            f"(budget {bundle['entry_budget_kb']} kB), "
+            f"route chunks {bundle['route_chunks']} "
+            f"(limit {bundle['route_chunk_limit_kb']} kB), "
+            f"total {bundle['js_gzip_kb']} kB",
         )
         with Preview() as base:
             print(f"preview at {base}")

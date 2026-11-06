@@ -478,7 +478,18 @@ def a05_refresh_replay(
         timeout=15_000,
     )
     after = ui_state(page)
-    resumed = connections(page)[0]
+    # The recorder stores the connection before its response headers arrive;
+    # wait for the resumed stream to expose them instead of racing the fetch.
+    page.wait_for_function(
+        "() => window.__taSse.connections.some("
+        "(record) => record.lastEventId && record.contentType)",
+        timeout=15_000,
+    )
+    resumed = next(
+        record
+        for record in connections(page)
+        if record["lastEventId"] and record["contentType"]
+    )
     check(
         resumed["lastEventId"] is not None
         and cursor_before is not None

@@ -9,6 +9,10 @@ const apiTarget =
 
 export default defineConfig({
   plugins: [react()],
+  build: {
+    // scripts/check_bundle.mjs reads the manifest to prove one chunk per route.
+    manifest: true,
+  },
   server: {
     port: 5173,
     proxy: {

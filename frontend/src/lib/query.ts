@@ -23,10 +23,51 @@ export const queryKeys = {
   report: (reportId: string) => [REPORT_ROOT[0], reportId] as const,
   metaOptions: ["meta", "options"] as const,
   marketSearch: (query: string) => ["market", "search", query] as const,
+  marketOverview: () => ["market", "overview"] as const,
+  marketIndustries: (top: number) => ["market", "industries", top] as const,
+  marketConstituents: (board: string, limit: number) =>
+    ["market", "constituents", board, limit] as const,
+  marketStrongStocks: (date: string | null) =>
+    ["market", "strong", date] as const,
+  marketNewsflash: (limit: number) =>
+    ["market", "newsflash", limit] as const,
+  stockSnapshot: (ticker: string) => ["stock", "snapshot", ticker] as const,
+  stockKline: (ticker: string, period: string, limit: number) =>
+    ["stock", "kline", ticker, period, limit] as const,
+  stockIntraday: (ticker: string, date: string | null) =>
+    ["stock", "intraday", ticker, date] as const,
+  stockNews: (ticker: string, limit: number) =>
+    ["stock", "news", ticker, limit] as const,
+  stockFundFlow: (ticker: string) =>
+    ["stock", "fundFlow", ticker] as const,
+  stockReports: (ticker: string, cursor: string | null) =>
+    ["stock", "reports", ticker, cursor] as const,
 };
 
 /** meta/options may be reused for at most one minute. */
 export const META_OPTIONS_STALE_MS = 60_000;
+
+/** Contract freshness thresholds; pages use these as ``staleTime`` (D9). */
+export const MARKET_STALE_MS = {
+  overview: 10_000,
+  northbound: 30_000,
+  industries: 300_000,
+  constituents: 120_000,
+  strongStocks: 3_600_000,
+  newsflash: 120_000,
+  search: 86_400_000,
+} as const;
+
+export const STOCK_STALE_MS = {
+  snapshot: 60_000,
+  valuation: 14_400_000,
+  sectorBlocks: 86_400_000,
+  kline: 300_000,
+  intradayToday: 30_000,
+  intradayHistory: 3_600_000,
+  news: 300_000,
+  fundFlow: 60_000,
+} as const;
 
 export const jobsQuery = (filters: JobListFilters = {}) => ({
   queryKey: queryKeys.jobs(filters),

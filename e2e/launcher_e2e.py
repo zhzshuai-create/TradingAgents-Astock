@@ -406,6 +406,9 @@ def mobile_flow(browser: Browser, base: str, ticker: str, width: int, height: in
     posts = watch_posts(page)
     open_prefilled(page, base, ticker)
     dialog = launcher(page)
+    dialog.wait_for(state="visible")
+    # Dialog has a 180ms pop-in; measure the settled box, not a frame of it.
+    page.wait_for_timeout(250)
 
     box = dialog.bounding_box()
     check(

@@ -383,6 +383,215 @@ export interface MarketSearchData {
   truncated: boolean;
 }
 
+export type MarketSession = "pre_open" | "trading" | "lunch_break" | "closed";
+
+export type KlinePeriod = "day" | "week" | "month";
+
+/** api-v1.md 3.5: indices are fixed to the three A-share benchmarks. */
+export interface MarketIndex {
+  code: string;
+  name: string;
+  price: number;
+  change_pct: number;
+  change_amt: number;
+}
+
+export interface NorthboundPoint {
+  time: string;
+  hgt_yi: number;
+  sgt_yi: number;
+}
+
+export interface NorthboundLatest {
+  hgt_yi: number;
+  sgt_yi: number;
+}
+
+export interface NorthboundData {
+  points: NorthboundPoint[];
+  latest: NorthboundLatest | null;
+}
+
+/** api-v1.md 3.5: northbound is null when that block failed. */
+export interface MarketOverviewData {
+  market_session: MarketSession;
+  indices: MarketIndex[];
+  northbound: NorthboundData | null;
+}
+
+export interface MarketIndustryRow {
+  rank: number;
+  name: string;
+  code: string;
+  change_pct: number;
+  up_count: number;
+  down_count: number;
+  leader: string;
+  leader_change: number;
+}
+
+/** api-v1.md 3.6: bottom mirrors top with the opposite sort. */
+export interface MarketIndustriesData {
+  top: MarketIndustryRow[];
+  bottom: MarketIndustryRow[];
+  total: number;
+}
+
+/** Suspended stocks legitimately report null price and change. */
+export interface MarketConstituent {
+  code: string;
+  name: string;
+  price: number | null;
+  change_pct: number | null;
+}
+
+export interface MarketConstituentsData {
+  items: MarketConstituent[];
+}
+
+export interface StrongStockItem {
+  ticker_code: string;
+  name: string;
+  reason: string;
+  market: MarketId;
+  change_pct: number;
+  change_amt: number;
+  close: number;
+  turnover_pct: number;
+}
+
+export interface MarketStrongStocksData {
+  items: StrongStockItem[];
+}
+
+export interface NewsflashItem {
+  title: string;
+  content: string;
+  published_at: string;
+}
+
+export interface MarketNewsflashData {
+  items: NewsflashItem[];
+  untrusted: true;
+}
+
+/** api-v1.md 3.2: mirrors the legacy tencent_quote keys exactly. */
+export interface StockQuote {
+  name: string;
+  price: number;
+  last_close: number;
+  open: number;
+  high: number;
+  low: number;
+  change_pct: number;
+  change_amt: number;
+  amount_wan: number;
+  turnover_pct: number;
+  pe_ttm: number;
+  pb: number;
+  amplitude_pct: number;
+  float_mcap_yi: number;
+  mcap_yi: number;
+  limit_up: number;
+}
+
+/** Every field is null when the provider cannot compute it (no zero proxy). */
+export interface StockValuation {
+  eps_forecast: number | null;
+  pe_forward: number | null;
+  peg: number | null;
+  pe_digestion_years: number | null;
+}
+
+export interface SectorBlockItem {
+  name: string;
+  change_pct: number;
+  desc: string;
+}
+
+export interface SectorBlocks {
+  industry: SectorBlockItem[];
+  concept: SectorBlockItem[];
+  region: SectorBlockItem[];
+}
+
+export interface StockSnapshotUnits {
+  price: "元";
+  amount: "万元";
+  mcap: "亿元";
+}
+
+/** A failed block is null while its siblings still render. */
+export interface StockSnapshotData {
+  quote: StockQuote | null;
+  valuation: StockValuation | null;
+  sector_blocks: SectorBlocks | null;
+  units: StockSnapshotUnits;
+}
+
+export interface KlineBar {
+  date: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+  /** Unavailable amount is null, never 0. */
+  amount: number | null;
+}
+
+export interface KlineUnits {
+  price: "元";
+  volume: "手";
+  amount: "元";
+}
+
+export interface KlineData {
+  adjust: "none";
+  bars: KlineBar[];
+  units: KlineUnits;
+}
+
+export interface IntradayPoint {
+  time: string;
+  price: number;
+  volume: number;
+  avg_price: number | null;
+}
+
+export interface IntradayData {
+  date: string;
+  points: IntradayPoint[];
+  session_gaps: [string, string][];
+  units: KlineUnits;
+}
+
+export interface StockNewsItem {
+  title: string;
+  content: string;
+  published_at: string;
+  source: string;
+  url: string;
+}
+
+export interface StockNewsData {
+  items: StockNewsItem[];
+  untrusted: true;
+}
+
+export interface FundFlowItem {
+  time: string;
+  main_net: number;
+  small_net: number;
+  mid_net: number;
+  large_net: number;
+  super_net: number;
+}
+
+export interface FundFlowData {
+  items: FundFlowItem[];
+}
+
 export type StaleReason =
   | "ttl_exceeded"
   | "trading_day_mismatch"

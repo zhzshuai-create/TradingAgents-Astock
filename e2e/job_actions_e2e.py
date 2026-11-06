@@ -455,6 +455,16 @@ def ui_state(page: Page) -> dict:
     return page.evaluate(UI_STATE)
 
 
+def wait_actions(page: Page, expected: list[str], timeout: float = 15.0) -> dict:
+    """The terminal badge and its allowed actions arrive with the same job."""
+    deadline = time.monotonic() + timeout
+    state = ui_state(page)
+    while state["actions"] != expected and time.monotonic() < deadline:
+        page.wait_for_timeout(100)
+        state = ui_state(page)
+    return state
+
+
 def wait_header(page: Page, label: str, timeout: float = 30_000) -> None:
     page.wait_for_function(
         "(label) => { const header = document.querySelector("
@@ -659,11 +669,13 @@ def a08_cancel(browser: Browser, base: str, api: str) -> None:
 
     final = wait_for_status(api, job_id, "cancelled")
     wait_header(page, "已取消")
-    final_ui = ui_state(page)
+    final_ui = wait_actions(page, ["job-action-reanalyze"])
     check(final["report_id"] is None, "A08 cancelled job has no report id")
+    # api-v1.md 1.6: cancelled allows reanalyze only, and never a report link.
     check(
-        final_ui["actions"] == [] and not final_ui["reportLink"],
-        f"A08 cancelled detail has no actions and no report entry "
+        final_ui["actions"] == ["job-action-reanalyze"]
+        and not final_ui["reportLink"],
+        f"A08 cancelled detail only offers reanalyze and no report entry "
         f"({final_ui['actions']})",
     )
     check(

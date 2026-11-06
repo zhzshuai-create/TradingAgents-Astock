@@ -155,7 +155,7 @@ const ROUTES = [
 describe("WEB-03 routes", () => {
   it.each(ROUTES)("renders %s", async (path, testId, heading) => {
     renderAt(path);
-    const region = screen.getByTestId(testId);
+    const region = await screen.findByTestId(testId);
     expect(
       await within(region).findByRole("heading", { level: 1 }),
     ).toHaveTextContent(heading);
@@ -166,9 +166,9 @@ describe("WEB-03 routes", () => {
     expect(await screen.findByTestId("page-workbench")).toBeInTheDocument();
   });
 
-  it("renders 404 with two working exits", () => {
+  it("renders 404 with two working exits", async () => {
     renderAt("/no-such-page");
-    expect(screen.getByTestId("not-found")).toBeInTheDocument();
+    expect(await screen.findByTestId("not-found")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "页面不存在" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "回工作台" })).toHaveAttribute(
       "href",
@@ -238,9 +238,9 @@ describe("WEB-03 active navigation", () => {
 describe("WEB-03 invalid ticker", () => {
   it.each(["/stocks/abc", "/stocks/12345", "/stocks/60051a", "/stocks"])(
     "renders 400 for %s",
-    (path) => {
+    async (path) => {
       renderAt(path);
-      const region = screen.getByTestId("invalid-ticker");
+      const region = await screen.findByTestId("invalid-ticker");
       expect(within(region).getByRole("heading", { level: 1 })).toHaveTextContent(
         "没有这只股票",
       );
