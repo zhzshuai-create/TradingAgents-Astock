@@ -1,0 +1,30 @@
+{
+  "ticket": "P3-05",
+  "measured_at": "2026-11-06T11:09:38+08:00",
+  "environment": {
+    "platform": "Windows-11-10.0.26200-SP0",
+    "node": "22.22.2",
+    "python": "3.13.3"
+  },
+  "unit": {
+    "files": 19,
+    "tests": 287,
+    "failures": 0,
+    "command": "node node_modules/vitest/vitest.mjs run"
+  },
+  "e2e": {
+    "ticket": "P3-05 + A11 + A12 + T9 + T11 + T12 + T13",
+    "checks": 77,
+    "failures": 0,
+    "viewports": ["1440x900"],
+    "screenshots": "ui_shots_p3/P3-05",
+    "command": "python e2e/report_reader_e2e.py"
+  },
+  "bundle": {
+    "js_gzip_kb": 200.28,
+    "p2_baseline_gzip_kb": 177.92,
+    "delta_kb": 22.36,
+    "trigger_kb": 30,
+    "conclusion": "pass"
+  }
+}
