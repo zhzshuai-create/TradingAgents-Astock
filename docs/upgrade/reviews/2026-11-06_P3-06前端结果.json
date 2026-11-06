@@ -1,0 +1,33 @@
+{
+  "ticket": "P3-06",
+  "measured_at": "2026-11-06T11:30:49+08:00",
+  "environment": {
+    "platform": "Windows-11-10.0.26200-SP0",
+    "node": "22.22.2",
+    "python": "3.13.3"
+  },
+  "unit": {
+    "files": 19,
+    "tests": 291,
+    "failures": 0,
+    "command": "node node_modules/vitest/vitest.mjs run"
+  },
+  "e2e": {
+    "ticket": "P3-05 + P3-06 + A11 + A12 + M02 + M03 + M04 + M06 + M07 + T9 + T11 + T12 + T13",
+    "checks": 127,
+    "failures": 0,
+    "desktop_checks": 77,
+    "mobile_checks": 50,
+    "viewports": ["1440x900", "390x844", "360x800"],
+    "screenshots": ["ui_shots_p3/P3-05", "ui_shots_p3/P3-06"],
+    "command": "python e2e/report_reader_e2e.py"
+  },
+  "bundle": {
+    "js_gzip_kb": 201.08,
+    "p2_baseline_gzip_kb": 177.92,
+    "delta_kb": 23.16,
+    "delta_since_p3_05_kb": 0.8,
+    "trigger_kb": 30,
+    "conclusion": "pass"
+  }
+}
