@@ -23,6 +23,8 @@ from backend.app.core.server_config import ServerConfig, load_server_config
 from backend.app.services.event_stream import EventStream
 from backend.app.services.export_service import ExportService
 from backend.app.services.job_service import JobService
+from backend.app.services.market_cache import MarketCache
+from backend.app.services.market_providers import DefaultMarketProviders
 from backend.app.services.report_query import ReportQuery
 from backend.app.services.report_store import ReportStore
 from backend.app.services.ticker_directory import TickerDirectory
@@ -37,6 +39,8 @@ def create_app(
     ticker_directory: TickerDirectory | None = None,
     journal_probe: JournalProbe | None = None,
     export_service: ExportService | None = None,
+    market_providers: DefaultMarketProviders | None = None,
+    market_cache: MarketCache | None = None,
 ) -> FastAPI:
     config = server_config or load_server_config()
     job_service = service or JobService(build_engine(), config)
@@ -56,6 +60,8 @@ def create_app(
     app.state.ticker_directory = ticker_directory or TickerDirectory()
     app.state.journal_probe = journal_probe or JournalProbe()
     app.state.export_service = exports
+    app.state.market_providers = market_providers or DefaultMarketProviders()
+    app.state.market_cache = market_cache or MarketCache()
     # A worker from the previous process cannot finish its queued/rendering rows.
     exports.sweep_stale()
     install_error_handlers(app)
