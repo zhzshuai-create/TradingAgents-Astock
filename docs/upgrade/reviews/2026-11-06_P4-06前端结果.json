@@ -1,0 +1,163 @@
+{
+  "ticket": "P4-06",
+  "title": "市场看板 W08 桌面",
+  "measured_at": "2026-11-06T18:18:11+08:00",
+  "environment": {
+    "platform": "Windows-11-10.0.26200-SP0",
+    "node": "22.22.2",
+    "python": "3.13.3",
+    "vite": "7.3.7",
+    "react": "19",
+    "react_router": "7",
+    "tanstack_query": "5",
+    "vitest": "5",
+    "new_runtime_dependencies": 0
+  },
+  "commands": {
+    "typecheck": "node node_modules/typescript/bin/tsc --noEmit",
+    "unit": "node node_modules/vitest/vitest.mjs run",
+    "build": "node node_modules/vite/bin/vite.js build",
+    "bundle": "node scripts/check_bundle.mjs --out <临时路径>",
+    "market_e2e": "\"C:/Users/zhzsh/AppData/Local/Programs/Python/Python313/python.exe\" e2e/market_e2e.py",
+    "e2e_p2": "\"C:/Users/zhzsh/AppData/Local/Programs/Python/Python313/python.exe\" e2e/e2e_p2.py",
+    "e2e_p3": "\"C:/Users/zhzsh/AppData/Local/Programs/Python/Python313/python.exe\" e2e/e2e_p3.py",
+    "python": ".venv/Scripts/python.exe -m pytest -q"
+  },
+  "unit": {
+    "test_files": 25,
+    "tests": 345,
+    "new_tests": 13,
+    "failures": 0,
+    "result": "pass"
+  },
+  "typecheck": {
+    "errors": 0,
+    "result": "pass"
+  },
+  "python": {
+    "passed": 789,
+    "skipped": 4,
+    "subtests": 59,
+    "failures": 0,
+    "result": "pass",
+    "note": "本票未改后端；全量复跑与 P4-05 基线一致"
+  },
+  "bundle": {
+    "measured_with": "node:zlib gzipSync level 9 over dist files",
+    "entry_gzip_kb": 123.32,
+    "entry_vite_reported_gzip_kb": 123.51,
+    "entry_budget_gzip_kb": 202.45,
+    "entry_within_budget": true,
+    "route_chunks": 11,
+    "route_chunk_limit_gzip_kb": 60,
+    "largest_route_chunk": {
+      "source": "src/pages/ReportDetailPage.tsx",
+      "file": "assets/ReportDetailPage-BR-mZNBE.js",
+      "gzip_kb": 20.68
+    },
+    "market_route_chunk_gzip_kb": 5.13,
+    "all_route_chunks_dynamic": true,
+    "all_route_chunks_separate_from_entry": true,
+    "all_route_chunks_within_limit": true,
+    "passed": true
+  },
+  "e2e": {
+    "market": {
+      "exit_code": 0,
+      "checks": 47,
+      "failures": [],
+      "flows": [
+        "1440 主流：非法 query 回默认、会话/指数、行业 top/bottom、题材筛选、快讯外链、控制项写 query",
+        "1440 钻取：行业 -> 抽屉 10 家 -> /stocks/600000?tab=valuation -> 返回恢复 5 项 -> 刷新回顶部",
+        "1440 状态：overview stale+partial、industries error 单块重试、strong empty、news stale"
+      ],
+      "screenshots": "ui_shots_p4/P4-06"
+    },
+    "p2": {
+      "exit_code": 0,
+      "runner_checks": 102,
+      "suite_checks": 493,
+      "suite_failures": {
+        "shell": 0,
+        "workbench": 0,
+        "active_job": 0,
+        "launcher": 0,
+        "jobs": 0,
+        "job_detail": 0,
+        "job_stream": 0,
+        "job_actions": 0
+      },
+      "failures": []
+    },
+    "p3": {
+      "exit_code": 0,
+      "checks": 19,
+      "failures": [],
+      "suite_checks": 260,
+      "suite_failures": {
+        "reports": 0,
+        "report_reader": 0,
+        "legacy_projection": 0
+      },
+      "criteria": {
+        "C1": true,
+        "C2": true,
+        "C3": true,
+        "C4": true
+      }
+    }
+  },
+  "acceptance": {
+    "W08-01": {
+      "item": "会话条、指数卡、来源与时间",
+      "test": "MarketPage.test.tsx::W08-01 + e2e/market_e2e.py（交易中、最近更新 11-05 09:30、来源 多源、三卡价格/涨跌/金额/时间/来源）",
+      "result": "pass"
+    },
+    "W08-02": {
+      "item": "行业 top/bottom、领涨、涨跌家数",
+      "test": "MarketPage.test.tsx::W08-02 + e2e/market_e2e.py（Top 20、末位 5、领涨股与 40/2）",
+      "result": "pass"
+    },
+    "W08-03": {
+      "item": "抽屉成分股、钻取到股票、tab=valuation",
+      "test": "MarketPage.test.tsx::W08-03 + e2e/market_e2e.py（行业07 · 成分股、10 行、/stocks/600000?tab=valuation）",
+      "result": "pass"
+    },
+    "W08-04": {
+      "item": "强势股表格、非交易日文案、题材聚合与本地筛选",
+      "test": "MarketPage.test.tsx::W08-04 + e2e/market_e2e.py（全部 + TOP8、算力 3 行、清除 theme、空态文案）",
+      "result": "pass"
+    },
+    "W08-05": {
+      "item": "快讯纯文本与外链属性",
+      "test": "MarketPage.test.tsx::W08-05 + e2e/market_e2e.py（script 与 javascript: 保持文本、href 去尾标点、target/rel）",
+      "result": "pass"
+    },
+    "W08-06": {
+      "item": "四态 + partial + stale",
+      "test": "MarketPage.test.tsx::W08-06 + e2e/market_e2e.py states flow（stale 原因、partial 块名、单块 error 重试、strong empty、news stale 保留内容）",
+      "result": "pass"
+    },
+    "W08-07": {
+      "item": "query 状态与非法值回默认",
+      "test": "marketParams.test.ts（3 条）+ MarketPage.test.tsx::W08-07 + e2e/market_e2e.py（top=999/date/board/theme 非法、top=10 与 date 写回）",
+      "result": "pass"
+    },
+    "W08-08": {
+      "item": "返回恢复 5 项（行业、topN、日期、抽屉、滚动）",
+      "test": "e2e/market_e2e.py R-11/W08-08（top=10、date=2026-11-04、BK1006 高亮、抽屉 10 行、scroll 620 -> 620；reload 回 0）",
+      "result": "pass"
+    }
+  },
+  "notes": [
+    "页面新增四个查询：overview、industries(top)、strong-stocks(date)、newsflash(30)；抽屉另取 industries/{board}/stocks?limit=10。staleTime 沿用 MARKET_STALE_MS（10 s / 300 s / 3600 s / 120 s）。",
+    "URL 只写非默认值：top=20、空 date/board/theme 不落 query；parseMarketSearch 把非法值静默回默认，路径不重写，也不在加载时 replaceState。",
+    "返回现场由点击捕获 + popstate 保存滚动，history.state 标记 + sessionStorage 恢复；reload 通过 PerformanceNavigationTiming.type 跳过恢复，因此刷新回顶部。当前页唯一滚动容器是 #main-content。",
+    "四块各自套 DataState；overview/industries/strong/news 的 partial、failed_blocks、stale_reason 均直接取信封字段；信封 status=empty 由页面对 data 为空映射，空强势股使用「非交易日或盘后未更新」。",
+    "快讯只把 http(s) 子串转成锚点，尾部中英文标点剥离；HTML 与 javascript: 文本由 React 转义，E2E 断言列表内无 script 节点。",
+    "测试侧改动：routes.test.tsx 现在真的挂载市场页，补 QueryClientProvider 与离线 fetch 桩；shell_e2e、workbench_e2e、report_reader_e2e 各补 newsflash GET 桩，避免 preview 代理 404 并让只读请求集合断言继续成立。",
+    "market_e2e 首轮 47 checks 中 R-11 钻取断言在 wait_for_url 后立即读 is_visible，未等 React 提交而偶发红；改为先 wait_for(page-stock) 后通过，产品无改动。",
+    "状态流错误态用 HTTP 200 + envelope.status=error，而非 HTTP 500，以便同时满足四态与「桌面无控制台错误」。",
+    "P3-09 性能证据 JSON 被 e2e_p3 改写后已还原；check_bundle 使用 --out 临时文件，未触碰 P4-04 拆包证据。"
+  ]
+}
