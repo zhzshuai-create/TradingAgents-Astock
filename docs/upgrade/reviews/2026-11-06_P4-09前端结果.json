@@ -1,0 +1,217 @@
+{
+  "ticket": "P4-09",
+  "title": "股票工作区 W07 桌面",
+  "measured_at": "2026-11-06T20:46:53+08:00",
+  "environment": {
+    "platform": "Windows-11-10.0.26200-SP0",
+    "node": "22.22.2",
+    "python": "3.13.3",
+    "vite": "7.3.7",
+    "react": "19",
+    "vitest": "5",
+    "new_runtime_dependencies": 0
+  },
+  "commands": {
+    "typecheck": "node node_modules/typescript/bin/tsc --noEmit",
+    "unit": "node node_modules/vitest/vitest.mjs run",
+    "build": "node node_modules/vite/bin/vite.js build",
+    "bundle": "node scripts/check_bundle.mjs --out <临时路径>",
+    "stock_e2e": "\"C:/Users/zhzsh/AppData/Local/Programs/Python/Python313/python.exe\" e2e/stock_e2e.py",
+    "market_e2e": "\"C:/Users/zhzsh/AppData/Local/Programs/Python/Python313/python.exe\" e2e/market_e2e.py",
+    "e2e_p2": "\"C:/Users/zhzsh/AppData/Local/Programs/Python/Python313/python.exe\" e2e/e2e_p2.py",
+    "e2e_p3": "\"C:/Users/zhzsh/AppData/Local/Programs/Python/Python313/python.exe\" e2e/e2e_p3.py",
+    "python": ".venv/Scripts/python.exe -m pytest -q",
+    "preflight": ".venv/Scripts/python.exe scripts/p0_preflight.py --full --smoke"
+  },
+  "unit": {
+    "test_files": 32,
+    "tests": 410,
+    "new_test_files": 2,
+    "new_tests": 23,
+    "failures": 0,
+    "result": "pass",
+    "breakdown": {
+      "features/stocks/StockPage.test.tsx": 17,
+      "features/stocks/stockParams.test.ts": 6
+    },
+    "note": "全量 410/410。StockPage.test.tsx 首轮两处失败均为断言写法：多页签要用 getAllByTestId；启动器预填名称为空是因为对话框常驻挂载时快照未到，改为按 open 条件挂载后预填正确（产品侧同步修正）。"
+  },
+  "typecheck": {
+    "errors": 0,
+    "result": "pass"
+  },
+  "python": {
+    "passed": 789,
+    "skipped": 4,
+    "subtests": 59,
+    "failures": 0,
+    "result": "pass",
+    "note": "本票未改后端；全量复跑与 P4-08 基线一致"
+  },
+  "bundle": {
+    "measured_with": "node:zlib gzipSync level 9 over dist files",
+    "entry_gzip_kb": 123.73,
+    "entry_budget_gzip_kb": 202.45,
+    "entry_within_budget": true,
+    "route_chunks": 11,
+    "route_chunk_limit_gzip_kb": 60,
+    "new_route_chunk": {
+      "source": "src/pages/StockPage.tsx",
+      "file": "assets/StockPage-2B2MK-_j.js",
+      "gzip_kb": 11.54,
+      "dynamic_import": true,
+      "separate_from_entry": true,
+      "within_60_kb": true
+    },
+    "all_route_chunks_within_limit": true,
+    "passed": true
+  },
+  "browser": {
+    "tool": "Playwright Chromium（Python 3.13），vite preview，stubbed read APIs",
+    "script": "e2e/stock_e2e.py",
+    "checks": 54,
+    "failures": [],
+    "desktop": {
+      "viewport": "1440x900",
+      "flows": [
+        "主流程：头部、主操作与启动器预填、报告/任务上下文链接、估值、K 线、分时、新闻、报告、深链、非法值、格式非法 ticker",
+        "不存在 ticker：400 页与名称表未命中文案",
+        "部分失败：估值块失败时行情仍显示，块名可见，缺失字段显示「—」",
+        "stale：横幅与数据并存；报告空态",
+        "报告错误：可重试且每次点击重新请求",
+        "活动任务：主按钮改为「查看进行中任务」并跳转任务详情"
+      ],
+      "key_assertions": [
+        "头部含名称/代码/市场/现价/涨跌幅/来源/数据时间，stale 横幅按需出现",
+        "无活动任务时启动器预填 600000 与浦发银行",
+        "「查看最新报告」→ /reports?ticker=600000 且筛选 chip 可见；「查看该股票任务」→ /jobs?ticker=600000",
+        "估值 12 个字段、三组板块、资金流两行；完整数据无「—」",
+        "K 线日→周周期进 query 并重新请求；不复权与数据时间可见",
+        "分时日期进 query；午休断线 1 个；超保留期显示「该日期没有分时数据」",
+        "新闻仅 http(s) 外链成锚点，脚本与 javascript: 保持纯文本",
+        "报告行进阅读器，返回后仍在报告页签",
+        "深链恢复 tab/period/date；非法 tab 回 valuation、非法 period 回 day、非法日期回最近交易日，路径不被改写",
+        "切回页签恢复滚动位置 127→127；刷新回顶部",
+        "未知 ticker 由 snapshot 400 驱动；格式非法不请求后端",
+        "全部读请求为 GET；桌面控制台 0 错误"
+      ]
+    },
+    "screenshots": [
+      "ui_shots_p4/P4-09/stock_1440.png",
+      "ui_shots_p4/P4-09/stock_partial.png",
+      "ui_shots_p4/P4-09/stock_states.png",
+      "ui_shots_p4/P4-09/stock_active_job.png"
+    ]
+  },
+  "e2e_regression": {
+    "market": {
+      "exit_code": 0,
+      "checks": 95,
+      "failures": [],
+      "note": "首次运行 3 个 500：成分股下钻现在进入真实股票工作区，而 market 套件未桩股票接口；按契约补空的股票信封后 95/95。"
+    },
+    "p2": {
+      "exit_code": 0,
+      "runner_checks": 102,
+      "suite_checks": 493,
+      "suite_failures": {
+        "shell": 0,
+        "workbench": 0,
+        "active_job": 0,
+        "launcher": 0,
+        "jobs": 0,
+        "job_detail": 0,
+        "job_stream": 0,
+        "job_actions": 0
+      },
+      "failures": [],
+      "note": "shell_e2e 的 /stocks/600519 深链原断言占位标题「600519 股票工作区」，改为现页 h1「600519」并补空股票信封。"
+    },
+    "p3": {
+      "exit_code": 0,
+      "checks": 19,
+      "failures": [],
+      "suite_checks": 260,
+      "suite_failures": {
+        "reports": 0,
+        "report_reader": 0,
+        "legacy_projection": 0
+      },
+      "criteria": {
+        "C1": true,
+        "C2": true,
+        "C3": true,
+        "C4": true
+      }
+    }
+  },
+  "acceptance": {
+    "W07-01": {
+      "item": "头部字段、来源/时间、stale 横幅",
+      "test": "StockPage.test.tsx（头部与 stale 两条）+ stock_e2e.py（主流程头部、stale 流程）",
+      "result": "pass"
+    },
+    "W07-02": {
+      "item": "两种主按钮状态与跳转",
+      "test": "StockPage.test.tsx（预填与活动任务两条）+ stock_e2e.py（启动器预填、/jobs/job-1）",
+      "result": "pass"
+    },
+    "W07-03": {
+      "item": "估值缺失「—」、板块三组、资金流",
+      "test": "StockPage.test.tsx（完整与缺失两条）+ stock_e2e.py（12 字段、3 组板块、2 行资金流）",
+      "result": "pass"
+    },
+    "W07-04": {
+      "item": "K 线周期与不复权标注",
+      "test": "StockPage.test.tsx + stock_e2e.py（周周期请求、aria-pressed、不复权与数据时间）",
+      "result": "pass"
+    },
+    "W07-05": {
+      "item": "分时日期、断线、empty",
+      "test": "StockPage.test.tsx + stock_e2e.py（日期请求、午休带 1 个、超保留期文案）",
+      "result": "pass"
+    },
+    "W07-06": {
+      "item": "新闻纯文本与外链",
+      "test": "StockPage.test.tsx + stock_e2e.py（script 文本化、仅 http(s) 锚点、target/rel）",
+      "result": "pass"
+    },
+    "W07-07": {
+      "item": "报告列表、进阅读器、空/错",
+      "test": "StockPage.test.tsx（列表/空/错三条）+ stock_e2e.py（进阅读器并返回、空态、500 重试）",
+      "result": "pass"
+    },
+    "W07-08": {
+      "item": "深链与刷新恢复、非法值回默认",
+      "test": "StockPage.test.tsx（深链与非法两条）+ stock_e2e.py（tab/period/date 恢复、滚动恢复、刷新回顶）",
+      "result": "pass"
+    },
+    "W07-09": {
+      "item": "格式非法与不存在 ticker 的 400 页",
+      "test": "StockPage.test.tsx + stock_e2e.py（6 位缺失码走 400 页，非 6 位不发请求）",
+      "result": "pass"
+    },
+    "W07-10": {
+      "item": "部分失败：估值失败时行情仍显示，块名可见",
+      "test": "StockPage.test.tsx + stock_e2e.py（partial 信封、partial-blocks 含「估值」、行情仍显示）",
+      "result": "pass"
+    }
+  },
+  "preflight": {
+    "passed": 10,
+    "failed": 0,
+    "result": "pass",
+    "note": "提交代码与证据后在工作区干净状态复跑"
+  },
+  "notes": [
+    "股票接口与类型在 P4-03 已齐备，本票只补 lib/query.ts 的查询对象与页面；frontend/src/api/market.ts 未改，fetch 与 /api/v1 字面量仍只在 api 层。",
+    "页签滚动记忆在 patch() 里于换页前记录：若放到 effect 里读，较短页签会先把 scrollTop 夹到 0，导致切回时丢失位置（浏览器 E2E 实测 127 丢失，修复后 127 恢复）。",
+    "启动器改为仅在 open 时挂载：常驻挂载会在快照未到时用 {code, name: null} 固化 state，异步到达的名称永远不显示。",
+    "非法 tab/period/date 不写回 URL、不返回 400；只有用户下一次交互才写规范化 query（默认值省略）。",
+    "未知 ticker 的 400 与报告 500 会留下浏览器资源加载日志；这两条错误态流程只断言无 JS 异常，正常流程仍要求控制台 0 错误。",
+    "market_e2e 与 shell_e2e 各补一条空股票信封路由；这是 P4-09 接线导致的夹具更新，断言本身只把占位标题换成真实 h1。",
+    "e2e/stock_e2e.py 的 wait_for_request 用 page.wait_for_timeout 轮询：同步 Playwright 下 time.sleep 会阻塞事件回调，导致请求已发出却判为超时。",
+    "P3 套件运行改写了 2026-11-06_P3-09性能结果.json，已 git checkout 还原；bundle 证据用 --out 临时文件，读完后删除，未覆盖 P4-04 证据。",
+    "截图目录 ui_shots_p4/P4-09 被 .gitignore 的 ui_shots_*/ 覆盖，不入库。"
+  ]
+}
