@@ -62,58 +62,6 @@ form.heroSearch {
   max-width: none;
 }
 
-.panel {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  min-width: 0;
-  padding: var(--space-6);
-  border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-md);
-  background: var(--color-bg-surface);
-}
-
-.panelHead {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
-}
-
-.panelTitle {
-  color: var(--color-text-primary);
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-semibold);
-}
-
-.panelBody {
-  display: block;
-}
-
-.panelText {
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
-  line-height: var(--line-height-relaxed);
-}
-
-.reportsToggle {
-  display: none;
-  align-items: center;
-  min-height: 44px;
-  padding-inline: var(--space-3);
-  border: none;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--color-accent);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  cursor: pointer;
-}
-
-.reportsToggle:hover {
-  background: var(--color-accent-soft);
-}
-
 @media (max-width: 767px) {
   .page {
     gap: var(--space-5);
@@ -143,21 +91,5 @@ form.heroSearch {
 
   .startRow > button {
     width: 100%;
-  }
-
-  .reportsToggle {
-    display: inline-flex;
-  }
-
-  .panel {
-    padding: var(--space-4);
-  }
-
-  .panelBodyCollapsible {
-    display: none;
-  }
-
-  .panelOpen {
-    display: block;
   }
 }

@@ -7,6 +7,8 @@ import type { TickerSelection } from "../launcher/types";
 import { SearchBox } from "../search/SearchBox";
 import { Button } from "../../ui";
 import { ActiveJobCard } from "./ActiveJobCard";
+import { MarketSummary } from "./MarketSummary";
+import { RecentReports } from "./RecentReports";
 import styles from "./WorkbenchPage.module.css";
 import { RecentJobs } from "./RecentJobs";
 
@@ -24,7 +26,6 @@ export function WorkbenchPage() {
     launchRequested && DATE_PATTERN.test(requestedDate) ? requestedDate : null;
   const [launcherOpen, setLauncherOpen] = useState(launchRequested);
   const [pickedTicker, setPickedTicker] = useState<TickerSelection | null>(null);
-  const [reportsOpen, setReportsOpen] = useState(false);
 
   useEffect(() => {
     if (launchRequested) {
@@ -105,49 +106,9 @@ export function WorkbenchPage() {
 
       <RecentJobs onStartAnalysis={openLauncher} />
 
-      <section
-        className={styles.panel}
-        aria-labelledby="recent-reports-title"
-        data-testid="recent-reports"
-      >
-        <div className={styles.panelHead}>
-          <h2 className={styles.panelTitle} id="recent-reports-title">
-            最近报告
-          </h2>
-          <button
-            type="button"
-            className={styles.reportsToggle}
-            aria-expanded={reportsOpen}
-            onClick={() => setReportsOpen((value) => !value)}
-          >
-            查看全部
-          </button>
-        </div>
-        <div
-          className={`${styles.panelBody} ${styles.panelBodyCollapsible} ${
-            reportsOpen ? styles.panelOpen : ""
-          }`}
-        >
-          <p className={styles.panelText}>报告库将在 P3 开放。</p>
-        </div>
-      </section>
+      <RecentReports />
 
-      <section
-        className={styles.panel}
-        aria-labelledby="market-summary-title"
-        data-testid="market-summary"
-      >
-        <div className={styles.panelHead}>
-          <h2 className={styles.panelTitle} id="market-summary-title">
-            市场概览
-          </h2>
-        </div>
-        <div className={styles.panelBody}>
-          <p className={styles.panelText}>
-            指数、行业与强势股将在 P4 接入。
-          </p>
-        </div>
-      </section>
+      <MarketSummary />
 
       {launcherOpen ? (
         <LauncherDialog

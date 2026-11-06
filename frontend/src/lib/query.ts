@@ -3,9 +3,14 @@
 import type { QueryClient, QueryFunctionContext } from "@tanstack/react-query";
 
 import { getJob, getStageReport, listJobs } from "../api/jobs";
-import { searchStocks } from "../api/market";
+import {
+  getMarketIndustries,
+  getMarketOverview,
+  getStrongStocks,
+  searchStocks,
+} from "../api/market";
 import { getMetaOptions } from "../api/meta";
-import { getReport } from "../api/reports";
+import { getReport, listReports } from "../api/reports";
 import type { JobListFilters, ReportListFilters } from "../api/types";
 
 const JOBS_ROOT = ["jobs"] as const;
@@ -108,6 +113,32 @@ export const marketSearchQuery = (query: string) => ({
   queryKey: queryKeys.marketSearch(query),
   queryFn: ({ signal }: QueryFunctionContext) => searchStocks(query, 10, signal),
   staleTime: 0,
+});
+
+/** Workbench rows are cheap to refresh, same rule as the W05 list page. */
+export const recentReportsQuery = (limit = 3) => ({
+  queryKey: queryKeys.reports({ limit }),
+  queryFn: ({ signal }: QueryFunctionContext) => listReports({ limit }, signal),
+  staleTime: 0,
+});
+
+export const marketOverviewQuery = () => ({
+  queryKey: queryKeys.marketOverview(),
+  queryFn: ({ signal }: QueryFunctionContext) => getMarketOverview(signal),
+  staleTime: MARKET_STALE_MS.overview,
+});
+
+export const marketIndustriesQuery = (top = 20) => ({
+  queryKey: queryKeys.marketIndustries(top),
+  queryFn: ({ signal }: QueryFunctionContext) =>
+    getMarketIndustries(top, signal),
+  staleTime: MARKET_STALE_MS.industries,
+});
+
+export const marketStrongStocksQuery = (date: string | null = null) => ({
+  queryKey: queryKeys.marketStrongStocks(date),
+  queryFn: ({ signal }: QueryFunctionContext) => getStrongStocks(date ?? undefined, signal),
+  staleTime: MARKET_STALE_MS.strongStocks,
 });
 
 /** Control actions refresh the list without touching the streamed detail. */

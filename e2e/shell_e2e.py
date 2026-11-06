@@ -169,6 +169,89 @@ SEARCH_EMPTY = {
     "data": {"items": [], "truncated": False},
 }
 
+def market_envelope(data: dict) -> dict:
+    return {
+        "schema_version": "market-envelope-v1",
+        "status": "ok",
+        "source": "static",
+        "as_of": "2026-11-05T09:00:00+08:00",
+        "fetched_at": "2026-11-05T09:00:00+08:00",
+        "is_stale": False,
+        "stale_reason": None,
+        "error_code": None,
+        "error_message": None,
+        "partial": False,
+        "failed_blocks": [],
+        "data": data,
+    }
+
+
+OVERVIEW_OK = market_envelope(
+    {
+        "market_session": "closed",
+        "indices": [
+            {
+                "code": "000001.SH",
+                "name": "上证指数",
+                "price": 3345.12,
+                "change_pct": 0.42,
+                "change_amt": 13.98,
+            },
+            {
+                "code": "399001.SZ",
+                "name": "深证成指",
+                "price": 10880.5,
+                "change_pct": -0.31,
+                "change_amt": -33.8,
+            },
+            {
+                "code": "399006.SZ",
+                "name": "创业板指",
+                "price": 2210.4,
+                "change_pct": 0.08,
+                "change_amt": 1.77,
+            },
+        ],
+        "northbound": None,
+    }
+)
+
+INDUSTRIES_OK = market_envelope(
+    {
+        "top": [
+            {
+                "rank": 1,
+                "name": "半导体",
+                "code": "BK1036",
+                "change_pct": 2.35,
+                "up_count": 42,
+                "down_count": 3,
+                "leader": "中芯国际",
+                "leader_change": 5.1,
+            }
+        ],
+        "bottom": [],
+        "total": 1,
+    }
+)
+
+STRONG_OK = market_envelope(
+    {
+        "items": [
+            {
+                "ticker_code": "300750",
+                "name": "宁德时代",
+                "reason": "放量突破",
+                "market": "sz",
+                "change_pct": 4.2,
+                "change_amt": 9.1,
+                "close": 225.5,
+                "turnover_pct": 3.4,
+            }
+        ]
+    }
+)
+
 REPORT_DETAIL = {
     "meta": {
         "report_id": "report-1",
@@ -323,6 +406,19 @@ def stub_api(context: BrowserContext) -> None:
     context.route(
         "**/api/v1/reports/report-1",
         lambda route: fulfill(route, REPORT_DETAIL),
+    )
+    # P4-05: the workbench summary now fetches these three on mount.
+    context.route(
+        "**/api/v1/market/overview**",
+        lambda route: fulfill(route, OVERVIEW_OK),
+    )
+    context.route(
+        "**/api/v1/market/industries**",
+        lambda route: fulfill(route, INDUSTRIES_OK),
+    )
+    context.route(
+        "**/api/v1/market/strong-stocks**",
+        lambda route: fulfill(route, STRONG_OK),
     )
 
 

@@ -64,6 +64,30 @@ META = {
     "contract_version": "api-v1",
 }
 
+def market_envelope(data: dict) -> dict:
+    return {
+        "schema_version": "market-envelope-v1",
+        "status": "ok",
+        "source": "static",
+        "as_of": "2026-11-06T09:00:00+08:00",
+        "fetched_at": "2026-11-06T09:00:00+08:00",
+        "is_stale": False,
+        "stale_reason": None,
+        "error_code": None,
+        "error_message": None,
+        "partial": False,
+        "failed_blocks": [],
+        "data": data,
+    }
+
+
+# P4-05: the workbench summary fetches these when the launcher opens there.
+MARKET_OVERVIEW = market_envelope(
+    {"market_session": "closed", "indices": [], "northbound": None}
+)
+MARKET_INDUSTRIES = market_envelope({"top": [], "bottom": [], "total": 0})
+MARKET_STRONG = market_envelope({"items": []})
+
 failures: list[str] = []
 checks = 0
 
@@ -250,6 +274,15 @@ class ApiStub:
         context.route("**/api/v1/reports**", self._reports)
         context.route("**/api/v1/reports/*/exports/pdf", self._export_pdf)
         context.route("**/api/v1/exports/**", self._exports)
+        context.route(
+            "**/api/v1/market/overview**", self._json(MARKET_OVERVIEW)
+        )
+        context.route(
+            "**/api/v1/market/industries**", self._json(MARKET_INDUSTRIES)
+        )
+        context.route(
+            "**/api/v1/market/strong-stocks**", self._json(MARKET_STRONG)
+        )
 
     @staticmethod
     def _json(payload: dict):
