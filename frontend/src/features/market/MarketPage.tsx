@@ -20,10 +20,15 @@ import {
   toMarketSearch,
   type MarketState,
 } from "./marketParams";
+import { BoardStocksDialog } from "./mobile/BoardStocksDialog";
+import { IndexStrip } from "./mobile/IndexStrip";
+import { IndustryCards } from "./mobile/IndustryCards";
+import { StrongStockCards } from "./mobile/StrongStockCards";
 import { MarketSessionBar } from "./MarketSessionBar";
 import { NewsflashList } from "./NewsflashList";
 import { envelopeState } from "./state";
 import { StrongStocksTable } from "./StrongStocksTable";
+import { useIsMobile } from "./useIsMobile";
 import styles from "./MarketPage.module.css";
 
 const SCROLL_PREFIX = "ta:market-scroll:";
@@ -44,6 +49,7 @@ export function MarketPage() {
   const [params, setParams] = useSearchParams();
   const location = useLocation();
   const state = parseMarketSearch(params.toString());
+  const isMobile = useIsMobile();
 
   const overview = useQuery(marketOverviewQuery());
   const industries = useQuery(marketIndustriesQuery(state.top));
@@ -172,12 +178,21 @@ export function MarketPage() {
                 fetchedAt={overview.data.fetched_at}
                 source={overview.data.source}
               />
-              <IndexCards
-                indices={overviewData.indices}
-                asOf={overview.data.as_of}
-                fetchedAt={overview.data.fetched_at}
-                source={overview.data.source}
-              />
+              {isMobile ? (
+                <IndexStrip
+                  indices={overviewData.indices}
+                  asOf={overview.data.as_of}
+                  fetchedAt={overview.data.fetched_at}
+                  source={overview.data.source}
+                />
+              ) : (
+                <IndexCards
+                  indices={overviewData.indices}
+                  asOf={overview.data.as_of}
+                  fetchedAt={overview.data.fetched_at}
+                  source={overview.data.source}
+                />
+              )}
             </>
           ) : null}
         </DataState>
@@ -220,12 +235,21 @@ export function MarketPage() {
           skeletonHeight="360px"
         >
           {industriesData != null ? (
-            <IndustryTable
-              top={industriesData.top}
-              bottom={industriesData.bottom}
-              selectedBoard={state.board}
-              onSelect={(board) => patch({ board })}
-            />
+            isMobile ? (
+              <IndustryCards
+                top={industriesData.top}
+                bottom={industriesData.bottom}
+                selectedBoard={state.board}
+                onSelect={(board) => patch({ board })}
+              />
+            ) : (
+              <IndustryTable
+                top={industriesData.top}
+                bottom={industriesData.bottom}
+                selectedBoard={state.board}
+                onSelect={(board) => patch({ board })}
+              />
+            )
           ) : null}
         </DataState>
       </section>
@@ -270,11 +294,19 @@ export function MarketPage() {
           skeletonHeight="320px"
         >
           {strongData != null ? (
-            <StrongStocksTable
-              items={strongData.items}
-              activeTheme={state.theme}
-              onThemeChange={(theme) => patch({ theme })}
-            />
+            isMobile ? (
+              <StrongStockCards
+                items={strongData.items}
+                activeTheme={state.theme}
+                onThemeChange={(theme) => patch({ theme })}
+              />
+            ) : (
+              <StrongStocksTable
+                items={strongData.items}
+                activeTheme={state.theme}
+                onThemeChange={(theme) => patch({ theme })}
+              />
+            )
           ) : null}
         </DataState>
       </section>
@@ -310,11 +342,19 @@ export function MarketPage() {
         </DataState>
       </section>
 
-      <ConstituentDrawer
-        board={state.board}
-        industryName={selectedIndustry?.name ?? ""}
-        onClose={() => patch({ board: "" })}
-      />
+      {isMobile ? (
+        <BoardStocksDialog
+          board={state.board}
+          industryName={selectedIndustry?.name ?? ""}
+          onClose={() => patch({ board: "" })}
+        />
+      ) : (
+        <ConstituentDrawer
+          board={state.board}
+          industryName={selectedIndustry?.name ?? ""}
+          onClose={() => patch({ board: "" })}
+        />
+      )}
     </div>
   );
 }

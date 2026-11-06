@@ -6,8 +6,8 @@ import {
   formatPct,
   formatPrice,
   formatSignedPct,
-  topThemes,
 } from "./format";
+import { themeFilter, ThemeChips } from "./ThemeChips";
 import styles from "./MarketPage.module.css";
 
 export interface StrongStocksTableProps {
@@ -27,37 +27,11 @@ export function StrongStocksTable({
   activeTheme,
   onThemeChange,
 }: StrongStocksTableProps) {
-  const themes = topThemes(items.map((item) => item.reason));
-  // A theme missing from today's data falls back to the full list (W08-07).
-  const active = themes.includes(activeTheme) ? activeTheme : "";
-  const visible =
-    active === "" ? items : items.filter((item) => item.reason.trim() === active);
+  const { themes, active, visible } = themeFilter(items, activeTheme);
 
   return (
     <div data-testid="strong-block">
-      <div className={styles.themeChips} data-testid="theme-chips">
-        <button
-          type="button"
-          className={styles.themeChip}
-          aria-pressed={active === ""}
-          data-testid="theme-chip"
-          onClick={() => onThemeChange("")}
-        >
-          全部
-        </button>
-        {themes.map((theme) => (
-          <button
-            key={theme}
-            type="button"
-            className={styles.themeChip}
-            aria-pressed={active === theme}
-            data-testid="theme-chip"
-            onClick={() => onThemeChange(theme === active ? "" : theme)}
-          >
-            {theme}
-          </button>
-        ))}
-      </div>
+      <ThemeChips themes={themes} active={active} onThemeChange={onThemeChange} />
       <div className={styles.tableScroll}>
         <table className={styles.table} data-testid="strong-table">
           <thead>

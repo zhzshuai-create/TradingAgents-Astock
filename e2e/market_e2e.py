@@ -1,14 +1,18 @@
-"""P4-06 W08 market dashboard E2E: R-10 and R-11 on desktop 1440.
+"""P4-06/P4-07 W08 market dashboard E2E.
 
 Runs the built frontend on ``vite preview`` with stubbed read APIs:
 
     "C:/Users/zhzsh/AppData/Local/Programs/Python/Python313/python.exe" \
         e2e/market_e2e.py
 
-R-10 covers the session bar, index cards, industries, strong stocks,
-newsflash, per-block states and no-write reads. R-11 covers industry ->
-constituents -> stock -> back, restoring industry, topN, date, drawer and
-scroll. Prints one JSON line; screenshots go to ui_shots_p4/P4-06/.
+Desktop 1440 (P4-06) covers R-10 and R-11: session bar, index cards,
+industries, strong stocks, newsflash, per-block states, no-write reads, and
+industry -> constituents -> stock -> back with industry, topN, date, drawer
+and scroll restored. Mobile 390x844 and 360x800 (P4-07) covers W08M-01..04:
+index strip scrolls inside its container, cards replace tables, the
+full-screen board drills and restores, and touch targets reach 44px without
+page-level horizontal overflow. Prints one JSON line; desktop screenshots go
+to ui_shots_p4/P4-06/, mobile ones to ui_shots_p4/P4-07/.
 """
 
 from __future__ import annotations
@@ -29,6 +33,7 @@ from playwright.sync_api import Browser, BrowserContext, Page, sync_playwright
 ROOT = Path(__file__).resolve().parent.parent
 FRONTEND = ROOT / "frontend"
 SHOTS = ROOT / "ui_shots_p4" / "P4-06"
+SHOTS_MOBILE = ROOT / "ui_shots_p4" / "P4-07"
 
 AS_OF = "2026-11-05T09:30:00+08:00"
 
@@ -486,6 +491,19 @@ def scroll_top(page: Page) -> float:
     return page.evaluate("document.getElementById('main-content').scrollTop")
 
 
+def wait_for_request(
+    requests: list[tuple[str, str]],
+    needle: str,
+    timeout: float = 3.0,
+) -> bool:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if any(needle in url for _, url in requests):
+            return True
+        time.sleep(0.05)
+    return False
+
+
 def main_flow(browser: Browser, base: str) -> None:
     context = browser.new_context(
         viewport={"width": 1440, "height": 900},
@@ -622,7 +640,7 @@ def main_flow(browser: Browser, base: str) -> None:
         "new URLSearchParams(location.search).get('date') === '2026-11-04'"
     )
     check(
-        any("date=2026-11-04" in url for _, url in requests),
+        wait_for_request(requests, "date=2026-11-04"),
         "W08-07 date control sends date=2026-11-04",
     )
     page.screenshot(path=str(SHOTS / "market_1440.png"), full_page=True)
@@ -763,10 +781,249 @@ def states_flow(browser: Browser, base: str) -> None:
     context.close()
 
 
+def touch_violations(page: Page, selectors: list[str]) -> list[str]:
+    script = """
+    (selectors) => selectors.flatMap((selector) =>
+      Array.from(document.querySelectorAll(selector))
+        .map((node) => ({ selector, rect: node.getBoundingClientRect() }))
+        .filter(({ rect }) => rect.width > 0 && rect.height > 0)
+        .filter(({ rect }) => rect.height < 43.5)
+        .map(({ selector, rect }) =>
+          selector + ":" + Math.round(rect.width) + "x" + Math.round(rect.height))
+    )
+    """
+    return page.evaluate(script, selectors)
+
+
+PAGE_TOUCH_SELECTORS = [
+    '[data-testid="industry-card"]',
+    '[data-testid="strong-card"] a',
+    '[data-testid="theme-chip"]',
+    "select",
+    'input[type="date"]',
+    'section[aria-labelledby="market-strong"] button',
+]
+
+BOARD_TOUCH_SELECTORS = [
+    '[data-testid="board-stock-row"]',
+    '[aria-label="关闭成分股"]',
+]
+
+
+def mobile_flow(
+    browser: Browser,
+    base: str,
+    width: int,
+    height: int,
+    tag: str,
+) -> None:
+    context = browser.new_context(
+        viewport={"width": width, "height": height},
+        device_scale_factor=3,
+        is_mobile=True,
+        has_touch=True,
+        timezone_id="Asia/Shanghai",
+    )
+    stub_api(context)
+    page = context.new_page()
+    errors, requests = watch(page)
+    page.goto(f"{base}/market")
+    page.get_by_test_id("market-session").wait_for(state="visible")
+    page.get_by_test_id("index-strip").wait_for(state="visible")
+    page.get_by_test_id("industry-cards").wait_for(state="visible")
+    page.wait_for_function(
+        "document.querySelectorAll('[data-testid=\"strong-card\"]').length === 12"
+    )
+
+    # W08M-01: the index strip scrolls inside its own container; the page
+    # itself never gains a horizontal scrollbar.
+    metrics = page.evaluate(
+        """() => {
+          const strip = document.querySelector('[data-testid="index-strip"]');
+          const main = document.getElementById('main-content');
+          return {
+            stripScroll: strip.scrollWidth,
+            stripClient: strip.clientWidth,
+            docScroll: document.documentElement.scrollWidth,
+            docClient: document.documentElement.clientWidth,
+            mainScroll: main.scrollWidth,
+            mainClient: main.clientWidth,
+          };
+        }"""
+    )
+    check(
+        metrics["stripScroll"] > metrics["stripClient"],
+        f"{tag} W08M-01 index strip overflows horizontally "
+        f"({metrics['stripScroll']} > {metrics['stripClient']})",
+    )
+    check(
+        metrics["docScroll"] == metrics["docClient"],
+        f"{tag} W08M-01 document width fits the viewport "
+        f"({metrics['docScroll']} vs {metrics['docClient']})",
+    )
+    check(
+        metrics["mainScroll"] == metrics["mainClient"],
+        f"{tag} W08M-01 scroll container width fits "
+        f"({metrics['mainScroll']} vs {metrics['mainClient']})",
+    )
+    page.screenshot(path=str(SHOTS_MOBILE / f"market_{tag}.png"), full_page=True)
+
+    # W08M-02: industries and strong stocks are cards; no table reaches the DOM.
+    top_cards = page.locator('[data-testid="industry-card"][data-variant="top"]')
+    bottom_cards = page.locator(
+        '[data-testid="industry-card"][data-variant="bottom"]'
+    )
+    check(top_cards.count() == 20, f"{tag} W08M-02 top 20 industry cards ({top_cards.count()})")
+    check(
+        bottom_cards.count() == 5,
+        f"{tag} W08M-02 bottom 5 industry cards ({bottom_cards.count()})",
+    )
+    first_card_text = top_cards.nth(0).inner_text()
+    check(
+        all(
+            part in first_card_text
+            for part in ("行业01", "+4.50%", "上涨 40", "下跌 2", "龙头01")
+        ),
+        f"{tag} W08M-02 industry card shows rank, change and breadth "
+        f"({first_card_text!r})",
+    )
+    check(
+        page.get_by_test_id("strong-card").count() == 12,
+        f"{tag} W08M-02 all 12 strong stocks render as cards "
+        f"({page.get_by_test_id('strong-card').count()})",
+    )
+    check(
+        page.get_by_test_id("theme-chip").count() == 9,
+        f"{tag} W08M-02 theme chips survive on mobile "
+        f"({page.get_by_test_id('theme-chip').count()})",
+    )
+    check(
+        page.locator("table").count() == 0,
+        f"{tag} W08M-02 no table element in the DOM ({page.locator('table').count()})",
+    )
+    check(
+        page.get_by_test_id("industry-table").count() == 0
+        and page.get_by_test_id("strong-table").count() == 0,
+        f"{tag} W08M-02 desktop table components are not mounted",
+    )
+
+    # W08M-04: controls and cards meet the 44px touch target.
+    page_violations = touch_violations(page, PAGE_TOUCH_SELECTORS)
+    check(
+        not page_violations,
+        f"{tag} W08M-04 page controls are at least 44px tall ({page_violations})",
+    )
+
+    # W08M-03: tapping an industry opens the full-screen board; closing or
+    # coming back restores the original scroll position.
+    page.evaluate("document.getElementById('main-content').scrollTop = 500")
+    page.wait_for_function(
+        "document.getElementById('main-content').scrollTop === 500"
+    )
+    first = page.locator('[data-code="BK1003"]')
+    first.click()
+    saved_scroll = scroll_top(page)
+    dialog = page.get_by_test_id("board-stocks-dialog")
+    dialog.wait_for(state="visible")
+    page.wait_for_function(
+        "document.querySelectorAll('[data-testid=\"board-stock-row\"]').length === 10"
+    )
+    check(
+        "行业04 · 成分股" in dialog.inner_text(),
+        f"{tag} W08M-03 board layer names the selected industry",
+    )
+    check(
+        "board=BK1003" in page.url,
+        f"{tag} W08M-03 board query drives the layer ({page.url})",
+    )
+    check(
+        page.get_by_test_id("board-stock-row").count() == 10,
+        f"{tag} W08M-03 board lists 10 constituents "
+        f"({page.get_by_test_id('board-stock-row').count()})",
+    )
+    box = dialog.bounding_box()
+    check(
+        box is not None
+        and abs(box["x"]) <= 1
+        and abs(box["y"]) <= 1
+        and abs(box["width"] - width) <= 1
+        and abs(box["height"] - height) <= 1,
+        f"{tag} W08M-03 board fills the viewport ({box})",
+    )
+    check(
+        dialog.evaluate("(node) => node.scrollWidth === node.clientWidth"),
+        f"{tag} W08M-03 board layer has no horizontal overflow",
+    )
+    board_violations = touch_violations(page, BOARD_TOUCH_SELECTORS)
+    check(
+        not board_violations,
+        f"{tag} W08M-04 board targets are at least 44px tall ({board_violations})",
+    )
+    page.screenshot(path=str(SHOTS_MOBILE / f"market_{tag}_dialog.png"))
+
+    dialog.get_by_role("button", name="关闭成分股").click()
+    page.wait_for_function(
+        "document.querySelector('[data-testid=\"board-stocks-dialog\"]') === null"
+    )
+    check(
+        "board=" not in page.url,
+        f"{tag} W08M-03 closing clears the board query ({page.url})",
+    )
+    check(
+        abs(scroll_top(page) - saved_scroll) <= 4,
+        f"{tag} W08M-03 closing keeps the scroll position "
+        f"({scroll_top(page)} vs {saved_scroll})",
+    )
+
+    first.click()
+    page.get_by_test_id("board-stocks-dialog").wait_for(state="visible")
+    page.wait_for_function(
+        "document.querySelectorAll('[data-testid=\"board-stock-row\"]').length === 10"
+    )
+    page.get_by_test_id("board-stock-row").first.click()
+    page.wait_for_url(lambda url: "/stocks/600000" in url and "tab=valuation" in url)
+    page.get_by_test_id("page-stock").wait_for(state="visible")
+    check(
+        "tab=valuation" in page.url,
+        f"{tag} W08M-03 a constituent drills into /stocks/:ticker?tab=valuation",
+    )
+
+    page.go_back()
+    page.get_by_test_id("page-market").wait_for(state="visible")
+    page.get_by_test_id("board-stocks-dialog").wait_for(state="visible")
+    page.wait_for_function(
+        "document.querySelectorAll('[data-testid=\"board-stock-row\"]').length === 10"
+    )
+    check(
+        "board=BK1003" in page.url,
+        f"{tag} W08M-03 back reopens the board from the query ({page.url})",
+    )
+    try:
+        page.wait_for_function(
+            f"Math.abs(document.getElementById('main-content').scrollTop - {saved_scroll}) <= 4",
+            timeout=5000,
+        )
+        restored = scroll_top(page)
+    except Exception:  # noqa: BLE001 - reported as a failed check below
+        restored = scroll_top(page)
+    check(
+        saved_scroll > 0 and abs(restored - saved_scroll) <= 4,
+        f"{tag} W08M-03 back restores scroll ({restored} vs {saved_scroll})",
+    )
+
+    check(
+        all(method == "GET" for method, _ in requests),
+        f"{tag} W08M-04 mobile reads are all GET",
+    )
+    check(not errors, f"{tag} W08M-01..04 console/page errors: {errors}")
+    context.close()
+
+
 def main() -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     SHOTS.mkdir(parents=True, exist_ok=True)
+    SHOTS_MOBILE.mkdir(parents=True, exist_ok=True)
     print("building frontend...")
     build()
     with Server() as base:
@@ -775,13 +1032,18 @@ def main() -> int:
             browser = playwright.chromium.launch()
             main_flow(browser, base)
             states_flow(browser, base)
+            mobile_flow(browser, base, 390, 844, "390")
+            mobile_flow(browser, base, 360, 800, "360")
             browser.close()
 
     result = {
-        "ticket": "P4-06",
+        "ticket": "P4-07",
         "checks": checks,
         "failures": failures,
-        "screenshots": str(SHOTS.relative_to(ROOT)),
+        "screenshots": [
+            str(SHOTS.relative_to(ROOT)),
+            str(SHOTS_MOBILE.relative_to(ROOT)),
+        ],
     }
     print(json.dumps(result, ensure_ascii=True))
     return 1 if failures else 0
