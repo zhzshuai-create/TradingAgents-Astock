@@ -1,0 +1,142 @@
+{
+  "ticket": "P4-04",
+  "title": "路由拆包与数据状态外壳",
+  "measured_at": "2026-11-06T16:56:45+08:00",
+  "environment": {
+    "platform": "Windows-11-10.0.26200-SP0",
+    "node": "22.22.2",
+    "vite": "7.3.7",
+    "react": "19",
+    "react_router": "7",
+    "tanstack_query": "5",
+    "vitest": "5",
+    "new_runtime_dependencies": 0
+  },
+  "commands": {
+    "typecheck": "node node_modules/typescript/bin/tsc --noEmit",
+    "unit": "node node_modules/vitest/vitest.mjs run",
+    "build": "node node_modules/vite/bin/vite.js build",
+    "bundle": "node scripts/check_bundle.mjs",
+    "e2e_p2": ".venv/Scripts/python.exe e2e/run_p2_e2e.py",
+    "e2e_p3": ".venv/Scripts/python.exe e2e/e2e_p3.py"
+  },
+  "unit": {
+    "test_files": 21,
+    "tests": 318,
+    "failures": 0,
+    "result": "pass"
+  },
+  "typecheck": {
+    "errors": 0,
+    "result": "pass"
+  },
+  "bundle": {
+    "evidence": "docs/upgrade/reviews/2026-11-06_P4-04拆包结果.json",
+    "measured_with": "node:zlib gzipSync level 9 over dist files",
+    "entry_gzip_kb": 122.91,
+    "entry_vite_reported_gzip_kb": 123.09,
+    "entry_budget_gzip_kb": 202.45,
+    "entry_within_budget": true,
+    "route_chunks": 11,
+    "route_chunk_limit_gzip_kb": 60,
+    "largest_route_chunk": {
+      "source": "src/pages/ReportDetailPage.tsx",
+      "file": "assets/ReportDetailPage-DMQPE6hS.js",
+      "gzip_kb": 20.68
+    },
+    "all_route_chunks_dynamic": true,
+    "all_route_chunks_separate_from_entry": true,
+    "all_route_chunks_within_limit": true,
+    "passed": true
+  },
+  "e2e": {
+    "p2": {
+      "exit_code": 0,
+      "runner_checks": 102,
+      "suite_checks": 476,
+      "suite_failures": {
+        "shell": 0,
+        "workbench": 0,
+        "active_job": 0,
+        "launcher": 0,
+        "jobs": 0,
+        "job_detail": 0,
+        "job_stream": 0,
+        "job_actions": 0
+      },
+      "failures": []
+    },
+    "p3": {
+      "exit_code": 0,
+      "checks": 19,
+      "failures": [],
+      "suite_failures": {
+        "reports": 0,
+        "report_reader": 0,
+        "legacy_projection": 0
+      },
+      "criteria": {
+        "C1": true,
+        "C2": true,
+        "C3": true,
+        "C4": true
+      },
+      "bundle_gate": {
+        "entry_gzip_kb": 123.09,
+        "entry_budget_kb": 202.45,
+        "route_chunk_limit_kb": 60,
+        "oversized_route_chunks": {},
+        "total_js_gzip_kb": 211.09
+      }
+    }
+  },
+  "acceptance": {
+    "DS-01": {
+      "item": "五态渲染与文案 / testid 差异",
+      "test": "frontend/src/ui/DataState.test.tsx::DS-01",
+      "result": "pass"
+    },
+    "DS-02": {
+      "item": "partial 修饰与失败块名",
+      "test": "frontend/src/ui/DataState.test.tsx::DS-02",
+      "result": "pass"
+    },
+    "DS-03": {
+      "item": "stale 三种 reason 文案",
+      "test": "frontend/src/ui/DataState.test.tsx::DS-03",
+      "result": "pass"
+    },
+    "DS-04": {
+      "item": "骨架与内容高度差 ≤8px",
+      "test": "frontend/src/ui/DataState.test.tsx::DS-04",
+      "result": "pass"
+    },
+    "DS-05": {
+      "item": "error 重试只回调一次",
+      "test": "frontend/src/ui/DataState.test.tsx::DS-05",
+      "result": "pass"
+    },
+    "DS-06": {
+      "item": "loading aria-busy / error role=alert / stale role=status",
+      "test": "frontend/src/ui/DataState.test.tsx::DS-06",
+      "result": "pass"
+    },
+    "DS-07": {
+      "item": "路由懒加载，进入 /market 才挂载该块",
+      "test": "frontend/src/routes.test.tsx::DS-07",
+      "result": "pass"
+    },
+    "DS-08": {
+      "item": "入口与懒加载块 gzip 数字写入证据 JSON",
+      "test": "frontend/scripts/check_bundle.mjs",
+      "result": "pass"
+    }
+  },
+  "notes": [
+    "页面内容零改动：没有页面 import DataState/StaleBanner/PartialNotice；五个状态组件与 copy 表只被测试与后续票使用。",
+    "Suspense fallback 为 PageFallback（route-fallback、aria-busy=true、骨架条），与首屏骨架同形，不出现空白闪烁。",
+    "P2 E2E 本轮修复四处既有漂移，均为测试侧：shell_e2e 报告详情缺 /api/v1/reports 桩、launcher_e2e 弹窗 180ms pop-in 量在动画中间帧、job_stream_e2e 连接记录与响应头竞态、job_actions_e2e A08 仍按旧口径断言 cancelled 无动作（冻结 api-v1.md 1.6 允许 reanalyze）。",
+    "P3 R-09 总 JS 触发线按 P4-04 D6 改为入口块预算 + 单路由块上限；P3 E2E 的 bundle 检查改读 dist/.vite/manifest.json，不再用 P2+30kB 总增量。",
+    "query key stockFundFlow 与 p4-backlog 1.6 锁定值一致：[\"stock\",\"fundFlow\",ticker]。"
+  ]
+}

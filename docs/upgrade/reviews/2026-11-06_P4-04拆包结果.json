@@ -1,0 +1,152 @@
+{
+  "ticket": "P4-04",
+  "command": "npm run build && node scripts/check_bundle.mjs",
+  "measured_with": "node:zlib gzipSync level 9 over dist files",
+  "baseline_entry_gzip_kb": 202.45,
+  "entry": {
+    "source": "index.html",
+    "file": "assets/index-CO2WnBK5.js",
+    "gzip_kb": 122.91,
+    "within_budget": true
+  },
+  "route_chunk_limit_gzip_kb": 60,
+  "route_chunks": [
+    {
+      "source": "src/features/workbench/WorkbenchPage.tsx",
+      "file": "assets/WorkbenchPage-BSdagFcx.js",
+      "gzip_kb": 7.04,
+      "dynamic_import": true,
+      "separate_from_entry": true,
+      "within_60_kb": true
+    },
+    {
+      "source": "src/pages/MarketPage.tsx",
+      "file": "assets/MarketPage-DsNRmiw-.js",
+      "gzip_kb": 0.27,
+      "dynamic_import": true,
+      "separate_from_entry": true,
+      "within_60_kb": true
+    },
+    {
+      "source": "src/pages/StockPage.tsx",
+      "file": "assets/StockPage-DbhSWPTt.js",
+      "gzip_kb": 0.46,
+      "dynamic_import": true,
+      "separate_from_entry": true,
+      "within_60_kb": true
+    },
+    {
+      "source": "src/pages/InvalidTickerPage.tsx",
+      "file": "assets/InvalidTickerPage-UvkmUSTr.js",
+      "gzip_kb": 0.45,
+      "dynamic_import": true,
+      "separate_from_entry": true,
+      "within_60_kb": true
+    },
+    {
+      "source": "src/pages/JobsPage.tsx",
+      "file": "assets/JobsPage-YgY05Fb8.js",
+      "gzip_kb": 4.99,
+      "dynamic_import": true,
+      "separate_from_entry": true,
+      "within_60_kb": true
+    },
+    {
+      "source": "src/pages/JobDetailPage.tsx",
+      "file": "assets/JobDetailPage-BASE4T5F.js",
+      "gzip_kb": 8.13,
+      "dynamic_import": true,
+      "separate_from_entry": true,
+      "within_60_kb": true
+    },
+    {
+      "source": "src/pages/ReportsPage.tsx",
+      "file": "assets/ReportsPage-BxpmKU9K.js",
+      "gzip_kb": 4.78,
+      "dynamic_import": true,
+      "separate_from_entry": true,
+      "within_60_kb": true
+    },
+    {
+      "source": "src/pages/ReportDetailPage.tsx",
+      "file": "assets/ReportDetailPage-DMQPE6hS.js",
+      "gzip_kb": 20.68,
+      "dynamic_import": true,
+      "separate_from_entry": true,
+      "within_60_kb": true
+    },
+    {
+      "source": "src/pages/JournalPage.tsx",
+      "file": "assets/JournalPage-1sB_3YnK.js",
+      "gzip_kb": 0.37,
+      "dynamic_import": true,
+      "separate_from_entry": true,
+      "within_60_kb": true
+    },
+    {
+      "source": "src/pages/SettingsPage.tsx",
+      "file": "assets/SettingsPage-_NzrjjLw.js",
+      "gzip_kb": 0.27,
+      "dynamic_import": true,
+      "separate_from_entry": true,
+      "within_60_kb": true
+    },
+    {
+      "source": "src/pages/NotFoundPage.tsx",
+      "file": "assets/NotFoundPage-OPDVv7XG.js",
+      "gzip_kb": 0.43,
+      "dynamic_import": true,
+      "separate_from_entry": true,
+      "within_60_kb": true
+    }
+  ],
+  "route_chunks_within_budget": true,
+  "shared_chunks": [
+    {
+      "source": "_Dialog-DLyR7gxs.js",
+      "file": "assets/Dialog-DLyR7gxs.js",
+      "gzip_kb": 0.62
+    },
+    {
+      "source": "_EmptyState-CMJTtTR2.js",
+      "file": "assets/EmptyState-CMJTtTR2.js",
+      "gzip_kb": 0.27
+    },
+    {
+      "source": "_Placeholder-B5ei5LHC.js",
+      "file": "assets/Placeholder-B5ei5LHC.js",
+      "gzip_kb": 0.28
+    },
+    {
+      "source": "_format-BLyv4ujd.js",
+      "file": "assets/format-BLyv4ujd.js",
+      "gzip_kb": 0.54
+    },
+    {
+      "source": "_format-DXnqvYxE.js",
+      "file": "assets/format-DXnqvYxE.js",
+      "gzip_kb": 0.36
+    },
+    {
+      "source": "_idempotency-DsOa48WJ.js",
+      "file": "assets/idempotency-DsOa48WJ.js",
+      "gzip_kb": 0.39
+    },
+    {
+      "source": "_index-BSmZ1crl.js",
+      "file": "assets/index-BSmZ1crl.js",
+      "gzip_kb": 36.92
+    },
+    {
+      "source": "_pages.module-BeuPwnQ0.js",
+      "file": "assets/pages.module-BeuPwnQ0.js",
+      "gzip_kb": 0.18
+    },
+    {
+      "source": "_useInfiniteQuery-1tywZ5IW.js",
+      "file": "assets/useInfiniteQuery-1tywZ5IW.js",
+      "gzip_kb": 0.47
+    }
+  ],
+  "passed": true
+}
