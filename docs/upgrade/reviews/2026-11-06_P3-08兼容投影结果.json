@@ -1,0 +1,42 @@
+{
+  "ticket": "P3-08",
+  "measured_at": "2026-11-06T12:00:00+08:00",
+  "environment": {
+    "platform": "Windows-11-10.0.26200-SP0",
+    "python": "3.13.3"
+  },
+  "unit": {
+    "file": "tests/backend/test_legacy_projection.py",
+    "tests": 11,
+    "failures": 0,
+    "command": ".venv/Scripts/python.exe -m pytest tests/backend/test_legacy_projection.py -q"
+  },
+  "e2e": {
+    "script": "e2e/legacy_projection_e2e.py",
+    "checks": 12,
+    "failures": 0,
+    "r08": true,
+    "command": "C:/Users/zhzsh/AppData/Local/Programs/Python/Python313/python.exe e2e/legacy_projection_e2e.py",
+    "note": "Streamlit AppTest under a temporary HOME; old web/history.py lists and opens the projected file."
+  },
+  "projection": {
+    "switch": "TA_LEGACY_PROJECTION",
+    "default": "on",
+    "disabled_value": "0",
+    "path": "<HOME>/.tradingagents/logs/<ticker>/TradingAgentsStrategy_logs/full_states_log_<YYYY-MM-DD>.json",
+    "path_depth_check": "000629/TradingAgentsStrategy_logs/full_states_log_2026-10-24.json",
+    "latest_rule": "generated_at DESC, null last, then created_at DESC, report_id ASC",
+    "write": "backup .bak, same-directory temp file, os.replace",
+    "failure": "logged only; report row and job status stay succeeded; no UI warning (D6)",
+    "lossy_mapping": [
+      "sec-debate parts map to bull_history/bear_history/history/current_response/judge_decision",
+      "sec-risk parts map to aggressive_history/conservative_history/neutral_history/history/judge_decision",
+      "parts_ref judge resolves to the referenced section body (sec-decision in the golden sample)",
+      "unknown parts and section body text are concatenated into the rendered judge tab because the old UI does not render the history fields",
+      "sec-plan legacy_aliases stay in trader_investment_plan when present; an empty plan falls back to the decision body so the old prose tab is not blank",
+      "**Rating** and **Signal** are prepended to the first decision text the old reader scans so the badge and decision card match the DTO"
+    ]
+  },
+  "migration_head": "0007",
+  "bundle_js_gzip_kb": 202.45
+}
