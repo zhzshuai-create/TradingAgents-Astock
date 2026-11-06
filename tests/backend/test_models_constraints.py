@@ -174,6 +174,7 @@ def test_db08_downgrade_to_0001_removes_later_tables(jobs_db_path):
         "worker_lease",
         "reports",
         "legacy_imports",
+        "report_exports",
     }
 
     command.downgrade(cfg, "0001")

@@ -69,7 +69,7 @@ def ordered_sections(payload: Mapping[str, Any]) -> list[dict[str, Any]]:
     ]
 
 
-def _ordered_part_keys(section_id: str, parts: Mapping[str, Any]) -> list[str]:
+def ordered_part_keys(section_id: str, parts: Mapping[str, Any]) -> list[str]:
     preferred = PART_ORDER.get(section_id, ())
     keys = [key for key in preferred if _text(parts.get(key))]
     keys.extend(
@@ -78,7 +78,7 @@ def _ordered_part_keys(section_id: str, parts: Mapping[str, Any]) -> list[str]:
     return keys
 
 
-def _part_label(section_id: str, key: str) -> str:
+def part_label(section_id: str, key: str) -> str:
     return PART_LABELS.get(section_id, {}).get(key, key)
 
 
@@ -95,9 +95,9 @@ def render_markdown(payload: Mapping[str, Any]) -> str:
 
         parts = section.get("parts")
         if isinstance(parts, Mapping):
-            for key in _ordered_part_keys(section_id, parts):
+            for key in ordered_part_keys(section_id, parts):
                 lines.extend(
-                    ("", f"**{_part_label(section_id, key)}**", "", _text(parts[key]))
+                    ("", f"**{part_label(section_id, key)}**", "", _text(parts[key]))
                 )
 
         refs = section.get("parts_ref")
@@ -108,7 +108,7 @@ def render_markdown(payload: Mapping[str, Any]) -> str:
                 lines.extend(
                     (
                         "",
-                        f"**{_part_label(section_id, key)}**",
+                        f"**{part_label(section_id, key)}**",
                         "",
                         f"见「{target}」（内容相同）。",
                     )

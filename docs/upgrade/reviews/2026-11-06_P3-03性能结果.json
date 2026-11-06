@@ -1,0 +1,33 @@
+{
+  "ticket": "P3-03",
+  "measured_at": "2026-11-06T10:30:20+08:00",
+  "environment": {
+    "platform": "Windows-11-10.0.26200-SP0",
+    "python": "3.13.3",
+    "sqlite": "3.49.1",
+    "fpdf2": "2.8.9",
+    "font": "C:/Windows/Fonts/msyh.ttc"
+  },
+  "dataset": {
+    "sample": "tests/fixtures/upgrade/long_report.json",
+    "sec_market_chars": 59399,
+    "pdf_bytes": 101400
+  },
+  "samples": {
+    "warmups": 3,
+    "measured": 30
+  },
+  "first_render": {
+    "median_ms": 1983.45,
+    "p95_ms": 2073.99,
+    "hard_line_ms": 15000
+  },
+  "cache_hit": {
+    "pdf_bytes": 65709,
+    "post_median_ms": 2.63,
+    "file_median_ms": 3.17,
+    "hard_line_ms": 500
+  },
+  "conclusion": "pass",
+  "command": ".venv/Scripts/python.exe -m pytest tests/backend/test_exports.py -q"
+}

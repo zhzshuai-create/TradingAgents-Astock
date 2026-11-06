@@ -7,10 +7,12 @@ default data directory as a side effect.
 from __future__ import annotations
 
 import uuid
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 
 from backend.app.api.errors import install_error_handlers
+from backend.app.api.v1.exports import router as exports_router
 from backend.app.api.v1.jobs import router as jobs_router
 from backend.app.api.v1.market import router as market_router
 from backend.app.api.v1.meta import router as meta_router
@@ -19,6 +21,7 @@ from backend.app.core.db import build_engine
 from backend.app.core.journal_probe import JournalProbe
 from backend.app.core.server_config import ServerConfig, load_server_config
 from backend.app.services.event_stream import EventStream
+from backend.app.services.export_service import ExportService
 from backend.app.services.job_service import JobService
 from backend.app.services.report_query import ReportQuery
 from backend.app.services.report_store import ReportStore
@@ -33,11 +36,18 @@ def create_app(
     event_stream: EventStream | None = None,
     ticker_directory: TickerDirectory | None = None,
     journal_probe: JournalProbe | None = None,
+    export_service: ExportService | None = None,
 ) -> FastAPI:
     config = server_config or load_server_config()
     job_service = service or JobService(build_engine(), config)
+    exports = export_service or ExportService(job_service.engine)
 
-    app = FastAPI(title="AStock Pro API", version="0.9.0")
+    @asynccontextmanager
+    async def _lifespan(_app: FastAPI):
+        yield
+        exports.shutdown()
+
+    app = FastAPI(title="AStock Pro API", version="0.9.0", lifespan=_lifespan)
     app.state.server_config = config
     app.state.job_service = job_service
     app.state.report_query = ReportQuery(job_service.engine)
@@ -45,6 +55,9 @@ def create_app(
     app.state.event_stream = event_stream or EventStream(job_service)
     app.state.ticker_directory = ticker_directory or TickerDirectory()
     app.state.journal_probe = journal_probe or JournalProbe()
+    app.state.export_service = exports
+    # A worker from the previous process cannot finish its queued/rendering rows.
+    exports.sweep_stale()
     install_error_handlers(app)
 
     @app.middleware("http")
@@ -61,4 +74,5 @@ def create_app(
     app.include_router(market_router)
     app.include_router(meta_router)
     app.include_router(reports_router)
+    app.include_router(exports_router)
     return app

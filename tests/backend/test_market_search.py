@@ -53,12 +53,23 @@ class _StubService:
         raise AssertionError(f"search must not touch the job service: {name}")
 
 
+class _StubExports:
+    """P3-03 apps sweep export rows at startup; this search-only app has no DB."""
+
+    def sweep_stale(self) -> int:
+        return 0
+
+    def shutdown(self) -> None:
+        return None
+
+
 def _client(tmp_path: Path, source=None) -> TestClient:
     directory = TickerDirectory(source, clock=lambda: NOW)
     app = create_app(
         service=_StubService(),
         report_store=ReportStore(tmp_path / "reports"),
         ticker_directory=directory,
+        export_service=_StubExports(),
     )
     return TestClient(app)
 
