@@ -2,9 +2,11 @@
  * The only markdown renderer in the reader. Raw HTML is dropped (skipHtml) and
  * react-markdown's default URL transform removes javascript:/data: targets, so
  * stored text cannot execute. External links open in a new tab with rel set;
- * wide tables scroll inside their own container instead of the page.
+ * wide tables scroll inside their own container instead of the page. Below the
+ * mobile breakpoint tables are rendered as stacked cards, not tables (M06).
  */
 
+import type { Element, ElementContent } from "hast";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -14,7 +16,75 @@ function isExternal(href: string | undefined): boolean {
   return typeof href === "string" && /^https?:\/\//i.test(href);
 }
 
-const components: Components = {
+function textOf(node: ElementContent): string {
+  if (node.type === "text") {
+    return node.value;
+  }
+  if (node.type === "element") {
+    return node.children.map(textOf).join("");
+  }
+  return "";
+}
+
+function tableRows(element: Element): string[][] {
+  return element.children
+    .filter(
+      (child): child is Element =>
+        child.type === "element" && child.tagName === "tr",
+    )
+    .map((row) =>
+      row.children
+        .filter(
+          (cell): cell is Element =>
+            cell.type === "element" &&
+            (cell.tagName === "td" || cell.tagName === "th"),
+        )
+        .map((cell) => textOf(cell).trim()),
+    );
+}
+
+function tableData(node: Element | undefined): {
+  header: string[];
+  rows: string[][];
+} {
+  const header: string[] = [];
+  const rows: string[][] = [];
+  for (const child of node?.children ?? []) {
+    if (child.type !== "element") {
+      continue;
+    }
+    if (child.tagName === "thead") {
+      header.push(...(tableRows(child)[0] ?? []));
+    } else if (child.tagName === "tbody") {
+      rows.push(...tableRows(child));
+    }
+  }
+  return { header, rows };
+}
+
+/** Mobile summary card per table row; header cells become the labels. */
+function MobileTable({ node }: { node: Element | undefined }) {
+  const { header, rows } = tableData(node);
+  if (rows.length === 0) {
+    return null;
+  }
+  return (
+    <div className={styles.tableView} data-testid="markdown-table-cards">
+      {rows.map((cells, rowIndex) => (
+        <dl className={styles.tableCard} key={rowIndex}>
+          {cells.map((value, cellIndex) => (
+            <div className={styles.tableCardRow} key={cellIndex}>
+              <dt>{header[cellIndex] ?? `列 ${cellIndex + 1}`}</dt>
+              <dd>{value}</dd>
+            </div>
+          ))}
+        </dl>
+      ))}
+    </div>
+  );
+}
+
+const linkAndImage: Components = {
   a({ href, children, node: _node, ...rest }) {
     if (isExternal(href)) {
       return (
@@ -37,19 +107,41 @@ const components: Components = {
     }
     return <img {...rest} src={src} alt={alt ?? ""} />;
   },
-  table({ children, node: _node, ...rest }) {
-    return (
-      <div className={styles.tableWrap}>
-        <table {...rest}>{children}</table>
-      </div>
-    );
-  },
 };
 
-export function ReportMarkdown({ children }: { children: string }) {
+function buildComponents(mobile: boolean): Components {
+  return {
+    ...linkAndImage,
+    table({ children, node, ...rest }) {
+      if (mobile) {
+        return <MobileTable node={node} />;
+      }
+      return (
+        <div className={styles.tableWrap}>
+          <table {...rest}>{children}</table>
+        </div>
+      );
+    },
+  };
+}
+
+const DESKTOP_COMPONENTS = buildComponents(false);
+const MOBILE_COMPONENTS = buildComponents(true);
+
+export function ReportMarkdown({
+  children,
+  mobile = false,
+}: {
+  children: string;
+  mobile?: boolean;
+}) {
   return (
     <div className={styles.prose}>
-      <ReactMarkdown skipHtml remarkPlugins={[remarkGfm]} components={components}>
+      <ReactMarkdown
+        skipHtml
+        remarkPlugins={[remarkGfm]}
+        components={mobile ? MOBILE_COMPONENTS : DESKTOP_COMPONENTS}
+      >
         {children}
       </ReactMarkdown>
     </div>

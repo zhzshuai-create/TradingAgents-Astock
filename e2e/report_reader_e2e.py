@@ -30,6 +30,7 @@ ROOT = Path(__file__).resolve().parent.parent
 FRONTEND = ROOT / "frontend"
 FIXTURES = ROOT / "tests" / "fixtures" / "upgrade"
 SHOTS = ROOT / "ui_shots_p3" / "P3-05"
+SHOTS_MOBILE = ROOT / "ui_shots_p3" / "P3-06"
 
 CONTRACT_ORDER = [
     "sec-decision",
@@ -907,10 +908,203 @@ def unsafe_flow(browser: Browser, base: str) -> None:
     context.close()
 
 
+def control_boxes(page: Page) -> dict[str, dict | None]:
+    header = page.get_by_test_id("reader-header")
+    bar = page.get_by_test_id("reader-action-bar")
+    return {
+        "返回": header.get_by_role("button", name="返回").bounding_box(),
+        "目录": page.get_by_test_id("reader-toc-trigger").bounding_box(),
+        "展开": page.get_by_test_id("decision-toggle").bounding_box(),
+        "导出": bar.get_by_role("button", name="导出").bounding_box(),
+        "重新分析": bar.get_by_role("button", name="重新分析").bounding_box(),
+    }
+
+
+def mobile_reader_flow(
+    browser: Browser, base: str, width: int, height: int
+) -> None:
+    """P3-06 / RDR-09 to RDR-12: reader at a phone viewport."""
+    label = f"{width}x{height}"
+    stub = ApiStub(build_details())
+    context = browser.new_context(
+        viewport={"width": width, "height": height},
+        device_scale_factor=2,
+        is_mobile=True,
+        has_touch=True,
+    )
+    stub.install(context)
+    page = context.new_page()
+    errors = watch_errors(page)
+
+    page.goto(f"{base}/reports/r-long")
+    wait_reader(page)
+
+    # RDR-12 / M06: the mobile branch renders no <table> at all; the GFM
+    # table in sec-decision becomes stacked summary cards.
+    check(
+        page.locator('[data-testid="page-report-detail"] table').count() == 0,
+        f"{label} renders no table",
+    )
+    cards = page.get_by_test_id("markdown-table-cards")
+    check(cards.count() >= 1, f"{label} renders tables as summary cards")
+    check(
+        cards.count() >= 1 and "样本行" in cards.first.inner_text(),
+        f"{label} summary cards keep the row content",
+    )
+    check(
+        page.evaluate(
+            "document.documentElement.scrollWidth"
+            " <= document.documentElement.clientWidth"
+        ),
+        f"{label} has no page-level horizontal scroll",
+    )
+
+    # Decision card sits above the article and starts on one row.
+    card = page.get_by_test_id("decision-card")
+    card_box = card.bounding_box()
+    article_box = page.get_by_test_id("report-article").bounding_box()
+    check(
+        card_box is not None
+        and article_box is not None
+        and card_box["y"] + card_box["height"] <= article_box["y"] + 1,
+        f"{label} decision card is above the article ({card_box}, {article_box})",
+    )
+    check(card.locator("dd").count() == 1, f"{label} decision card starts collapsed")
+    page.get_by_test_id("decision-toggle").click()
+    check(
+        card.locator("dd").count() == 5,
+        f"{label} expanding the decision card shows all five rows",
+    )
+    check(
+        "Buy" in card.inner_text() and "3-6" in card.inner_text(),
+        f"{label} expanded card shows the DTO values",
+    )
+    page.get_by_test_id("decision-toggle").click()
+    check(
+        card.locator("dd").count() == 1,
+        f"{label} collapsing hides the extra rows again",
+    )
+    scroll_content_to_top(page)
+    page.screenshot(path=str(SHOTS_MOBILE / f"reader_{width}_top.png"))
+
+    # RDR-09 / M04: the TOC is a drawer, not a column; jumping closes it and
+    # keeps the hash and the highlight.
+    trigger = page.get_by_test_id("reader-toc-trigger")
+    check(trigger.is_visible(), f"{label} shows the 目录 trigger")
+    check(
+        page.locator('[data-testid="report-toc"]').count() == 0,
+        f"{label} keeps no TOC column beside the article",
+    )
+    trigger.click()
+    dialog = page.get_by_role("dialog", name="目录")
+    dialog.wait_for(state="visible")
+    page.wait_for_timeout(350)
+    links = dialog.get_by_test_id("toc-link")
+    check(links.count() == 13, f"{label} drawer lists all 13 chapters")
+    heights = links.evaluate_all(
+        "els => els.map(el => el.getBoundingClientRect().height)"
+    )
+    check(
+        min(heights) >= 44,
+        f"{label} drawer TOC rows are at least 44px ({min(heights)})",
+    )
+    page.screenshot(path=str(SHOTS_MOBILE / f"reader_{width}_toc.png"))
+    dialog.get_by_role("button", name="关闭抽屉").click()
+    dialog.wait_for(state="detached")
+    check(
+        page.get_by_role("dialog", name="目录").count() == 0,
+        f"{label} close button dismisses the drawer",
+    )
+
+    trigger.click()
+    dialog = page.get_by_role("dialog", name="目录")
+    dialog.wait_for(state="visible")
+    page.wait_for_timeout(350)
+    dialog.locator(
+        '[data-testid="toc-link"][data-section-id="sec-debate"]'
+    ).click()
+    dialog.wait_for(state="detached")
+    wait_until(
+        page,
+        lambda: page.evaluate("location.hash") == "#sec-debate",
+        f"{label} jumping from the drawer sets the hash",
+    )
+    gap = section_gap(page, "sec-debate")
+    check(
+        0 <= gap <= 48,
+        f"{label} the jumped chapter lands at the top (gap={gap})",
+    )
+    trigger.click()
+    page.get_by_role("dialog", name="目录").wait_for(state="visible")
+    page.wait_for_timeout(350)
+    check(
+        active_toc_id(page) == "sec-debate",
+        f"{label} the jumped chapter stays highlighted",
+    )
+    page.get_by_role("dialog", name="目录").get_by_role(
+        "button", name="关闭抽屉"
+    ).click()
+    page.get_by_role("dialog", name="目录").wait_for(state="detached")
+
+    # RDR-10 / M02: the action bar sits above the bottom navigation and its
+    # buttons are fully visible.
+    bar_box = page.get_by_test_id("reader-action-bar").bounding_box()
+    nav_box = page.get_by_test_id("mobile-nav").bounding_box()
+    check(
+        bar_box is not None
+        and nav_box is not None
+        and bar_box["y"] + bar_box["height"] <= nav_box["y"] + 1,
+        f"{label} action bar sits above the bottom nav ({bar_box}, {nav_box})",
+    )
+    check(
+        bar_box is not None
+        and bar_box["y"] >= 0
+        and bar_box["y"] + bar_box["height"] <= height + 0.5,
+        f"{label} action bar is inside the viewport ({bar_box})",
+    )
+
+    # RDR-11 / M03: every header, drawer and action control is 44px tall.
+    boxes = control_boxes(page)
+    small = {name: box for name, box in boxes.items() if box is None or box["height"] < 44}
+    check(
+        not small,
+        f"{label} all primary touch targets are at least 44px ({small})",
+    )
+    for name in ("导出", "重新分析"):
+        box = boxes[name]
+        check(
+            box is not None and box["y"] + box["height"] <= nav_box["y"] + 1,
+            f"{label} {name} is fully visible above the nav ({box})",
+        )
+
+    # P3-06 is visible-only: pressing the actions must not call the API.
+    page.get_by_test_id("reader-action-bar").get_by_role(
+        "button", name="导出"
+    ).click()
+    page.get_by_test_id("reader-action-bar").get_by_role(
+        "button", name="重新分析"
+    ).click()
+    page.wait_for_timeout(250)
+    check(stub.writes == [], f"{label} action buttons never write ({stub.writes})")
+    check(
+        stub.detail_paths == ["/api/v1/reports/r-long"],
+        f"{label} mobile reader keeps one detail GET ({stub.detail_paths})",
+    )
+    check(
+        stub.unexpected == [],
+        f"{label} mobile reader only calls the reports API ({stub.unexpected})",
+    )
+    page.screenshot(path=str(SHOTS_MOBILE / f"reader_{width}_action.png"))
+    scroll_content_to_top(page)
+    check(not errors, f"{label} console/page errors: {errors}")
+    context.close()
+
+
 def main() -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     SHOTS.mkdir(parents=True, exist_ok=True)
+    SHOTS_MOBILE.mkdir(parents=True, exist_ok=True)
     print("building frontend...")
     build()
     with Server() as base:
@@ -921,13 +1115,19 @@ def main() -> int:
             deep_link_flow(browser, base)
             missing_fields_flow(browser, base)
             unsafe_flow(browser, base)
+            mobile_reader_flow(browser, base, 390, 844)
+            mobile_reader_flow(browser, base, 360, 800)
             browser.close()
 
     result = {
-        "ticket": "P3-05 + A11 + A12 + T9 + T11 + T12 + T13",
+        "ticket": "P3-05 + P3-06 + A11 + A12 + M02 + M03 + M04 + M06 + M07"
+        " + T9 + T11 + T12 + T13",
         "checks": checks,
         "failures": failures,
-        "screenshots": str(SHOTS.relative_to(ROOT)),
+        "screenshots": [
+            str(SHOTS.relative_to(ROOT)),
+            str(SHOTS_MOBILE.relative_to(ROOT)),
+        ],
     }
     print(json.dumps(result, ensure_ascii=True))
     return 1 if failures else 0

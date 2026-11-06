@@ -6,16 +6,23 @@ export interface ReportTocProps {
   sections: ReportSection[];
   activeId: string | null;
   onJump: (sectionId: string) => void;
+  /** The mobile drawer already titles itself, so it hides this heading. */
+  showHeading?: boolean;
 }
 
-/** Desktop table of contents: contract order, present sections only. */
-export function ReportToc({ sections, activeId, onJump }: ReportTocProps) {
+/** Table of contents: contract order, present sections only. */
+export function ReportToc({
+  sections,
+  activeId,
+  onJump,
+  showHeading = true,
+}: ReportTocProps) {
   if (sections.length === 0) {
     return null;
   }
   return (
     <nav className={styles.toc} aria-label="章节目录" data-testid="report-toc">
-      <p className={styles.heading}>目录</p>
+      {showHeading ? <p className={styles.heading}>目录</p> : null}
       <ol className={styles.list}>
         {sections.map((section) => {
           const active = section.id === activeId;

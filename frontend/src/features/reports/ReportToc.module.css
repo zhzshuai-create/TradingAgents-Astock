@@ -76,3 +76,10 @@
     max-height: none;
   }
 }
+
+@media (max-width: 767px) {
+  .link {
+    align-items: center;
+    min-height: 44px;
+  }
+}

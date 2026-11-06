@@ -1,5 +1,7 @@
+import { useState } from "react";
+
 import type { ReportMeta } from "../../api/types";
-import { Badge } from "../../ui";
+import { Badge, Button } from "../../ui";
 import { REPORT_RATING_META } from "./format";
 import styles from "./DecisionCard.module.css";
 
@@ -19,7 +21,16 @@ function signalText(signal: ReportMeta["signal"]): string {
   return signal === "unknown" ? EMPTY_VALUE : display(signal);
 }
 
-export function DecisionCard({ meta }: { meta: ReportMeta }) {
+export function DecisionCard({
+  meta,
+  collapsible = false,
+}: {
+  meta: ReportMeta;
+  /** Mobile layout keeps one row until expanded (P3-06). */
+  collapsible?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const expanded = !collapsible || open;
   const rating = REPORT_RATING_META[meta.rating];
   return (
     <section className={styles.card} aria-label="决策卡" data-testid="decision-card">
@@ -31,25 +42,43 @@ export function DecisionCard({ meta }: { meta: ReportMeta }) {
             <Badge tone={rating.tone}>{rating.label}</Badge>
           </dd>
         </div>
-        <div className={styles.row}>
-          <dt>信号</dt>
-          <dd data-testid="decision-signal">{signalText(meta.signal)}</dd>
-        </div>
-        <div className={styles.row}>
-          <dt>目标价</dt>
-          <dd data-testid="decision-price-target">
-            {display(meta.price_target)}
-          </dd>
-        </div>
-        <div className={styles.row}>
-          <dt>止损参考</dt>
-          <dd data-testid="decision-stop">{display(meta.stop_reference)}</dd>
-        </div>
-        <div className={styles.row}>
-          <dt>时间跨度</dt>
-          <dd data-testid="decision-horizon">{display(meta.time_horizon)}</dd>
-        </div>
+        {expanded ? (
+          <>
+            <div className={styles.row}>
+              <dt>信号</dt>
+              <dd data-testid="decision-signal">{signalText(meta.signal)}</dd>
+            </div>
+            <div className={styles.row}>
+              <dt>目标价</dt>
+              <dd data-testid="decision-price-target">
+                {display(meta.price_target)}
+              </dd>
+            </div>
+            <div className={styles.row}>
+              <dt>止损参考</dt>
+              <dd data-testid="decision-stop">{display(meta.stop_reference)}</dd>
+            </div>
+            <div className={styles.row}>
+              <dt>时间跨度</dt>
+              <dd data-testid="decision-horizon">
+                {display(meta.time_horizon)}
+              </dd>
+            </div>
+          </>
+        ) : null}
       </dl>
+      {collapsible ? (
+        <Button
+          variant="ghost"
+          size="sm"
+          className={styles.toggle}
+          aria-expanded={open}
+          data-testid="decision-toggle"
+          onClick={() => setOpen((value) => !value)}
+        >
+          {open ? "收起" : "展开"}
+        </Button>
+      ) : null}
     </section>
   );
 }

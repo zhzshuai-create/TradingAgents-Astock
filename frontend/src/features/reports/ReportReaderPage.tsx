@@ -5,7 +5,7 @@ import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { ApiError, displayErrorMessage } from "../../api/errors";
 import type { ReportSection } from "../../api/types";
 import { reportDetailQuery } from "../../lib/query";
-import { Badge, Button, EmptyState, Skeleton } from "../../ui";
+import { Badge, Button, Drawer, EmptyState, Skeleton } from "../../ui";
 import { DecisionCard } from "./DecisionCard";
 import { REPORT_RATING_META } from "./format";
 import { ReportMarkdown } from "./ReportMarkdown";
@@ -18,6 +18,30 @@ import {
 } from "./sections";
 import styles from "./ReportReaderPage.module.css";
 
+const MOBILE_QUERY = "(max-width: 767px)";
+
+/** Matches the shell breakpoint; mobile swaps the TOC column for a drawer. */
+function useMobileViewport(): boolean {
+  const read = () =>
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia(MOBILE_QUERY).matches;
+  const [mobile, setMobile] = useState(read);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+      return undefined;
+    }
+    const query = window.matchMedia(MOBILE_QUERY);
+    const update = () => setMobile(query.matches);
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
+
+  return mobile;
+}
+
 export function ReportReaderPage() {
   const { reportId = "" } = useParams();
   const navigate = useNavigate();
@@ -29,7 +53,9 @@ export function ReportReaderPage() {
     [detail],
   );
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [tocOpen, setTocOpen] = useState(false);
   const hashHandled = useRef(false);
+  const mobile = useMobileViewport();
 
   const jumpTo = useCallback(
     (sectionId: string) => {
@@ -46,6 +72,24 @@ export function ReportReaderPage() {
     },
     [navigate],
   );
+
+  // Jumping from the mobile drawer closes it before the scroll, so the hash
+  // and highlight land on the visible page (M04). The drawer locks
+  // #main-content with overflow:hidden, so the scroll waits one commit.
+  const pendingJump = useRef<string | null>(null);
+  const jumpFromToc = useCallback((sectionId: string) => {
+    pendingJump.current = sectionId;
+    setTocOpen(false);
+  }, []);
+
+  useEffect(() => {
+    if (tocOpen || pendingJump.current === null) {
+      return;
+    }
+    const sectionId = pendingJump.current;
+    pendingJump.current = null;
+    jumpTo(sectionId);
+  }, [jumpTo, tocOpen]);
 
   // A deep link (#sec-debate) scrolls after the body exists; a missing or
   // empty section leaves the reader at the top without an error (D5).
@@ -161,6 +205,18 @@ export function ReportReaderPage() {
             <Button variant="ghost" size="sm" onClick={goBack}>
               返回
             </Button>
+            {mobile && sections.length > 0 ? (
+              <Button
+                variant="secondary"
+                size="sm"
+                data-testid="reader-toc-trigger"
+                aria-haspopup="dialog"
+                aria-expanded={tocOpen}
+                onClick={() => setTocOpen(true)}
+              >
+                目录
+              </Button>
+            ) : null}
             <div className={styles.identity}>
               <h1 className={styles.title}>
                 {meta.ticker_name ?? meta.ticker_code}
@@ -178,14 +234,20 @@ export function ReportReaderPage() {
             ) : null}
           </header>
 
+          {mobile ? (
+            <DecisionCard key={meta.report_id} meta={meta} collapsible />
+          ) : null}
+
           <div className={styles.layout}>
-            <aside className={styles.tocColumn}>
-              <ReportToc
-                sections={sections}
-                activeId={activeId}
-                onJump={jumpTo}
-              />
-            </aside>
+            {mobile ? null : (
+              <aside className={styles.tocColumn}>
+                <ReportToc
+                  sections={sections}
+                  activeId={activeId}
+                  onJump={jumpTo}
+                />
+              </aside>
+            )}
 
             <article className={styles.article} data-testid="report-article">
               {sections.map((section) => (
@@ -193,15 +255,42 @@ export function ReportReaderPage() {
                   key={section.id}
                   section={section}
                   allSections={detail?.sections ?? {}}
+                  mobile={mobile}
                 />
               ))}
             </article>
 
-            <aside className={styles.side}>
-              <DecisionCard meta={meta} />
+            {mobile ? (
               <ReportMeta meta={meta} />
-            </aside>
+            ) : (
+              <aside className={styles.side}>
+                <DecisionCard meta={meta} />
+                <ReportMeta meta={meta} />
+              </aside>
+            )}
           </div>
+
+          {mobile ? (
+            <>
+              <div className={styles.actionBar} data-testid="reader-action-bar">
+                <Button>导出</Button>
+                <Button variant="primary">重新分析</Button>
+              </div>
+              <Drawer
+                open={tocOpen}
+                title="目录"
+                side="bottom"
+                onClose={() => setTocOpen(false)}
+              >
+                <ReportToc
+                  sections={sections}
+                  activeId={activeId}
+                  onJump={jumpFromToc}
+                  showHeading={false}
+                />
+              </Drawer>
+            </>
+          ) : null}
         </>
       )}
     </section>
@@ -211,9 +300,11 @@ export function ReportReaderPage() {
 function ReportSectionView({
   section,
   allSections,
+  mobile,
 }: {
   section: ReportSection;
   allSections: Record<string, ReportSection>;
+  mobile: boolean;
 }) {
   const parts = section.parts ?? {};
   const partKeys = orderedPartKeys(section.id, parts);
@@ -228,12 +319,12 @@ function ReportSectionView({
     >
       <h2 className={styles.sectionTitle}>{section.title}</h2>
       {section.body.trim() === "" ? null : (
-        <ReportMarkdown>{section.body}</ReportMarkdown>
+        <ReportMarkdown mobile={mobile}>{section.body}</ReportMarkdown>
       )}
       {partKeys.map((key) => (
         <section className={styles.part} key={key}>
           <h3 className={styles.partTitle}>{partLabel(section.id, key)}</h3>
-          <ReportMarkdown>{parts[key]}</ReportMarkdown>
+          <ReportMarkdown mobile={mobile}>{parts[key]}</ReportMarkdown>
         </section>
       ))}
       {refKeys.map((key) => {

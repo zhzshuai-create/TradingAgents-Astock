@@ -94,6 +94,46 @@
   overflow-x: auto;
 }
 
+.tableView {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: var(--space-4) 0;
+}
+
+.tableCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-surface);
+}
+
+.tableCardRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.tableCardRow dt {
+  flex: none;
+  max-width: 45%;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.tableCardRow dd {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  text-align: end;
+  overflow-wrap: anywhere;
+}
+
 .prose table {
   width: 100%;
   border-collapse: collapse;

@@ -433,6 +433,113 @@ describe("RDR-08 read-only opening", () => {
   });
 });
 
+/** jsdom has no real media queries; the reader reads matchMedia once on mount. */
+function stubViewport(mobile: boolean): () => void {
+  const original = Object.getOwnPropertyDescriptor(window, "matchMedia");
+  const list = {
+    matches: mobile,
+    media: "(max-width: 767px)",
+    onchange: null,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    addListener: () => {},
+    removeListener: () => {},
+    dispatchEvent: () => false,
+  };
+  Object.defineProperty(window, "matchMedia", {
+    configurable: true,
+    writable: true,
+    value: () => list,
+  });
+  return () => {
+    if (original === undefined) {
+      delete (window as unknown as Record<string, unknown>).matchMedia;
+    } else {
+      Object.defineProperty(window, "matchMedia", original);
+    }
+  };
+}
+
+describe("RDR-09 mobile table of contents drawer", () => {
+  let restore: () => void;
+
+  beforeEach(() => {
+    restore = stubViewport(true);
+  });
+
+  afterEach(() => {
+    restore();
+  });
+
+  it("opens from the header, lists chapters, and closes after a jump", async () => {
+    serve(detail());
+    const router = renderPage("/reports/r-1");
+    await screen.findByTestId("report-article");
+
+    expect(screen.queryByTestId("report-toc")).toBeNull();
+    fireEvent.click(screen.getByTestId("reader-toc-trigger"));
+
+    const dialog = await screen.findByRole("dialog", { name: "目录" });
+    expect(within(dialog).getAllByTestId("toc-link")).toHaveLength(3);
+
+    fireEvent.click(within(dialog).getByText("风控评估"));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    await waitFor(() => expect(router.state.location.hash).toBe("#sec-risk"));
+    expect(scrollSpy).toHaveBeenCalledWith({ block: "start" });
+  });
+
+  it("keeps the decision card on one row until expanded", async () => {
+    serve(detail());
+    renderPage("/reports/r-1");
+
+    const card = await screen.findByTestId("decision-card");
+    expect(card.querySelectorAll("dd")).toHaveLength(1);
+    expect(screen.queryByTestId("decision-signal")).toBeNull();
+
+    fireEvent.click(screen.getByTestId("decision-toggle"));
+    expect(card.querySelectorAll("dd")).toHaveLength(5);
+    expect(screen.getByTestId("decision-signal")).toHaveTextContent("Buy");
+    expect(screen.getByTestId("decision-toggle")).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
+  });
+
+  it("renders markdown tables as summary cards, never a table", async () => {
+    serve(
+      detail({
+        sections: {
+          "sec-news": section(
+            "sec-news",
+            "新闻舆情",
+            "| 指标 | 值 |\n| --- | --- |\n| 样本行 | 1 |",
+          ),
+        },
+      }),
+    );
+    renderPage("/reports/r-1");
+
+    const article = await screen.findByTestId("report-article");
+    expect(article.querySelector("table")).toBeNull();
+    const cards = screen.getByTestId("markdown-table-cards");
+    expect(cards).toHaveTextContent("指标");
+    expect(cards).toHaveTextContent("样本行");
+    expect(cards).toHaveTextContent("1");
+  });
+
+  it("shows the bottom action bar and sends no request from its buttons", async () => {
+    serve(detail());
+    renderPage("/reports/r-1");
+
+    const bar = await screen.findByTestId("reader-action-bar");
+    fireEvent.click(within(bar).getByRole("button", { name: "导出" }));
+    fireEvent.click(within(bar).getByRole("button", { name: "重新分析" }));
+
+    await waitFor(() => expect(paths).toHaveLength(1));
+    expect(methods).toEqual(["GET"]);
+  });
+});
+
 describe("reader states", () => {
   it("shows the not-found state for report_not_found", async () => {
     serve(

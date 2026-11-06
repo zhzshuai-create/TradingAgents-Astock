@@ -42,3 +42,8 @@
   text-align: end;
   overflow-wrap: anywhere;
 }
+
+.toggle {
+  width: 100%;
+  margin-top: var(--space-3);
+}
