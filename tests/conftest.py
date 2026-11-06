@@ -32,6 +32,12 @@ def _dummy_api_keys(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _disable_legacy_projection(monkeypatch):
+    """P3-08 projection is opt-in per test so no test writes the real ~/.tradingagents."""
+    monkeypatch.setenv("TA_LEGACY_PROJECTION", "0")
+
+
+@pytest.fixture(autouse=True)
 def _isolate_llm_config(tmp_path, monkeypatch):
     """侧栏渲染会写模型配置；测试不得覆盖真实的 ~/.tradingagents/llm_config.json。"""
     from web.components import sidebar

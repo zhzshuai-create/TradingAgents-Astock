@@ -39,6 +39,7 @@ import base64
 import binascii
 import copy
 import hashlib
+import logging
 import uuid
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
@@ -64,6 +65,7 @@ from backend.app.services.config_snapshot import (
     normalize_config,
 )
 from backend.app.services.event_log import append_event
+from backend.app.services.legacy_projection import project_latest
 from backend.app.services.report_document import (
     finalize_report,
     report_ready_payload,
@@ -76,6 +78,7 @@ from backend.app.services.tickers import (
 )
 
 CST = timezone(timedelta(hours=8))
+logger = logging.getLogger(__name__)
 MAX_ATTEMPTS = 3
 REQUEST_KEYS = ("ticker", "analysis_date", "config")
 CONTROL_ACTIONS = ("pause", "resume", "cancel")
@@ -946,6 +949,8 @@ class JobService:
             if job is None:
                 return False
             from_status = job.status
+            ticker_code = job.ticker_code
+            analysis_date = job.analysis_date
             if from_status not in FINISHABLE_STATUSES:
                 return False
             result = session.execute(
@@ -1032,7 +1037,22 @@ class JobService:
                     created_at=now,
                 )
             session.commit()
-            return True
+        if report is not None:
+            self._project_legacy(ticker_code, analysis_date)
+        return True
+
+    def _project_legacy(self, ticker_code: str, analysis_date: str) -> None:
+        """Best-effort old-version projection; never changes the commit result."""
+        try:
+            project_latest(
+                self._engine,
+                ticker_code=ticker_code,
+                analysis_date=analysis_date,
+            )
+        except Exception:  # noqa: BLE001 - report stays succeeded
+            logger.exception(
+                "legacy projection hook failed for %s %s", ticker_code, analysis_date
+            )
 
     def finish_failure(
         self,
