@@ -23,6 +23,7 @@ const EXISTING_NOTICE_MS = 800;
 export interface LauncherDialogProps {
   open: boolean;
   initialTicker?: TickerSelection | null;
+  initialDate?: string | null;
   onClose: () => void;
   onCreated: (job: JobDetail, info: CreateJobInfo) => void;
 }
@@ -30,6 +31,7 @@ export interface LauncherDialogProps {
 export function LauncherDialog({
   open,
   initialTicker = null,
+  initialDate = null,
   onClose,
   onCreated,
 }: LauncherDialogProps) {
@@ -44,7 +46,8 @@ export function LauncherDialog({
   const metaData = meta.data;
   const effectiveTicker = ticker ?? initialTicker;
   const defaultDate = metaData?.default_analysis_date ?? "";
-  const effectiveDate = date ?? defaultDate;
+  const seededDate = initialDate === "" ? null : initialDate;
+  const effectiveDate = date ?? seededDate ?? defaultDate;
   const effectiveProfile = profile ?? metaData?.llm_profiles[0]?.id ?? "";
   const effectiveToggles = toggles ?? defaultStageToggles(metaData);
 

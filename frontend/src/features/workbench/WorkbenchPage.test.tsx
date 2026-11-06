@@ -122,7 +122,7 @@ function useApi(state: ApiState): void {
   );
 }
 
-function renderPage() {
+function renderPage(entry = "/workbench") {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0 } },
   });
@@ -132,7 +132,7 @@ function renderPage() {
       { path: "/jobs", element: <LocationProbe /> },
       { path: "/jobs/:jobId", element: <LocationProbe /> },
     ],
-    { initialEntries: ["/workbench"] },
+    { initialEntries: [entry] },
   );
   render(
     <QueryClientProvider client={client}>
@@ -272,6 +272,26 @@ describe("WEB-08 workbench home", () => {
     expect(within(row).getByText("等待人工处理")).toBeInTheDocument();
     expect(within(row).queryByText("进行中")).not.toBeInTheDocument();
     expect(within(row).queryByText("运行中")).not.toBeInTheDocument();
+  });
+
+  it("prefills the ticker and date from a legacy report link", async () => {
+    const state: ApiState = { active: [], recent: [], posts: 0, limits: [] };
+    useApi(state);
+    renderPage("/workbench?launch=1&ticker=000629&date=2026-10-20");
+
+    const date = (await screen.findByLabelText("分析日期")) as HTMLInputElement;
+    await waitFor(() => expect(date.value).toBe("2026-10-20"));
+    expect(screen.getByText("000629")).toBeInTheDocument();
+    expect(state.posts).toBe(0);
+  });
+
+  it("ignores a malformed date link and keeps the server default", async () => {
+    const state: ApiState = { active: [], recent: [], posts: 0, limits: [] };
+    useApi(state);
+    renderPage("/workbench?launch=1&ticker=000629&date=not-a-date");
+
+    const date = (await screen.findByLabelText("分析日期")) as HTMLInputElement;
+    await waitFor(() => expect(date.value).toBe("2026-11-05"));
   });
 
   it("opens the launcher from the hero search without creating a job", async () => {

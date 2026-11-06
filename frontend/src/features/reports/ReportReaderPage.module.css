@@ -48,6 +48,12 @@
   font-size: var(--font-size-sm);
 }
 
+.headerActions {
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+}
+
 .layout {
   display: grid;
   grid-template-columns: 200px minmax(0, 1fr) 296px;
@@ -148,14 +154,11 @@
   bottom: calc(56px + env(safe-area-inset-bottom));
   z-index: var(--z-sticky);
   display: flex;
-  gap: var(--space-3);
+  flex-direction: column;
+  gap: var(--space-2);
   padding: var(--space-2) var(--space-5);
   border-top: 1px solid var(--color-border-subtle);
   background: var(--color-bg-surface);
-}
-
-.actionBar > button {
-  flex: 1;
 }
 
 @media (max-width: 1023px) {
@@ -166,6 +169,7 @@
 
 @media (max-width: 767px) {
   .page {
-    padding-bottom: calc(64px + env(safe-area-inset-bottom));
+    /* Room for the action bar and its optional error line. */
+    padding-bottom: calc(120px + env(safe-area-inset-bottom));
   }
 }

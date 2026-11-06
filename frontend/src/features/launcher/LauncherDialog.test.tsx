@@ -145,6 +145,7 @@ function LocationProbe() {
 
 interface HarnessOptions {
   initialTicker?: TickerSelection | null;
+  initialDate?: string | null;
 }
 
 function renderLauncher(options: HarnessOptions = {}) {
@@ -163,6 +164,7 @@ function renderLauncher(options: HarnessOptions = {}) {
       <LauncherDialog
         open
         initialTicker={options.initialTicker ?? null}
+        initialDate={options.initialDate ?? null}
         onClose={() => setOpen(false)}
         onCreated={(job) => {
           created.push(job);
@@ -539,6 +541,17 @@ describe("WEB-09 launcher form", () => {
     expect(await screen.findByText("服务暂时不可用")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "重试" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "开始分析" })).toBeDisabled();
+  });
+
+  it("prefills the analysis date requested by the caller", async () => {
+    renderLauncher({
+      initialTicker: SELECTED,
+      initialDate: "2026-10-28",
+    });
+
+    const date = (await screen.findByLabelText("分析日期")) as HTMLInputElement;
+    await waitFor(() => expect(date.value).toBe("2026-10-28"));
+    expect(date.max).toBe("2026-11-05");
   });
 
   it("does not invent a price in the cost copy", async () => {

@@ -315,6 +315,26 @@ export interface ReportListFilters {
   cursor?: string;
 }
 
+/** api-v1.md 2.4-2.5: export job states. */
+export type ExportState = "queued" | "rendering" | "ready" | "failed";
+
+export interface ExportError {
+  code: string;
+  message: string;
+}
+
+/** api-v1.md 2.5 status object; `download_url` is null until ready. */
+export interface ExportStatus {
+  export_id: string;
+  report_id: string;
+  status: ExportState;
+  download_url: string | null;
+  error: ExportError | null;
+  created_at: string;
+  ready_at: string | null;
+  exporter_version: string;
+}
+
 export interface MetaProfile {
   id: string;
   label: string;

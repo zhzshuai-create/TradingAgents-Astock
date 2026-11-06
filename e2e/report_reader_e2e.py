@@ -31,6 +31,7 @@ FRONTEND = ROOT / "frontend"
 FIXTURES = ROOT / "tests" / "fixtures" / "upgrade"
 SHOTS = ROOT / "ui_shots_p3" / "P3-05"
 SHOTS_MOBILE = ROOT / "ui_shots_p3" / "P3-06"
+SHOTS_ACT = ROOT / "ui_shots_p3" / "P3-07"
 
 CONTRACT_ORDER = [
     "sec-decision",
@@ -227,13 +228,28 @@ class ApiStub:
         self.missing: list[str] = []
         self.writes: list[str] = []
         self.unexpected: list[str] = []
+        # P3-07: export and retry are user-triggered, expected writes.
+        self.export_posts: list[dict] = []
+        self.export_status_calls = 0
+        self.export_sequence: list[str] = []
+        self.export_failure = {
+            "code": "render_failed",
+            "message": "导出失败，请重试",
+        }
+        self.retry_posts: list[dict] = []
+        self.retry_job_id = "job-0002"
+        self.job_gets: list[str] = []
+        self.create_posts: list[dict] = []
 
     def install(self, context: BrowserContext) -> None:
-        # LIFO: the reports handler registered last wins over the catch-all.
+        # LIFO: handlers registered later win over the broader patterns.
         context.route("**/api/**", self._other)
         context.route("**/api/v1/jobs**", self._jobs)
+        context.route("**/api/v1/jobs/*/retry", self._retry)
         context.route("**/api/v1/meta/options**", self._json(META))
         context.route("**/api/v1/reports**", self._reports)
+        context.route("**/api/v1/reports/*/exports/pdf", self._export_pdf)
+        context.route("**/api/v1/exports/**", self._exports)
 
     @staticmethod
     def _json(payload: dict):
@@ -259,12 +275,135 @@ class ApiStub:
 
     def _jobs(self, route: object) -> None:
         request = route.request  # type: ignore[attr-defined]
+        parsed = urllib.parse.urlparse(request.url)
+        path = parsed.path.rstrip("/")
+        if request.method == "POST" and path == "/api/v1/jobs":
+            self.create_posts.append(
+                {
+                    "body": request.post_data_json,
+                    "key": request.headers.get("idempotency-key"),
+                }
+            )
+            route.fulfill(  # type: ignore[attr-defined]
+                status=201,
+                content_type="application/json",
+                body=json.dumps({"job_id": "job-new"}),
+            )
+            return
         if request.method != "GET":
             self.writes.append(f"{request.method} {request.url}")
+            route.fulfill(  # type: ignore[attr-defined]
+                status=404,
+                content_type="application/json",
+                body=json.dumps(
+                    {"error": {"code": "job_not_found", "message": "没有找到这个任务"}}
+                ),
+            )
+            return
+        if path == "/api/v1/jobs":
+            route.fulfill(  # type: ignore[attr-defined]
+                status=200,
+                content_type="application/json",
+                body=json.dumps({"items": [], "next_cursor": None}),
+            )
+            return
+        # A retry navigates to the new job; this stub keeps that page short.
+        self.job_gets.append(path)
+        route.fulfill(  # type: ignore[attr-defined]
+            status=404,
+            content_type="application/json",
+            body=json.dumps(
+                {"error": {"code": "job_not_found", "message": "没有找到这个任务"}}
+            ),
+        )
+
+    def _export_pdf(self, route: object) -> None:
+        request = route.request  # type: ignore[attr-defined]
+        path = urllib.parse.urlparse(request.url).path
+        self.export_posts.append(
+            {
+                "path": path,
+                "body": request.post_data_json,
+                "key": request.headers.get("idempotency-key"),
+            }
+        )
+        export_id = f"exp-{len(self.export_posts)}"
+        route.fulfill(  # type: ignore[attr-defined]
+            status=202,
+            content_type="application/json",
+            body=json.dumps(
+                {
+                    "export_id": export_id,
+                    "status": "queued",
+                    "poll_url": f"/api/v1/exports/{export_id}",
+                }
+            ),
+        )
+
+    def _exports(self, route: object) -> None:
+        request = route.request  # type: ignore[attr-defined]
+        path = urllib.parse.urlparse(request.url).path
+        if request.method != "GET":
+            self.writes.append(f"{request.method} {request.url}")
+            route.fulfill(status=405)  # type: ignore[attr-defined]
+            return
+        if path.endswith("/file"):
+            route.fulfill(  # type: ignore[attr-defined]
+                status=409,
+                content_type="application/json",
+                body=json.dumps(
+                    {
+                        "error": {
+                            "code": "export_not_ready",
+                            "message": "导出尚未完成",
+                        }
+                    },
+                    ensure_ascii=False,
+                ),
+            )
+            return
+        self.export_status_calls += 1
+        if self.export_sequence:
+            index = min(self.export_status_calls - 1, len(self.export_sequence) - 1)
+            status = self.export_sequence[index]
+        else:
+            status = "ready"
+        export_id = path.rsplit("/", 1)[-1]
+        payload = {
+            "export_id": export_id,
+            "report_id": "r-long",
+            "status": status,
+            "download_url": None,
+            "error": None,
+            "created_at": "2026-11-06T10:00:00+08:00",
+            "ready_at": None,
+            "exporter_version": "pdf-v1",
+        }
+        if status == "failed":
+            payload["error"] = self.export_failure
+        if status == "ready":
+            payload["download_url"] = f"/api/v1/exports/{export_id}/file"
+            payload["ready_at"] = "2026-11-06T10:00:05+08:00"
         route.fulfill(  # type: ignore[attr-defined]
             status=200,
             content_type="application/json",
-            body=json.dumps({"items": [], "next_cursor": None}),
+            body=json.dumps(payload, ensure_ascii=False),
+        )
+
+    def _retry(self, route: object) -> None:
+        request = route.request  # type: ignore[attr-defined]
+        path = urllib.parse.urlparse(request.url).path
+        self.retry_posts.append(
+            {
+                "path": path,
+                "body": request.post_data_json,
+                "key": request.headers.get("idempotency-key"),
+            }
+        )
+        route.fulfill(  # type: ignore[attr-defined]
+            status=201,
+            content_type="application/json",
+            body=json.dumps({"job_id": self.retry_job_id}),
         )
 
     def _reports(self, route: object) -> None:
@@ -1077,26 +1216,302 @@ def mobile_reader_flow(
             f"{label} {name} is fully visible above the nav ({box})",
         )
 
-    # P3-06 is visible-only: pressing the actions must not call the API.
-    page.get_by_test_id("reader-action-bar").get_by_role(
-        "button", name="导出"
-    ).click()
-    page.get_by_test_id("reader-action-bar").get_by_role(
-        "button", name="重新分析"
-    ).click()
+    # ACT-01 on a phone: the bar is wired, but one press sends one POST and a
+    # disabled button cannot queue another. Polling stops when the page leaves.
+    stub.export_sequence = ["rendering"]
+    bar = page.get_by_test_id("reader-action-bar")
+    export_button = bar.get_by_test_id("export-button")
+    check(
+        export_button.inner_text().strip() == "导出 PDF",
+        f"{label} export starts idle ({export_button.inner_text()!r})",
+    )
+    export_button.click()
+    wait_until(
+        page,
+        lambda: export_button.inner_text().strip() == "排队中…",
+        f"{label} export does not enter the queued state",
+        timeout_ms=3000,
+    )
+    check(len(stub.export_posts) == 1, f"{label} export click sends one POST")
+    check(
+        stub.export_posts[0]["body"] == {"template": "default"},
+        f"{label} export sends the default template ({stub.export_posts})",
+    )
+    page.screenshot(path=str(SHOTS_MOBILE / f"reader_{width}_action.png"))
+    check(export_button.is_disabled(), f"{label} export disables while pending")
+    page.evaluate(
+        "() => document.querySelector('[data-testid=\"export-button\"]').click()"
+    )
     page.wait_for_timeout(250)
-    check(stub.writes == [], f"{label} action buttons never write ({stub.writes})")
+    check(
+        len(stub.export_posts) == 1,
+        f"{label} a pending export cannot send a second POST "
+        f"({stub.export_posts})",
+    )
+
+    page.get_by_role("button", name="返回").click()
+    page.get_by_test_id("page-reports").wait_for(state="visible")
+    page.wait_for_timeout(200)
+    polls_at_exit = stub.export_status_calls
+    page.wait_for_timeout(900)
+    check(
+        stub.export_status_calls == polls_at_exit,
+        f"{label} polling stops after leaving the reader "
+        f"({polls_at_exit} -> {stub.export_status_calls})",
+    )
     check(
         stub.detail_paths == ["/api/v1/reports/r-long"],
         f"{label} mobile reader keeps one detail GET ({stub.detail_paths})",
     )
     check(
-        stub.unexpected == [],
-        f"{label} mobile reader only calls the reports API ({stub.unexpected})",
+        stub.writes == [],
+        f"{label} mobile reader makes no unexpected writes ({stub.writes})",
     )
-    page.screenshot(path=str(SHOTS_MOBILE / f"reader_{width}_action.png"))
-    scroll_content_to_top(page)
+    check(
+        stub.unexpected == [],
+        f"{label} mobile reader only calls the expected APIs ({stub.unexpected})",
+    )
     check(not errors, f"{label} console/page errors: {errors}")
+    context.close()
+
+
+def export_flow(browser: Browser, base: str) -> None:
+    """ACT-01/ACT-02: explicit PDF export with four states and one POST."""
+    stub = ApiStub(build_details())
+    stub.export_sequence = ["rendering", "ready"]
+    context = browser.new_context(viewport={"width": 1440, "height": 900})
+    stub.install(context)
+    page = context.new_page()
+    errors = watch_errors(page)
+
+    page.goto(f"{base}/reports/r-long")
+    wait_reader(page)
+    page.wait_for_timeout(500)
+    check(
+        stub.export_posts == [] and stub.export_status_calls == 0,
+        "opening a report never queues or polls an export "
+        f"({stub.export_posts}, {stub.export_status_calls})",
+    )
+
+    button = page.get_by_test_id("export-button")
+    check(
+        button.inner_text().strip() == "导出 PDF",
+        f"export starts idle ({button.inner_text()!r})",
+    )
+    button.click()
+    wait_until(
+        page,
+        lambda: button.inner_text().strip() == "排队中…",
+        "the export never shows 排队中",
+        timeout_ms=3000,
+    )
+    check(len(stub.export_posts) == 1, f"one click sends one POST ({stub.export_posts})")
+    check(
+        stub.export_posts[0]["body"] == {"template": "default"},
+        f"export sends the default template ({stub.export_posts[0]})",
+    )
+    check(button.is_disabled(), "the export button is disabled while pending")
+    page.evaluate(
+        "() => document.querySelector('[data-testid=\"export-button\"]').click()"
+    )
+    page.wait_for_timeout(250)
+    check(
+        len(stub.export_posts) == 1,
+        f"a pending export cannot send a second POST ({stub.export_posts})",
+    )
+
+    wait_until(
+        page,
+        lambda: button.inner_text().strip() == "渲染中…",
+        "the export never shows 渲染中",
+        timeout_ms=3000,
+    )
+    download = page.get_by_test_id("export-download")
+    download.wait_for(state="visible")
+    check(
+        download.inner_text().strip() == "下载 PDF",
+        f"ready state offers a download ({download.inner_text()!r})",
+    )
+    href = download.get_attribute("href") or ""
+    check(
+        href.endswith("/api/v1/exports/exp-1/file"),
+        f"download points at the file endpoint ({href})",
+    )
+    check(download.get_attribute("download") is not None, "download is a file save")
+    check(len(stub.export_posts) == 1, "polling never re-sends the POST")
+    check(
+        stub.export_status_calls >= 2,
+        f"the client polled until ready ({stub.export_status_calls})",
+    )
+    page.screenshot(path=str(SHOTS_ACT / "export_ready.png"))
+    check(stub.writes == [], f"export flow has no stray writes ({stub.writes})")
+    check(
+        stub.unexpected == [],
+        f"export flow only calls the expected APIs ({stub.unexpected})",
+    )
+    check(not errors, f"export flow console/page errors: {errors}")
+    context.close()
+
+
+def export_failure_flow(browser: Browser, base: str) -> None:
+    """ACT-02 failure branch: safe copy, readable article, retry succeeds."""
+    stub = ApiStub(build_details())
+    stub.export_sequence = ["failed"]
+    context = browser.new_context(viewport={"width": 1440, "height": 900})
+    stub.install(context)
+    page = context.new_page()
+    errors = watch_errors(page)
+
+    page.goto(f"{base}/reports/r-long")
+    wait_reader(page)
+    button = page.get_by_test_id("export-button")
+    button.click()
+    alert = page.get_by_role("alert")
+    alert.wait_for(state="visible")
+    page.wait_for_timeout(700)
+    check(
+        alert.inner_text().strip() == "导出失败，请重试",
+        f"failure shows safe copy ({alert.inner_text()!r})",
+    )
+    check(
+        page.get_by_test_id("report-article").is_visible(),
+        "a failed export leaves the article readable",
+    )
+    check(
+        button.inner_text().strip() == "重试导出",
+        f"failure offers a retry ({button.inner_text()!r})",
+    )
+    check(len(stub.export_posts) == 1, "failure does not re-send the POST")
+    page.screenshot(path=str(SHOTS_ACT / "export_failed.png"))
+
+    stub.export_sequence = ["ready"]
+    button.click()
+    download = page.get_by_test_id("export-download")
+    download.wait_for(state="visible")
+    href = download.get_attribute("href") or ""
+    check(
+        href.endswith("/api/v1/exports/exp-2/file"),
+        f"retry reuses the export with a fresh task ({href})",
+    )
+    check(len(stub.export_posts) == 2, "retry sends one more POST")
+    check(stub.writes == [], f"failure flow has no stray writes ({stub.writes})")
+    check(
+        stub.unexpected == [],
+        f"failure flow only calls the expected APIs ({stub.unexpected})",
+    )
+    check(not errors, f"failure flow console/page errors: {errors}")
+    context.close()
+
+
+def reanalyze_flow(browser: Browser, base: str) -> None:
+    """ACT-03: a source job is retried with same_config and a key."""
+    stub = ApiStub(build_details())
+    context = browser.new_context(viewport={"width": 1440, "height": 900})
+    stub.install(context)
+    page = context.new_page()
+    errors = watch_errors(page)
+
+    page.goto(f"{base}/reports/r-long")
+    wait_reader(page)
+    page.get_by_test_id("reanalyze-button").click()
+    wait_until(
+        page,
+        lambda: urllib.parse.urlparse(page.url).path == "/jobs/job-0002",
+        "reanalyze does not open the new job",
+        timeout_ms=4000,
+    )
+    check(len(stub.retry_posts) == 1, f"one retry POST ({stub.retry_posts})")
+    record = stub.retry_posts[0]
+    check(
+        record["path"] == "/api/v1/jobs/job-0001/retry",
+        f"retry addresses the source job ({record['path']})",
+    )
+    check(
+        record["body"] == {"mode": "same_config"},
+        f"retry asks for same_config ({record['body']})",
+    )
+    key = record["key"]
+    check(isinstance(key, str) and key != "", f"retry carries an idempotency key ({key})")
+    check(stub.export_posts == [], "reanalyze does not export")
+    check(stub.writes == [], f"reanalyze makes no other write ({stub.writes})")
+    check(
+        stub.unexpected == [],
+        f"reanalyze only calls the expected APIs ({stub.unexpected})",
+    )
+    unexpected_errors = [
+        error for error in errors if "Failed to load resource" not in error
+    ]
+    check(not unexpected_errors, f"reanalyze console/page errors: {unexpected_errors}")
+    context.close()
+
+
+def legacy_reanalyze_flow(browser: Browser, base: str) -> None:
+    """ACT-04: a legacy report prefills the launcher and submits a new job."""
+    stub = ApiStub(build_details())
+    context = browser.new_context(viewport={"width": 1440, "height": 900})
+    stub.install(context)
+    page = context.new_page()
+    errors = watch_errors(page)
+
+    page.goto(f"{base}/reports/r-legacy")
+    wait_reader(page)
+    page.get_by_test_id("reanalyze-button").click()
+    page.get_by_role("dialog", name="分析启动器").wait_for(state="visible")
+    check(
+        urllib.parse.urlparse(page.url).path == "/workbench",
+        f"legacy reanalyze opens the workbench ({page.url})",
+    )
+    params = urllib.parse.parse_qs(urllib.parse.urlparse(page.url).query)
+    check(
+        params.get("launch") == ["1"]
+        and params.get("ticker") == ["000629"]
+        and params.get("date") == ["2026-10-24"],
+        f"the launcher link carries ticker and date ({params})",
+    )
+    check(
+        page.get_by_label("分析日期").input_value() == "2026-10-24",
+        "the launcher prefills the report analysis date",
+    )
+    check(
+        page.get_by_text("000629").count() >= 1,
+        "the launcher prefills the report ticker",
+    )
+    check(
+        stub.retry_posts == [] and stub.export_posts == [],
+        "legacy reanalyze sends no retry or export",
+    )
+
+    dialog = page.get_by_role("dialog", name="分析启动器")
+    submit = dialog.get_by_role("button", name="开始分析")
+    wait_until(
+        page,
+        lambda: submit.is_enabled(),
+        "the prefilled launcher never becomes ready",
+        timeout_ms=5000,
+    )
+    submit.click()
+    wait_until(
+        page,
+        lambda: urllib.parse.urlparse(page.url).path == "/jobs/job-new",
+        "submitting the prefilled launcher does not open the new job",
+        timeout_ms=5000,
+    )
+    check(len(stub.create_posts) == 1, f"launcher sends one create POST ({stub.create_posts})")
+    created = stub.create_posts[0]["body"]
+    check(
+        created.get("ticker") == "000629"
+        and created.get("analysis_date") == "2026-10-24",
+        f"the new job keeps ticker and date ({created})",
+    )
+    check(stub.writes == [], f"legacy flow has no stray writes ({stub.writes})")
+    check(
+        stub.unexpected == [],
+        f"legacy flow only calls the expected APIs ({stub.unexpected})",
+    )
+    unexpected_errors = [
+        error for error in errors if "Failed to load resource" not in error
+    ]
+    check(not unexpected_errors, f"legacy flow console/page errors: {unexpected_errors}")
     context.close()
 
 
@@ -1105,6 +1520,7 @@ def main() -> int:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     SHOTS.mkdir(parents=True, exist_ok=True)
     SHOTS_MOBILE.mkdir(parents=True, exist_ok=True)
+    SHOTS_ACT.mkdir(parents=True, exist_ok=True)
     print("building frontend...")
     build()
     with Server() as base:
@@ -1117,16 +1533,21 @@ def main() -> int:
             unsafe_flow(browser, base)
             mobile_reader_flow(browser, base, 390, 844)
             mobile_reader_flow(browser, base, 360, 800)
+            export_flow(browser, base)
+            export_failure_flow(browser, base)
+            reanalyze_flow(browser, base)
+            legacy_reanalyze_flow(browser, base)
             browser.close()
 
     result = {
-        "ticket": "P3-05 + P3-06 + A11 + A12 + M02 + M03 + M04 + M06 + M07"
-        " + T9 + T11 + T12 + T13",
+        "ticket": "P3-05 + P3-06 + P3-07 + A11 + A12 + A13 + ACT-01..04"
+        " + M02 + M03 + M04 + M06 + M07 + T9 + T11 + T12 + T13",
         "checks": checks,
         "failures": failures,
         "screenshots": [
             str(SHOTS.relative_to(ROOT)),
             str(SHOTS_MOBILE.relative_to(ROOT)),
+            str(SHOTS_ACT.relative_to(ROOT)),
         ],
     }
     print(json.dumps(result, ensure_ascii=True))

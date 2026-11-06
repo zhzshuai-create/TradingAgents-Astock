@@ -11,6 +11,7 @@ import styles from "./WorkbenchPage.module.css";
 import { RecentJobs } from "./RecentJobs";
 
 const CODE_PATTERN = /^\d{6}$/;
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 export function WorkbenchPage() {
   const [params, setParams] = useSearchParams();
@@ -18,6 +19,9 @@ export function WorkbenchPage() {
   const launchRequested = params.get("launch") === "1";
   const requestedTicker = params.get("ticker") ?? "";
   const launchTicker = CODE_PATTERN.test(requestedTicker) ? requestedTicker : "";
+  const requestedDate = params.get("date") ?? "";
+  const launchDate =
+    launchRequested && DATE_PATTERN.test(requestedDate) ? requestedDate : null;
   const [launcherOpen, setLauncherOpen] = useState(launchRequested);
   const [pickedTicker, setPickedTicker] = useState<TickerSelection | null>(null);
   const [reportsOpen, setReportsOpen] = useState(false);
@@ -149,6 +153,7 @@ export function WorkbenchPage() {
         <LauncherDialog
           open
           initialTicker={initialTicker}
+          initialDate={launchDate}
           onClose={closeLauncher}
           onCreated={created}
         />

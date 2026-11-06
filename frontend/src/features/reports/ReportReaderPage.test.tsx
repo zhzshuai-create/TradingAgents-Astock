@@ -22,11 +22,19 @@ import {
   type MockInstance,
 } from "vitest";
 
-import type { ReportDetail, ReportMeta, ReportSection } from "../../api/types";
+import type {
+  ExportStatus,
+  ReportDetail,
+  ReportMeta,
+  ReportSection,
+} from "../../api/types";
 import { ReportReaderPage } from "./ReportReaderPage";
 
 const ORIGIN = "http://localhost:3000";
 const DETAIL_URL = `${ORIGIN}/api/v1/reports/:reportId`;
+const EXPORT_URL = `${ORIGIN}/api/v1/reports/:reportId/exports/pdf`;
+const EXPORT_STATUS_URL = `${ORIGIN}/api/v1/exports/:exportId`;
+const RETRY_URL = `${ORIGIN}/api/v1/jobs/:jobId/retry`;
 
 const server = setupServer();
 beforeAll(() => {
@@ -139,8 +147,24 @@ function detail({
   };
 }
 
+function exportStatus(overrides: Partial<ExportStatus> = {}): ExportStatus {
+  return {
+    export_id: "e-1",
+    report_id: "r-1",
+    status: "queued",
+    download_url: null,
+    error: null,
+    created_at: "2026-11-06T10:00:00+08:00",
+    ready_at: null,
+    exporter_version: "pdf-v1",
+    ...overrides,
+  };
+}
+
 let methods: string[] = [];
 let paths: string[] = [];
+let exportPosts: string[] = [];
+let retryPosts: { body: unknown; key: string | null }[] = [];
 let scrollSpy: MockInstance;
 
 function serve(body: ReportDetail, status = 200): void {
@@ -162,6 +186,7 @@ function renderPage(entry: string) {
       { path: "/reports", element: <div data-testid="page-reports-stub" /> },
       { path: "/reports/:reportId", element: <ReportReaderPage /> },
       { path: "/jobs/:jobId", element: <div data-testid="page-job-stub" /> },
+      { path: "/workbench", element: <div data-testid="page-workbench-stub" /> },
     ],
     { initialEntries: [entry] },
   );
@@ -187,6 +212,8 @@ beforeEach(() => {
   FakeIntersectionObserver.instances = [];
   methods = [];
   paths = [];
+  exportPosts = [];
+  retryPosts = [];
   document.getElementById("main-content")?.remove();
   const main = document.createElement("div");
   main.id = "main-content";
@@ -527,16 +554,232 @@ describe("RDR-09 mobile table of contents drawer", () => {
     expect(cards).toHaveTextContent("1");
   });
 
-  it("shows the bottom action bar and sends no request from its buttons", async () => {
+  it("renders the action bar without requesting when the page opens", async () => {
     serve(detail());
     renderPage("/reports/r-1");
 
     const bar = await screen.findByTestId("reader-action-bar");
-    fireEvent.click(within(bar).getByRole("button", { name: "导出" }));
-    fireEvent.click(within(bar).getByRole("button", { name: "重新分析" }));
+    expect(within(bar).getByTestId("export-button")).toHaveTextContent(
+      "导出 PDF",
+    );
+    expect(within(bar).getByTestId("reanalyze-button")).toHaveTextContent(
+      "重新分析",
+    );
 
     await waitFor(() => expect(paths).toHaveLength(1));
     expect(methods).toEqual(["GET"]);
+    expect(exportPosts).toHaveLength(0);
+  });
+});
+
+describe("ACT-01 explicit PDF export", () => {
+  it("sends one POST per click only after the user asks", async () => {
+    serve(detail());
+    let polls = 0;
+    server.use(
+      http.post(EXPORT_URL, ({ request }) => {
+        exportPosts.push(new URL(request.url).pathname);
+        return HttpResponse.json(
+          { export_id: "e-1", status: "queued", poll_url: "/api/v1/exports/e-1" },
+          { status: 202 },
+        );
+      }),
+      http.get(EXPORT_STATUS_URL, () => {
+        polls += 1;
+        const ready = polls > 1;
+        return HttpResponse.json(
+          exportStatus(
+            ready
+              ? {
+                  status: "ready",
+                  download_url: "/api/v1/exports/e-1/file",
+                  ready_at: "2026-11-06T10:00:05+08:00",
+                }
+              : { status: "rendering" },
+          ),
+        );
+      }),
+    );
+    renderPage("/reports/r-1");
+    await screen.findByTestId("report-article");
+
+    // Opening the reader for a while must not queue any export.
+    await new Promise((resolve) => setTimeout(resolve, 800));
+    expect(exportPosts).toHaveLength(0);
+    expect(polls).toBe(0);
+
+    const button = screen.getByTestId("export-button");
+    fireEvent.click(button);
+    fireEvent.click(button);
+
+    expect(await screen.findByText("排队中…")).toBeInTheDocument();
+    expect(screen.getByTestId("export-button")).toBeDisabled();
+    expect(exportPosts).toHaveLength(1);
+
+    const download = await screen.findByTestId(
+      "export-download",
+      {},
+      { timeout: 4000 },
+    );
+    expect(download).toHaveTextContent("下载 PDF");
+    expect(download).toHaveAttribute(
+      "href",
+      `${ORIGIN}/api/v1/exports/e-1/file`,
+    );
+    expect(download).toHaveAttribute("download");
+    expect(exportPosts).toHaveLength(1);
+  }, 10000);
+});
+
+describe("ACT-02 export states and failure retry", () => {
+  it("shows queued, rendering and ready in turn", async () => {
+    serve(detail());
+    let polls = 0;
+    server.use(
+      http.post(EXPORT_URL, () =>
+        HttpResponse.json(
+          { export_id: "e-1", status: "queued", poll_url: "/api/v1/exports/e-1" },
+          { status: 202 },
+        ),
+      ),
+      http.get(EXPORT_STATUS_URL, () => {
+        polls += 1;
+        if (polls === 1) {
+          return HttpResponse.json(exportStatus({ status: "rendering" }));
+        }
+        return HttpResponse.json(
+          exportStatus({
+            status: "ready",
+            download_url: "/api/v1/exports/e-1/file",
+            ready_at: "2026-11-06T10:00:05+08:00",
+          }),
+        );
+      }),
+    );
+    renderPage("/reports/r-1");
+    await screen.findByTestId("report-article");
+    expect(screen.getByTestId("export-button")).toHaveTextContent("导出 PDF");
+
+    fireEvent.click(screen.getByTestId("export-button"));
+    expect(await screen.findByText("排队中…")).toBeInTheDocument();
+    expect(await screen.findByText("渲染中…", {}, { timeout: 3000 })).toBeInTheDocument();
+    expect(
+      await screen.findByTestId("export-download", {}, { timeout: 3000 }),
+    ).toBeInTheDocument();
+  }, 10000);
+
+  it("keeps the article, shows safe copy and retries a failed export", async () => {
+    serve(detail());
+    let posts = 0;
+    let polls = 0;
+    server.use(
+      http.post(EXPORT_URL, () => {
+        posts += 1;
+        return HttpResponse.json(
+          {
+            export_id: `e-${posts}`,
+            status: "queued",
+            poll_url: `/api/v1/exports/e-${posts}`,
+          },
+          { status: 202 },
+        );
+      }),
+      http.get(EXPORT_STATUS_URL, () => {
+        polls += 1;
+        if (polls === 1) {
+          return HttpResponse.json(
+            exportStatus({
+              status: "failed",
+              error: { code: "render_failed", message: "导出失败，请重试" },
+            }),
+          );
+        }
+        return HttpResponse.json(
+          exportStatus({
+            export_id: "e-2",
+            status: "ready",
+            download_url: "/api/v1/exports/e-2/file",
+            ready_at: "2026-11-06T10:00:05+08:00",
+          }),
+        );
+      }),
+    );
+    renderPage("/reports/r-1");
+    await screen.findByTestId("report-article");
+
+    fireEvent.click(screen.getByTestId("export-button"));
+    const alert = await screen.findByRole("alert", {}, { timeout: 3000 });
+    expect(alert).toHaveTextContent("导出失败，请重试");
+    expect(screen.getByTestId("report-article")).toBeInTheDocument();
+    expect(screen.getByTestId("export-button")).toHaveTextContent("重试导出");
+    expect(posts).toBe(1);
+
+    fireEvent.click(screen.getByTestId("export-button"));
+    const download = await screen.findByTestId(
+      "export-download",
+      {},
+      { timeout: 4000 },
+    );
+    expect(download).toHaveAttribute(
+      "href",
+      `${ORIGIN}/api/v1/exports/e-2/file`,
+    );
+    expect(posts).toBe(2);
+  }, 12000);
+});
+
+describe("ACT-03/04 reanalyze sources", () => {
+  it("retries the source job with same_config and opens the new job", async () => {
+    serve(detail());
+    server.use(
+      http.post(RETRY_URL, async ({ request }) => {
+        retryPosts.push({
+          body: await request.json(),
+          key: request.headers.get("Idempotency-Key"),
+        });
+        return HttpResponse.json({ job_id: "job-2" }, { status: 201 });
+      }),
+    );
+    const router = renderPage("/reports/r-1");
+    await screen.findByTestId("report-article");
+
+    fireEvent.click(screen.getByTestId("reanalyze-button"));
+    await waitFor(() => expect(retryPosts).toHaveLength(1));
+    expect(retryPosts[0].body).toEqual({ mode: "same_config" });
+    expect(typeof retryPosts[0].key).toBe("string");
+    expect(retryPosts[0].key).not.toBe("");
+
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe("/jobs/job-2"),
+    );
+    expect(exportPosts).toHaveLength(0);
+  }, 8000);
+
+  it("opens the launcher with the ticker and date for a legacy import", async () => {
+    serve(
+      detail({
+        metaOverrides: {
+          job_id: null,
+          origin: "legacy_import",
+          generated_at: null,
+          generated_at_source: "unknown",
+          data_quality_status: "absent",
+          chart_snapshot_status: "none",
+        },
+      }),
+    );
+    const router = renderPage("/reports/r-1");
+    await screen.findByTestId("report-article");
+
+    fireEvent.click(screen.getByTestId("reanalyze-button"));
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe("/workbench"),
+    );
+    expect(router.state.location.search).toBe(
+      "?launch=1&ticker=600519&date=2026-10-28",
+    );
+    expect(retryPosts).toHaveLength(0);
+    expect(exportPosts).toHaveLength(0);
   });
 });
 

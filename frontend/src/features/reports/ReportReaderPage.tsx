@@ -8,9 +8,11 @@ import { reportDetailQuery } from "../../lib/query";
 import { Badge, Button, Drawer, EmptyState, Skeleton } from "../../ui";
 import { DecisionCard } from "./DecisionCard";
 import { REPORT_RATING_META } from "./format";
+import { ReportActions } from "./ReportActions";
 import { ReportMarkdown } from "./ReportMarkdown";
 import { ReportMeta } from "./ReportMeta";
 import { ReportToc } from "./ReportToc";
+import { useReportActions } from "./useReportActions";
 import {
   orderedPartKeys,
   orderedSections,
@@ -169,6 +171,7 @@ export function ReportReaderPage() {
   }
 
   const meta = detail?.meta;
+  const actions = useReportActions(meta);
 
   return (
     <section className={styles.page} data-testid="page-report-detail">
@@ -232,6 +235,11 @@ export function ReportReaderPage() {
             {meta.origin === "legacy_import" ? (
               <Badge tone="neutral">历史导入</Badge>
             ) : null}
+            {mobile ? null : (
+              <div className={styles.headerActions}>
+                <ReportActions variant="header" actions={actions} />
+              </div>
+            )}
           </header>
 
           {mobile ? (
@@ -273,8 +281,7 @@ export function ReportReaderPage() {
           {mobile ? (
             <>
               <div className={styles.actionBar} data-testid="reader-action-bar">
-                <Button>导出</Button>
-                <Button variant="primary">重新分析</Button>
+                <ReportActions variant="bar" actions={actions} />
               </div>
               <Drawer
                 open={tocOpen}
