@@ -106,6 +106,39 @@ vi.mock("../api/sse", async (importOriginal) => {
 });
 
 vi.mock("../api/market", () => ({
+  getStockSnapshot: vi.fn(async () => ({
+    schema_version: "market-envelope-v1",
+    status: "ok",
+    source: "static",
+    as_of: null,
+    fetched_at: "2026-11-05T09:00:00+08:00",
+    is_stale: false,
+    stale_reason: null,
+    error_code: null,
+    error_message: null,
+    partial: false,
+    failed_blocks: [],
+    data: {
+      quote: null,
+      valuation: null,
+      sector_blocks: null,
+      units: { price: "元", amount: "万元", mcap: "亿元" },
+    },
+  })),
+  getStockFundFlow: vi.fn(async () => ({
+    schema_version: "market-envelope-v1",
+    status: "empty",
+    source: "static",
+    as_of: null,
+    fetched_at: "2026-11-05T09:00:00+08:00",
+    is_stale: false,
+    stale_reason: null,
+    error_code: null,
+    error_message: null,
+    partial: false,
+    failed_blocks: [],
+    data: null,
+  })),
   searchStocks: vi.fn(async () => ({
     schema_version: "market-envelope-v1",
     status: "ok",
@@ -143,7 +176,7 @@ afterEach(() => {
 const ROUTES = [
   ["/workbench", "page-workbench", "工作台"],
   ["/market", "page-market", "市场"],
-  ["/stocks/600519", "page-stock", "600519 股票工作区"],
+  ["/stocks/600519", "page-stock", "600519"],
   ["/jobs", "page-jobs", "任务"],
   ["/jobs/job-1", "page-job-detail", "贵州茅台"],
   ["/reports", "page-reports", "报告"],
@@ -275,8 +308,13 @@ describe("WEB-03 invalid ticker", () => {
       target: { value: "600519" },
     });
     fireEvent.submit(input.closest("form") as HTMLFormElement);
-    expect(await screen.findByTestId("page-stock")).toHaveTextContent(
-      "600519 股票工作区",
+    const region = await screen.findByTestId("page-stock");
+    expect(within(region).getByRole("heading", { level: 1 })).toHaveTextContent(
+      "600519",
+    );
+    expect(within(region).getByRole("tab", { name: "估值" })).toHaveAttribute(
+      "aria-selected",
+      "true",
     );
   });
 });

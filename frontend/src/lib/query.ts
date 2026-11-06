@@ -8,12 +8,22 @@ import {
   getMarketIndustries,
   getMarketNewsflash,
   getMarketOverview,
+  getStockFundFlow,
+  getStockIntraday,
+  getStockKline,
+  getStockNews,
+  getStockReports,
+  getStockSnapshot,
   getStrongStocks,
   searchStocks,
 } from "../api/market";
 import { getMetaOptions } from "../api/meta";
 import { getReport, listReports } from "../api/reports";
-import type { JobListFilters, ReportListFilters } from "../api/types";
+import type {
+  JobListFilters,
+  KlinePeriod,
+  ReportListFilters,
+} from "../api/types";
 
 const JOBS_ROOT = ["jobs"] as const;
 const JOB_ROOT = ["job"] as const;
@@ -157,6 +167,65 @@ export const marketNewsflashQuery = (limit = 30) => ({
     getMarketNewsflash(limit, signal),
   staleTime: MARKET_STALE_MS.newsflash,
 });
+
+export const stockSnapshotQuery = (ticker: string) => ({
+  queryKey: queryKeys.stockSnapshot(ticker),
+  queryFn: ({ signal }: QueryFunctionContext) =>
+    getStockSnapshot(ticker, signal),
+  staleTime: STOCK_STALE_MS.snapshot,
+});
+
+export const stockKlineQuery = (
+  ticker: string,
+  period: KlinePeriod,
+  limit = 120,
+) => ({
+  queryKey: queryKeys.stockKline(ticker, period, limit),
+  queryFn: ({ signal }: QueryFunctionContext) =>
+    getStockKline(ticker, period, limit, signal),
+  staleTime: STOCK_STALE_MS.kline,
+});
+
+export const stockIntradayQuery = (ticker: string, date: string | null) => ({
+  queryKey: queryKeys.stockIntraday(ticker, date),
+  queryFn: ({ signal }: QueryFunctionContext) =>
+    getStockIntraday(ticker, date ?? undefined, signal),
+  staleTime:
+    date === null
+      ? STOCK_STALE_MS.intradayToday
+      : STOCK_STALE_MS.intradayHistory,
+});
+
+export const stockNewsQuery = (ticker: string, limit = 20) => ({
+  queryKey: queryKeys.stockNews(ticker, limit),
+  queryFn: ({ signal }: QueryFunctionContext) =>
+    getStockNews(ticker, limit, signal),
+  staleTime: STOCK_STALE_MS.news,
+});
+
+export const stockFundFlowQuery = (ticker: string) => ({
+  queryKey: queryKeys.stockFundFlow(ticker),
+  queryFn: ({ signal }: QueryFunctionContext) =>
+    getStockFundFlow(ticker, signal),
+  staleTime: STOCK_STALE_MS.fundFlow,
+});
+
+export const stockReportsQuery = (ticker: string, limit = 20) => ({
+  queryKey: queryKeys.stockReports(ticker, null),
+  queryFn: ({ signal }: QueryFunctionContext) =>
+    getStockReports(ticker, { limit }, signal),
+  staleTime: 0,
+});
+
+/** Head action uses D7's narrow probe instead of the shell's full active list. */
+export const stockActiveJobQuery = (ticker: string) => {
+  const filters: JobListFilters = { ticker, active: true, limit: 1 };
+  return {
+    queryKey: queryKeys.jobs(filters),
+    queryFn: ({ signal }: QueryFunctionContext) => listJobs(filters, signal),
+    staleTime: 0,
+  };
+};
 
 /** Control actions refresh the list without touching the streamed detail. */
 export async function invalidateJobList(client: QueryClient): Promise<void> {

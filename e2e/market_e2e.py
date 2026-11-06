@@ -426,6 +426,12 @@ def stub_api(context: BrowserContext, variant: str = "ok") -> None:
         "**/api/v1/market/search**",
         lambda route: fulfill(route, envelope({"items": [], "truncated": False})),
     )
+    # P4-09 wired the stock workspace into the constituent drill-down; these
+    # reads are outside W08's scope, so serve the contract's empty state.
+    context.route(
+        "**/api/v1/stocks/**",
+        lambda route: fulfill(route, envelope(None, status="empty")),
+    )
 
     def overview_route(route: object) -> None:
         if variant == "states":

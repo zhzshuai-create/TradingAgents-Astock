@@ -32,7 +32,7 @@ SHOTS = ROOT / "ui_shots_p2" / "P2-02"
 ROUTES: dict[str, tuple[str, str]] = {
     "/workbench": ("page-workbench", "工作台"),
     "/market": ("page-market", "市场"),
-    "/stocks/600519": ("page-stock", "600519 股票工作区"),
+    "/stocks/600519": ("page-stock", "600519"),
     "/jobs": ("page-jobs", "任务"),
     "/jobs/job-1": ("page-job-detail", "600519"),
     "/reports": ("page-reports", "报告"),
@@ -399,6 +399,28 @@ def stub_api(context: BrowserContext) -> None:
     context.route(
         "**/api/v1/market/search**",
         lambda route: fulfill(route, SEARCH_EMPTY),
+    )
+    # P4-09 replaced the placeholder stock page; the shell deep link only
+    # needs the contract's empty state for its reads.
+    context.route(
+        "**/api/v1/stocks/**",
+        lambda route: fulfill(
+            route,
+            {
+                "schema_version": "market-envelope-v1",
+                "status": "empty",
+                "source": "static",
+                "as_of": None,
+                "fetched_at": "2026-11-05T09:00:00+08:00",
+                "is_stale": False,
+                "stale_reason": None,
+                "error_code": None,
+                "error_message": None,
+                "partial": False,
+                "failed_blocks": [],
+                "data": None,
+            },
+        ),
     )
     context.route(
         re.compile(r"/api/v1/reports(?:\?.*)?$"),
