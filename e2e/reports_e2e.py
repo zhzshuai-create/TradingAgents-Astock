@@ -270,6 +270,9 @@ class ApiStub:
         context.route("**/api/v1/jobs**", self._jobs)
         context.route("**/api/v1/meta/options**", self._json(META))
         context.route("**/api/v1/reports**", self._reports)
+        # `**/api/v1/reports**` also matches `/reports/<id>`; the single-segment
+        # detail glob must come last so opening a row returns a ReportDTO.
+        context.route("**/api/v1/reports/*", self._detail)
 
     @staticmethod
     def _json(payload: dict):
@@ -328,6 +331,51 @@ class ApiStub:
             status=200,
             content_type="application/json",
             body=json.dumps({"items": items, "next_cursor": next_cursor}),
+        )
+
+    def _detail(self, route: object) -> None:
+        request = route.request  # type: ignore[attr-defined]
+        if request.method != "GET":
+            self.writes.append(f"{request.method} {request.url}")
+            route.fulfill(  # type: ignore[attr-defined]
+                status=202,
+                content_type="application/json",
+                body="{}",
+            )
+            return
+        parsed = urllib.parse.urlparse(request.url)
+        report_id = parsed.path.rsplit("/", 1)[-1]
+        item = next(
+            (
+                candidate
+                for candidate in self.items
+                if candidate["meta"]["report_id"] == report_id
+            ),
+            None,
+        )
+        if item is None:
+            route.fulfill(  # type: ignore[attr-defined]
+                status=404,
+                content_type="application/json",
+                body=json.dumps(
+                    {"error": {"code": "report_not_found", "message": "not found"}}
+                ),
+            )
+            return
+        detail = {
+            "meta": item["meta"],
+            "sections": {
+                "sec-decision": {
+                    "id": "sec-decision",
+                    "title": "最终交易决策",
+                    "body": "测试正文",
+                }
+            },
+        }
+        route.fulfill(  # type: ignore[attr-defined]
+            status=200,
+            content_type="application/json",
+            body=json.dumps(detail),
         )
 
 
@@ -644,6 +692,10 @@ def return_context_flow(browser: Browser, base: str) -> None:
     )
     page.get_by_test_id("report-row").locator(f'a[href="{href}"]').click()
     page.get_by_test_id("page-report-detail").wait_for(state="visible")
+    check(
+        page.get_by_test_id("reader-header").is_visible(),
+        "opening a row renders the report reader",
+    )
     page.go_back()
 
     page.get_by_test_id("report-table").wait_for(state="visible")
