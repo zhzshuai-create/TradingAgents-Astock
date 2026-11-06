@@ -173,6 +173,7 @@ def test_db08_downgrade_to_0001_removes_later_tables(jobs_db_path):
         "job_idempotency_keys",
         "worker_lease",
         "reports",
+        "legacy_imports",
     }
 
     command.downgrade(cfg, "0001")

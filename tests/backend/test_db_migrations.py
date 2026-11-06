@@ -74,8 +74,9 @@ def test_db01_upgrade_head_on_empty_directory(jobs_db):
         "job_idempotency_keys",
         "reports",
         "worker_lease",
+        "legacy_imports",
     }
-    assert _scalar(jobs_db, "SELECT version_num FROM alembic_version") == "0005"
+    assert _scalar(jobs_db, "SELECT version_num FROM alembic_version") == "0006"
     assert (
         _scalar(jobs_db, "SELECT value FROM job_kernel_meta WHERE key = 'schema_contract'")
         == "p0-contracts-v1"
@@ -117,6 +118,7 @@ def test_db03_downgrade_and_upgrade_round_trip_twice(jobs_db):
         "job_idempotency_keys",
         "reports",
         "worker_lease",
+        "legacy_imports",
     }
     assert _scalar(jobs_db, "SELECT COUNT(*) FROM alembic_version") == 1
 
