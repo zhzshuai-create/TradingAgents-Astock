@@ -1,0 +1,131 @@
+{
+  "ticket": "P4-05",
+  "title": "工作台摘要补全",
+  "measured_at": "2026-11-06T17:53:24+08:00",
+  "environment": {
+    "platform": "Windows-11-10.0.26200-SP0",
+    "node": "22.22.2",
+    "python": "3.13.3",
+    "vite": "7.3.7",
+    "react": "19",
+    "react_router": "7",
+    "tanstack_query": "5",
+    "vitest": "5",
+    "new_runtime_dependencies": 0
+  },
+  "commands": {
+    "typecheck": "node node_modules/typescript/bin/tsc --noEmit",
+    "unit": "node node_modules/vitest/vitest.mjs run",
+    "build": "node node_modules/vite/bin/vite.js build",
+    "bundle": "node scripts/check_bundle.mjs",
+    "workbench_e2e": "\"C:/Users/zhzsh/AppData/Local/Programs/Python/Python313/python.exe\" e2e/workbench_e2e.py",
+    "e2e_p2": "\"C:/Users/zhzsh/AppData/Local/Programs/Python/Python313/python.exe\" e2e/e2e_p2.py",
+    "e2e_p3": "\"C:/Users/zhzsh/AppData/Local/Programs/Python/Python313/python.exe\" e2e/e2e_p3.py"
+  },
+  "unit": {
+    "test_files": 23,
+    "tests": 332,
+    "failures": 0,
+    "result": "pass"
+  },
+  "typecheck": {
+    "errors": 0,
+    "result": "pass"
+  },
+  "bundle": {
+    "measured_with": "node:zlib gzipSync level 9 over dist files",
+    "entry_gzip_kb": 123.11,
+    "entry_vite_reported_gzip_kb": 123.29,
+    "entry_budget_gzip_kb": 202.45,
+    "entry_within_budget": true,
+    "route_chunks": 11,
+    "route_chunk_limit_gzip_kb": 60,
+    "largest_route_chunk": {
+      "source": "src/pages/ReportDetailPage.tsx",
+      "file": "assets/ReportDetailPage-B1A2HNRQ.js",
+      "gzip_kb": 20.68
+    },
+    "workbench_route_chunk_gzip_kb": 9.4,
+    "all_route_chunks_dynamic": true,
+    "all_route_chunks_separate_from_entry": true,
+    "all_route_chunks_within_limit": true,
+    "passed": true
+  },
+  "e2e": {
+    "workbench": {
+      "exit_code": 0,
+      "checks": 35,
+      "failures": []
+    },
+    "p2": {
+      "exit_code": 0,
+      "runner_checks": 102,
+      "suite_checks": 493,
+      "suite_failures": {
+        "shell": 0,
+        "workbench": 0,
+        "active_job": 0,
+        "launcher": 0,
+        "jobs": 0,
+        "job_detail": 0,
+        "job_stream": 0,
+        "job_actions": 0
+      },
+      "failures": []
+    },
+    "p3": {
+      "exit_code": 0,
+      "checks": 19,
+      "failures": [],
+      "suite_failures": {
+        "reports": 0,
+        "report_reader": 0,
+        "legacy_projection": 0
+      },
+      "criteria": {
+        "C1": true,
+        "C2": true,
+        "C3": true,
+        "C4": true
+      },
+      "bundle_gate": {
+        "entry_gzip_kb": 123.29,
+        "entry_budget_kb": 202.45,
+        "route_chunk_limit_kb": 60,
+        "oversized_route_chunks": {},
+        "total_js_gzip_kb": 213.67
+      }
+    }
+  },
+  "acceptance": {
+    "WB-01": {
+      "item": "最近报告 3 条、点击进阅读器、空/错态、移动折叠",
+      "test": "frontend/src/features/workbench/RecentReports.test.tsx（7 条）+ e2e/workbench_e2e.py（3 行、详情钻取、移动端展开/收起）",
+      "result": "pass"
+    },
+    "WB-02": {
+      "item": "市场摘要三块、四态、点击钻取",
+      "test": "frontend/src/features/workbench/MarketSummary.test.tsx（6 条）+ e2e/workbench_e2e.py（3 指数/3 行业/3 强势股、股票与市场钻取）",
+      "result": "pass"
+    },
+    "WB-03": {
+      "item": "44 px 与移动折叠",
+      "test": "e2e/workbench_e2e.py（展开按钮、报告行、强势股链接 ≥44px）；e2e/shell_e2e.py（390/360 无横向溢出、无控制台错误）",
+      "result": "pass"
+    },
+    "WB-04": {
+      "item": "打开工作台零 POST，请求集合只含工作台所需 GET",
+      "test": "frontend/src/features/workbench/WorkbenchPage.test.tsx::opens the workbench with read-only GET requests only + e2e/workbench_e2e.py only-GETs 断言",
+      "result": "pass"
+    }
+  },
+  "notes": [
+    "工作台新增两个自取数组件：RecentReports 只请求 GET /api/v1/reports?limit=3，MarketSummary 只请求 overview、industries(top=3)、strong-stocks；打开工作台不再有报告库或市场占位的 P3/P4 字样。",
+    "最近研究股票由最近报告 meta 去重 ticker 生成，没有新增接口；报告为空时整块不渲染。",
+    "市场摘要三块各自套 DataState，partial/failed_blocks/stale_reason 直接取信封字段；staleTime 取 MARKET_STALE_MS（10 s / 300 s / 3600 s），报告列表 staleTime 0。",
+    "P2/P3 回归修复均为测试侧：shell_e2e 与 report_reader_e2e 补上工作台新增的 reports 与三个 market GET 桩；产品行为未为旧 E2E 让步。",
+    "workbench_e2e 桌面与 390/360 移动截图已人工核对：行业与强势股卡片无大块空白，桌面强势股行高 36px、移动端 44px。",
+    "e2e_p2 首次运行 job_actions A09 偶发等待“运行中”超时，单跑 42 checks 全过，随后整套复跑 0 failures；与 P4-05 改动无关。",
+    "P3-09 性能证据 JSON 在本轮 E2E 复测后被脚本改写，已还原为原提交值；P4-04 拆包证据未改写。"
+  ]
+}
