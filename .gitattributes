@@ -1,0 +1,4 @@
+# CT-08 直接对契约文件取原始字节哈希；冻结清单的字节口径是 md=CRLF、json=LF。
+# 固定这一目录的检出字节，否则全新检出会因 core.autocrlf 让 CT-08 误报。
+docs/upgrade/contracts/*.md text eol=crlf
+docs/upgrade/contracts/*.json -text
