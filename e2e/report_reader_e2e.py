@@ -87,6 +87,7 @@ MARKET_OVERVIEW = market_envelope(
 )
 MARKET_INDUSTRIES = market_envelope({"top": [], "bottom": [], "total": 0})
 MARKET_STRONG = market_envelope({"items": []})
+MARKET_NEWS = market_envelope({"items": []})
 
 failures: list[str] = []
 checks = 0
@@ -282,6 +283,9 @@ class ApiStub:
         )
         context.route(
             "**/api/v1/market/strong-stocks**", self._json(MARKET_STRONG)
+        )
+        context.route(
+            "**/api/v1/market/newsflash**", self._json(MARKET_NEWS)
         )
 
     @staticmethod

@@ -276,6 +276,8 @@ STRONG = envelope(
     }
 )
 
+NEWS = envelope({"items": []})
+
 ALLOWED_WORKBENCH_GETS = {
     "/api/v1/jobs",
     "/api/v1/meta/options",
@@ -283,6 +285,7 @@ ALLOWED_WORKBENCH_GETS = {
     "/api/v1/market/overview",
     "/api/v1/market/industries",
     "/api/v1/market/strong-stocks",
+    "/api/v1/market/newsflash",
 }
 
 
@@ -304,6 +307,7 @@ class ApiStub:
         context.route("**/api/v1/market/overview**", self._json(OVERVIEW))
         context.route("**/api/v1/market/industries**", self._json(INDUSTRIES))
         context.route("**/api/v1/market/strong-stocks**", self._json(STRONG))
+        context.route("**/api/v1/market/newsflash**", self._json(NEWS))
 
     def _record(self, request: object) -> None:
         parsed = urllib.parse.urlparse(request.url)  # type: ignore[attr-defined]

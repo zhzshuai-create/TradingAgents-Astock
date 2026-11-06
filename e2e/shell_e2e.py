@@ -252,6 +252,8 @@ STRONG_OK = market_envelope(
     }
 )
 
+NEWSFLASH_OK = market_envelope({"items": []})
+
 REPORT_DETAIL = {
     "meta": {
         "report_id": "report-1",
@@ -419,6 +421,10 @@ def stub_api(context: BrowserContext) -> None:
     context.route(
         "**/api/v1/market/strong-stocks**",
         lambda route: fulfill(route, STRONG_OK),
+    )
+    context.route(
+        "**/api/v1/market/newsflash**",
+        lambda route: fulfill(route, NEWSFLASH_OK),
     )
 
 

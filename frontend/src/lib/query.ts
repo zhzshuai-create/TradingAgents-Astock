@@ -4,7 +4,9 @@ import type { QueryClient, QueryFunctionContext } from "@tanstack/react-query";
 
 import { getJob, getStageReport, listJobs } from "../api/jobs";
 import {
+  getIndustryStocks,
   getMarketIndustries,
+  getMarketNewsflash,
   getMarketOverview,
   getStrongStocks,
   searchStocks,
@@ -139,6 +141,21 @@ export const marketStrongStocksQuery = (date: string | null = null) => ({
   queryKey: queryKeys.marketStrongStocks(date),
   queryFn: ({ signal }: QueryFunctionContext) => getStrongStocks(date ?? undefined, signal),
   staleTime: MARKET_STALE_MS.strongStocks,
+});
+
+export const marketConstituentsQuery = (board: string, limit = 10) => ({
+  queryKey: queryKeys.marketConstituents(board, limit),
+  queryFn: ({ signal }: QueryFunctionContext) =>
+    getIndustryStocks(board, limit, signal),
+  staleTime: MARKET_STALE_MS.constituents,
+  enabled: board !== "",
+});
+
+export const marketNewsflashQuery = (limit = 30) => ({
+  queryKey: queryKeys.marketNewsflash(limit),
+  queryFn: ({ signal }: QueryFunctionContext) =>
+    getMarketNewsflash(limit, signal),
+  staleTime: MARKET_STALE_MS.newsflash,
 });
 
 /** Control actions refresh the list without touching the streamed detail. */

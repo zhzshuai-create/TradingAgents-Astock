@@ -1,7 +1,8 @@
 import { render, screen } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { lazy, Suspense, type ReactElement } from "react";
 import { MemoryRouter, type RouteObject } from "react-router-dom";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { PAGE_CHUNKS, routes } from "./routes";
 import { AppShell } from "./shell/AppShell";
@@ -19,6 +20,9 @@ function route(path: string): RouteObject {
 }
 
 describe("DS-07 路由懒加载", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
   it("每个页面都是 React.lazy 组件", () => {
     for (const chunk of Object.values(PAGE_CHUNKS)) {
       expect((chunk as unknown as { $$typeof: symbol }).$$typeof).toBe(LAZY);
@@ -37,7 +41,15 @@ describe("DS-07 路由懒加载", () => {
   });
 
   it("进入 /market 才挂载该页块", async () => {
-    render(<MemoryRouter>{route("market").element}</MemoryRouter>);
+    vi.stubGlobal("fetch", () => Promise.reject(new Error("offline")));
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false, gcTime: 0 } },
+    });
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter>{route("market").element}</MemoryRouter>
+      </QueryClientProvider>,
+    );
 
     expect(await screen.findByTestId("page-market")).toBeInTheDocument();
   });
