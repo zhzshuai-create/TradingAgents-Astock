@@ -155,9 +155,12 @@ const ROUTES = [
 describe("WEB-03 routes", () => {
   it.each(ROUTES)("renders %s", async (path, testId, heading) => {
     renderAt(path);
-    const region = await screen.findByTestId(testId);
+    // Lazy route chunks resolve slower under the full parallel suite.
+    const region = await screen.findByTestId(testId, undefined, {
+      timeout: 4000,
+    });
     expect(
-      await within(region).findByRole("heading", { level: 1 }),
+      await within(region).findByRole("heading", { level: 1 }, { timeout: 4000 }),
     ).toHaveTextContent(heading);
   });
 

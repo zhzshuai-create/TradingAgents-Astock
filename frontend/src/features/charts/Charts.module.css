@@ -1,0 +1,211 @@
+/* SVG chart shell shared by KLineChart and IntradayChart (P4-08). */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin: 0;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.headRow,
+.metaRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.periods,
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.toolButton {
+  min-height: 36px;
+  min-width: 44px;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.toolButton:hover {
+  background: var(--color-bg-inset);
+}
+
+.toolButton[aria-pressed="true"] {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  font-weight: var(--font-weight-semibold);
+}
+
+.toolButton:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.readout {
+  color: var(--color-text-secondary);
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+  line-height: var(--line-height-normal);
+  white-space: nowrap;
+  overflow-x: auto;
+  max-width: 100%;
+}
+
+.readoutValue {
+  color: var(--color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.meta {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  white-space: nowrap;
+}
+
+.adjustTag {
+  padding: 0 var(--space-2);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-xs);
+  color: var(--color-text-secondary);
+}
+
+.hint {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+/* Horizontal scrolling stays inside this box; the page never widens. */
+.scroll {
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-surface);
+}
+
+.svg {
+  display: block;
+  height: auto;
+  touch-action: pan-y;
+}
+
+.grid {
+  stroke: var(--color-border-subtle);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.axisText {
+  fill: var(--color-text-muted);
+  font-family: var(--font-family-mono);
+  font-size: 12px;
+}
+
+.axisFrame {
+  stroke: var(--color-border-default);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.up {
+  fill: var(--color-danger);
+  stroke: var(--color-danger);
+}
+
+.down {
+  fill: var(--color-success);
+  stroke: var(--color-success);
+}
+
+.flat {
+  fill: var(--color-text-muted);
+  stroke: var(--color-text-muted);
+}
+
+.wick {
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.body {
+  stroke: none;
+}
+
+.volumeBar {
+  opacity: 0.75;
+}
+
+.priceLine {
+  fill: none;
+  stroke: var(--color-accent);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.avgLine {
+  fill: none;
+  stroke: var(--color-warning);
+  stroke-width: 1.2;
+  vector-effect: non-scaling-stroke;
+  stroke-dasharray: 4 3;
+}
+
+.priceDot {
+  fill: var(--color-accent);
+}
+
+.crosshair {
+  stroke: var(--color-text-muted);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+.lunchBand {
+  fill: var(--color-bg-inset);
+}
+
+.lunchEdge {
+  stroke: var(--color-border-default);
+  stroke-width: 1;
+  stroke-dasharray: 2 3;
+  vector-effect: non-scaling-stroke;
+}
+
+.empty {
+  padding: var(--space-8) 0;
+}
+
+@media (max-width: 767px) {
+  .toolButton {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  .readout {
+    white-space: normal;
+  }
+}
