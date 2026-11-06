@@ -1,0 +1,146 @@
+{
+  "ticket": "P4-07",
+  "title": "市场看板 W08 移动",
+  "measured_at": "2026-11-06T18:52:08+08:00",
+  "environment": {
+    "platform": "Windows-11-10.0.26200-SP0",
+    "node": "22.22.2",
+    "python": "3.13.3",
+    "vite": "7.3.7",
+    "react": "19",
+    "react_router": "7",
+    "tanstack_query": "5",
+    "vitest": "5",
+    "new_runtime_dependencies": 0
+  },
+  "commands": {
+    "typecheck": "node node_modules/typescript/bin/tsc --noEmit",
+    "unit": "node node_modules/vitest/vitest.mjs run",
+    "build": "node node_modules/vite/bin/vite.js build",
+    "bundle": "node scripts/check_bundle.mjs --out <临时路径>",
+    "market_e2e": "\"C:/Users/zhzsh/AppData/Local/Programs/Python/Python313/python.exe\" e2e/market_e2e.py",
+    "e2e_p2": "\"C:/Users/zhzsh/AppData/Local/Programs/Python/Python313/python.exe\" e2e/e2e_p2.py",
+    "e2e_p3": "\"C:/Users/zhzsh/AppData/Local/Programs/Python/Python313/python.exe\" e2e/e2e_p3.py",
+    "python": ".venv/Scripts/python.exe -m pytest -q"
+  },
+  "unit": {
+    "test_files": 26,
+    "tests": 348,
+    "new_tests": 3,
+    "failures": 0,
+    "result": "pass"
+  },
+  "typecheck": {
+    "errors": 0,
+    "result": "pass"
+  },
+  "python": {
+    "passed": 789,
+    "skipped": 4,
+    "subtests": 59,
+    "failures": 0,
+    "result": "pass",
+    "note": "本票未改后端；全量复跑与 P4-06 基线一致"
+  },
+  "bundle": {
+    "measured_with": "node:zlib gzipSync level 9 over dist files",
+    "entry_gzip_kb": 123.32,
+    "entry_vite_reported_gzip_kb": 123.51,
+    "entry_budget_gzip_kb": 202.45,
+    "entry_within_budget": true,
+    "route_chunks": 11,
+    "route_chunk_limit_gzip_kb": 60,
+    "largest_route_chunk": {
+      "source": "src/pages/ReportDetailPage.tsx",
+      "file": "assets/ReportDetailPage-Dylp-PP-.js",
+      "gzip_kb": 20.68
+    },
+    "market_route_chunk_gzip_kb": 6.46,
+    "market_route_chunk_vite_reported_gzip_kb": 6.47,
+    "all_route_chunks_dynamic": true,
+    "all_route_chunks_separate_from_entry": true,
+    "all_route_chunks_within_limit": true,
+    "passed": true
+  },
+  "e2e": {
+    "market": {
+      "exit_code": 0,
+      "checks": 95,
+      "failures": [],
+      "flows": [
+        "1440 主流与钻取（P4-06 回归）：47 checks，含 W08-01 至 W08-08、R-10、R-11",
+        "1440 状态（P4-06 回归）：stale/partial/error/empty 四块",
+        "390×844 移动：W08M-01 至 W08M-04，含全屏成分股开合与返回恢复",
+        "360×800 移动：同 390 全部断言"
+      ],
+      "screenshots": ["ui_shots_p4/P4-06", "ui_shots_p4/P4-07"]
+    },
+    "p2": {
+      "exit_code": 0,
+      "runner_checks": 102,
+      "suite_checks": 493,
+      "suite_failures": {
+        "shell": 0,
+        "workbench": 0,
+        "active_job": 0,
+        "launcher": 0,
+        "jobs": 0,
+        "job_detail": 0,
+        "job_stream": 0,
+        "job_actions": 0
+      },
+      "failures": []
+    },
+    "p3": {
+      "exit_code": 0,
+      "checks": 19,
+      "failures": [],
+      "suite_checks": 260,
+      "suite_failures": {
+        "reports": 0,
+        "report_reader": 0,
+        "legacy_projection": 0
+      },
+      "criteria": {
+        "C1": true,
+        "C2": true,
+        "C3": true,
+        "C4": true
+      }
+    }
+  },
+  "acceptance": {
+    "W08M-01": {
+      "item": "390/360 指数横滑，页面不横滑",
+      "test": "MarketPage.mobile.test.tsx::W08M-01/02 + e2e/market_e2e.py mobile_flow（index-strip scrollWidth 852>340、779>310；document 与 #main-content 的 scrollWidth === clientWidth）",
+      "result": "pass"
+    },
+    "W08M-02": {
+      "item": "行业/强势卡片，无 table",
+      "test": "MarketPage.mobile.test.tsx::W08M-01/02 + e2e/market_e2e.py（20+5 行业卡、12 强势卡、9 题材芯片；DOM 无 table，industry-table/strong-table 未挂载）",
+      "result": "pass"
+    },
+    "W08M-03": {
+      "item": "全屏成分股开合与返回",
+      "test": "MarketPage.mobile.test.tsx::W08M-03 + e2e/market_e2e.py（board query 驱动、10 行、全屏 bounding box、关闭清 board、返回重开并恢复 scroll 500 -> 500）",
+      "result": "pass"
+    },
+    "W08M-04": {
+      "item": "44px 与无页面级横向溢出",
+      "test": "e2e/market_e2e.py（行业卡、强势链接、题材芯片、select、日期、最新；全屏层 10 行与关闭按钮；两档视口违规列表均为空）",
+      "result": "pass"
+    }
+  },
+  "notes": [
+    "视口切换用 useIsMobile 读 matchMedia('(max-width: 767px)')，挂载时读一次并监听 change；整页切到移动分支，不做 CSS 双渲染，因此移动 DOM 里根本没有 table。",
+    "指数条为 flex + scroll-snap，单卡 flex-basis min(82%, 320px)，overflow-x 只作用于条内；e2e 同时断言 strip 容器溢出、document 与 #main-content 不溢出。",
+    "卡片与桌面表格共用同一批查询与 patch 回调；题材聚合与筛选抽到 themeFilter，桌面表与移动卡共用，行为不变。",
+    "成分股全屏层是独立 portal 组件，没有改共享 Dialog（桌面仍用右侧 Drawer）；复用 useDialogFocus，滚动锁同时覆盖 body 与 [data-scroll-lock]。board query 仍是唯一状态源，关闭 replace 清 board，返回按 URL 自动重开。",
+    "滚动恢复沿用 P4-06 机制；移动端第二次点击（成分股行）才写入带 board 的 sessionStorage 键，所以返回后既能重开全屏层也能回到原位置。",
+    "组件测试在 jsdom 里桩 matchMedia 为 matches:true，MSW 提供 overview/industries/strong/newsflash/constituents 五组夹具，覆盖 3 条 W08M 用例。",
+    "E2E 的 mobile_flow 参数化跑 390×844 与 360×800；844 高度下行业卡已在首屏，scroll_into_view 无位移，改为显式 scrollTop=500 后再断言开合与返回都保持滚动。",
+    "桌面日期控件断言存在请求竞态：URL 同步更新后请求尚未发出；改为轮询请求列表最多 3 s，产品无改动。",
+    "全量 vitest 头两次运行时 AppShell 的 /workbench 首条用例在并行负载下超过 1 s 查找超时；单文件与随后全量复跑均通过，未改产品与测试。",
+    "P3-09 性能证据 JSON 被 e2e_p3 改写后已用 git checkout 还原；check_bundle 使用 --out 临时文件，未触碰 P4-04 拆包证据。截图目录被 .gitignore 的 ui_shots_*/ 覆盖，与 P4-06 一致。"
+  ]
+}
