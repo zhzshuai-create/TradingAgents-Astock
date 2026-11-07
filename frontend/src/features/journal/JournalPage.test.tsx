@@ -342,3 +342,22 @@ describe("JRN-10 isolation statement", () => {
     expect(screen.getByRole("button", { name: "重试" })).toBeInTheDocument();
   });
 });
+
+describe("P5-07 journal status changes", () => {
+  it("SR-04 announces the unavailable state once", async () => {
+    await mountUnavailable("not_running");
+    const status = screen.getByRole("status");
+    expect(status).toHaveTextContent("交易日志是独立应用，当前没有在运行。");
+    expect(screen.getAllByRole("status")).toHaveLength(1);
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("SR-04 keeps retry progress in a single polite status", async () => {
+    await mountUnavailable("not_running");
+    fireEvent.click(screen.getByRole("button", { name: "已启动，重试" }));
+
+    const status = await screen.findByRole("status");
+    expect(status).toHaveTextContent("正在等待日志服务");
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+});

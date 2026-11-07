@@ -476,6 +476,78 @@ describe("P5-06 keyboard and focus", () => {
   });
 });
 
+describe("P5-07 screen reader semantics", () => {
+  function controlName(node: HTMLElement): string {
+    const labelledBy = node.getAttribute("aria-labelledby");
+    if (labelledBy !== null) {
+      const text = labelledBy
+        .split(/\s+/)
+        .map((id) => document.getElementById(id)?.textContent ?? "")
+        .join(" ")
+        .trim();
+      if (text !== "") {
+        return text;
+      }
+    }
+    const label = node.getAttribute("aria-label");
+    if (label !== null && label.trim() !== "") {
+      return label.trim();
+    }
+    return (node.textContent ?? "").trim();
+  }
+
+  it.each(ROUTES)(
+    "SR-01/02/03 keeps %s readable without sight",
+    async (path, testId, heading) => {
+      renderAt(path);
+      const region = await screen.findByTestId(testId, undefined, {
+        timeout: 4000,
+      });
+
+      // SR-01: every control has a name; icons are hidden or a named image.
+      const unnamed = Array.from(
+        document.querySelectorAll<HTMLElement>("button, a"),
+      ).filter((node) => controlName(node) === "");
+      expect(unnamed.map((node) => node.outerHTML.slice(0, 120))).toEqual([]);
+      const silentSvgs = Array.from(document.querySelectorAll("svg")).filter(
+        (svg) =>
+          svg.getAttribute("aria-hidden") !== "true" &&
+          svg.getAttribute("role") !== "img",
+      );
+      expect(silentSvgs).toHaveLength(0);
+
+      // SR-02: exactly one h1, inside the page, and no skipped level.
+      await within(region).findByRole("heading", { level: 1 });
+      const headings = Array.from(
+        document.querySelectorAll<HTMLElement>("h1, h2, h3, h4, h5, h6"),
+      );
+      const levelOne = headings.filter((node) => node.tagName === "H1");
+      expect(levelOne).toHaveLength(1);
+      expect(region.contains(levelOne[0])).toBe(true);
+
+      // SR-03: the heading still carries the page's own title.
+      expect(levelOne[0]).toHaveTextContent(heading);
+
+      const levels = headings.map((node) => Number(node.tagName.slice(1)));
+      levels.slice(1).forEach((level, index) => {
+        expect(
+          level,
+          `${headings[index].tagName} -> ${headings[index + 1].tagName}`,
+        ).toBeLessThanOrEqual(levels[index] + 1);
+      });
+
+      // SR-02: one main, one labelled sidebar and one page nav per screen.
+      expect(document.querySelectorAll("main")).toHaveLength(1);
+      expect(
+        screen.getAllByRole("complementary", { name: "主导航" }),
+      ).toHaveLength(1);
+      expect(
+        screen.getAllByRole("navigation", { name: "页面导航" }),
+      ).toHaveLength(1);
+    },
+  );
+});
+
 describe("WEB-03 invalid ticker", () => {
   it.each(["/stocks/abc", "/stocks/12345", "/stocks/60051a", "/stocks"])(
     "renders 400 for %s",

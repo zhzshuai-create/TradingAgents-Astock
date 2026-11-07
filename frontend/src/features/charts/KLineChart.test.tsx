@@ -300,3 +300,33 @@ describe("CHT-08 容器内滚动", () => {
     );
   });
 });
+
+describe("P5-07 chart text alternative", () => {
+  it("SR-05 names the visible window and repeats it as text", () => {
+    render(<KLineChart data={DAILY_DATA} period="day" />);
+
+    const svg = screen.getByRole("img", { name: /日K K 线/ });
+    const label = svg.getAttribute("aria-label") ?? "";
+    expect(label).toContain("2026-09-01 至 2026-10-09");
+    expect(label).toContain("共 24 根");
+    expect(label).toContain("最新收盘 10.60 元");
+    expect(label).toContain("-2.03%");
+
+    const summary = screen.getByTestId("kline-summary");
+    expect(summary).toHaveTextContent("2026-09-01 至 2026-10-09");
+    expect(summary).toHaveTextContent("共 24 根");
+    expect(summary).toHaveTextContent("最新收盘 10.60 元");
+  });
+
+  it("SR-05 explains the empty state instead of naming an empty image", () => {
+    render(
+      <KLineChart
+        data={{ adjust: "none", bars: [], units: DAILY_DATA.units }}
+        period="day"
+      />,
+    );
+    expect(screen.queryByRole("img")).toBeNull();
+    expect(screen.queryByTestId("kline-summary")).toBeNull();
+    expect(screen.getByTestId("kline-empty")).toHaveTextContent("暂无 K 线数据");
+  });
+});

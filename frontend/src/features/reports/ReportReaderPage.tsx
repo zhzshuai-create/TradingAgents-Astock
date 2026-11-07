@@ -258,7 +258,7 @@ export function ReportReaderPage() {
 
           <div className={styles.layout}>
             {mobile ? null : (
-              <aside className={styles.tocColumn}>
+              <aside className={styles.tocColumn} aria-label="报告目录">
                 <ReportToc
                   sections={sections}
                   activeId={activeId}
@@ -281,7 +281,7 @@ export function ReportReaderPage() {
             {mobile ? (
               <ReportMeta meta={meta} />
             ) : (
-              <aside className={styles.side}>
+              <aside className={styles.side} aria-label="报告信息">
                 <DecisionCard meta={meta} />
                 <ReportMeta meta={meta} />
               </aside>

@@ -692,6 +692,43 @@ describe("REF-03 stock manual refresh", () => {
   });
 });
 
+describe("P5-07 screen reader semantics", () => {
+  it("SR-06 labels the fund flow table and its columns", async () => {
+    serveStock();
+    renderStock();
+
+    const table = await screen.findByTestId("fund-flow-table");
+    expect(table).toHaveAccessibleName("资金流明细");
+    expect(table.querySelector("caption")).toHaveTextContent("资金流明细");
+    expect(table.querySelectorAll("thead th[scope='col']")).toHaveLength(6);
+    for (const cell of Array.from(table.querySelectorAll("th"))) {
+      expect(cell).toHaveAttribute("scope");
+    }
+  });
+
+  it("SR-04 announces a finished manual refresh", async () => {
+    serveStock();
+    renderStock();
+    await screen.findByTestId("stock-valuation");
+
+    const status = screen.getByTestId("stock-refresh-status");
+    expect(status).toHaveAttribute("role", "status");
+    expect(status).toHaveAttribute("aria-live", "polite");
+    expect(status.textContent).toBe("");
+
+    fireEvent.click(screen.getByTestId("stock-refresh"));
+    await waitFor(
+      () => {
+        expect(status.textContent).toMatch(/已刷新，时间 \d{2}:\d{2}:\d{2}/);
+      },
+      { timeout: 2000 },
+    );
+    expect(
+      within(screen.getByTestId("page-stock")).getAllByRole("status"),
+    ).toHaveLength(1);
+  });
+});
+
 describe("REF-04 stock leaving the page", () => {
   it("clears the poll timer when the workspace unmounts", async () => {
     serveStock();

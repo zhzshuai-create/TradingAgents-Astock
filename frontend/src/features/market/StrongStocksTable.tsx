@@ -34,6 +34,7 @@ export function StrongStocksTable({
       <ThemeChips themes={themes} active={active} onThemeChange={onThemeChange} />
       <div className={styles.tableScroll}>
         <table className={styles.table} data-testid="strong-table">
+          <caption className="sr-only">强势股</caption>
           <thead>
             <tr>
               <th scope="col">股票</th>
@@ -57,7 +58,7 @@ export function StrongStocksTable({
                 data-testid="strong-row"
                 data-ticker={item.ticker_code}
               >
-                <td>
+                <th scope="row">
                   <Link
                     className={styles.stockLink}
                     to={`/stocks/${item.ticker_code}`}
@@ -67,7 +68,7 @@ export function StrongStocksTable({
                       {item.ticker_code}
                     </span>
                   </Link>
-                </td>
+                </th>
                 <td className={styles.reasonCell}>{item.reason || "—"}</td>
                 <td
                   className={`${styles.numeric} ${

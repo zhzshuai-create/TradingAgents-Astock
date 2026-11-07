@@ -250,15 +250,30 @@
   color: var(--color-text-primary);
 }
 
+/* Row header keeps the body-cell metrics; only the semantics change. */
+.table tbody th {
+  height: var(--row-height);
+  padding-block: var(--row-padding-y);
+  padding-inline: var(--space-4);
+  border-bottom: 1px solid var(--color-border-subtle);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-regular);
+  text-align: left;
+  vertical-align: inherit;
+}
+
 .industryRow {
   cursor: pointer;
 }
 
-.industryRow:hover td {
+.industryRow:hover td,
+.industryRow:hover th {
   background: var(--color-bg-inset);
 }
 
-.industryRow[data-active="true"] td {
+.industryRow[data-active="true"] td,
+.industryRow[data-active="true"] th {
   background: var(--color-accent-soft);
 }
 

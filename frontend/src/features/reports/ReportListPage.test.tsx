@@ -577,3 +577,29 @@ describe("LIB-06 zero side effects", () => {
     }
   });
 });
+
+describe("P5-07 screen reader semantics", () => {
+  it("SR-06 captions the report table and uses stock cells as row headers", async () => {
+    serveReports(() => ({
+      body: page([
+        report(),
+        report({ report_id: "r-old", ticker_code: "000629", ticker_name: "钒钛股份" }),
+      ]),
+    }));
+    renderPage("/reports");
+
+    const table = await screen.findByTestId("report-table");
+    expect(table).toHaveAccessibleName("报告列表");
+    expect(table.querySelector("caption")).toHaveTextContent("报告列表");
+    const headers = table.querySelectorAll("tbody th[scope='row']");
+    expect(headers).toHaveLength(2);
+    expect(headers[0]).toHaveTextContent("贵州茅台");
+    expect(headers[1]).toHaveTextContent("钒钛股份");
+    for (const cell of Array.from(table.querySelectorAll("th"))) {
+      expect(cell).toHaveAttribute("scope");
+    }
+    expect(
+      within(table).getByRole("link", { name: "贵州茅台" }),
+    ).toHaveAttribute("href", "/reports/r-new");
+  });
+});

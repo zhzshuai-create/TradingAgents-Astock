@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useSearchParams } from "react-router-dom";
 
 import {
@@ -61,7 +61,13 @@ export function MarketPage() {
   const isMobile = useIsMobile();
 
   const { refreshNow } = useVisibleRefetch(MARKET_SCOPE);
-  const onRefresh = useDebouncedRefresh(refreshNow);
+  const [refreshAt, setRefreshAt] = useState<string | null>(null);
+  const refresh = useCallback(() => {
+    void refreshNow().then(() => {
+      setRefreshAt(new Date().toLocaleTimeString("zh-CN", { hour12: false }));
+    });
+  }, [refreshNow]);
+  const onRefresh = useDebouncedRefresh(refresh);
 
   const overview = useQuery({
     ...marketOverviewQuery(),
@@ -185,6 +191,15 @@ export function MarketPage() {
           </Button>
         </div>
       </header>
+
+      <p
+        className="sr-only"
+        role="status"
+        aria-live="polite"
+        data-testid="market-refresh-status"
+      >
+        {refreshAt === null ? "" : `已刷新，时间 ${refreshAt}`}
+      </p>
 
       <section className={styles.section} aria-labelledby="market-overview">
         <div className={styles.sectionHead}>

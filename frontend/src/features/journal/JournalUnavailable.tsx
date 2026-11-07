@@ -25,7 +25,9 @@ export function JournalUnavailable({
 
   return (
     <>
-      <p className={styles.lead}>交易日志是独立应用，当前没有在运行。</p>
+      <p className={styles.lead} role="status" aria-live="polite">
+        交易日志是独立应用，当前没有在运行。
+      </p>
 
       <div className={styles.reasonBlock} data-reason={branch}>
         <p className={styles.reasonTitle}>{REASON_TITLE[branch]}</p>

@@ -141,7 +141,13 @@ export function JobDetailPage() {
     }
     setExpandedStageId(stageId);
     const target = document.getElementById(`stage-report-${stageId}`);
-    target?.scrollIntoView?.({ behavior: "smooth", block: "start" });
+    const reduceMotion = window.matchMedia?.(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    target?.scrollIntoView?.({
+      behavior: reduceMotion === true ? "auto" : "smooth",
+      block: "start",
+    });
   }
 
   function toggleStage(stageId: StageId) {

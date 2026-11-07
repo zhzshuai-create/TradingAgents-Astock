@@ -459,6 +459,51 @@ describe("REF-03 manual refresh", () => {
   });
 });
 
+describe("P5-07 screen reader semantics", () => {
+  it("SR-06 labels both tables and marks each row header", async () => {
+    serveMarket();
+    renderMarket();
+
+    const industry = await screen.findByTestId("industry-table");
+    expect(industry).toHaveAccessibleName("行业排名");
+    expect(industry.querySelector("caption")).toHaveTextContent("行业排名");
+    const industryHeaders = industry.querySelectorAll("tbody th[scope='row']");
+    expect(industryHeaders).toHaveLength(3);
+    expect(industryHeaders[0]).toHaveTextContent("半导体");
+    for (const cell of Array.from(industry.querySelectorAll("th"))) {
+      expect(cell).toHaveAttribute("scope");
+    }
+
+    const strong = await screen.findByTestId("strong-table");
+    expect(strong).toHaveAccessibleName("强势股");
+    expect(strong.querySelector("caption")).toHaveTextContent("强势股");
+    expect(strong.querySelectorAll("tbody th[scope='row']")).toHaveLength(3);
+    for (const cell of Array.from(strong.querySelectorAll("th"))) {
+      expect(cell).toHaveAttribute("scope");
+    }
+  });
+
+  it("SR-04 announces a finished manual refresh and nothing else", async () => {
+    serveMarket();
+    renderMarket();
+    await screen.findByTestId("industry-table");
+
+    const status = screen.getByTestId("market-refresh-status");
+    expect(status).toHaveAttribute("role", "status");
+    expect(status).toHaveAttribute("aria-live", "polite");
+    expect(status.textContent).toBe("");
+
+    fireEvent.click(screen.getByTestId("market-refresh"));
+    await waitFor(
+      () => {
+        expect(status.textContent).toMatch(/已刷新，时间 \d{2}:\d{2}:\d{2}/);
+      },
+      { timeout: 2000 },
+    );
+    expect(screen.getAllByRole("status")).toHaveLength(1);
+  });
+});
+
 describe("REF-04 leaving the page", () => {
   it("clears the poll timer when the route unmounts", async () => {
     serveMarket();

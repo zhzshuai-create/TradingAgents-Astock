@@ -539,3 +539,25 @@ describe("CTX-03 job list ticker link", () => {
     expect(link).toHaveTextContent("钒钛股份");
   });
 });
+
+describe("P5-07 screen reader semantics", () => {
+  it("SR-06 captions the job table and uses ticker cells as row headers", async () => {
+    serveJobs(() => ({
+      body: page([job({ job_id: "job-a" }), job({ job_id: "job-b" })]),
+    }));
+    renderPage("/jobs");
+
+    const table = await screen.findByTestId("job-table");
+    expect(table).toHaveAccessibleName("任务列表");
+    expect(table.querySelector("caption")).toHaveTextContent("任务列表");
+    const headers = table.querySelectorAll("tbody th[scope='row']");
+    expect(headers).toHaveLength(2);
+    expect(headers[0]).toHaveTextContent("钒钛股份");
+    for (const cell of Array.from(table.querySelectorAll("th"))) {
+      expect(cell).toHaveAttribute("scope");
+    }
+    expect(
+      within(screen.getAllByTestId("job-row")[0]).getByTestId("job-ticker-link"),
+    ).toHaveAccessibleName(/钒钛股份/);
+  });
+});

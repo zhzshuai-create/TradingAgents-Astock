@@ -122,6 +122,14 @@ function buildComponents(mobile: boolean): Components {
         </div>
       );
     },
+    // GFM header cells carry no scope; the mobile card path drops tables.
+    th({ children, ...rest }) {
+      return (
+        <th {...rest} scope="col">
+          {children}
+        </th>
+      );
+    },
   };
 }
 

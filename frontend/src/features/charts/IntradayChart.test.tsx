@@ -155,3 +155,32 @@ describe("CHT-08 分时容器内滚动", () => {
     );
   });
 });
+
+describe("P5-07 chart text alternative", () => {
+  it("SR-05 names the series with the facts already in the payload", () => {
+    render(<IntradayChart data={INTRADAY_DATA} />);
+
+    const svg = screen.getByRole("img", { name: /分时图/ });
+    const label = svg.getAttribute("aria-label") ?? "";
+    expect(label).toContain("共 12 个点");
+    expect(label).toContain("最新 10.24 元");
+    expect(label).toContain("最低 9.98 元");
+    expect(label).toContain("最高 10.25 元");
+
+    const summary = screen.getByTestId("intraday-summary");
+    expect(summary).toHaveTextContent("09:30 至 15:00");
+    expect(summary).toHaveTextContent("共 12 个点");
+    expect(summary).toHaveTextContent("最新价 10.24 元");
+  });
+
+  it("SR-05 explains the empty state instead of naming an empty image", () => {
+    render(
+      <IntradayChart
+        data={{ ...INTRADAY_DATA, points: [] }}
+      />,
+    );
+    expect(screen.queryByRole("img")).toBeNull();
+    expect(screen.queryByTestId("intraday-summary")).toBeNull();
+    expect(screen.getByText("暂无分时数据")).toBeInTheDocument();
+  });
+});

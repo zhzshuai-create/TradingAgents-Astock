@@ -21,7 +21,7 @@ function JobRow({ job }: { job: JobSummary }) {
 
   return (
     <tr data-testid="job-row">
-      <td>
+      <th scope="row">
         <Link
           className={styles.ticker}
           to={`/stocks/${job.ticker_code}`}
@@ -34,7 +34,7 @@ function JobRow({ job }: { job: JobSummary }) {
             <span className={styles.code}>{job.ticker_code}</span>
           ) : null}
         </Link>
-      </td>
+      </th>
       <td>
         <time dateTime={job.analysis_date}>{job.analysis_date}</time>
       </td>

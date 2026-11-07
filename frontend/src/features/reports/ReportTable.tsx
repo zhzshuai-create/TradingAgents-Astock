@@ -24,14 +24,14 @@ function ReportRow({ report }: { report: ReportSummary }) {
       <td>
         <Badge tone={rating.tone}>{rating.label}</Badge>
       </td>
-      <td>
+      <th scope="row">
         <Link className={styles.name} to={`/reports/${meta.report_id}`}>
           {meta.ticker_name ?? meta.ticker_code}
         </Link>
         {meta.ticker_name ? (
           <span className={styles.code}>{meta.ticker_code}</span>
         ) : null}
-      </td>
+      </th>
       <td>
         <time dateTime={meta.analysis_date}>{meta.analysis_date}</time>
       </td>

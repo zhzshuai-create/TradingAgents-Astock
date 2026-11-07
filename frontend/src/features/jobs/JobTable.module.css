@@ -44,7 +44,22 @@
   vertical-align: top;
 }
 
-.table tbody tr:first-child td {
+/* Row header keeps the body-cell metrics; only the semantics change. */
+.table tbody th {
+  height: var(--row-height);
+  padding-block: var(--row-padding-y);
+  padding-inline: var(--space-4);
+  border-top: 1px solid var(--color-border-subtle);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-regular);
+  text-align: left;
+  vertical-align: top;
+  white-space: normal;
+}
+
+.table tbody tr:first-child td,
+.table tbody tr:first-child th {
   border-top: none;
 }
 

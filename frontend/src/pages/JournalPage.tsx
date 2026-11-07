@@ -112,7 +112,11 @@ export function JournalPage() {
       />
     );
   } else if (isPending) {
-    body = <p className={styles.lead}>正在读取日志状态…</p>;
+    body = (
+      <p className={styles.lead} role="status" aria-live="polite">
+        正在读取日志状态…
+      </p>
+    );
   } else {
     body = (
       <>

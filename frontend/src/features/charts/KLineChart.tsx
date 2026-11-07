@@ -201,6 +201,23 @@ export function KLineChart({
       ? bars[readoutIndex - 1].close
       : null;
 
+  // Describes the visible window only, from bars already in the payload.
+  const summary = useMemo(() => {
+    const first = visibleBars[0];
+    const last = visibleBars[visibleBars.length - 1];
+    if (first === undefined || last === undefined) {
+      return null;
+    }
+    const previousIndex = barWindow.start + visibleBars.length - 2;
+    const previous =
+      previousIndex >= 0 ? (bars[previousIndex]?.close ?? null) : null;
+    return {
+      first,
+      last,
+      change: formatChangePct(last.close, previous),
+    };
+  }, [bars, barWindow.start, visibleBars]);
+
   const header = (
     <header className={styles.header}>
       <div className={styles.headRow}>
@@ -335,7 +352,11 @@ export function KLineChart({
             style={{ minWidth: 640 }}
             viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`}
             role="img"
-            aria-label={`${PERIOD_LABELS[period]} K 线，共 ${total} 根`}
+            aria-label={
+              summary === null
+                ? `${PERIOD_LABELS[period]} K 线，共 ${total} 根`
+                : `${PERIOD_LABELS[period]} K 线，${summary.first.date} 至 ${summary.last.date} 共 ${visibleBars.length} 根，最新收盘 ${formatChartPrice(summary.last.close)} 元，涨跌 ${summary.change}`
+            }
             data-chart="kline"
             data-bars={total}
             data-period={period}
@@ -499,6 +520,13 @@ export function KLineChart({
             />
           </svg>
         </div>
+      )}
+      {summary === null ? null : (
+        <figcaption className="sr-only" data-testid="kline-summary">
+          {PERIOD_LABELS[period]} K 线，{summary.first.date} 至{" "}
+          {summary.last.date}，共 {visibleBars.length} 根；最新收盘{" "}
+          {formatChartPrice(summary.last.close)} 元，涨跌 {summary.change}。
+        </figcaption>
       )}
     </figure>
   );

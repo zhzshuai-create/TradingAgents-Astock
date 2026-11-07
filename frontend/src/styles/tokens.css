@@ -18,7 +18,7 @@
   --gray-200: #dfe4ec;
   --gray-300: #cbd2de;
   --gray-400: #9aa5b5;
-  --gray-500: #6b7789;
+  --gray-500: #616c7d;
   --gray-600: #4d5868;
   --gray-700: #3a4453;
   --gray-800: #2a323e;
@@ -29,22 +29,23 @@
 
   --blue-100: #e8effd;
   --blue-400: #5b8ff5;
-  --blue-500: #2f6fed;
+  --blue-450: #3b78ee;
+  --blue-500: #2a64d5;
   --blue-600: #2557c7;
   --blue-900: #16223d;
 
   --green-100: #e4f6ec;
   --green-400: #3fae76;
-  --green-500: #1f8a56;
+  --green-500: #1c7c4d;
   --green-900: #123527;
 
   --amber-100: #fdf1dc;
   --amber-400: #d98a1f;
-  --amber-500: #b26a00;
+  --amber-500: #9e5e00;
   --amber-900: #3a2a10;
 
   --red-100: #fbe7e5;
-  --red-400: #e05a4c;
+  --red-400: #e26255;
   --red-500: #c0392b;
   --red-600: #a93226;
   --red-900: #3a1714;
@@ -181,7 +182,7 @@
   --color-text-muted: var(--gray-400);
   --color-text-inverse: var(--gray-1000);
   --color-accent: var(--blue-400);
-  --color-accent-hover: var(--blue-500);
+  --color-accent-hover: var(--blue-450);
   --color-accent-soft: var(--blue-900);
   --color-accent-contrast: var(--gray-1000);
   --color-success: var(--green-400);
@@ -213,7 +214,7 @@
     --color-text-muted: var(--gray-400);
     --color-text-inverse: var(--gray-1000);
     --color-accent: var(--blue-400);
-    --color-accent-hover: var(--blue-500);
+    --color-accent-hover: var(--blue-450);
     --color-accent-soft: var(--blue-900);
     --color-accent-contrast: var(--gray-1000);
     --color-success: var(--green-400);

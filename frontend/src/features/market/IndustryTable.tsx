@@ -40,7 +40,7 @@ function IndustryRows({
       onClick={() => onSelect(row.code)}
     >
       <td className={styles.rank}>{row.rank}</td>
-      <td>
+      <th scope="row">
         <button
           type="button"
           className={styles.industryButton}
@@ -51,7 +51,7 @@ function IndustryRows({
         >
           {row.name}
         </button>
-      </td>
+      </th>
       <td className={`${styles.numeric} ${TONE_CLASS[changeTone(row.change_pct)]}`}>
         {formatSignedPct(row.change_pct)}
       </td>
@@ -79,6 +79,7 @@ export function IndustryTable({
   return (
     <div className={styles.tableScroll}>
       <table className={styles.table} data-testid="industry-table">
+        <caption className="sr-only">行业排名</caption>
         <thead>
           <tr>
             <th scope="col" className={styles.rank}>

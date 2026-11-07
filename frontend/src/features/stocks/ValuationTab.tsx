@@ -122,9 +122,9 @@ function FundFlowBlock({ ticker }: { ticker: string }) {
 
   return (
     <section className={styles.block} aria-labelledby="stock-fund-flow-title">
-      <h3 className={styles.blockTitle} id="stock-fund-flow-title">
+      <h2 className={styles.blockTitle} id="stock-fund-flow-title">
         资金流（元）
-      </h3>
+      </h2>
       <DataState
         state={state === "ok" && items.length === 0 ? "empty" : state}
         partial={query.data?.partial ?? false}
@@ -137,6 +137,7 @@ function FundFlowBlock({ ticker }: { ticker: string }) {
       >
         <div className={styles.tableScroll}>
           <table className={styles.table} data-testid="fund-flow-table">
+            <caption className="sr-only">资金流明细</caption>
             <thead>
               <tr>
                 <th scope="col">时间</th>
@@ -198,9 +199,9 @@ export function ValuationTab({
   return (
     <div className={styles.tabPanel} data-testid="stock-valuation">
       <section className={styles.block} aria-labelledby="stock-figures-title">
-        <h3 className={styles.blockTitle} id="stock-figures-title">
+        <h2 className={styles.blockTitle} id="stock-figures-title">
           行情与估值
-        </h3>
+        </h2>
         <dl className={styles.fieldGrid}>
           {fields.map((field) => (
             <div className={styles.field} key={field.label}>
@@ -223,9 +224,9 @@ export function ValuationTab({
       </section>
 
       <section className={styles.block} aria-labelledby="stock-sectors-title">
-        <h3 className={styles.blockTitle} id="stock-sectors-title">
+        <h2 className={styles.blockTitle} id="stock-sectors-title">
           板块归属
-        </h3>
+        </h2>
         {sectors === null ? (
           <p className={styles.blockNote} data-testid="sector-note">
             板块数据不可得：数据源未返回行业、概念与地域。

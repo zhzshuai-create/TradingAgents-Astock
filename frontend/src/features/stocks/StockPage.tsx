@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import { ApiError } from "../../api/errors";
@@ -53,7 +53,13 @@ export function StockPage({ ticker }: StockPageProps) {
   const state = parseStockSearch(params.toString());
   const isMobile = useIsMobile();
   const { refreshNow } = useVisibleRefetch(STOCK_SCOPE);
-  const onRefresh = useDebouncedRefresh(refreshNow);
+  const [refreshAt, setRefreshAt] = useState<string | null>(null);
+  const refresh = useCallback(() => {
+    void refreshNow().then(() => {
+      setRefreshAt(new Date().toLocaleTimeString("zh-CN", { hour12: false }));
+    });
+  }, [refreshNow]);
+  const onRefresh = useDebouncedRefresh(refresh);
   const snapshot = useQuery({
     ...stockSnapshotQuery(ticker),
     ...usePolling(REFRESH_INTERVALS.stock.snapshot),
@@ -108,6 +114,15 @@ export function StockPage({ ticker }: StockPageProps) {
         primary={actions.primary}
         mobile={isMobile}
       />
+
+      <p
+        className="sr-only"
+        role="status"
+        aria-live="polite"
+        data-testid="stock-refresh-status"
+      >
+        {refreshAt === null ? "" : `已刷新，时间 ${refreshAt}`}
+      </p>
 
       <StockTabs
         active={state.tab}

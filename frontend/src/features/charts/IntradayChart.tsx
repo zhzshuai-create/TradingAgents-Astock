@@ -208,6 +208,20 @@ export function IntradayChart({
   const readout = plotted[readoutIndex];
   const hoverX = hoverIndex === null ? null : xs[hoverIndex];
 
+  // Facts already in the payload: no extra request, no invented numbers.
+  const summary = useMemo(() => {
+    if (plotted.length === 0) {
+      return null;
+    }
+    const prices = plotted.map((point) => point.price);
+    return {
+      last: plotted[plotted.length - 1],
+      low: Math.min(...prices),
+      high: Math.max(...prices),
+      start: plotted[0].time,
+    };
+  }, [plotted]);
+
   return (
     <figure
       className={styles.root}
@@ -297,7 +311,11 @@ export function IntradayChart({
             style={{ minWidth: 640 }}
             viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`}
             role="img"
-            aria-label={`${data.date} 分时图，共 ${data.points.length} 个点`}
+            aria-label={
+              summary === null
+                ? `${data.date} 分时图`
+                : `${data.date} 分时图，共 ${plotted.length} 个点，最新 ${formatChartPrice(summary.last.price)} 元，最低 ${formatChartPrice(summary.low)} 元，最高 ${formatChartPrice(summary.high)} 元`
+            }
             data-chart="intraday"
             data-points={data.points.length}
             data-segments={priceSegments.length}
@@ -525,6 +543,14 @@ export function IntradayChart({
             />
           </svg>
         </div>
+      )}
+      {summary === null ? null : (
+        <figcaption className="sr-only" data-testid="intraday-summary">
+          {data.date} 分时，{summary.start} 至 {summary.last.time}，共{" "}
+          {plotted.length} 个点；最新价 {formatChartPrice(summary.last.price)}{" "}
+          元，区间最低 {formatChartPrice(summary.low)} 元，最高{" "}
+          {formatChartPrice(summary.high)} 元。
+        </figcaption>
       )}
     </figure>
   );
