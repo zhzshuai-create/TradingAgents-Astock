@@ -60,7 +60,20 @@ vi.mock("../api/jobs", () => ({
 }));
 
 vi.mock("../api/meta", () => ({
-  getMetaOptions: vi.fn(async () => ({})),
+  getMetaOptions: vi.fn(async () => ({
+    app_version: "0.9.0",
+    server_time: "2026-11-05T09:30:00+08:00",
+    default_analysis_date: "2026-11-05",
+    llm_profiles: [{ id: "deepseek-default", label: "DeepSeek 默认" }],
+    stage_toggles: [],
+    limits: { max_active_jobs: 1, max_date_ahead_days: 0 },
+    journal: {
+      available: false,
+      entry_url: "http://127.0.0.1:8502",
+      reason: "not_running",
+    },
+    contract_version: "api-v1",
+  })),
 }));
 
 vi.mock("../api/reports", () => ({

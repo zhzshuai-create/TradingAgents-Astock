@@ -357,3 +357,84 @@ describe("streamJobEvents", () => {
     );
   });
 });
+
+describe("last connection result (C8)", () => {
+  // The record is module state; every case starts from a fresh module.
+  beforeEach(() => {
+    vi.resetModules();
+  });
+
+  it("starts at none, records success on the handshake and notifies once", async () => {
+    const sse = await import("./sse");
+    expect(sse.readLastSseResult()).toBe("none");
+
+    const listener = vi.fn();
+    const unsubscribe = sse.subscribeLastSseResult(listener);
+    fetchMock.mockResolvedValue(streamResponse([]));
+
+    await sse.streamJobEvents("job-1", {
+      signal: new AbortController().signal,
+      onEvent: () => {},
+    });
+
+    expect(sse.readLastSseResult()).toBe("success");
+    expect(listener).toHaveBeenCalledTimes(1);
+    unsubscribe();
+  });
+
+  it("records failure when the handshake is rejected", async () => {
+    const sse = await import("./sse");
+    fetchMock.mockResolvedValue(
+      jsonResponse(500, {
+        error: { code: "internal_error", message: "boom" },
+      }),
+    );
+
+    await expect(
+      sse.streamJobEvents("job-1", {
+        signal: new AbortController().signal,
+        onEvent: () => {},
+      }),
+    ).rejects.toBeInstanceOf(sse.SseFailureError);
+
+    expect(sse.readLastSseResult()).toBe("failure");
+  });
+
+  it("records failure for a broken frame after a successful handshake", async () => {
+    const sse = await import("./sse");
+    fetchMock.mockResolvedValue(
+      streamResponse(['event: stats\ndata: {"seq":1}\n\n']),
+    );
+
+    await expect(
+      sse.streamJobEvents("job-1", {
+        signal: new AbortController().signal,
+        onEvent: () => {},
+      }),
+    ).rejects.toBeInstanceOf(sse.SseProtocolError);
+
+    expect(sse.readLastSseResult()).toBe("failure");
+  });
+
+  it("keeps the previous result when the caller aborts", async () => {
+    const sse = await import("./sse");
+    fetchMock.mockResolvedValue(streamResponse([]));
+    await sse.streamJobEvents("job-1", {
+      signal: new AbortController().signal,
+      onEvent: () => {},
+    });
+    expect(sse.readLastSseResult()).toBe("success");
+
+    const abort = new DOMException("aborted", "AbortError");
+    fetchMock.mockRejectedValue(abort);
+
+    await expect(
+      sse.streamJobEvents("job-1", {
+        signal: new AbortController().signal,
+        onEvent: () => {},
+      }),
+    ).rejects.toBe(abort);
+
+    expect(sse.readLastSseResult()).toBe("success");
+  });
+});

@@ -177,6 +177,33 @@ export interface JobEventStreamOptions {
   onEvent: (event: JobSseEvent) => void;
 }
 
+/** P5-03 C8: the outcome of the latest connection, memory only. */
+export type SseLastResult = "none" | "success" | "failure";
+
+let lastSseResult: SseLastResult = "none";
+const lastSseResultListeners = new Set<() => void>();
+
+export function readLastSseResult(): SseLastResult {
+  return lastSseResult;
+}
+
+export function subscribeLastSseResult(listener: () => void): () => void {
+  lastSseResultListeners.add(listener);
+  return () => {
+    lastSseResultListeners.delete(listener);
+  };
+}
+
+function recordSseResult(result: SseLastResult): void {
+  if (lastSseResult === result) {
+    return;
+  }
+  lastSseResult = result;
+  for (const listener of lastSseResultListeners) {
+    listener();
+  }
+}
+
 async function readErrorBody(response: Response): Promise<unknown> {
   try {
     return await response.json();
@@ -204,6 +231,21 @@ export async function streamJobEvents(
   jobId: string,
   options: JobEventStreamOptions,
 ): Promise<void> {
+  try {
+    await openJobEventStream(jobId, options);
+  } catch (error) {
+    // An abort is the caller leaving, not a failed connection (C8).
+    if (!isAbortError(error)) {
+      recordSseResult("failure");
+    }
+    throw error;
+  }
+}
+
+async function openJobEventStream(
+  jobId: string,
+  options: JobEventStreamOptions,
+): Promise<void> {
   let response: Response;
   try {
     response = await openEventStream(
@@ -228,6 +270,7 @@ export async function streamJobEvents(
     throw new SseFailureError({ kind: "protocol" });
   }
 
+  recordSseResult("success");
   options.onOpen?.();
 
   const reader = response.body.getReader();

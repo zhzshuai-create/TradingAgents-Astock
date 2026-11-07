@@ -1,0 +1,321 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  max-width: 960px;
+  min-width: 0;
+}
+
+.pageHead {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.title {
+  color: var(--color-text-primary);
+  font-size: var(--font-size-3xl);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--letter-spacing-tight);
+  line-height: var(--line-height-tight);
+}
+
+.lead {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-md);
+  line-height: var(--line-height-normal);
+}
+
+.saved {
+  min-height: 20px;
+  margin: 0;
+  color: var(--color-success);
+  font-size: var(--font-size-sm);
+}
+
+.groups,
+.detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  min-width: 0;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  min-width: 0;
+  padding: var(--space-6);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  scroll-margin-top: var(--space-6);
+}
+
+.groupTitle {
+  color: var(--color-text-primary);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-tight);
+}
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin: 0;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2) var(--space-4);
+  min-height: 36px;
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.row:last-child {
+  border-bottom: none;
+}
+
+.rowLabel {
+  flex: 0 0 112px;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.rowValue {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-md);
+  overflow-wrap: anywhere;
+}
+
+.inlineLink,
+.inlineButton {
+  min-height: 32px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-surface);
+  color: var(--color-accent);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  line-height: 30px;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.inlineButton:hover,
+.inlineLink:hover {
+  background: var(--color-bg-inset);
+}
+
+.inlineLink:focus-visible,
+.inlineButton:focus-visible,
+.select:focus-visible,
+.groupRow:focus-visible,
+.back:focus-visible,
+.checkRow input:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
+
+.control {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.controlLabel {
+  flex: 0 0 112px;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.select {
+  min-width: 168px;
+  min-height: 36px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+}
+
+.checkRow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 36px;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.checkRow input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+}
+
+.note {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-normal);
+}
+
+.subgroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.subTitle {
+  color: var(--color-text-primary);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+}
+
+.profileList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.profileItem {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-3);
+  min-height: 32px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-inset);
+}
+
+.profileName {
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+}
+
+.profileId {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.groupList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.groupRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  width: 100%;
+  min-height: 56px;
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  color: var(--color-text-primary);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.groupRow:hover {
+  background: var(--color-bg-inset);
+}
+
+.groupRowText {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.groupRowName {
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-semibold);
+}
+
+.groupRowHint {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.groupRowChevron {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xl);
+}
+
+.back {
+  align-self: flex-start;
+  min-height: 44px;
+  padding: 0 var(--space-5);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-surface);
+  color: var(--color-text-secondary);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+}
+
+.back:hover {
+  background: var(--color-bg-inset);
+}
+
+@media (max-width: 767px) {
+  .group {
+    padding: var(--space-5);
+  }
+
+  .rowLabel,
+  .controlLabel {
+    flex-basis: 96px;
+  }
+
+  .select {
+    flex: 1 1 140px;
+    min-height: 44px;
+  }
+
+  .inlineLink,
+  .inlineButton {
+    min-height: 44px;
+    line-height: 42px;
+  }
+
+  .checkRow {
+    min-height: 44px;
+  }
+
+  .groupRow {
+    min-height: 60px;
+  }
+}
