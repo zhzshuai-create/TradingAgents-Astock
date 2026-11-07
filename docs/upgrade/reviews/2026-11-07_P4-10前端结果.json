@@ -1,0 +1,167 @@
+{
+  "ticket": "P4-10",
+  "title": "股票工作区 W07 移动",
+  "measured_at": "2026-11-07T10:20:09+08:00",
+  "environment": {
+    "platform": "Windows-11-10.0.26200-SP0",
+    "node": "22.22.2",
+    "python": "3.13.3",
+    "vite": "7.3.7",
+    "react": "19.3.1",
+    "vitest": "5.1.0",
+    "new_runtime_dependencies": 0
+  },
+  "commands": {
+    "typecheck": "node node_modules/typescript/bin/tsc --noEmit",
+    "unit": "node node_modules/vitest/vitest.mjs run",
+    "build": "node node_modules/vite/bin/vite.js build",
+    "bundle": "node scripts/check_bundle.mjs --out <临时路径>",
+    "stock_e2e": "\"C:/Users/zhzsh/AppData/Local/Programs/Python/Python313/python.exe\" e2e/stock_e2e.py",
+    "market_e2e": "\"C:/Users/zhzsh/AppData/Local/Programs/Python/Python313/python.exe\" e2e/market_e2e.py",
+    "e2e_p2": "\"C:/Users/zhzsh/AppData/Local/Programs/Python/Python313/python.exe\" e2e/e2e_p2.py",
+    "e2e_p3": "\"C:/Users/zhzsh/AppData/Local/Programs/Python/Python313/python.exe\" e2e/e2e_p3.py",
+    "python": ".venv/Scripts/python.exe -m pytest -q",
+    "preflight": ".venv/Scripts/python.exe scripts/p0_preflight.py --full --smoke"
+  },
+  "unit": {
+    "test_files": 33,
+    "tests": 413,
+    "new_test_files": 1,
+    "new_tests": 3,
+    "failures": 0,
+    "result": "pass",
+    "breakdown": {
+      "features/stocks/StockPage.mobile.test.tsx": 3
+    },
+    "note": "全量 413/413；桌面 StockPage.test.tsx 17 条与图表 18 条未改仍过。"
+  },
+  "typecheck": {
+    "errors": 0,
+    "result": "pass"
+  },
+  "python": {
+    "passed": 789,
+    "skipped": 4,
+    "subtests": 59,
+    "failures": 0,
+    "result": "pass",
+    "note": "本票未改后端；全量复跑与 P4-09 基线一致"
+  },
+  "bundle": {
+    "measured_with": "node:zlib gzipSync level 9 over dist files",
+    "entry_gzip_kb": 123.73,
+    "entry_budget_gzip_kb": 202.45,
+    "entry_within_budget": true,
+    "route_chunks": 11,
+    "route_chunk_limit_gzip_kb": 60,
+    "stock_chunk": {
+      "file": "assets/StockPage-DsmqDW4n.js",
+      "gzip_kb": 11.78,
+      "previous_gzip_kb": 11.54,
+      "delta_gzip_kb": 0.24,
+      "within_60_kb": true
+    },
+    "all_route_chunks_within_limit": true,
+    "passed": true
+  },
+  "browser": {
+    "tool": "Playwright Chromium（Python 3.13），vite preview，stubbed read APIs",
+    "script": "e2e/stock_e2e.py",
+    "checks": 92,
+    "failures": [],
+    "desktop": {
+      "viewport": "1440x900",
+      "checks": 54,
+      "note": "P4-09 流程原样复跑：头部、主操作、上下文链接、五页签、深链、400、partial、stale、报告错误、活动任务"
+    },
+    "mobile": {
+      "viewports": ["390x844", "360x800"],
+      "checks_per_viewport": 19,
+      "flows": [
+        "W07M-01：五页签在自身容器内横滑（390 456>366、360 456>336），每个页签高度 44，文档与滚动容器宽度均等于视口",
+        "W07M-02：吸底条贴齐底部导航（390 788=788、360 744=744），单按钮 44 高且文案「分析这只股票」，头部不再有第二个主按钮",
+        "W07M-03：K 线容器 640>364/334 内横滑，移动提示指周期按钮，点「周K」进 query 且 aria-pressed；分时容器 640 内横滑",
+        "W07M-04：12 个估值字段都在视口内；日期控件与「最新交易日」44 高；两次切页签后仍无页面级横向溢出；全部请求为 GET"
+      ]
+    },
+    "screenshots": [
+      "ui_shots_p4/P4-10/stock_390.png",
+      "ui_shots_p4/P4-10/stock_390_kline.png",
+      "ui_shots_p4/P4-10/stock_360.png",
+      "ui_shots_p4/P4-10/stock_360_kline.png"
+    ]
+  },
+  "e2e_regression": {
+    "market": {
+      "exit_code": 0,
+      "checks": 95,
+      "failures": []
+    },
+    "p2": {
+      "exit_code": 0,
+      "runner_checks": 102,
+      "suite_checks": 493,
+      "suite_failures": {
+        "shell": 0,
+        "workbench": 0,
+        "active_job": 0,
+        "launcher": 0,
+        "jobs": 0,
+        "job_detail": 0,
+        "job_stream": 0,
+        "job_actions": 0
+      },
+      "failures": []
+    },
+    "p3": {
+      "exit_code": 0,
+      "checks": 19,
+      "failures": [],
+      "suite_checks": 260,
+      "criteria": {
+        "C1": true,
+        "C2": true,
+        "C3": true,
+        "C4": true
+      },
+      "note": "统一脚本改写了 2026-11-06_P3-09性能结果.json，跑完已 git checkout 还原"
+    }
+  },
+  "acceptance": {
+    "W07M-01": {
+      "item": "页签横滑与 44px",
+      "test": "StockPage.mobile.test.tsx（data-scroll=x、五个页签）+ stock_e2e.py（456>366/336、五个 44px、视口宽度相等）",
+      "result": "pass"
+    },
+    "W07M-02": {
+      "item": "吸底条位置与按钮可见",
+      "test": "StockPage.mobile.test.tsx（吸底条唯一主按钮、点开启动器、活动任务改名并跳转）+ stock_e2e.py（底边贴合 56px 导航、44px、头部无重复按钮）",
+      "result": "pass"
+    },
+    "W07M-03": {
+      "item": "图表容器滚动与周期按钮",
+      "test": "StockPage.mobile.test.tsx（容器 data-scroll、移动提示、滚轮不缩放、周周期进 query）+ stock_e2e.py（K 线/分时容器内横滑、周周期 aria-pressed）",
+      "result": "pass"
+    },
+    "W07M-04": {
+      "item": "360/390 无页面横向溢出",
+      "test": "stock_e2e.py（两档视口 doc/main 宽度相等、12 个估值字段在视口内、切页签后复查、触控目标 44px、控制台 0 错误）",
+      "result": "pass"
+    }
+  },
+  "preflight": {
+    "passed": 10,
+    "failed": 0,
+    "result": "pass",
+    "note": "提交代码与证据后在工作区干净状态复跑"
+  },
+  "notes": [
+    "移动分支只按 (max-width: 767px) 的 matchMedia 判定，复用 features/market/useIsMobile，断点与外壳一致。",
+    "主按钮在移动端只渲染一次：头部不再渲染 stock-primary-action，吸底条渲染唯一一份，避免重复 testid 与双主操作。",
+    "吸底条 bottom = calc(56px + env(safe-area-inset-bottom))，页面另加同高 padding-bottom，内容滚到底不被条遮住。",
+    "K 线在移动端不挂滚轮缩放、触控指针本来就不进拖拽；周期按钮是唯一缩放入口，图表仍在自身 640px 宽容器内横滑。",
+    "页签移动端 min-width 88px：五页签合计 456px，两档视口都会溢出容器，横滑是真实可断言的，不是靠缩短文案凑数。",
+    "首轮 E2E 在 390 出现一次 aria-pressed 读取早于 React 提交的竞态（URL 已改、渲染未完成）；补 wait_for_function 后 390/360 均过，断言未放宽。",
+    "估值字段在移动端改两列：三列时「86550.50 万元」「3085.20 亿元」会折行，两列后可读且仍 12 个字段全部在视口内。"
+  ]
+}
