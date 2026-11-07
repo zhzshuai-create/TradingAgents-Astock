@@ -7,6 +7,7 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -192,6 +193,7 @@ function renderAt(path: string) {
 
 afterEach(() => {
   localStorage.clear();
+  document.title = "";
   delete document.documentElement.dataset.theme;
   delete document.documentElement.dataset.density;
 });
@@ -324,6 +326,153 @@ describe("P5-05 legacy entry", () => {
     expect(link).toHaveAttribute("href", "http://localhost:8501");
     expect(link).toHaveAttribute("target", "_blank");
     expect(link).toHaveAttribute("rel", "noreferrer");
+  });
+});
+
+describe("P5-06 keyboard and focus", () => {
+  function sidebar() {
+    return screen.getByRole("complementary", { name: "主导航" });
+  }
+
+  function accessibleName(node: HTMLElement): string {
+    const labelledBy = node.getAttribute("aria-labelledby");
+    if (labelledBy !== null) {
+      const text = labelledBy
+        .split(/\s+/)
+        .map((id) => document.getElementById(id)?.textContent ?? "")
+        .join(" ")
+        .trim();
+      if (text !== "") {
+        return text;
+      }
+    }
+    const label = node.getAttribute("aria-label");
+    if (label !== null && label.trim() !== "") {
+      return label.trim();
+    }
+    if (node instanceof HTMLInputElement && node.labels !== null) {
+      const text = Array.from(node.labels)
+        .map((entry) => entry.textContent ?? "")
+        .join(" ")
+        .trim();
+      if (text !== "") {
+        return text;
+      }
+    }
+    return (node.textContent ?? "").trim();
+  }
+
+  it("KB-01 leaves first-paint focus alone and moves it on the next route", async () => {
+    renderAt("/workbench");
+    await screen.findByTestId("page-workbench");
+    const main = document.getElementById("main-content");
+    expect(main).not.toBeNull();
+    expect(document.activeElement).not.toBe(main);
+
+    fireEvent.click(within(sidebar()).getByRole("link", { name: "市场" }));
+    await screen.findByTestId("page-market");
+    expect(document.activeElement).toBe(main);
+  });
+
+  it("KB-01 does not move focus when only the hash changes", async () => {
+    const router = renderAt("/market");
+    await screen.findByTestId("page-market");
+    const input = screen.getByLabelText("搜索股票");
+    input.focus();
+
+    act(() => {
+      void router.navigate("/market#group-data");
+    });
+    await waitFor(() => {
+      expect(router.state.location.hash).toBe("#group-data");
+    });
+    expect(document.activeElement).toBe(input);
+  });
+
+  it("KB-02 titles the tab from the route and updates it on navigation", async () => {
+    renderAt("/market");
+    await screen.findByTestId("page-market");
+    expect(document.title).toBe("市场 · AStock Pro");
+
+    fireEvent.click(within(sidebar()).getByRole("link", { name: "任务" }));
+    await screen.findByTestId("page-jobs");
+    expect(document.title).toBe("任务 · AStock Pro");
+  });
+
+  it("KB-02 does not repeat the product name on unknown routes", async () => {
+    renderAt("/no-such-page");
+    await screen.findByTestId("not-found");
+    expect(document.title).toBe("AStock Pro");
+  });
+
+  it("KB-03 keeps the skip link first and hands focus to the main region", () => {
+    renderAt("/workbench");
+    const skip = screen.getByRole("link", { name: "跳到主要内容" });
+    skip.focus();
+    expect(document.activeElement).toBe(skip);
+
+    fireEvent.click(skip);
+    expect(document.getElementById("main-content")).toHaveFocus();
+  });
+
+  it("KB-04 walks the desktop tab stops from skip link to top bar", async () => {
+    const user = userEvent.setup();
+    renderAt("/workbench");
+    await screen.findByTestId("page-workbench");
+    const expected = [
+      "跳到主要内容",
+      "AStock Pro 工作台",
+      "工作台",
+      "市场",
+      "任务",
+      "报告",
+      "交易日志",
+      "设置",
+      "旧版入口",
+      "收起侧栏",
+      "搜索股票",
+      "提交搜索",
+      "切换到深色主题",
+    ];
+    const seen: string[] = [];
+    for (let index = 0; index < expected.length; index += 1) {
+      await user.tab();
+      seen.push(accessibleName(document.activeElement as HTMLElement));
+    }
+    expect(seen).toEqual(expected);
+  });
+
+  it("KB-05 closes the mobile search on Escape", async () => {
+    renderAt("/market");
+    await screen.findByTestId("page-market");
+    const opener = screen.getByLabelText("打开搜索");
+    fireEvent.click(opener);
+    expect(opener).toHaveAttribute("aria-expanded", "true");
+
+    const header = opener.closest("header") as HTMLElement;
+    const input = within(header).getByLabelText("搜索股票");
+    fireEvent.keyDown(input, { key: "Escape" });
+
+    // The panel closes and the toggle advertises it; focus returns to the
+    // toggle, which the browser E2E checks at 390px (the header is hidden here).
+    await waitFor(() => {
+      expect(within(header).queryByLabelText("搜索股票")).toBeNull();
+    });
+    expect(opener).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it.each([
+    ["/workbench", "page-workbench"],
+    ["/jobs/job-1", "page-job-detail"],
+    ["/settings", "page-settings"],
+    ["/journal", "page-journal"],
+  ])("KB-08 gives every control on %s an accessible name", async (path, testId) => {
+    renderAt(path);
+    await screen.findByTestId(testId, undefined, { timeout: 4000 });
+    const unnamed = Array.from(
+      document.querySelectorAll<HTMLElement>("button, a"),
+    ).filter((node) => accessibleName(node) === "");
+    expect(unnamed.map((node) => node.outerHTML.slice(0, 120))).toEqual([]);
   });
 });
 

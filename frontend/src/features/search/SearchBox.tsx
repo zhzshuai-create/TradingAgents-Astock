@@ -33,6 +33,8 @@ export interface SearchBoxProps {
   className?: string;
   /** When set, a selection goes here instead of navigating to the target page. */
   onSelect?: (selection: SearchSelection) => void;
+  /** Escape first closes the suggestion list, then hands control to the host. */
+  onEscape?: () => void;
 }
 
 export function SearchBox({
@@ -41,6 +43,7 @@ export function SearchBox({
   label = "搜索股票",
   className,
   onSelect,
+  onEscape,
 }: SearchBoxProps) {
   const [value, setValue] = useState("");
   const [open, setOpen] = useState(false);
@@ -140,6 +143,7 @@ export function SearchBox({
     if (event.key === "Escape") {
       setOpen(false);
       setActive(-1);
+      onEscape?.();
     }
   }
 

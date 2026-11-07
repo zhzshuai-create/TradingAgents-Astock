@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 
 import { usePreferences } from "../lib/preferences";
@@ -50,9 +50,31 @@ export function AppShell() {
     setMobileSearchOpen(false);
   }, [pathname]);
 
+  // The shell owns the tab title; pages never set it themselves. The first
+  // render only names the tab — moving focus then would steal it from the URL.
+  // Comparing the stored pathname also keeps StrictMode's double mount quiet.
+  const lastPath = useRef(pathname);
+  useEffect(() => {
+    const label = pageTitle(pathname);
+    document.title = label === "AStock Pro" ? label : `${label} · AStock Pro`;
+    if (lastPath.current === pathname) {
+      return;
+    }
+    lastPath.current = pathname;
+    document.getElementById("main-content")?.focus({ preventScroll: true });
+  }, [pathname]);
+
   return (
     <div className={`${styles.shell} ${collapsed ? styles.collapsed : ""}`}>
-      <a className={styles.skipLink} href="#main-content">
+      <a
+        className={styles.skipLink}
+        href="#main-content"
+        onClick={(event) => {
+          // Browsers disagree on focusing a fragment target; own it here.
+          event.preventDefault();
+          document.getElementById("main-content")?.focus();
+        }}
+      >
         跳到主要内容
       </a>
       <Sidebar

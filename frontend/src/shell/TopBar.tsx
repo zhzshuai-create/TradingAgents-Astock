@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
 
 import { SearchBox } from "../features/search/SearchBox";
 import { metaOptionsQuery } from "../lib/query";
@@ -67,12 +68,25 @@ export function MobileTopBar({
   theme,
   onToggleTheme,
 }: MobileTopBarProps) {
+  const searchButtonRef = useRef<HTMLButtonElement>(null);
+  const restoreFocus = useRef(false);
+
+  // The input unmounts on close, which drops focus to <body>; take it back
+  // once React has committed the panel away.
+  useEffect(() => {
+    if (!searchOpen && restoreFocus.current) {
+      restoreFocus.current = false;
+      searchButtonRef.current?.focus();
+    }
+  }, [searchOpen]);
+
   return (
     <header className={styles.mobileHeader}>
       <div className={styles.mobileRow}>
         <span className={styles.mobileTitle}>{title}</span>
         <div className={styles.mobileActions}>
           <button
+            ref={searchButtonRef}
             type="button"
             className={styles.iconButton}
             onClick={onToggleSearch}
@@ -93,7 +107,14 @@ export function MobileTopBar({
       </div>
       {searchOpen ? (
         <div className={styles.mobileSearch}>
-          <SearchBox compact autoFocus />
+          <SearchBox
+            compact
+            autoFocus
+            onEscape={() => {
+              restoreFocus.current = true;
+              onToggleSearch();
+            }}
+          />
         </div>
       ) : null}
     </header>
