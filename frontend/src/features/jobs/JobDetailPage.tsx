@@ -4,7 +4,8 @@ import { Link, useParams } from "react-router-dom";
 
 import { ApiError, displayErrorMessage } from "../../api/errors";
 import type { JobStage, StageId } from "../../api/types";
-import { jobDetailQuery } from "../../lib/query";
+import { jobDetailQuery, metaOptionsQuery } from "../../lib/query";
+import { LEGACY_ENTRY_URL } from "../../shell/navigation";
 import { Button, Drawer, EmptyState, Skeleton } from "../../ui";
 import { JobNotice } from "./JobNotice";
 import { StageReportBody, StageReportView } from "./StageReportView";
@@ -67,6 +68,7 @@ export function JobDetailPage() {
   });
   const [expandedStageId, setExpandedStageId] = useState<StageId | null>(null);
   const [drawerStageId, setDrawerStageId] = useState<StageId | null>(null);
+  const meta = useQuery(metaOptionsQuery);
   const autoExpandedFor = useRef<string | null>(null);
   const stream = useJobStream(jobId, jobId !== "" && query.data !== undefined);
 
@@ -157,6 +159,23 @@ export function JobDetailPage() {
   return (
     <section className={styles.page} data-testid="page-job-detail">
       <StatusHeader job={job} />
+      {meta.data?.write_mode === "legacy" ? (
+        <div
+          className={styles.writerBanner}
+          role="status"
+          data-testid="job-writer-legacy"
+        >
+          <span>当前由旧版发起分析，新建与重试请到旧版入口。</span>
+          <a
+            className={styles.writerLink}
+            href={LEGACY_ENTRY_URL}
+            target="_blank"
+            rel="noreferrer"
+          >
+            打开旧版界面
+          </a>
+        </div>
+      ) : null}
       {stream.expired ? (
         <div
           className={styles.streamBanner}

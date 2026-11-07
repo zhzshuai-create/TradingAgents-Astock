@@ -186,6 +186,28 @@ describe("SET desktop settings", () => {
     expect(screen.queryByText(/后续票据/)).toBeNull();
   });
 
+  it("shows the writer read-only and links the legacy entry only for legacy", async () => {
+    serveMeta({ write_mode: "legacy" });
+    renderSettings();
+
+    const basic = await screen.findByRole("region", { name: "基本" });
+    const row = within(basic).getByTestId("settings-write-mode");
+    await waitFor(() => expect(row).toHaveTextContent("旧版入口"));
+    expect(
+      within(row).getByRole("link", { name: "打开旧版界面" }),
+    ).toHaveAttribute("href", "http://localhost:8501");
+  });
+
+  it("shows the next writer without a legacy link", async () => {
+    serveMeta({ write_mode: "next" });
+    renderSettings();
+
+    const basic = await screen.findByRole("region", { name: "基本" });
+    const row = within(basic).getByTestId("settings-write-mode");
+    await waitFor(() => expect(row).toHaveTextContent("新版入口"));
+    expect(within(row).queryByRole("link")).toBeNull();
+  });
+
   it("SET-02 renders read-only contract values from one cached query", async () => {
     let calls = 0;
     server.use(

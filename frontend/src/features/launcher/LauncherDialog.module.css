@@ -59,6 +59,12 @@
   line-height: var(--line-height-relaxed);
 }
 
+.legacyLink {
+  margin-left: var(--space-2);
+  color: var(--color-accent);
+  text-decoration: underline;
+}
+
 .footer {
   display: flex;
   justify-content: flex-end;

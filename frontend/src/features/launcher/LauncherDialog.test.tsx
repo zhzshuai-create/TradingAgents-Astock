@@ -581,6 +581,11 @@ describe("WEB-09 launcher form", () => {
     expect(await screen.findByTestId("launcher-write-mode")).toHaveTextContent(
       "当前由旧版发起分析，请到旧版入口开始分析",
     );
+    expect(
+      within(screen.getByTestId("launcher-write-mode")).getByRole("link", {
+        name: "打开旧版界面",
+      }),
+    ).toHaveAttribute("href", "http://localhost:8501");
     expect(screen.getByRole("button", { name: "开始分析" })).toBeDisabled();
     expect(posts).toBe(0);
   });

@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import type { JournalReason, MetaOptions } from "../../../api/types";
 import type { SseLastResult } from "../../../api/sse";
 import type { Density } from "../../../lib/preferences";
+import { LEGACY_ENTRY_URL } from "../../../shell/navigation";
 import styles from "../SettingsView.module.css";
 
 const SSE_RESULT_TEXT: Record<SseLastResult, string> = {
@@ -26,8 +27,14 @@ export interface BasicGroupProps {
   onRetry: () => void;
 }
 
-function journalText(meta: MetaOptions | undefined): string {
+function writeModeText(meta: MetaOptions | undefined): string {
   if (meta === undefined) {
+    return "暂不可用";
+  }
+  return meta.write_mode === "legacy" ? "旧版入口" : "新版入口";
+}
+
+function journalText(meta: MetaOptions | undefined): string {  if (meta === undefined) {
     return "暂不可用";
   }
   if (meta.journal.available) {
@@ -87,6 +94,22 @@ export function BasicGroup({
           <dd className={styles.rowValue}>{meta?.server_time ?? "暂不可用"}</dd>
         </div>
         <div className={styles.row}>
+          <dt className={styles.rowLabel}>分析写入者</dt>
+          <dd className={styles.rowValue} data-testid="settings-write-mode">
+            {writeModeText(meta)}
+            {meta?.write_mode === "legacy" ? (
+              <a
+                className={styles.inlineLink}
+                href={LEGACY_ENTRY_URL}
+                target="_blank"
+                rel="noreferrer"
+              >
+                打开旧版界面
+              </a>
+            ) : null}
+          </dd>
+        </div>
+        <div className={styles.row}>
           <dt className={styles.rowLabel}>交易日志</dt>
           <dd className={styles.rowValue}>
             {journalText(meta)}
@@ -105,6 +128,10 @@ export function BasicGroup({
           </dd>
         </div>
       </dl>
+
+      <p className={styles.note}>
+        分析写入者由后端启动时决定，切换后需要重启后端，运行期不会自动改变。
+      </p>
 
       <div className={styles.control}>
         <label className={styles.controlLabel} htmlFor="settings-density">

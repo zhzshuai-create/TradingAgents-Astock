@@ -39,6 +39,19 @@ vi.mock("./useJobStream", () => ({
 
 const ORIGIN = "http://localhost:3000";
 const STAGE_URL = `${ORIGIN}/api/v1/jobs/:jobId/stages/:stageId`;
+const META_URL = `${ORIGIN}/api/v1/meta/options`;
+
+const META = {
+  app_version: "0.9.0",
+  server_time: "2026-11-05T09:30:00+08:00",
+  default_analysis_date: "2026-11-05",
+  llm_profiles: [{ id: "deepseek-default", label: "DeepSeek 默认" }],
+  stage_toggles: [{ id: "policy", label: "政策分析", default: true }],
+  limits: { max_active_jobs: 1, max_date_ahead_days: 0 },
+  journal: { available: false, entry_url: "http://127.0.0.1:8502", reason: null },
+  contract_version: "api-v1",
+  write_mode: "next",
+};
 
 const STAGE_SPECS: Array<[StageId, string]> = [
   ["market", "技术分析"],
@@ -66,6 +79,7 @@ beforeEach(() => {
   stageRequests = [];
   detailRequests = 0;
   streamState.current = { reconnecting: false, expired: false };
+  server.use(http.get(META_URL, () => HttpResponse.json(META)));
 });
 
 function makeStages(
@@ -613,6 +627,31 @@ describe("WEB-12 event stream banners", () => {
     await screen.findByTestId("job-header");
     expect(screen.queryByTestId("job-stream-reconnecting")).toBeNull();
     expect(screen.queryByTestId("job-stream-expired")).toBeNull();
+  });
+
+  // P6-02 ---------------------------------------------------------------
+
+  it("points to the legacy entry only while the legacy UI is the writer", async () => {
+    serveDetail({ body: job() });
+    serveStages();
+    renderDetail();
+
+    await screen.findByTestId("job-header");
+    expect(screen.queryByTestId("job-writer-legacy")).toBeNull();
+
+    cleanup();
+    server.use(
+      http.get(META_URL, () =>
+        HttpResponse.json({ ...META, write_mode: "legacy" }),
+      ),
+    );
+    renderDetail();
+
+    const banner = await screen.findByTestId("job-writer-legacy");
+    expect(banner).toHaveTextContent("当前由旧版发起分析");
+    expect(
+      within(banner).getByRole("link", { name: "打开旧版界面" }),
+    ).toHaveAttribute("href", "http://localhost:8501");
   });
 });
 

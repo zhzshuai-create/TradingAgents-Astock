@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { displayErrorMessage } from "../../api/errors";
 import type { JobDetail } from "../../api/types";
 import { metaOptionsQuery } from "../../lib/query";
+import { LEGACY_ENTRY_URL } from "../../shell/navigation";
 import { Button, Dialog, Toast } from "../../ui";
 import { ConfigFields } from "./ConfigFields";
 import { SubmitState } from "./SubmitState";
@@ -200,6 +201,14 @@ export function LauncherDialog({
             {writeMode === "legacy" ? (
               <p className={styles.note} data-testid="launcher-write-mode">
                 当前由旧版发起分析，请到旧版入口开始分析
+                <a
+                  className={styles.legacyLink}
+                  href={LEGACY_ENTRY_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  打开旧版界面
+                </a>
               </p>
             ) : null}
             <p className={styles.cost}>
