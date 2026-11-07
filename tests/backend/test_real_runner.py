@@ -121,9 +121,15 @@ def _states() -> list[dict]:
 
 
 class StubGraph:
-    def __init__(self, stats: StubStats, states: list[dict]) -> None:
+    def __init__(
+        self,
+        stats: StubStats,
+        states: list[dict],
+        steps: tuple[tuple[int, int, int], ...] | None = None,
+    ) -> None:
         self._stats = stats
         self._states = states
+        self._steps = steps or STEPS
         self.graph = self
         self.prepared = 0
         self.finalized: dict | None = None
@@ -134,7 +140,7 @@ class StubGraph:
         return {"messages": []}, {"stream_mode": "values"}, None
 
     def stream(self, init_state, **args):
-        for state, step in zip(self._states, STEPS, strict=True):
+        for state, step in zip(self._states, self._steps, strict=True):
             self._stats.add(*step)
             yield state
 
@@ -158,10 +164,11 @@ class Clock:
 def _executor(
     states: list[dict] | None = None,
     *,
+    steps: tuple[tuple[int, int, int], ...] | None = None,
     config_path: Path | None = None,
 ) -> tuple[RealAnalysisExecutor, StubGraph, StubStats]:
     stats = StubStats()
-    graph = StubGraph(stats, states or _states())
+    graph = StubGraph(stats, states or _states(), steps)
     executor = RealAnalysisExecutor(
         environ={},
         config_path=config_path or Path("missing-llm-config.json"),
@@ -190,6 +197,23 @@ def test_rr01_double_switch_selects_the_real_executor():
     )
     assert isinstance(real, RealAnalysisExecutor)
     assert real.name == "real"
+
+
+def test_rr09_incomplete_chunks_do_not_advance_the_stage_cursor():
+    empty = {"company_of_interest": "000629", "trade_date": "2026-11-07"}
+    states = [empty, {**empty, "market_report": ""}, *_states()]
+    steps = ((0, 0, 0), (0, 0, 0), *STEPS)
+    executor, _, _ = _executor(states, steps=steps)
+
+    updates = []
+    executor.run(REQUEST, on_stage=updates.append)
+
+    order = [(item.stage_id, item.phase) for item in updates]
+    assert order.index(("social", "started")) > order.index(("market", "done"))
+    for index, stage_id in enumerate(STAGE_IDS[1:], start=1):
+        assert order.index((stage_id, "started")) > order.index(
+            (STAGE_IDS[index - 1], "done")
+        )
 
 
 def test_rr02_stub_graph_produces_twelve_ordered_pairs():

@@ -333,8 +333,11 @@ class RealAnalysisExecutor:
                     carry = [carry[i] + step[i] for i in range(3)]
                     carry_ms += elapsed_ms
 
+                # Only the first unfinished stage is running. A chunk without a
+                # completed report must not advance the cursor, otherwise a
+                # slow analyst would show every later stage as started.
                 for stage_id in expected:
-                    if stage_id not in started:
+                    if stage_id not in reported:
                         emit_started(stage_id)
                         break
 
