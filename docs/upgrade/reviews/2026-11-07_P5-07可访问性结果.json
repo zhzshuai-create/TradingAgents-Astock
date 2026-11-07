@@ -1,0 +1,406 @@
+{
+  "ticket": "P5-07",
+  "title": "读屏、对比度、减少动态",
+  "measured_at": "2026-11-07T17:40:00+08:00",
+  "base_head": "2cd96e5",
+  "code_head": "0cceb30",
+  "environment": {
+    "platform": "Windows-11-10.0.26200-SP0",
+    "node": "22.22.2",
+    "python": "3.13.3",
+    "vite": "7.3.7",
+    "react": "19.3.1",
+    "vitest": "5.1.0",
+    "new_runtime_dependencies": 0,
+    "axe_core": "未安装（P5-08 负责）"
+  },
+  "commands": {
+    "typecheck": "cd frontend && node node_modules/typescript/bin/tsc --noEmit",
+    "unit": "cd frontend && node node_modules/vitest/vitest.mjs run",
+    "build": "cd frontend && node node_modules/vite/bin/vite.js build",
+    "bundle": "cd frontend && node scripts/check_bundle.mjs --out <临时文件路径>",
+    "e2e": "C:/Users/zhzsh/AppData/Local/Programs/Python/Python313/python.exe e2e/keyboard_e2e.py，随后 settings_e2e.py、journal_e2e.py、market_e2e.py、stock_e2e.py",
+    "reduced_motion_spot": "C:/Users/zhzsh/AppData/Local/Programs/Python/Python313/python.exe <临时脚本>（Playwright，context reduced_motion=reduce）",
+    "preflight": ".venv/Scripts/python.exe scripts/p0_preflight.py --full --smoke"
+  },
+  "page_audit": [
+    {
+      "path": "/workbench",
+      "component": "frontend/src/features/workbench/WorkbenchPage.tsx",
+      "h1": "工作台",
+      "headings": "h1 工作台；h2 分析一只股票 / 市场概览 / 最近任务 / 最近报告；h3 三大指数 / 行业涨幅 / 强势股 / 最近研究的股票",
+      "landmarks": "main#main-content；aside[aria-label=主导航]；nav[aria-label=页面导航]",
+      "tables": [],
+      "live_regions": ["Toast role=status", "StaleBanner role=status", "最近任务 / 最近报告错误 role=alert"],
+      "changes": "无页面内改动；沿用外壳 landmark 与现有实时区"
+    },
+    {
+      "path": "/market",
+      "component": "frontend/src/features/market/MarketPage.tsx",
+      "h1": "市场",
+      "headings": "h1 市场；h2 市场概览 / 行业排名 / 强势股 / 快讯；移动行业卡 h3 涨幅末位（在 h2 行业排名之下）",
+      "landmarks": "main；主导航；页面导航",
+      "tables": ["行业排名：caption + th[scope=col] + th[scope=row]", "强势股：caption + th[scope=col] + th[scope=row]"],
+      "live_regions": ["market-refresh-status role=status aria-live=polite（新增）", "行情错误 DataState role=alert"],
+      "changes": "两张表补 caption 与 scope；行首改 th 并补行高/悬停样式；刷新完成写入 sr-only 状态行"
+    },
+    {
+      "path": "/stocks/600519",
+      "component": "frontend/src/features/stocks/StockPage.tsx",
+      "h1": "股票名称（无名称时回退代码，夹具为 600519）",
+      "headings": "h1 名称；h2 资金流（元）/ 关键指标 / 主营构成；h3 行业 / 概念 / 地域（在 h2 主营构成之下）",
+      "landmarks": "main；主导航；页面导航",
+      "tables": ["资金流明细：caption + th[scope=col] + th[scope=row]"],
+      "live_regions": ["stock-refresh-status role=status aria-live=polite（新增）", "快照错误 role=alert"],
+      "changes": "资金流表补 caption 与列头 scope；三块标题 h3 → h2；K 线与分时补文本替代；刷新完成播报"
+    },
+    {
+      "path": "/jobs",
+      "component": "frontend/src/features/jobs/JobListPage.tsx",
+      "h1": "任务",
+      "headings": "h1 任务；表格与筛选区无额外标题",
+      "landmarks": "main；主导航；页面导航",
+      "tables": ["任务列表：caption + th[scope=col] + th[scope=row]"],
+      "live_regions": ["列表错误 role=alert"],
+      "changes": "任务表补 caption；股票列改 th[scope=row] 并保持原单元格度量"
+    },
+    {
+      "path": "/jobs/job-1",
+      "component": "frontend/src/features/jobs/JobDetailPage.tsx",
+      "h1": "股票名称（夹具为 贵州茅台）",
+      "headings": "h1 名称；h2 任务提示标题 / 阶段进度 / 阶段报告",
+      "landmarks": "main；主导航；页面导航",
+      "tables": [],
+      "live_regions": ["阶段状态 role=status + aria-live=polite（既有）", "错误面板 role=alert"],
+      "changes": "只把滚动到阶段的行为按减少动态降级"
+    },
+    {
+      "path": "/reports",
+      "component": "frontend/src/features/reports/ReportListPage.tsx",
+      "h1": "报告",
+      "headings": "h1 报告；表格与筛选区无额外标题",
+      "landmarks": "main；主导航；页面导航",
+      "tables": ["报告列表：caption + th[scope=col] + th[scope=row]"],
+      "live_regions": ["列表错误 role=alert"],
+      "changes": "报告表补 caption；股票列改 th[scope=row] 并保持原单元格度量"
+    },
+    {
+      "path": "/reports/r-long",
+      "component": "frontend/src/features/reports/ReportReaderPage.tsx",
+      "h1": "报告标题（夹具为 贵州茅台）",
+      "headings": "h1 报告标题；h2 决策 / 元信息 / 报告章节；h3 章节内小节",
+      "landmarks": "main；主导航；页面导航；aside[aria-label=报告目录]；aside[aria-label=报告信息]",
+      "tables": ["正文 Markdown 表格：th[scope=col]，无 caption（已知限制）"],
+      "live_regions": ["导出错误 role=alert"],
+      "changes": "两个侧栏补可访问名称；Markdown 表头补 scope"
+    },
+    {
+      "path": "/journal",
+      "component": "frontend/src/pages/JournalPage.tsx",
+      "h1": "交易日志（不可用、待机、运行中三态同标题）",
+      "headings": "h1 交易日志；无 h2",
+      "landmarks": "main；主导航；页面导航",
+      "tables": [],
+      "live_regions": ["待机文案 role=status aria-live=polite（新增）", "不可用文案 role=status aria-live=polite（新增）", "读取失败 role=alert"],
+      "changes": "待机与不可用两态补实时区；iframe 内是另一个源的应用，不在本页 DOM 内"
+    },
+    {
+      "path": "/settings",
+      "component": "frontend/src/features/settings/SettingsView.tsx",
+      "h1": "设置",
+      "headings": "h1 设置；h2 基本 / 数据源 / 模型 / 关于；h3 许可与免责声明 / 服务端模型配置",
+      "landmarks": "main；主导航；页面导航",
+      "tables": [],
+      "live_regions": ["已保存 role=status aria-live=polite（既有）", "保存错误 role=alert"],
+      "changes": "无页面内改动"
+    }
+  ],
+  "unit": {
+    "test_files": 38,
+    "tests": 527,
+    "failures": 0,
+    "result": "pass",
+    "p5_07_tests": 28,
+    "breakdown": {
+      "shell/AppShell.test.tsx": {
+        "added": 9,
+        "ids": ["SR-01 ×9", "SR-02 ×9", "SR-03 ×9"]
+      },
+      "features/charts/KLineChart.test.tsx": { "added": 2, "ids": ["SR-05 ×2"] },
+      "features/charts/IntradayChart.test.tsx": { "added": 2, "ids": ["SR-05 ×2"] },
+      "features/market/MarketPage.test.tsx": { "added": 2, "ids": ["SR-06", "SR-04"] },
+      "features/stocks/StockPage.test.tsx": { "added": 2, "ids": ["SR-06", "SR-04"] },
+      "features/jobs/JobListPage.test.tsx": { "added": 1, "ids": ["SR-06"] },
+      "features/reports/ReportListPage.test.tsx": { "added": 1, "ids": ["SR-06"] },
+      "features/journal/JournalPage.test.tsx": { "added": 2, "ids": ["SR-04 ×2"] },
+      "styles/reducedMotion.test.ts": { "added": 7, "ids": ["RM-01 ×3", "RM-02 ×3", "RM-03 ×1"] }
+    },
+    "note": "P5-06 基线 37 个文件 / 499 条；本票新增 1 个文件、28 条，527/527 通过。定向复跑 9 个文件 178 条全过。"
+  },
+  "typecheck": {
+    "errors": 0,
+    "result": "pass"
+  },
+  "python": {
+    "passed": 789,
+    "skipped": 4,
+    "failures": 0,
+    "result": "pass",
+    "note": "零后端改动；全量数字与 P5-06 基线一致。"
+  },
+  "bundle": {
+    "measured_with": "frontend/scripts/check_bundle.mjs（node:zlib gzipSync level 9）",
+    "entry_gzip_kb": 124.72,
+    "entry_budget_gzip_kb": 202.45,
+    "entry_within_budget": true,
+    "entry_delta_gzip_kb": 0.0,
+    "route_chunks": 11,
+    "route_chunk_limit_gzip_kb": 60,
+    "largest_route_chunk": {
+      "file": "assets/ReportDetailPage-*.js",
+      "gzip_kb": 20.84
+    },
+    "journal_chunk_gzip_kb": 2.64,
+    "settings_chunk_gzip_kb": 4.01,
+    "all_route_chunks_within_limit": true,
+    "passed": true,
+    "note": "入口 JS 未变；增量落在懒加载路由块与 CSS。"
+  },
+  "e2e": {
+    "keyboard": { "checks": 59, "failures": 0 },
+    "settings": { "checks": 73, "failures": 0 },
+    "journal": { "checks": 80, "failures": 0 },
+    "market": { "checks": 103, "failures": 0 },
+    "stock": { "checks": 99, "failures": 0 },
+    "note": "键盘脚本的可访问名称扫描覆盖九页 × 1440/390，本票后仍全过；截图写入 ui_shots_p5/P5-06/，不入库。"
+  },
+  "reduced_motion": {
+    "global_rule": {
+      "file": "frontend/src/styles/global.css",
+      "lines": "69-78",
+      "declarations": [
+        "animation-duration: 0.01ms !important",
+        "animation-iteration-count: 1 !important",
+        "transition-duration: 0.01ms !important",
+        "scroll-behavior: auto !important（本票新增）"
+      ]
+    },
+    "infinite_animations": [
+      {
+        "file": "frontend/src/ui/Skeleton.module.css",
+        "line": 11,
+        "declaration": "animation: shimmer 1.4s var(--ease-standard) infinite",
+        "opt_out": "同文件 24-27 的 reduce 块内 animation: none"
+      }
+    ],
+    "entry_animations_one_shot": [
+      "frontend/src/ui/Dialog.module.css:9,23（fade-in / pop-in）",
+      "frontend/src/ui/Drawer.module.css:6,22,28,39（fade-in / slide-in-*）",
+      "frontend/src/ui/Toast.module.css:17（toast-in）",
+      "frontend/src/features/market/MarketPage.module.css:654（fade-in）"
+    ],
+    "smooth_scroll": {
+      "only_call_site": "frontend/src/features/jobs/JobDetailPage.tsx:144-149",
+      "guard": "window.matchMedia?.(\"(prefers-reduced-motion: reduce)\").matches",
+      "fallback": "behavior: auto；未开启时仍为 smooth"
+    },
+    "absent": [
+      "组件内联 animation 样式（ts/tsx 扫描为空）",
+      "requestAnimationFrame 数字滚动",
+      "CSS scroll-behavior: smooth",
+      "scrollTo / scrollBy 带 smooth",
+      "用 display: none 代替动画"
+    ],
+    "browser_spot_check": {
+      "method": "Playwright / Chromium，context reduced_motion=\"reduce\"；九页 × 1440/390，另开 390 的「更多」抽屉",
+      "pages_checked": 18,
+      "scroll_behavior_all_auto": true,
+      "animation_offenders": 0,
+      "transition_offenders": 0,
+      "drawer": {
+        "animationDuration": "1e-05s",
+        "animationIterationCount": "1",
+        "transitionDuration": "1e-05s"
+      },
+      "result": "pass"
+    }
+  },
+  "contrast": {
+    "method": "从 frontend/src/styles/tokens.css 解析亮/暗两套令牌，按 WCAG 相对亮度公式手算；亮色取 :root，暗色取 [data-theme=dark]；悬停行取 --color-bg-inset，禁用态按 0.55 不透明度与底色合成。",
+    "formula": "(L1+0.05)/(L2+0.05), L=0.2126R+0.7152G+0.0722B, c<=0.03928 ? c/12.92 : ((c+0.055)/1.055)^2.4",
+    "thresholds": {
+      "text": 4.5,
+      "large_text": 3.0,
+      "focus_ring": 3.0
+    },
+    "light": [
+      { "id": "light.body-on-surface", "what": "正文/表格单元格", "fg": "#1b212a", "bg": "#ffffff", "ratio": 16.18, "threshold": 4.5, "pass": true },
+      { "id": "light.body-on-canvas", "what": "正文/页面底色", "fg": "#1b212a", "bg": "#f5f7fa", "ratio": 15.08, "threshold": 4.5, "pass": true },
+      { "id": "light.secondary-on-surface", "what": "次要说明", "fg": "#4d5868", "bg": "#ffffff", "ratio": 7.21, "threshold": 4.5, "pass": true },
+      { "id": "light.muted-table-head", "what": "表头/弱化文本", "fg": "#616c7d", "bg": "#ffffff", "ratio": 5.32, "threshold": 4.5, "pass": true },
+      { "id": "light.muted-on-canvas", "what": "弱化文本/页面底色", "fg": "#616c7d", "bg": "#f5f7fa", "ratio": 4.95, "threshold": 4.5, "pass": true },
+      { "id": "light.muted-on-inset", "what": "弱化文本/悬停行", "fg": "#616c7d", "bg": "#edf0f5", "ratio": 4.65, "threshold": 4.5, "pass": true },
+      { "id": "light.link-on-surface", "what": "链接/强调文本", "fg": "#2a64d5", "bg": "#ffffff", "ratio": 5.41, "threshold": 4.5, "pass": true },
+      { "id": "light.link-on-canvas", "what": "链接/页面底色", "fg": "#2a64d5", "bg": "#f5f7fa", "ratio": 5.04, "threshold": 4.5, "pass": true },
+      { "id": "light.primary-button", "what": "主按钮文字", "fg": "#ffffff", "bg": "#2a64d5", "ratio": 5.41, "threshold": 4.5, "pass": true },
+      { "id": "light.primary-button-hover", "what": "主按钮悬停", "fg": "#ffffff", "bg": "#2557c7", "ratio": 6.43, "threshold": 4.5, "pass": true },
+      { "id": "light.danger-button", "what": "危险按钮文字", "fg": "#ffffff", "bg": "#c0392b", "ratio": 5.44, "threshold": 4.5, "pass": true },
+      { "id": "light.badge-neutral", "what": "中性徽标", "fg": "#4d5868", "bg": "#edf0f5", "ratio": 6.31, "threshold": 4.5, "pass": true },
+      { "id": "light.badge-info", "what": "信息徽标", "fg": "#2a64d5", "bg": "#e8effd", "ratio": 4.69, "threshold": 4.5, "pass": true },
+      { "id": "light.badge-success", "what": "成功徽标", "fg": "#1c7c4d", "bg": "#e4f6ec", "ratio": 4.63, "threshold": 4.5, "pass": true },
+      { "id": "light.badge-warning", "what": "警告徽标", "fg": "#9e5e00", "bg": "#fdf1dc", "ratio": 4.63, "threshold": 4.5, "pass": true },
+      { "id": "light.badge-danger", "what": "危险徽标", "fg": "#c0392b", "bg": "#fbe7e5", "ratio": 4.57, "threshold": 4.5, "pass": true },
+      { "id": "light.quote-up", "what": "涨（红）数字", "fg": "#c0392b", "bg": "#ffffff", "ratio": 5.44, "threshold": 4.5, "pass": true },
+      { "id": "light.quote-down", "what": "跌（绿）数字", "fg": "#1c7c4d", "bg": "#ffffff", "ratio": 5.2, "threshold": 4.5, "pass": true },
+      { "id": "light.focus-ring-surface", "what": "焦点环/白色面", "fg": "#2a64d5", "bg": "#ffffff", "ratio": 5.41, "threshold": 3.0, "pass": true },
+      { "id": "light.focus-ring-canvas", "what": "焦点环/页面底色", "fg": "#2a64d5", "bg": "#f5f7fa", "ratio": 5.04, "threshold": 3.0, "pass": true },
+      { "id": "light.heading-large", "what": "大字标题（≥24px）", "fg": "#1b212a", "bg": "#f5f7fa", "ratio": 15.08, "threshold": 3.0, "pass": true },
+      { "id": "light.border-control", "what": "控件边框/白色面（非文字对比）", "fg": "#cbd2de", "bg": "#ffffff", "ratio": 1.52, "threshold": 3.0, "pass": false },
+      { "id": "light.disabled-secondary-on-surface", "what": "禁用按钮文字（0.55 不透明度合成）", "fg": "#82858a", "bg": "#ffffff", "ratio": 3.7, "threshold": 4.5, "pass": false, "note": "WCAG 1.4.3 对禁用控件豁免；仅记录" },
+      { "id": "light.disabled-secondary-on-canvas", "what": "禁用按钮文字（0.55 不透明度合成）", "fg": "#7d8188", "bg": "#fafbfd", "ratio": 3.78, "threshold": 4.5, "pass": false, "note": "WCAG 1.4.3 对禁用控件豁免；仅记录" }
+    ],
+    "dark": [
+      { "id": "dark.body-on-surface", "what": "正文/表格单元格", "fg": "#f5f7fa", "bg": "#141920", "ratio": 16.45, "threshold": 4.5, "pass": true },
+      { "id": "dark.body-on-canvas", "what": "正文/页面底色", "fg": "#f5f7fa", "bg": "#0d1117", "ratio": 17.63, "threshold": 4.5, "pass": true },
+      { "id": "dark.secondary-on-surface", "what": "次要说明", "fg": "#cbd2de", "bg": "#141920", "ratio": 11.61, "threshold": 4.5, "pass": true },
+      { "id": "dark.muted-table-head", "what": "表头/弱化文本", "fg": "#9aa5b5", "bg": "#141920", "ratio": 7.08, "threshold": 4.5, "pass": true },
+      { "id": "dark.muted-on-canvas", "what": "弱化文本/页面底色", "fg": "#9aa5b5", "bg": "#0d1117", "ratio": 7.59, "threshold": 4.5, "pass": true },
+      { "id": "dark.muted-on-inset", "what": "弱化文本/悬停行", "fg": "#9aa5b5", "bg": "#232a35", "ratio": 5.79, "threshold": 4.5, "pass": true },
+      { "id": "dark.link-on-surface", "what": "链接/强调文本", "fg": "#5b8ff5", "bg": "#141920", "ratio": 5.63, "threshold": 4.5, "pass": true },
+      { "id": "dark.link-on-canvas", "what": "链接/页面底色", "fg": "#5b8ff5", "bg": "#0d1117", "ratio": 6.03, "threshold": 4.5, "pass": true },
+      { "id": "dark.primary-button", "what": "主按钮文字", "fg": "#0d1117", "bg": "#5b8ff5", "ratio": 6.03, "threshold": 4.5, "pass": true },
+      { "id": "dark.primary-button-hover", "what": "主按钮悬停", "fg": "#0d1117", "bg": "#3b78ee", "ratio": 4.6, "threshold": 4.5, "pass": true },
+      { "id": "dark.danger-button", "what": "危险按钮文字", "fg": "#0d1117", "bg": "#e26255", "ratio": 5.51, "threshold": 4.5, "pass": true },
+      { "id": "dark.badge-neutral", "what": "中性徽标", "fg": "#cbd2de", "bg": "#232a35", "ratio": 9.5, "threshold": 4.5, "pass": true },
+      { "id": "dark.badge-info", "what": "信息徽标", "fg": "#5b8ff5", "bg": "#16223d", "ratio": 5.03, "threshold": 4.5, "pass": true },
+      { "id": "dark.badge-success", "what": "成功徽标", "fg": "#3fae76", "bg": "#123527", "ratio": 4.81, "threshold": 4.5, "pass": true },
+      { "id": "dark.badge-warning", "what": "警告徽标", "fg": "#d98a1f", "bg": "#3a2a10", "ratio": 5.01, "threshold": 4.5, "pass": true },
+      { "id": "dark.badge-danger", "what": "危险徽标", "fg": "#e26255", "bg": "#3a1714", "ratio": 4.66, "threshold": 4.5, "pass": true },
+      { "id": "dark.quote-up", "what": "涨（红）数字", "fg": "#e26255", "bg": "#141920", "ratio": 5.14, "threshold": 4.5, "pass": true },
+      { "id": "dark.quote-down", "what": "跌（绿）数字", "fg": "#3fae76", "bg": "#141920", "ratio": 6.33, "threshold": 4.5, "pass": true },
+      { "id": "dark.focus-ring-surface", "what": "焦点环/白色面", "fg": "#5b8ff5", "bg": "#141920", "ratio": 5.63, "threshold": 3.0, "pass": true },
+      { "id": "dark.focus-ring-canvas", "what": "焦点环/页面底色", "fg": "#5b8ff5", "bg": "#0d1117", "ratio": 6.03, "threshold": 3.0, "pass": true },
+      { "id": "dark.heading-large", "what": "大字标题（≥24px）", "fg": "#f5f7fa", "bg": "#0d1117", "ratio": 17.63, "threshold": 3.0, "pass": true },
+      { "id": "dark.border-control", "what": "控件边框/白色面（非文字对比）", "fg": "#3a4453", "bg": "#141920", "ratio": 1.79, "threshold": 3.0, "pass": false },
+      { "id": "dark.disabled-secondary-on-surface", "what": "禁用按钮文字（0.55 不透明度合成）", "fg": "#909398", "bg": "#141920", "ratio": 5.73, "threshold": 4.5, "pass": true, "note": "WCAG 1.4.3 对禁用控件豁免；仅记录" },
+      { "id": "dark.disabled-secondary-on-canvas", "what": "禁用按钮文字（0.55 不透明度合成）", "fg": "#8d9094", "bg": "#11151c", "ratio": 5.71, "threshold": 4.5, "pass": true, "note": "WCAG 1.4.3 对禁用控件豁免；仅记录" }
+    ],
+    "summary": {
+      "light_samples": 24,
+      "light_pass": 21,
+      "light_not_passing": 3,
+      "dark_samples": 24,
+      "dark_pass": 23,
+      "dark_not_passing": 1,
+      "text_and_focus_regressions": 0,
+      "note": "未过的四项是控件边框（非文字）与禁用态（1.4.3 豁免），逐条记录、本票不改。"
+    },
+    "token_changes": [
+      {
+        "token": "--gray-500",
+        "before": "#6b7789",
+        "after": "#616c7d",
+        "reason": "弱化文本在页面底色与悬停行上不达标：4.23 → 4.95、3.97 → 4.65；白色面上 5.32。"
+      },
+      {
+        "token": "--blue-500",
+        "before": "#2f6fed",
+        "after": "#2a64d5",
+        "reason": "链接在页面底色上 4.24 → 5.04；信息徽标 3.94 → 4.69；主按钮文字 5.41。"
+      },
+      {
+        "token": "--blue-450",
+        "before": "（新增）",
+        "after": "#3b78ee",
+        "reason": "暗色主题的强调悬停原先直接用 --blue-500，白字对比 4.16；新档位把暗色悬停做到 4.60，亮色仍用 --blue-600。"
+      },
+      {
+        "token": "--green-500",
+        "before": "#1f8a56",
+        "after": "#1c7c4d",
+        "reason": "成功徽标 3.87 → 4.63；跌色数字在白色面 4.35 → 5.20。"
+      },
+      {
+        "token": "--amber-500",
+        "before": "#b26a00",
+        "after": "#9e5e00",
+        "reason": "警告徽标 3.79 → 4.63。"
+      },
+      {
+        "token": "--red-400",
+        "before": "#e05a4c",
+        "after": "#e26255",
+        "reason": "暗色危险徽标 4.37 → 4.66；只影响暗色主题的红字与危险按钮底色。"
+      }
+    ]
+  },
+  "acceptance": {
+    "SR-01": {
+      "item": "九页所有图标按钮与链接有可访问名称；装饰图标 aria-hidden",
+      "test": "AppShell.test.tsx SR-01/02/03 × 9 路由（button/a 名称枚举 + svg 必须 aria-hidden 或 role=img）；keyboard_e2e.py 九页 × 1440/390 名称扫描",
+      "result": "pass"
+    },
+    "SR-02": {
+      "item": "每页恰好一个 h1；landmark 不重复；标题层级不跳级",
+      "test": "AppShell.test.tsx 同上（h1 计数与位置、h1→h4 层级差 ≤1、main=1、主导航=1、页面导航=1）",
+      "result": "pass"
+    },
+    "SR-03": {
+      "item": "标题文本与页面语义一致；补 aria 不改可见文案",
+      "test": "AppShell.test.tsx 断言 h1 文本等于路由标题；本票 diff 只加属性与 sr-only 文本",
+      "result": "pass"
+    },
+    "SR-04": {
+      "item": "状态变化进 role=status，错误进 role=alert；同时刻只有一个主要播报",
+      "test": "MarketPage SR-04（空文本 → 已刷新，时间 hh:mm:ss；页面内 status 恰好 1 个）、StockPage SR-04、JournalPage SR-04 ×2（不可用与重试各一个 status，无 alert）",
+      "result": "pass"
+    },
+    "SR-05": {
+      "item": "两张 SVG 有 role=img 与非空 aria-label；同页有数据摘要；空数据有说明",
+      "test": "KLineChart SR-05 ×2（日期区间、24 根、10.60 元、-2.03%、figcaption；空数据显示暂无 K 线数据且无 img/summary）、IntradayChart SR-05 ×2（12 点、10.24/9.98/10.25、figcaption）",
+      "result": "pass"
+    },
+    "SR-06": {
+      "item": "四类表格有 caption 与 scope；纯展示键值对仍用 dl",
+      "test": "JobListPage、ReportListPage、MarketPage、StockPage 的 SR-06；ReportMarkdown 表头补 scope；键值区未改 dl",
+      "result": "pass"
+    },
+    "RM-01": {
+      "item": "减少动态下无 infinite 动画、无持续过渡",
+      "test": "reducedMotion.test.ts RM-01 ×3（全局三件套 !important、唯一 infinite 在 Skeleton 且自带 opt-out、ts/tsx 无内联 animation）；浏览器抽检 18 页 animation/transition 越界 0",
+      "result": "pass"
+    },
+    "RM-02": {
+      "item": "无 scroll-behavior: smooth 与平滑滚动调用绕过偏好",
+      "test": "reducedMotion.test.ts RM-02 ×3（CSS 无 smooth、全局 auto !important、唯一 \"smooth\" 调用点带媒体查询、无 scrollTo/scrollBy smooth）；浏览器里 doc scroll-behavior 全为 auto",
+      "result": "pass"
+    },
+    "RM-03": {
+      "item": "骨架、脉冲、Toast、抽屉动画全部被全局规则或模块规则覆盖",
+      "test": "reducedMotion.test.ts RM-03 ×1（Dialog/Drawer/Toast/MarketPage CSS 有 animation 且无 infinite）；浏览器抽检 390 抽屉 duration 1e-05s、迭代 1",
+      "result": "pass"
+    }
+  },
+  "known_limitations": [
+    "报告正文 Markdown 表格没有 caption：表头已补 th[scope=col]，但 caption 文本只能由报告内容生成，硬编码会编造语义；记入 P5-08 axe 结果复核。",
+    "交接卡把「股票报告表」列入四类表格，但该处实际是列表（frontend/src/features/stocks/ReportsTab.tsx 用 ul/li），按 §5.2「不要为像表格改成 table」，保持列表语义。",
+    "交接卡第二节说两张 SVG 都没有 role 与 aria-label 属于写卡时信息滞后：两者自 P4-08（52adf00）起已带 role=img 与基础 aria-label；本票只是把名称扩成随数据变化的摘要并补 figcaption。",
+    "控件边框对比 1.52（亮）/ 1.79（暗）：输入框有常驻标签与表面差，边框不是唯一识别线索；按 §5.6 记录不改。P5-08 的 axe 不检查边框，若人工复核仍要求 3:1，再按令牌单独处理。",
+    "禁用按钮文字 3.70 / 3.78（仅亮色）：WCAG 1.4.3 对 inactive controls 豁免，axe 也会跳过禁用元素；保持 0.55 不透明度不变。",
+    "日志 iframe 内容属另一个源（127.0.0.1:8502 的 trade-journal），不在本页 DOM 内；其读屏语义由该应用负责，本票只能保证容器与三态文案。"
+  ],
+  "preflight": {
+    "passed": 10,
+    "failed": 0,
+    "result": "pass",
+    "head": "0cceb30",
+    "note": "代码提交后在工作区干净状态复跑；提交本证据与 P5-08 交接卡后再复跑一次。"
+  },
+  "notes": [
+    "零运行时依赖新增；axe 未安装、未引用（P5-08）。",
+    "无后端、契约、路由、数据请求与 localStorage 改动；迁移头仍为 0007。",
+    "颜色改动全部落在 frontend/src/styles/tokens.css；组件内没有新增硬编码颜色（tokens.test.ts 仍通过）。",
+    "实时区只新增市场/股票刷新完成与日志两态；任务详情、设置已保存、Toast、StaleBanner 保持原样，错误仍为 role=alert。",
+    "浏览器抽检脚本为临时文件，未入库；截图目录本票未新增。"
+  ]
+}
