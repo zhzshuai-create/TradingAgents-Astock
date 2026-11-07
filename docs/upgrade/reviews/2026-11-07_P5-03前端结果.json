@@ -1,0 +1,158 @@
+{
+  "ticket": "P5-03",
+  "title": "设置页 W10",
+  "measured_at": "2026-11-07T14:40:00+08:00",
+  "base_head": "a2a8908",
+  "environment": {
+    "platform": "Windows-11-10.0.26200-SP0",
+    "node": "22.22.2",
+    "python": "3.13.3",
+    "vite": "7.3.7",
+    "react": "19.3.1",
+    "vitest": "5.1.0",
+    "new_runtime_dependencies": 0
+  },
+  "commands": {
+    "typecheck": "cd frontend && node node_modules/typescript/bin/tsc --noEmit",
+    "unit": "cd frontend && node node_modules/vitest/vitest.mjs run",
+    "build": "cd frontend && node node_modules/vite/bin/vite.js build",
+    "bundle": "cd frontend && node scripts/check_bundle.mjs --out <临时路径>",
+    "e2e": "C:/Users/zhzsh/AppData/Local/Programs/Python/Python313/python.exe e2e/settings_e2e.py，随后 e2e/market_e2e.py 与 e2e/stock_e2e.py",
+    "preflight": ".venv/Scripts/python.exe scripts/p0_preflight.py --full --smoke"
+  },
+  "unit": {
+    "test_files": 36,
+    "tests": 466,
+    "new_tests": 15,
+    "failures": 0,
+    "result": "pass",
+    "breakdown": {
+      "features/settings/SettingsView.test.tsx": 11,
+      "api/sse.test.ts": 4
+    },
+    "note": "P5-02 基线 35 文件 / 451 条；新增 11 条设置页与 4 条 SSE 最近结果，合计 466/466。AppShell.test.tsx 只补 meta mock 未加用例。"
+  },
+  "typecheck": {
+    "errors": 0,
+    "result": "pass"
+  },
+  "python": {
+    "passed": 789,
+    "skipped": 4,
+    "failures": 0,
+    "result": "pass",
+    "note": "本票零后端改动；预检全量复跑与 P4 基线一致"
+  },
+  "bundle": {
+    "measured_with": "frontend/scripts/check_bundle.mjs（node:zlib gzipSync level 9）",
+    "entry_gzip_kb": 124.5,
+    "entry_budget_gzip_kb": 202.45,
+    "entry_within_budget": true,
+    "entry_delta_gzip_kb": 0.12,
+    "route_chunks": 11,
+    "route_chunk_limit_gzip_kb": 60,
+    "largest_route_chunk": {
+      "file": "assets/ReportDetailPage-CHizVYWC.js",
+      "gzip_kb": 20.8
+    },
+    "settings_chunk_gzip_kb": 3.92,
+    "all_route_chunks_within_limit": true,
+    "passed": true,
+    "note": "设置页四组与四组文案只进懒加载的 SettingsPage 块；入口 +0.12 kB 来自 sse 记录函数。"
+  },
+  "e2e": {
+    "settings": { "checks": 62, "failures": 0, "viewports": ["1440x900", "390x844", "360x800"] },
+    "market": { "checks": 103, "failures": 0 },
+    "stock": { "checks": 99, "failures": 0 },
+    "note": "settings_e2e.py 复用 market_e2e.py 的 vite preview、context.route 桩与触控量测；截图写入 ui_shots_p5/P5-03/。"
+  },
+  "settings": {
+    "groups": ["group-basic", "group-model", "group-data", "group-about"],
+    "desktop_layout": "四组同页依次排列，每组 section[aria-labelledby] + h2[id]；进入或 hash 变化时 scrollIntoView({block:'start'})",
+    "mobile_layout": "四行分组列表 → #group-xxx 二级页；返回清 hash；刷新按 hash 恢复；非法 hash 停在列表",
+    "local_controls": {
+      "density": "astock.prefs.v1.density",
+      "refresh": "astock.prefs.v1.refresh",
+      "export": "astock.prefs.v1.export",
+      "default_model": "astock.prefs.v1.launcher.llm_profile",
+      "parallel_analysts": "astock.prefs.v1.launcher.parallel_analysts"
+    },
+    "read_only": [
+      "metaOptionsQuery 成功/失败状态",
+      "app_version",
+      "contract_version",
+      "server_time（原样保留 +08:00）",
+      "journal.available/reason 与 /journal 链接",
+      "journal.entry_url",
+      "llm_profiles 的 id 与 label"
+    ],
+    "secret_policy": "无 type=password、无 api_key/base_url/authorization 输入与渲染；Base URL 与模型密钥只写「由服务端环境变量配置」",
+    "cache_key": "queryKeys.metaOptions（一次加载只发 1 次 GET /api/v1/meta/options）",
+    "write_requests": 0
+  },
+  "sse_last_result": {
+    "module": "frontend/src/api/sse.ts",
+    "api": ["readLastSseResult", "subscribeLastSseResult", "SseLastResult"],
+    "states": { "none": "未连接", "success": "最近一次连接成功", "failure": "最近一次连接失败" },
+    "rules": "握手成功记 success；握手/HTTP/协议/网络失败记 failure；AbortError 不改变记录",
+    "storage": "内存 only，不写 localStorage、不发请求",
+    "note": "只在 api/sse.ts 改行为；useJobStream 等调用方未改。"
+  },
+  "acceptance": {
+    "P5-SET-01": {
+      "item": "四组标题与 id；深链直达；刷新恢复",
+      "test": "SettingsView.test.tsx（4 个 h2 与 id 顺序、#group-model 触发 scrollIntoView、重挂载仍滚到模型组）；settings_e2e.py（h2[id^=group-] 4 个、#group-data 进入视口且 main-content scrollTop>0）",
+      "result": "pass"
+    },
+    "P5-SET-02": {
+      "item": "只读字段来自契约，meta 只用同一缓存键",
+      "test": "SettingsView.test.tsx（0.9.0 / api-v1 / server_time 原样 / entry_url / profile id+label；msw 只收到 1 次请求且 queryCache 有 metaOptions 键）；settings_e2e.py（DOM 文本逐项断言，+08:00 保留，缓存命中 1 次）",
+      "result": "pass"
+    },
+    "P5-SET-03": {
+      "item": "SSE 默认/成功/失败；abort 不覆盖",
+      "test": "SettingsView.test.tsx（未连接 → 最近一次连接成功 → 最近一次连接失败）；api/sse.test.ts（默认 none、握手 success、HTTP 失败、坏帧失败、abort 保持 success）",
+      "result": "pass"
+    },
+    "P5-SET-04": {
+      "item": "无密码/密钥输入；DOM 与存储无密钥模式",
+      "test": "SettingsView.test.tsx（无 input[type=password]，输入控件 id/name/type 不含 password/api_key/base_url/authorization，DOM 无 sk-/api_key/authorization，改动偏好后 localStorage 仅 astock.prefs.v1）；settings_e2e.py（同四项，另断言新增键 ⊆ {astock.prefs.v1, astock.theme}）",
+      "result": "pass"
+    },
+    "P5-SET-05": {
+      "item": "无写请求；已有任务快照不变",
+      "test": "SettingsView.test.tsx（msw request:start 记录全为 GET，无 /api/v1/jobs）；settings_e2e.py（改动五项偏好前后各取一次 GET /api/v1/jobs/job-1，config_digest 与 graph_version 相同；设置页零写）",
+      "result": "pass"
+    },
+    "P5-SET-06": {
+      "item": "修改即保存、「已保存」提示、重进回显",
+      "test": "SettingsView.test.tsx（role=status 出现已保存、存储值同步、卸载重挂载回显 compact）；settings_e2e.py（五项偏好写入同一 payload，reload 后五个控件全部回显）",
+      "result": "pass"
+    },
+    "P5-SET-07": {
+      "item": "非法 hash 不抛错、桌面停顶部、移动停列表",
+      "test": "SettingsView.test.tsx（#group-nope 不滚、4 组仍在、hash 不改写；移动端列表）；settings_e2e.py（桌面 main-content scrollTop=0；390/360 列表可见）",
+      "result": "pass"
+    },
+    "P5-SET-08": {
+      "item": "移动列表→二级页→返回；无横向溢出；44px 触控",
+      "test": "SettingsView.test.tsx（列表 4 行、点模型写 hash、返回清 hash、深链恢复、非法 hash 回列表）；settings_e2e.py（390/360：docScroll==docClient、mainScroll==mainClient、分组行与二级页控件均 ≥44px、reload 恢复 #group-model）",
+      "result": "pass"
+    }
+  },
+  "preflight": {
+    "passed": 10,
+    "failed": 0,
+    "result": "pass",
+    "head": "a2a8908",
+    "note": "代码提交后在工作区干净状态复跑"
+  },
+  "notes": [
+    "AppShell.test.tsx 的 api/meta mock 从 {} 换成完整 8 键 MetaOptions；否则路由测试渲染真实设置页会读 undefined 数组。仅改测试夹具，断言未改。",
+    "SET-04 的存储口径：设置页自身只写 astock.prefs.v1；E2E 断言的是「新增键 ⊆ {astock.prefs.v1, astock.theme}」，因为外壳在挂载时本来就会写 astock.sidebar-collapsed（P4 既有行为）。",
+    "SET-07 桌面 E2E 用 /settings?entry=top#group-nope 做一次完整加载：只改 hash 的 goto 属同文档导航，浏览器会保留上一段深链的滚动位置，不能证明「进入时停在顶部」。",
+    "本票不接启动器预填：交付物表限定唯一行为改动在 api/sse.ts，且 1.2/C2 未要求本票改 launcher；偏好已按契约键落盘，接线留给后续票。",
+    "设置页主题开关未加：useTheme 是组件内 state，外壳顶栏与设置页各持一份会互相不同步，需要先抽共享主题 store，超出本票边界（计划 1.4 的「设置页再给一处」随之顺延）。",
+    "零后端改动、零契约改动、零迁移（头仍 0007）、零新增运行时依赖；tradingagents/、web/、run_all.bat、trade-journal 未动。"
+  ]
+}
