@@ -169,10 +169,16 @@
   }
 
   .field {
-    height: 44px;
+    height: auto;
+    min-height: 46px;
+  }
+
+  .input {
+    min-height: 44px;
   }
 
   .submit {
-    min-height: 36px;
+    min-width: 44px;
+    min-height: 44px;
   }
 }

@@ -172,6 +172,7 @@
 
   .toggle {
     display: inline-flex;
+    min-width: 44px;
   }
 
   .panelBodyCollapsible {
