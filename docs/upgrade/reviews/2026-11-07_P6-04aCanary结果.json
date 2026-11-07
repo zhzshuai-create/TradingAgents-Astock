@@ -1,0 +1,828 @@
+{
+  "ticket": "P6-04a",
+  "result": "ok",
+  "body": {
+    "ticker": "002138",
+    "analysis_date": "2026-11-06",
+    "config": {
+      "llm_profile": "deepseek-default",
+      "parallel_analysts": true,
+      "stage_toggles": {
+        "policy": true,
+        "hot_money": true,
+        "lockup": true
+      }
+    }
+  },
+  "idempotency_key": "a8bf58d4-adbb-4eaa-a8f3-554d9786c73b",
+  "job_id": "8ca94e36-fd0f-43cb-88e7-e4784fc212b4",
+  "status": "succeeded",
+  "started_at": "2026-11-07T21:55:57+08:00",
+  "finished_at": "2026-11-07T22:13:12+08:00",
+  "stats": {
+    "model_calls": 27,
+    "tokens_in": 221780,
+    "tokens_out": 50581,
+    "elapsed_ms": 1029506
+  },
+  "stages": [
+    {
+      "id": "market",
+      "name": "技术分析",
+      "index": 1,
+      "status": "done",
+      "started_at": "2026-11-07T21:56:03+08:00",
+      "finished_at": "2026-11-07T22:03:35+08:00",
+      "duration_ms": 40197
+    },
+    {
+      "id": "social",
+      "name": "情绪分析",
+      "index": 2,
+      "status": "done",
+      "started_at": "2026-11-07T22:00:54+08:00",
+      "finished_at": "2026-11-07T22:00:54+08:00",
+      "duration_ms": 97098
+    },
+    {
+      "id": "news",
+      "name": "新闻舆情",
+      "index": 3,
+      "status": "done",
+      "started_at": "2026-11-07T22:00:54+08:00",
+      "finished_at": "2026-11-07T22:00:54+08:00",
+      "duration_ms": 97097
+    },
+    {
+      "id": "fundamentals",
+      "name": "基本面",
+      "index": 4,
+      "status": "done",
+      "started_at": "2026-11-07T22:00:54+08:00",
+      "finished_at": "2026-11-07T22:00:54+08:00",
+      "duration_ms": 97097
+    },
+    {
+      "id": "policy",
+      "name": "政策分析",
+      "index": 5,
+      "status": "done",
+      "started_at": "2026-11-07T22:03:35+08:00",
+      "finished_at": "2026-11-07T22:03:35+08:00",
+      "duration_ms": 40194
+    },
+    {
+      "id": "hot_money",
+      "name": "游资追踪",
+      "index": 6,
+      "status": "done",
+      "started_at": "2026-11-07T22:03:35+08:00",
+      "finished_at": "2026-11-07T22:03:35+08:00",
+      "duration_ms": 40194
+    },
+    {
+      "id": "lockup",
+      "name": "解禁监控",
+      "index": 7,
+      "status": "done",
+      "started_at": "2026-11-07T22:03:35+08:00",
+      "finished_at": "2026-11-07T22:03:35+08:00",
+      "duration_ms": 40194
+    },
+    {
+      "id": "quality_gate",
+      "name": "质量门控",
+      "index": 8,
+      "status": "done",
+      "started_at": "2026-11-07T22:03:35+08:00",
+      "finished_at": "2026-11-07T22:04:48+08:00",
+      "duration_ms": 72799
+    },
+    {
+      "id": "debate",
+      "name": "多空辩论",
+      "index": 9,
+      "status": "done",
+      "started_at": "2026-11-07T22:04:48+08:00",
+      "finished_at": "2026-11-07T22:09:12+08:00",
+      "duration_ms": 264480
+    },
+    {
+      "id": "trader",
+      "name": "交易决策",
+      "index": 10,
+      "status": "done",
+      "started_at": "2026-11-07T22:09:12+08:00",
+      "finished_at": "2026-11-07T22:09:28+08:00",
+      "duration_ms": 16209
+    },
+    {
+      "id": "risk",
+      "name": "风控评估",
+      "index": 11,
+      "status": "done",
+      "started_at": "2026-11-07T22:09:28+08:00",
+      "finished_at": "2026-11-07T22:13:12+08:00",
+      "duration_ms": 111974
+    },
+    {
+      "id": "pm",
+      "name": "最终决策",
+      "index": 12,
+      "status": "done",
+      "started_at": "2026-11-07T22:13:12+08:00",
+      "finished_at": "2026-11-07T22:13:12+08:00",
+      "duration_ms": 111973
+    }
+  ],
+  "stage_started": [
+    "market",
+    "social",
+    "news",
+    "fundamentals",
+    "policy",
+    "hot_money",
+    "lockup",
+    "quality_gate",
+    "debate",
+    "trader",
+    "risk",
+    "pm"
+  ],
+  "stage_done": [
+    "social",
+    "news",
+    "fundamentals",
+    "market",
+    "policy",
+    "hot_money",
+    "lockup",
+    "quality_gate",
+    "debate",
+    "trader",
+    "risk",
+    "pm"
+  ],
+  "event_counts": {
+    "created": 1,
+    "status_changed": 2,
+    "stage_changed": 24,
+    "stats": 13,
+    "report_ready": 1
+  },
+  "events": [
+    {
+      "seq": null,
+      "type": "created",
+      "payload": {
+        "status": "queued"
+      },
+      "created_at": "2026-11-07T21:55:57+08:00"
+    },
+    {
+      "seq": 1,
+      "type": "status_changed",
+      "payload": {
+        "from": "queued",
+        "to": "running",
+        "reason": "worker",
+        "detail": null,
+        "pending_action": null,
+        "error": null
+      },
+      "created_at": "2026-11-07T21:55:57+08:00"
+    },
+    {
+      "seq": 2,
+      "type": "stage_changed",
+      "payload": {
+        "stage_id": "market",
+        "stage_name": "技术分析",
+        "stage_status": "started",
+        "index": 1,
+        "total": 12,
+        "started_at": "2026-11-07T21:56:03+08:00",
+        "finished_at": null,
+        "duration_ms": null
+      },
+      "created_at": "2026-11-07T21:56:03+08:00"
+    },
+    {
+      "seq": 3,
+      "type": "stage_changed",
+      "payload": {
+        "stage_id": "social",
+        "stage_name": "情绪分析",
+        "stage_status": "started",
+        "index": 2,
+        "total": 12,
+        "started_at": "2026-11-07T22:00:54+08:00",
+        "finished_at": null,
+        "duration_ms": null
+      },
+      "created_at": "2026-11-07T22:00:54+08:00"
+    },
+    {
+      "seq": 4,
+      "type": "stage_changed",
+      "payload": {
+        "stage_id": "social",
+        "stage_name": "情绪分析",
+        "stage_status": "done",
+        "index": 2,
+        "total": 12,
+        "started_at": "2026-11-07T22:00:54+08:00",
+        "finished_at": "2026-11-07T22:00:54+08:00",
+        "duration_ms": 97098
+      },
+      "created_at": "2026-11-07T22:00:54+08:00"
+    },
+    {
+      "seq": 5,
+      "type": "stats",
+      "payload": {
+        "model_calls": 6,
+        "tokens_in": 22053,
+        "tokens_out": 6224,
+        "elapsed_ms": 97098
+      },
+      "created_at": "2026-11-07T22:00:54+08:00"
+    },
+    {
+      "seq": 6,
+      "type": "stage_changed",
+      "payload": {
+        "stage_id": "news",
+        "stage_name": "新闻舆情",
+        "stage_status": "started",
+        "index": 3,
+        "total": 12,
+        "started_at": "2026-11-07T22:00:54+08:00",
+        "finished_at": null,
+        "duration_ms": null
+      },
+      "created_at": "2026-11-07T22:00:54+08:00"
+    },
+    {
+      "seq": 7,
+      "type": "stage_changed",
+      "payload": {
+        "stage_id": "news",
+        "stage_name": "新闻舆情",
+        "stage_status": "done",
+        "index": 3,
+        "total": 12,
+        "started_at": "2026-11-07T22:00:54+08:00",
+        "finished_at": "2026-11-07T22:00:54+08:00",
+        "duration_ms": 97097
+      },
+      "created_at": "2026-11-07T22:00:54+08:00"
+    },
+    {
+      "seq": 8,
+      "type": "stats",
+      "payload": {
+        "model_calls": 10,
+        "tokens_in": 44105,
+        "tokens_out": 12448,
+        "elapsed_ms": 194195
+      },
+      "created_at": "2026-11-07T22:00:54+08:00"
+    },
+    {
+      "seq": 9,
+      "type": "stage_changed",
+      "payload": {
+        "stage_id": "fundamentals",
+        "stage_name": "基本面",
+        "stage_status": "started",
+        "index": 4,
+        "total": 12,
+        "started_at": "2026-11-07T22:00:54+08:00",
+        "finished_at": null,
+        "duration_ms": null
+      },
+      "created_at": "2026-11-07T22:00:54+08:00"
+    },
+    {
+      "seq": 10,
+      "type": "stage_changed",
+      "payload": {
+        "stage_id": "fundamentals",
+        "stage_name": "基本面",
+        "stage_status": "done",
+        "index": 4,
+        "total": 12,
+        "started_at": "2026-11-07T22:00:54+08:00",
+        "finished_at": "2026-11-07T22:00:54+08:00",
+        "duration_ms": 97097
+      },
+      "created_at": "2026-11-07T22:00:54+08:00"
+    },
+    {
+      "seq": 11,
+      "type": "stats",
+      "payload": {
+        "model_calls": 14,
+        "tokens_in": 66157,
+        "tokens_out": 18672,
+        "elapsed_ms": 291292
+      },
+      "created_at": "2026-11-07T22:00:54+08:00"
+    },
+    {
+      "seq": 12,
+      "type": "stage_changed",
+      "payload": {
+        "stage_id": "market",
+        "stage_name": "技术分析",
+        "stage_status": "done",
+        "index": 1,
+        "total": 12,
+        "started_at": "2026-11-07T21:56:03+08:00",
+        "finished_at": "2026-11-07T22:03:35+08:00",
+        "duration_ms": 40197
+      },
+      "created_at": "2026-11-07T22:03:35+08:00"
+    },
+    {
+      "seq": 13,
+      "type": "stats",
+      "payload": {
+        "model_calls": 15,
+        "tokens_in": 75449,
+        "tokens_out": 22130,
+        "elapsed_ms": 331489
+      },
+      "created_at": "2026-11-07T22:03:35+08:00"
+    },
+    {
+      "seq": 14,
+      "type": "stage_changed",
+      "payload": {
+        "stage_id": "policy",
+        "stage_name": "政策分析",
+        "stage_status": "started",
+        "index": 5,
+        "total": 12,
+        "started_at": "2026-11-07T22:03:35+08:00",
+        "finished_at": null,
+        "duration_ms": null
+      },
+      "created_at": "2026-11-07T22:03:35+08:00"
+    },
+    {
+      "seq": 15,
+      "type": "stage_changed",
+      "payload": {
+        "stage_id": "policy",
+        "stage_name": "政策分析",
+        "stage_status": "done",
+        "index": 5,
+        "total": 12,
+        "started_at": "2026-11-07T22:03:35+08:00",
+        "finished_at": "2026-11-07T22:03:35+08:00",
+        "duration_ms": 40194
+      },
+      "created_at": "2026-11-07T22:03:35+08:00"
+    },
+    {
+      "seq": 16,
+      "type": "stats",
+      "payload": {
+        "model_calls": 16,
+        "tokens_in": 84739,
+        "tokens_out": 25587,
+        "elapsed_ms": 371683
+      },
+      "created_at": "2026-11-07T22:03:35+08:00"
+    },
+    {
+      "seq": 17,
+      "type": "stage_changed",
+      "payload": {
+        "stage_id": "hot_money",
+        "stage_name": "游资追踪",
+        "stage_status": "started",
+        "index": 6,
+        "total": 12,
+        "started_at": "2026-11-07T22:03:35+08:00",
+        "finished_at": null,
+        "duration_ms": null
+      },
+      "created_at": "2026-11-07T22:03:35+08:00"
+    },
+    {
+      "seq": 18,
+      "type": "stage_changed",
+      "payload": {
+        "stage_id": "hot_money",
+        "stage_name": "游资追踪",
+        "stage_status": "done",
+        "index": 6,
+        "total": 12,
+        "started_at": "2026-11-07T22:03:35+08:00",
+        "finished_at": "2026-11-07T22:03:35+08:00",
+        "duration_ms": 40194
+      },
+      "created_at": "2026-11-07T22:03:35+08:00"
+    },
+    {
+      "seq": 19,
+      "type": "stats",
+      "payload": {
+        "model_calls": 17,
+        "tokens_in": 94029,
+        "tokens_out": 29044,
+        "elapsed_ms": 411877
+      },
+      "created_at": "2026-11-07T22:03:35+08:00"
+    },
+    {
+      "seq": 20,
+      "type": "stage_changed",
+      "payload": {
+        "stage_id": "lockup",
+        "stage_name": "解禁监控",
+        "stage_status": "started",
+        "index": 7,
+        "total": 12,
+        "started_at": "2026-11-07T22:03:35+08:00",
+        "finished_at": null,
+        "duration_ms": null
+      },
+      "created_at": "2026-11-07T22:03:35+08:00"
+    },
+    {
+      "seq": 21,
+      "type": "stage_changed",
+      "payload": {
+        "stage_id": "lockup",
+        "stage_name": "解禁监控",
+        "stage_status": "done",
+        "index": 7,
+        "total": 12,
+        "started_at": "2026-11-07T22:03:35+08:00",
+        "finished_at": "2026-11-07T22:03:35+08:00",
+        "duration_ms": 40194
+      },
+      "created_at": "2026-11-07T22:03:35+08:00"
+    },
+    {
+      "seq": 22,
+      "type": "stats",
+      "payload": {
+        "model_calls": 18,
+        "tokens_in": 103319,
+        "tokens_out": 32501,
+        "elapsed_ms": 452071
+      },
+      "created_at": "2026-11-07T22:03:35+08:00"
+    },
+    {
+      "seq": 23,
+      "type": "stage_changed",
+      "payload": {
+        "stage_id": "quality_gate",
+        "stage_name": "质量门控",
+        "stage_status": "started",
+        "index": 8,
+        "total": 12,
+        "started_at": "2026-11-07T22:03:35+08:00",
+        "finished_at": null,
+        "duration_ms": null
+      },
+      "created_at": "2026-11-07T22:03:35+08:00"
+    },
+    {
+      "seq": 24,
+      "type": "stage_changed",
+      "payload": {
+        "stage_id": "quality_gate",
+        "stage_name": "质量门控",
+        "stage_status": "done",
+        "index": 8,
+        "total": 12,
+        "started_at": "2026-11-07T22:03:35+08:00",
+        "finished_at": "2026-11-07T22:04:48+08:00",
+        "duration_ms": 72799
+      },
+      "created_at": "2026-11-07T22:04:48+08:00"
+    },
+    {
+      "seq": 25,
+      "type": "stats",
+      "payload": {
+        "model_calls": 19,
+        "tokens_in": 118138,
+        "tokens_out": 34454,
+        "elapsed_ms": 524870
+      },
+      "created_at": "2026-11-07T22:04:48+08:00"
+    },
+    {
+      "seq": 26,
+      "type": "stage_changed",
+      "payload": {
+        "stage_id": "debate",
+        "stage_name": "多空辩论",
+        "stage_status": "started",
+        "index": 9,
+        "total": 12,
+        "started_at": "2026-11-07T22:04:48+08:00",
+        "finished_at": null,
+        "duration_ms": null
+      },
+      "created_at": "2026-11-07T22:04:48+08:00"
+    },
+    {
+      "seq": 27,
+      "type": "stage_changed",
+      "payload": {
+        "stage_id": "debate",
+        "stage_name": "多空辩论",
+        "stage_status": "done",
+        "index": 9,
+        "total": 12,
+        "started_at": "2026-11-07T22:04:48+08:00",
+        "finished_at": "2026-11-07T22:09:12+08:00",
+        "duration_ms": 264480
+      },
+      "created_at": "2026-11-07T22:09:12+08:00"
+    },
+    {
+      "seq": 28,
+      "type": "stats",
+      "payload": {
+        "model_calls": 22,
+        "tokens_in": 147819,
+        "tokens_out": 43031,
+        "elapsed_ms": 789350
+      },
+      "created_at": "2026-11-07T22:09:12+08:00"
+    },
+    {
+      "seq": 29,
+      "type": "stage_changed",
+      "payload": {
+        "stage_id": "trader",
+        "stage_name": "交易决策",
+        "stage_status": "started",
+        "index": 10,
+        "total": 12,
+        "started_at": "2026-11-07T22:09:12+08:00",
+        "finished_at": null,
+        "duration_ms": null
+      },
+      "created_at": "2026-11-07T22:09:12+08:00"
+    },
+    {
+      "seq": 30,
+      "type": "stage_changed",
+      "payload": {
+        "stage_id": "trader",
+        "stage_name": "交易决策",
+        "stage_status": "done",
+        "index": 10,
+        "total": 12,
+        "started_at": "2026-11-07T22:09:12+08:00",
+        "finished_at": "2026-11-07T22:09:28+08:00",
+        "duration_ms": 16209
+      },
+      "created_at": "2026-11-07T22:09:28+08:00"
+    },
+    {
+      "seq": 31,
+      "type": "stats",
+      "payload": {
+        "model_calls": 23,
+        "tokens_in": 156001,
+        "tokens_out": 43591,
+        "elapsed_ms": 805559
+      },
+      "created_at": "2026-11-07T22:09:28+08:00"
+    },
+    {
+      "seq": 32,
+      "type": "stage_changed",
+      "payload": {
+        "stage_id": "risk",
+        "stage_name": "风控评估",
+        "stage_status": "started",
+        "index": 11,
+        "total": 12,
+        "started_at": "2026-11-07T22:09:28+08:00",
+        "finished_at": null,
+        "duration_ms": null
+      },
+      "created_at": "2026-11-07T22:09:28+08:00"
+    },
+    {
+      "seq": 33,
+      "type": "stage_changed",
+      "payload": {
+        "stage_id": "risk",
+        "stage_name": "风控评估",
+        "stage_status": "done",
+        "index": 11,
+        "total": 12,
+        "started_at": "2026-11-07T22:09:28+08:00",
+        "finished_at": "2026-11-07T22:13:12+08:00",
+        "duration_ms": 111974
+      },
+      "created_at": "2026-11-07T22:13:12+08:00"
+    },
+    {
+      "seq": 34,
+      "type": "stats",
+      "payload": {
+        "model_calls": 25,
+        "tokens_in": 188891,
+        "tokens_out": 47086,
+        "elapsed_ms": 917533
+      },
+      "created_at": "2026-11-07T22:13:12+08:00"
+    },
+    {
+      "seq": 35,
+      "type": "stage_changed",
+      "payload": {
+        "stage_id": "pm",
+        "stage_name": "最终决策",
+        "stage_status": "started",
+        "index": 12,
+        "total": 12,
+        "started_at": "2026-11-07T22:13:12+08:00",
+        "finished_at": null,
+        "duration_ms": null
+      },
+      "created_at": "2026-11-07T22:13:12+08:00"
+    },
+    {
+      "seq": 36,
+      "type": "stage_changed",
+      "payload": {
+        "stage_id": "pm",
+        "stage_name": "最终决策",
+        "stage_status": "done",
+        "index": 12,
+        "total": 12,
+        "started_at": "2026-11-07T22:13:12+08:00",
+        "finished_at": "2026-11-07T22:13:12+08:00",
+        "duration_ms": 111973
+      },
+      "created_at": "2026-11-07T22:13:12+08:00"
+    },
+    {
+      "seq": 37,
+      "type": "stats",
+      "payload": {
+        "model_calls": 27,
+        "tokens_in": 221780,
+        "tokens_out": 50581,
+        "elapsed_ms": 1029506
+      },
+      "created_at": "2026-11-07T22:13:12+08:00"
+    },
+    {
+      "seq": 38,
+      "type": "stats",
+      "payload": {
+        "model_calls": 27,
+        "tokens_in": 221780,
+        "tokens_out": 50581,
+        "elapsed_ms": 1029506
+      },
+      "created_at": "2026-11-07T22:13:12+08:00"
+    },
+    {
+      "seq": 39,
+      "type": "status_changed",
+      "payload": {
+        "from": "running",
+        "to": "succeeded",
+        "reason": "worker",
+        "detail": null,
+        "pending_action": null,
+        "error": null
+      },
+      "created_at": "2026-11-07T22:13:12+08:00"
+    },
+    {
+      "seq": 40,
+      "type": "report_ready",
+      "payload": {
+        "report_id": "c13be8d8-1fde-4ccd-8364-3d322d59f62f",
+        "content_hash": "384d855aeb8144755d50606bfd44aed28a454623c0218dd3acc76fb40351edb2",
+        "rating": "Overweight",
+        "signal": "Buy",
+        "url": "/api/v1/reports/c13be8d8-1fde-4ccd-8364-3d322d59f62f"
+      },
+      "created_at": "2026-11-07T22:13:12+08:00"
+    }
+  ],
+  "llm_http_200_calls": 27,
+  "report": {
+    "report_id": "c13be8d8-1fde-4ccd-8364-3d322d59f62f",
+    "content_hash": "384d855aeb8144755d50606bfd44aed28a454623c0218dd3acc76fb40351edb2",
+    "rating": "Overweight",
+    "signal": "Buy",
+    "signal_legacy": "Buy",
+    "price_target": 45.0,
+    "stop_reference": "33",
+    "time_horizon": "3-6个月",
+    "generated_at": "2026-11-07T22:13:12+08:00",
+    "generated_at_source": "job_clock",
+    "origin": "new",
+    "schema_version": "report-v1",
+    "ticker_code": "002138",
+    "ticker_name": null,
+    "section_ids": [
+      "sec-debate",
+      "sec-decision",
+      "sec-fundamentals",
+      "sec-hot-money",
+      "sec-lockup",
+      "sec-market",
+      "sec-news",
+      "sec-plan",
+      "sec-policy",
+      "sec-quality",
+      "sec-risk",
+      "sec-sentiment",
+      "sec-trader"
+    ],
+    "section_count": 13
+  },
+  "replay": {
+    "http": 200,
+    "job_id": "8ca94e36-fd0f-43cb-88e7-e4784fc212b4",
+    "same_job_id": true,
+    "status": "succeeded",
+    "stats_before": {
+      "model_calls": 27,
+      "tokens_in": 221780,
+      "tokens_out": 50581,
+      "elapsed_ms": 1029506
+    },
+    "stats_after": {
+      "model_calls": 27,
+      "tokens_in": 221780,
+      "tokens_out": 50581,
+      "elapsed_ms": 1029506
+    },
+    "stats_unchanged": true,
+    "job_rows_before": 2,
+    "job_rows_after": 2,
+    "jobs_unchanged": true
+  },
+  "jobs_for_ticker_date": [
+    {
+      "id": "e5e0c676-f70f-40c2-81ca-6eec0357af3e",
+      "status": "interrupted",
+      "idempotency_key": "c0fbdb87-0ef2-4986-b821-43585d1675fc"
+    },
+    {
+      "id": "8ca94e36-fd0f-43cb-88e7-e4784fc212b4",
+      "status": "succeeded",
+      "idempotency_key": "a8bf58d4-adbb-4eaa-a8f3-554d9786c73b"
+    }
+  ],
+  "job_total": 2,
+  "prior_job": {
+    "job_id": "e5e0c676-f70f-40c2-81ca-6eec0357af3e",
+    "status": "interrupted",
+    "events": 7,
+    "note": "attempt 1 aborted by driver bug; reconciled to interrupted, never auto-rerun"
+  },
+  "server_log": "C:\\Users\\zhzsh\\AppData\\Local\\Temp\\canary_p6_04a_server.log",
+  "verdict": "pass",
+  "ran_at": "2026-11-07",
+  "entrypoint": "scripts/run_backend.py --real-models --port 8610",
+  "switches": {
+    "ACTIVE_ANALYSIS_UI": "next",
+    "TA_ENABLE_REAL_RUNNER": "1"
+  },
+  "acceptance": {
+    "single_run": true,
+    "all_twelve_stages_done": true,
+    "model_calls_positive": true,
+    "replay_same_job": true,
+    "replay_stats_unchanged": true,
+    "replay_jobs_unchanged": true,
+    "replay_llm_calls": 0,
+    "report_hash_present": true
+  },
+  "token_totals": {
+    "model_calls": 27,
+    "tokens_in": 221780,
+    "tokens_out": 50581,
+    "tokens_total": 272361
+  },
+  "notes": [
+    "Attempt 1 (21:45) was aborted by a canary-driver bug after 14 calls; job e5e0c676 became interrupted(lease_expired) and was not rerun.",
+    "Stage done order follows the real stream: three parallel analysts completed before market; started order is still contract order (market..pm).",
+    "Per-stage duration_ms and model/token splits are approximate (parallel steps are split evenly); job totals are exact.",
+    "Provider-side billing is authoritative; token totals are recorded, no RMB conversion is claimed here."
+  ]
+}
