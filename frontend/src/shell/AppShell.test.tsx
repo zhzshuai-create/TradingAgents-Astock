@@ -294,6 +294,39 @@ describe("WEB-03 active navigation", () => {
   });
 });
 
+describe("P5-05 legacy entry", () => {
+  it("LEG-01 exposes the desktop entry as a new-window link", () => {
+    renderAt("/workbench");
+    const sidebar = screen.getByRole("complementary", { name: "主导航" });
+    const link = within(sidebar).getByRole("link", { name: "旧版入口" });
+
+    expect(link.tagName).toBe("A");
+    expect(link).toHaveAttribute("href", "http://localhost:8501");
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noreferrer");
+    expect(link).not.toHaveAttribute("aria-current");
+
+    fireEvent.click(
+      within(sidebar).getByRole("button", { name: "收起侧栏" }),
+    );
+    expect(link).toHaveAttribute("title", "旧版入口");
+  });
+
+  it("LEG-03 keeps the mobile drawer entry on the same address", () => {
+    renderAt("/workbench");
+    fireEvent.click(
+      within(screen.getByTestId("mobile-nav")).getByText("更多").closest("button")!,
+    );
+    const drawer = screen.getByRole("dialog", { name: "更多" });
+    const link = within(drawer).getByRole("link", { name: "旧版入口" });
+
+    expect(link.tagName).toBe("A");
+    expect(link).toHaveAttribute("href", "http://localhost:8501");
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noreferrer");
+  });
+});
+
 describe("WEB-03 invalid ticker", () => {
   it.each(["/stocks/abc", "/stocks/12345", "/stocks/60051a", "/stocks"])(
     "renders 400 for %s",

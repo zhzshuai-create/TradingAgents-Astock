@@ -115,6 +115,11 @@
   cursor: pointer;
 }
 
+.inlineLink svg {
+  margin-inline-end: var(--space-1);
+  vertical-align: -2px;
+}
+
 .inlineButton:hover,
 .inlineLink:hover {
   background: var(--color-bg-inset);

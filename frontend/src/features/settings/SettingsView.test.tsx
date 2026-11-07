@@ -171,6 +171,21 @@ describe("SET desktop settings", () => {
     expect(second.router.state.location.hash).toBe("#group-model");
   });
 
+  it("LEG-02 links to the legacy entry from the about group", async () => {
+    serveMeta();
+    renderSettings();
+
+    expect(await screen.findByText("接口可达")).toBeInTheDocument();
+    const about = screen.getByRole("region", { name: "关于" });
+    const link = within(about).getByRole("link", { name: "打开旧版界面" });
+
+    expect(link.tagName).toBe("A");
+    expect(link).toHaveAttribute("href", "http://localhost:8501");
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noreferrer");
+    expect(screen.queryByText(/后续票据/)).toBeNull();
+  });
+
   it("SET-02 renders read-only contract values from one cached query", async () => {
     let calls = 0;
     server.use(

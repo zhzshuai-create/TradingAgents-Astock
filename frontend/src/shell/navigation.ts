@@ -48,7 +48,7 @@ export const SECONDARY_NAV: NavItem[] = [
   { to: "/settings", label: "设置", icon: "settings", matches: ["/settings"] },
 ];
 
-/** Legacy Streamlit entry stays the default write path until P2 ships. */
+/** Legacy Streamlit entry; stays reachable until P6 decides the default entry. */
 export const LEGACY_ENTRY_URL = "http://localhost:8501";
 
 export function isNavActive(pathname: string, item: NavItem): boolean {

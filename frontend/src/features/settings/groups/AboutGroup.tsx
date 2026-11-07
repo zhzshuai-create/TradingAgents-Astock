@@ -1,4 +1,6 @@
 import type { MetaOptions } from "../../../api/types";
+import { Icon } from "../../../shell/icons";
+import { LEGACY_ENTRY_URL } from "../../../shell/navigation";
 import styles from "../SettingsView.module.css";
 
 export interface AboutGroupProps {
@@ -23,6 +25,21 @@ export function AboutGroup({ meta }: AboutGroupProps) {
             {meta?.contract_version ?? "暂不可用"}
           </dd>
         </div>
+        <div className={styles.row}>
+          <dt className={styles.rowLabel}>旧版入口</dt>
+          <dd className={styles.rowValue}>
+            <a
+              className={styles.inlineLink}
+              href={LEGACY_ENTRY_URL}
+              target="_blank"
+              rel="noreferrer"
+              data-testid="about-legacy-entry"
+            >
+              <Icon name="external" size={14} />
+              打开旧版界面
+            </a>
+          </dd>
+        </div>
       </dl>
 
       <div className={styles.subgroup}>
@@ -32,7 +49,7 @@ export function AboutGroup({ meta }: AboutGroupProps) {
           及服务端返回为准；据此操作的风险由使用者自行承担。
         </p>
         <p className={styles.note}>
-          第三方数据遵循各自授权；旧版入口与更多许可信息将在后续票据补齐。
+          第三方数据遵循各自授权，具体许可以各数据源发布的信息为准。
         </p>
       </div>
     </section>

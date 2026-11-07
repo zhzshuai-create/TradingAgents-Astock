@@ -2,7 +2,13 @@ import { Link, useLocation } from "react-router-dom";
 
 import styles from "./Sidebar.module.css";
 import { Icon } from "./icons";
-import { isNavActive, PRIMARY_NAV, SECONDARY_NAV, type IconName } from "./navigation";
+import {
+  isNavActive,
+  LEGACY_ENTRY_URL,
+  PRIMARY_NAV,
+  SECONDARY_NAV,
+  type IconName,
+} from "./navigation";
 
 export interface SidebarProps {
   collapsed: boolean;
@@ -51,6 +57,19 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
               />
             </li>
           ))}
+          <li>
+            <a
+              className={styles.link}
+              href={LEGACY_ENTRY_URL}
+              target="_blank"
+              rel="noreferrer"
+              data-testid="sidebar-legacy-entry"
+              title={collapsed ? "旧版入口" : undefined}
+            >
+              <Icon name="external" />
+              <span className={styles.label}>旧版入口</span>
+            </a>
+          </li>
         </ul>
       </nav>
 

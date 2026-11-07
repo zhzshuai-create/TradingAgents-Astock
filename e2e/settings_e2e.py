@@ -1,4 +1,4 @@
-"""P5-03 W10 settings E2E.
+"""P5-03 W10 settings + P5-05 legacy entry E2E.
 
 Runs the built frontend on ``vite preview`` with a stubbed ``meta/options``:
 
@@ -9,15 +9,20 @@ Desktop 1440 covers SET-01/02/04/05/06/07: the four groups and their ids,
 ``#group-*`` deep links (scroll into view, unknown hash stays at the top), the
 read-only contract values, local preference persistence across a reload,
 no secret input, no write request and an unchanged job config snapshot.
+P5-05 adds LEG-01/02/03: the desktop sidebar and the about group link to the
+legacy 8501 entry as native new-window anchors, the browser opens a popup
+while the SPA address stays put, and no product string keeps a stage number.
 Mobile 390x844 and 360x800 cover SET-08: the group list drills into a detail
 page through the hash, reload restores it, back clears it, and neither width
-overflows horizontally. Prints one JSON line; screenshots go to
-``ui_shots_p5/P5-03/``.
+overflows horizontally; the drawer entry keeps the same address.
+Prints one JSON line; screenshots go to ``ui_shots_p5/P5-03/`` and
+``ui_shots_p5/P5-05/``.
 """
 
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import socket
 import subprocess
@@ -32,8 +37,11 @@ from playwright.sync_api import Browser, BrowserContext, Page, sync_playwright
 ROOT = Path(__file__).resolve().parent.parent
 FRONTEND = ROOT / "frontend"
 SHOTS = ROOT / "ui_shots_p5" / "P5-03"
+SHOTS_P5_05 = ROOT / "ui_shots_p5" / "P5-05"
 
 SERVER_TIME = "2026-11-05T09:30:00+08:00"
+LEGACY_ENTRY = "http://localhost:8501"
+STAGE_COPY = re.compile(r"P\d-\d\d|后续票据|后续票|占位|尚未接入")
 
 failures: list[str] = []
 checks = 0
@@ -281,6 +289,31 @@ def stored_preferences(page: Page) -> dict:
     )
 
 
+def visible_stage_hits() -> list[str]:
+    """Product strings must not leak stage numbers or placeholder copy."""
+    hits: list[str] = []
+    for path in (FRONTEND / "src").rglob("*"):
+        if path.suffix not in {".ts", ".tsx"} or ".test." in path.name:
+            continue
+        in_block = False
+        for number, line in enumerate(
+            path.read_text(encoding="utf-8").splitlines(), 1
+        ):
+            stripped = line.strip()
+            if in_block:
+                if "*/" in stripped:
+                    in_block = False
+                continue
+            if stripped.startswith("/*"):
+                in_block = "*/" not in stripped
+                continue
+            if stripped.startswith("//") or stripped.startswith("*"):
+                continue
+            if STAGE_COPY.search(line):
+                hits.append(f"{path.relative_to(ROOT)}:{number}")
+    return hits
+
+
 def desktop_flow(browser: Browser, base: str) -> None:
     context = browser.new_context(
         viewport={"width": 1440, "height": 900},
@@ -434,6 +467,70 @@ def desktop_flow(browser: Browser, base: str) -> None:
     )
 
     page.screenshot(path=str(SHOTS / "settings_desktop.png"), full_page=True)
+
+    # LEG-01/02/03: legacy entry in the sidebar and the about group.
+    context.route(
+        f"{LEGACY_ENTRY}/**",
+        lambda route: route.fulfill(
+            status=200,
+            content_type="text/html",
+            body="<!doctype html><title>legacy</title><p>legacy</p>",
+        ),
+    )
+    sidebar_link = page.locator("[data-testid='sidebar-legacy-entry']")
+    check(sidebar_link.count() == 1, "desktop LEG-01 sidebar exposes one legacy entry")
+    check(
+        sidebar_link.evaluate(
+            """(node) => node.tagName === 'A'
+                && node.getAttribute('href') === 'http://localhost:8501'
+                && node.getAttribute('target') === '_blank'
+                && node.getAttribute('rel') === 'noreferrer'
+                && node.textContent.includes('旧版入口')"""
+        ),
+        "desktop LEG-01 sidebar entry is a new-window anchor",
+    )
+    about_link = page.locator("[data-testid='about-legacy-entry']")
+    check(about_link.count() == 1, "desktop LEG-02 about group exposes one legacy entry")
+    check(
+        about_link.evaluate(
+            """(node) => node.tagName === 'A'
+                && node.getAttribute('href') === 'http://localhost:8501'
+                && node.getAttribute('target') === '_blank'
+                && node.getAttribute('rel') === 'noreferrer'
+                && node.textContent.includes('打开旧版界面')"""
+        ),
+        "desktop LEG-02 about entry is a new-window anchor",
+    )
+    check(
+        "后续票据" not in page.locator("body").inner_text(),
+        "desktop LEG-02 the placeholder sentence is gone",
+    )
+    with page.expect_popup() as sidebar_popup:
+        sidebar_link.click()
+    popup = sidebar_popup.value
+    popup.wait_for_load_state()
+    check(
+        popup.url.startswith(LEGACY_ENTRY),
+        f"desktop LEG-03 sidebar click opens the legacy tab ({popup.url})",
+    )
+    check(
+        page.url.startswith(f"{base}/settings"),
+        f"desktop LEG-03 the SPA address does not change ({page.url})",
+    )
+    popup.close()
+    with page.expect_popup() as about_popup:
+        about_link.click()
+    popup = about_popup.value
+    popup.wait_for_load_state()
+    check(
+        popup.url.startswith(LEGACY_ENTRY),
+        f"desktop LEG-03 about click opens the legacy tab ({popup.url})",
+    )
+    popup.close()
+    page.screenshot(path=str(SHOTS_P5_05 / "legacy_entry_desktop.png"))
+    stage_hits = visible_stage_hits()
+    check(not stage_hits, f"desktop LEG-04 no stage copy in product strings ({stage_hits})")
+
     check(not errors, f"desktop console/page errors: {errors}")
     context.close()
 
@@ -516,6 +613,23 @@ def mobile_flow(
         f"{tag} SET-08 the list page renders no group section",
     )
 
+    # LEG-03 mobile: the drawer entry keeps the same new-window address.
+    page.get_by_test_id("mobile-nav").get_by_text("更多").click()
+    drawer = page.get_by_role("dialog", name="更多")
+    drawer.wait_for()
+    drawer_link = drawer.get_by_role("link", name="旧版入口")
+    check(
+        drawer_link.evaluate(
+            """(node) => node.tagName === 'A'
+                && node.getAttribute('href') === 'http://localhost:8501'
+                && node.getAttribute('target') === '_blank'
+                && node.getAttribute('rel') === 'noreferrer'"""
+        ),
+        f"{tag} LEG-03 drawer legacy entry keeps target and rel",
+    )
+    drawer.get_by_role("button", name="关闭抽屉").click()
+    page.wait_for_timeout(200)
+
     # SET-08: drill in, reload restores, back clears the hash.
     rows.nth(1).click()
     page.wait_for_function("location.hash === '#group-model'")
@@ -592,6 +706,7 @@ def main() -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     SHOTS.mkdir(parents=True, exist_ok=True)
+    SHOTS_P5_05.mkdir(parents=True, exist_ok=True)
     print("building frontend...")
     build()
     with Server() as base:
@@ -605,10 +720,13 @@ def main() -> int:
             browser.close()
 
     result = {
-        "ticket": "P5-03",
+        "ticket": "P5-03+P5-05",
         "checks": checks,
         "failures": failures,
-        "screenshots": [str(SHOTS.relative_to(ROOT))],
+        "screenshots": [
+            str(SHOTS.relative_to(ROOT)),
+            str(SHOTS_P5_05.relative_to(ROOT)),
+        ],
     }
     print(json.dumps(result, ensure_ascii=True))
     return 1 if failures else 0
