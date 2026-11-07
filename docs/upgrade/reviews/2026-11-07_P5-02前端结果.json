@@ -1,0 +1,139 @@
+{
+  "ticket": "P5-02",
+  "title": "刷新与导出偏好",
+  "measured_at": "2026-11-07T12:56:00+08:00",
+  "base_head": "91994dc",
+  "environment": {
+    "platform": "Windows-11-10.0.26200-SP0",
+    "node": "22.22.2",
+    "python": "3.13.3",
+    "vite": "7.3.7",
+    "react": "19.3.1",
+    "vitest": "5.1.0",
+    "new_runtime_dependencies": 0
+  },
+  "commands": {
+    "typecheck": "cd frontend && node node_modules/typescript/bin/tsc --noEmit",
+    "unit": "cd frontend && node node_modules/vitest/vitest.mjs run",
+    "build": "cd frontend && node node_modules/vite/bin/vite.js build",
+    "bundle": "cd frontend && node scripts/check_bundle.mjs --out <临时路径>",
+    "e2e": "C:/Users/zhzsh/AppData/Local/Programs/Python/Python313/python.exe e2e/market_e2e.py，随后 e2e/stock_e2e.py",
+    "preflight": ".venv/Scripts/python.exe scripts/p0_preflight.py --full --smoke"
+  },
+  "unit": {
+    "test_files": 35,
+    "tests": 451,
+    "new_tests": 5,
+    "failures": 0,
+    "result": "pass",
+    "breakdown": {
+      "lib/useVisibleRefetch.test.tsx": 3,
+      "features/reports/ReportReaderPage.test.tsx": 2
+    },
+    "note": "P5-01 基线 35 文件 / 446 条；新增 3 条刷新档位、2 条导出格式，合计 451/451。AppShell.test.tsx 只补 mock 未加用例。"
+  },
+  "typecheck": {
+    "errors": 0,
+    "result": "pass"
+  },
+  "python": {
+    "passed": 789,
+    "skipped": 4,
+    "failures": 0,
+    "result": "pass",
+    "note": "本票零后端改动；预检全量复跑与 P4 基线一致"
+  },
+  "bundle": {
+    "measured_with": "frontend/scripts/check_bundle.mjs（node:zlib gzipSync level 9）",
+    "entry_gzip_kb": 124.38,
+    "entry_budget_gzip_kb": 202.45,
+    "entry_within_budget": true,
+    "entry_delta_gzip_kb": 0.02,
+    "route_chunks": 11,
+    "route_chunk_limit_gzip_kb": 60,
+    "largest_route_chunk": {
+      "file": "assets/ReportDetailPage-DRDVpj5k.js",
+      "gzip_kb": 20.8
+    },
+    "stock_chunk_gzip_kb": 11.94,
+    "market_chunk_gzip_kb": 5.92,
+    "all_route_chunks_within_limit": true,
+    "passed": true,
+    "note": "增量来自 ReportActions 的 Markdown 链接与偏好读取；无新增第三方依赖。"
+  },
+  "refresh": {
+    "profiles": {
+      "standard": "契约 stale_after 原值",
+      "relaxed": "原值 ×2",
+      "manual": "refetchInterval=false 且 refetchIntervalInBackground=false"
+    },
+    "hidden_floor_ms": 60000,
+    "live_switch": "setPreferences 触发重渲染，查询观察者下一轮取新间隔；不重建 QueryClient",
+    "foreground_refetch": "manual 档 hidden→visible 不 invalidate；standard/relaxed 保持既有回前台重取",
+    "refresh_now": "三档都可用，手动按钮不受偏好影响",
+    "unchanged_callsites": "10 处 usePolling(REFRESH_INTERVALS.*) 调用点未改"
+  },
+  "export": {
+    "markdown_url": "/api/v1/reports/{id}/markdown（encodeURIComponent）",
+    "controls": "PDF 控件与 Markdown a[download] 同时渲染，header 与移动 action bar 一致",
+    "ordering": "export=pdf 时 PDF 在前，export=markdown 时 Markdown 在前；不隐藏任何一个",
+    "zero_post_on_render": true,
+    "report_id_source": "meta.report_id；空字符串不渲染链接",
+    "fetch_literals": "fetch 与 /api/v1 字面量仍只在 frontend/src/api/"
+  },
+  "e2e": {
+    "market": { "checks": 103, "failures": 0 },
+    "stock": { "checks": 99, "failures": 0 },
+    "note": "market_e2e.py 的 wait_for_request 改为与 stock_e2e.py 一致，用 page.wait_for_timeout 驱动 Playwright 同步事件循环；原实现 time.sleep 期间不派发 request 事件，W08-07 的日期请求在 3s 窗口内看不到。产品行为未改。"
+  },
+  "acceptance": {
+    "P5-REF-01": {
+      "item": "标准/省流/手动三档",
+      "test": "useVisibleRefetch.test.tsx（10s → relaxed 20s → manual false/false → 回 standard 10s）",
+      "result": "pass"
+    },
+    "P5-REF-02": {
+      "item": "隐藏页 60s 下限",
+      "test": "useVisibleRefetch.test.tsx（relaxed 指数 60000、行业 600000；manual 双 false）",
+      "result": "pass"
+    },
+    "P5-REF-03": {
+      "item": "运行中切换即时生效，refreshNow 不受手动档影响",
+      "test": "useVisibleRefetch.test.tsx（同一 hook 三次切换取新间隔；manual 下 refreshNow 仍发起第二次取数）",
+      "result": "pass"
+    },
+    "P5-REF-04": {
+      "item": "手动档回前台不自动重取",
+      "test": "useVisibleRefetch.test.tsx（manual hidden→visible 调用次数仍为 1；standard 由既有 REF-02 覆盖）",
+      "result": "pass"
+    },
+    "P5-EXP-01": {
+      "item": "两格式同时可达，Markdown 同源且 download",
+      "test": "ReportReaderPage.test.tsx（export-markdown href=/api/v1/reports/r-1/markdown、带 download；export-button 同时在；渲染时零 POST）",
+      "result": "pass"
+    },
+    "P5-EXP-02": {
+      "item": "偏好只改主次顺序",
+      "test": "ReportReaderPage.test.tsx（默认 PDF 是 reader-actions 首子元素；setPreferences 后 Markdown 在前且 PDF 仍在）",
+      "result": "pass"
+    },
+    "P5-EXP-03": {
+      "item": "导出动作零自动 POST",
+      "test": "P5-EXP-01 断言渲染后 exportPosts 为 0；PDF 单次 POST 由既有 ACT-01 覆盖；Markdown 是普通 a[download]，不拼 blob、不发请求",
+      "result": "pass"
+    }
+  },
+  "preflight": {
+    "passed": 10,
+    "failed": 0,
+    "result": "pass",
+    "note": "代码与证据两次本地提交后，在工作区干净状态复跑"
+  },
+  "notes": [
+    "AppShell.test.tsx 的 api/reports mock 补了 reportMarkdownUrl；否则路由测试渲染阅读器时 ReportActions 抛错，表现为停在 reader-loading。",
+    "偏好只影响轮询节奏和控件顺序，不改变请求参数、不改契约间隔下限；隐藏页 60s 下限三档一致。",
+    "Markdown 链接是静态 a[download]，点击不产生 XHR；PDF 状态机（queued/rendering/ready/failed）未改。",
+    "本票零后端改动、零契约改动、零迁移、零新增运行时依赖；旧版 tradingagents/、web/、run_all.bat 与 8501 入口未动。",
+    "设置页控件留给 P5-03；密度与列表行高沿用 P5-01。"
+  ]
+}
