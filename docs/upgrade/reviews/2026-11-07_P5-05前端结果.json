@@ -1,0 +1,159 @@
+{
+  "ticket": "P5-05",
+  "title": "旧版入口与关于",
+  "measured_at": "2026-11-07T16:05:00+08:00",
+  "base_head": "49be7cf",
+  "code_head": "88a541f",
+  "environment": {
+    "platform": "Windows-11-10.0.26200-SP0",
+    "node": "22.22.2",
+    "python": "3.13.3",
+    "vite": "7.3.7",
+    "react": "19.3.1",
+    "vitest": "5.1.0",
+    "new_runtime_dependencies": 0
+  },
+  "commands": {
+    "typecheck": "cd frontend && node node_modules/typescript/bin/tsc --noEmit",
+    "unit": "cd frontend && node node_modules/vitest/vitest.mjs run",
+    "build": "cd frontend && node node_modules/vite/bin/vite.js build",
+    "bundle": "cd frontend && node scripts/check_bundle.mjs --out <临时文件路径>",
+    "e2e": "C:/Users/zhzsh/AppData/Local/Programs/Python/Python313/python.exe e2e/settings_e2e.py，随后 journal_e2e.py、market_e2e.py、stock_e2e.py",
+    "preflight": ".venv/Scripts/python.exe scripts/p0_preflight.py --full --smoke"
+  },
+  "unit": {
+    "test_files": 37,
+    "tests": 486,
+    "new_tests": 3,
+    "failures": 0,
+    "result": "pass",
+    "breakdown": {
+      "shell/AppShell.test.tsx": 2,
+      "features/settings/SettingsView.test.tsx": 1
+    },
+    "note": "P5-04 基线 37 文件 / 483 条；新增 2 条桌面/移动入口与 1 条关于入口，合计 486/486。"
+  },
+  "typecheck": {
+    "errors": 0,
+    "result": "pass"
+  },
+  "python": {
+    "passed": 789,
+    "skipped": 4,
+    "failures": 0,
+    "result": "pass",
+    "note": "本票零后端改动；预检全量测试与 P5-04 基线一致。"
+  },
+  "bundle": {
+    "measured_with": "frontend/scripts/check_bundle.mjs（node:zlib gzipSync level 9）",
+    "entry_gzip_kb": 124.58,
+    "entry_budget_gzip_kb": 202.45,
+    "entry_within_budget": true,
+    "entry_delta_gzip_kb": 0.06,
+    "route_chunks": 11,
+    "route_chunk_limit_gzip_kb": 60,
+    "largest_route_chunk": {
+      "file": "assets/ReportDetailPage-BPIHGOlN.js",
+      "gzip_kb": 20.8
+    },
+    "settings_chunk_gzip_kb": 4.01,
+    "journal_chunk_gzip_kb": 2.63,
+    "all_route_chunks_within_limit": true,
+    "passed": true,
+    "note": "入口 +0.06 kB 来自侧栏外链；设置块 3.92 → 4.01 kB（关于入口与文案）。均在预算内。"
+  },
+  "e2e": {
+    "settings": {
+      "checks": 73,
+      "failures": 0,
+      "note": "P5-03 基线 62 checks；本票新增 9 条桌面 LEG 检查与 2 条移动抽屉检查，共 73。"
+    },
+    "journal": { "checks": 80, "failures": 0 },
+    "market": { "checks": 103, "failures": 0 },
+    "stock": { "checks": 99, "failures": 0 },
+    "note": "settings_e2e.py 在 commit 88a541f 上运行；日志/市场/股票为同代码状态下的回归。截图写入 ui_shots_p5/P5-03/ 与 ui_shots_p5/P5-05/。"
+  },
+  "legacy_entry": {
+    "constant": "frontend/src/shell/navigation.ts: LEGACY_ENTRY_URL = \"http://localhost:8501\"",
+    "desktop": {
+      "file": "frontend/src/shell/Sidebar.tsx",
+      "test_id": "sidebar-legacy-entry",
+      "element": "native <a>",
+      "attributes": {
+        "href": "http://localhost:8501",
+        "target": "_blank",
+        "rel": "noreferrer",
+        "title": "折叠时为「旧版入口」"
+      },
+      "icon": "external（aria-hidden）",
+      "aria_current": "不设置"
+    },
+    "about": {
+      "file": "frontend/src/features/settings/groups/AboutGroup.tsx",
+      "test_id": "about-legacy-entry",
+      "element": "native <a>",
+      "link_text": "打开旧版界面",
+      "attributes": {
+        "href": "http://localhost:8501",
+        "target": "_blank",
+        "rel": "noreferrer"
+      },
+      "placeholder_removed": "第三方数据遵循各自授权，具体许可以各数据源发布的信息为准。"
+    },
+    "mobile": {
+      "file": "frontend/src/shell/MobileNav.tsx",
+      "changed": false,
+      "note": "既有抽屉入口本票未改；单测与两档移动 E2E 只做属性回归。"
+    },
+    "router": {
+      "new_route": false,
+      "default_entry_changed": false,
+      "proof": "E2E 点击两处入口均弹出新页（popup.url 以 http://localhost:8501 开头），当前 SPA 地址保持 {base}/settings。"
+    }
+  },
+  "copy_sweep": {
+    "scope": "frontend/src/**/*.{ts,tsx}，排除 *.test.*，跳过 //、/* */ 与 * 开头的注释行",
+    "patterns": ["P\\d-\\d\\d", "后续票据", "后续票", "占位", "尚未接入"],
+    "hits": [],
+    "result": "pass",
+    "note": "代码注释中的票号保留作追溯来源；本票只清理用户可见字符串与 navigation.ts 的过时注释。"
+  },
+  "acceptance": {
+    "P5-LEG-01": {
+      "item": "桌面侧栏「旧版入口」为同址新窗口外链，折叠可用",
+      "test": "AppShell.test.tsx（tagName A、href、target、rel、无 aria-current、折叠 title）；settings_e2e.py（data-testid、属性、点击弹窗）",
+      "result": "pass"
+    },
+    "P5-LEG-02": {
+      "item": "设置「关于」组补同一入口；占位语清除；其余内容不变",
+      "test": "SettingsView.test.tsx（about 区域链接名称、href/target/rel、无「后续票据」）；settings_e2e.py（属性、占位句、四组仍为 4）",
+      "result": "pass"
+    },
+    "P5-LEG-03": {
+      "item": "外链不被 React Router 拦截；移动端入口一致",
+      "test": "settings_e2e.py（两处点击均 expect_popup 且 SPA URL 不变；390/360 抽屉 href/target/rel）；AppShell.test.tsx（移动入口属性）",
+      "result": "pass"
+    },
+    "LEG-04": {
+      "item": "附加检查：用户可见字符串无过时阶段号与占位语",
+      "test": "settings_e2e.py visible_stage_hits()，命中为空",
+      "result": "pass"
+    }
+  },
+  "preflight": {
+    "passed": 10,
+    "failed": 0,
+    "result": "pass",
+    "head": "88a541f",
+    "note": "代码提交后在工作区干净状态复跑；随后再提交本证据与 P5-06 交接卡并复跑一次。"
+  },
+  "notes": [
+    "关于组链接文字用「打开旧版界面」而非标签「旧版入口」，链接名称更明确；图标 aria-hidden，可访问名称不含符号。",
+    "没有新增 8501 路由，也没有改默认入口；外链是原生 <a>，React Router 不会拦截。",
+    "navigation.ts 注释从「until P2 ships」改为「stays reachable until P6 decides the default entry」，只改注释，常量值不变。",
+    "阶段号扫描排除测试文件，避免把测试 describe 名与占位夹具当成产品文案；产品源码命中为 0。",
+    "C9 市场文案未搬动；按 D12 留到 P5-09 出口评审记为长期书面例外。",
+    "全量 vitest 首跑出现一次 StockPage.mobile.test.tsx W07M-01/02 找不到 stock-price 的失败；单跑该文件 3/3 通过，随后全量复跑 486/486 通过。本票未改 StockPage 与其夹具，按并行负载下的既有抖动记录。",
+    "零后端改动、零契约改动、零迁移（头仍 0007）、零新增运行时依赖；tradingagents/、web/、run_all.bat、trade-journal 未动。"
+  ]
+}
