@@ -3,6 +3,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
 
+import { usePreferences } from "./preferences";
 import { MARKET_STALE_MS, STOCK_STALE_MS } from "./query";
 
 /** While the tab is hidden every poll drops to at most one beat per minute. */
@@ -68,16 +69,19 @@ export interface PollingOptions {
 }
 
 /**
- * Interval for one query. Hidden tabs keep the timer alive (TanStack pauses
- * background intervals by default) but never poll faster than one minute.
+ * Interval for one query. The refresh preference can only slow the contract
+ * interval down (``relaxed`` doubles it, ``manual`` stops the timer); hidden
+ * tabs keep the timer alive but never poll faster than one minute.
  */
 export function usePolling(interval: number | false): PollingOptions {
   const visible = usePageVisible();
-  if (interval === false) {
+  const { refresh } = usePreferences();
+  if (interval === false || refresh === "manual") {
     return { refetchInterval: false, refetchIntervalInBackground: false };
   }
+  const effective = refresh === "relaxed" ? interval * 2 : interval;
   return {
-    refetchInterval: visible ? interval : Math.max(interval, HIDDEN_POLL_MS),
+    refetchInterval: visible ? effective : Math.max(effective, HIDDEN_POLL_MS),
     refetchIntervalInBackground: true,
   };
 }
@@ -97,6 +101,7 @@ export function useVisibleRefetch(
 ): VisibleRefetch {
   const client = useQueryClient();
   const visible = usePageVisible();
+  const { refresh } = usePreferences();
   const wasHidden = useRef(false);
 
   useEffect(() => {
@@ -108,11 +113,15 @@ export function useVisibleRefetch(
       return;
     }
     wasHidden.current = false;
+    // The manual profile also turns off the return-to-foreground refetch.
+    if (refresh === "manual") {
+      return;
+    }
     void client.invalidateQueries({
       queryKey: scope,
       refetchType: "active",
     });
-  }, [client, scope, visible]);
+  }, [client, refresh, scope, visible]);
 
   const refreshNow = useCallback(
     () =>

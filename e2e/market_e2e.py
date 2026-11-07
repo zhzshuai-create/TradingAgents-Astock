@@ -501,6 +501,7 @@ def scroll_top(page: Page) -> float:
 
 
 def wait_for_request(
+    page: Page,
     requests: list[tuple[str, str]],
     needle: str,
     timeout: float = 3.0,
@@ -509,7 +510,8 @@ def wait_for_request(
     while time.monotonic() < deadline:
         if any(needle in url for _, url in requests):
             return True
-        time.sleep(0.05)
+        # Pump the sync Playwright event loop; time.sleep would block it.
+        page.wait_for_timeout(50)
     return False
 
 
@@ -686,7 +688,7 @@ def main_flow(browser: Browser, base: str) -> None:
         "new URLSearchParams(location.search).get('date') === '2026-11-04'"
     )
     check(
-        wait_for_request(requests, "date=2026-11-04"),
+        wait_for_request(page, requests, "date=2026-11-04"),
         "W08-07 date control sends date=2026-11-04",
     )
     page.screenshot(path=str(SHOTS / "market_1440.png"), full_page=True)

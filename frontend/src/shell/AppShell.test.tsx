@@ -65,6 +65,8 @@ vi.mock("../api/meta", () => ({
 
 vi.mock("../api/reports", () => ({
   listReports: vi.fn(async () => ({ items: [], next_cursor: null })),
+  reportMarkdownUrl: (reportId: string) =>
+    `/api/v1/reports/${reportId}/markdown`,
   getReport: vi.fn(async () => ({
     meta: {
       report_id: "report-1",

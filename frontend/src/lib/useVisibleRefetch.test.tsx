@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-quer
 import { act, render, renderHook, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { setPreferences } from "./preferences";
 import {
   HIDDEN_POLL_MS,
   REFRESH_INTERVALS,
@@ -33,6 +34,7 @@ beforeEach(() => {
 
 afterEach(() => {
   restoreVisibility();
+  localStorage.clear();
 });
 
 describe("REF-01 contract interval table", () => {
@@ -101,6 +103,96 @@ describe("REF-02 return to foreground", () => {
 
     setVisibility("visible");
     await waitFor(() => expect(calls).toBe(2));
+  });
+});
+
+describe("P5-REF refresh profiles", () => {
+  it("standard keeps the contract interval, relaxed doubles, manual stops", () => {
+    setVisibility("visible");
+    const hook = renderHook(() => usePolling(REFRESH_INTERVALS.market.overview));
+    expect(hook.result.current.refetchInterval).toBe(10_000);
+
+    act(() => {
+      setPreferences({ refresh: "relaxed" });
+    });
+    expect(hook.result.current.refetchInterval).toBe(20_000);
+
+    act(() => {
+      setPreferences({ refresh: "manual" });
+    });
+    expect(hook.result.current).toEqual({
+      refetchInterval: false,
+      refetchIntervalInBackground: false,
+    });
+
+    act(() => {
+      setPreferences({ refresh: "standard" });
+    });
+    expect(hook.result.current.refetchInterval).toBe(10_000);
+  });
+
+  it("hidden tabs never poll faster than one minute in any profile", () => {
+    setVisibility("visible");
+    const fast = renderHook(() => usePolling(REFRESH_INTERVALS.market.overview));
+    const slow = renderHook(() =>
+      usePolling(REFRESH_INTERVALS.market.industries),
+    );
+
+    act(() => {
+      setPreferences({ refresh: "relaxed" });
+    });
+    setVisibility("hidden");
+    expect(fast.result.current.refetchInterval).toBe(HIDDEN_POLL_MS);
+    expect(slow.result.current.refetchInterval).toBe(600_000);
+
+    act(() => {
+      setPreferences({ refresh: "manual" });
+    });
+    expect(fast.result.current.refetchInterval).toBe(false);
+    expect(slow.result.current.refetchInterval).toBe(false);
+    expect(fast.result.current.refetchIntervalInBackground).toBe(false);
+  });
+
+  it("manual skips the foreground refetch but keeps refreshNow", async () => {
+    act(() => {
+      setPreferences({ refresh: "manual" });
+    });
+    let calls = 0;
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false, gcTime: 0, staleTime: Infinity } },
+    });
+
+    const { result } = renderHook(
+      () => {
+        const refetch = useVisibleRefetch(PROBE_SCOPE);
+        const query = useQuery({
+          queryKey: ["probe", "manual"],
+          queryFn: async () => {
+            calls += 1;
+            return calls;
+          },
+        });
+        return { refetch, data: query.data };
+      },
+      {
+        wrapper: ({ children }) => (
+          <QueryClientProvider client={client}>{children}</QueryClientProvider>
+        ),
+      },
+    );
+    await waitFor(() => expect(result.current.data).toBe(1));
+
+    setVisibility("hidden");
+    setVisibility("visible");
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(calls).toBe(1);
+
+    await act(async () => {
+      await result.current.refetch.refreshNow();
+    });
+    await waitFor(() => expect(result.current.data).toBe(2));
   });
 });
 

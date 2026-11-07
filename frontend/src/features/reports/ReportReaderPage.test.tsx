@@ -32,6 +32,7 @@ import type {
   ReportMeta,
   ReportSection,
 } from "../../api/types";
+import { PREFERENCES_STORAGE_KEY, setPreferences } from "../../lib/preferences";
 import { ReportReaderPage } from "./ReportReaderPage";
 
 const ORIGIN = "http://localhost:3000";
@@ -833,6 +834,42 @@ describe("reader states", () => {
     failing = false;
     fireEvent.click(screen.getByRole("button", { name: "重试" }));
     expect(await screen.findByTestId("report-article")).toBeInTheDocument();
+  });
+});
+
+describe("P5-EXP export formats", () => {
+  afterEach(() => {
+    localStorage.removeItem(PREFERENCES_STORAGE_KEY);
+  });
+
+  it("P5-EXP-01 offers PDF and Markdown with a same-origin href", async () => {
+    serve(detail());
+    renderPage("/reports/r-1");
+
+    const markdown = await screen.findByTestId("export-markdown");
+    expect(markdown).toHaveAttribute("href", "/api/v1/reports/r-1/markdown");
+    expect(markdown).toHaveAttribute("download");
+    expect(await screen.findByTestId("export-button")).toBeInTheDocument();
+    // Rendering both formats must not queue anything by itself.
+    expect(exportPosts).toHaveLength(0);
+  });
+
+  it("P5-EXP-02 the preference only reorders the two controls", async () => {
+    serve(detail());
+    renderPage("/reports/r-1");
+    const group = await screen.findByTestId("reader-actions");
+    expect(group.firstElementChild).toBe(
+      within(group).getByTestId("export-button"),
+    );
+
+    act(() => {
+      setPreferences({ export: "markdown" });
+    });
+
+    expect(group.firstElementChild).toBe(
+      within(group).getByTestId("export-markdown"),
+    );
+    expect(within(group).getByTestId("export-button")).toBeInTheDocument();
   });
 });
 

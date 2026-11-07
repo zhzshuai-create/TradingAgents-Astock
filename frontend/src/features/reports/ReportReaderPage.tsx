@@ -243,7 +243,11 @@ export function ReportReaderPage() {
             ) : null}
             {mobile ? null : (
               <div className={styles.headerActions}>
-                <ReportActions variant="header" actions={actions} />
+                <ReportActions
+                  variant="header"
+                  actions={actions}
+                  reportId={meta.report_id}
+                />
               </div>
             )}
           </header>
@@ -287,7 +291,11 @@ export function ReportReaderPage() {
           {mobile ? (
             <>
               <div className={styles.actionBar} data-testid="reader-action-bar">
-                <ReportActions variant="bar" actions={actions} />
+                <ReportActions
+                  variant="bar"
+                  actions={actions}
+                  reportId={meta.report_id}
+                />
               </div>
               <Drawer
                 open={tocOpen}

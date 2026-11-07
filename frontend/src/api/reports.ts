@@ -47,3 +47,8 @@ export function getReport(
     { signal },
   );
 }
+
+/** Direct download link (api-v1.md 2.3); no request is made until clicked. */
+export function reportMarkdownUrl(reportId: string): string {
+  return `/api/v1/reports/${encodeURIComponent(reportId)}/markdown`;
+}
