@@ -1,0 +1,371 @@
+{
+  "ticket": "P5-09",
+  "generated_at": "2026-11-07T19:45:17+08:00",
+  "head": "5f653e1",
+  "criteria": [
+    {
+      "id": "1",
+      "statement": "日志故障不拖垮主站",
+      "evidence": "journal_e2e.py 三原因与超时仍绿；market/stock 与 P2 任务回归在日志不可用下全绿",
+      "passed": true
+    },
+    {
+      "id": "2",
+      "statement": "设置不泄露密钥",
+      "evidence": "settings_e2e.py 无密钥输入、DOM/localStorage 无密钥模式、已有任务快照不变",
+      "passed": true
+    },
+    {
+      "id": "3",
+      "statement": "核心页面无严重 axe 问题",
+      "evidence": "a11y_e2e.py 29 个页面状态 critical/serious 全 0",
+      "passed": true
+    },
+    {
+      "id": "4",
+      "statement": "全键盘主流程通过",
+      "evidence": "keyboard_e2e.py 纯键盘完成导航、搜索、发起分析、任务、报告、设置分组与日志重试",
+      "passed": true
+    }
+  ],
+  "gates": [
+    {
+      "name": "typecheck",
+      "command": "cd frontend && node node_modules/typescript/bin/tsc --noEmit",
+      "exit_code": 0,
+      "value": "exit 0",
+      "expected": "exit 0",
+      "passed": true,
+      "seconds": 7.6
+    },
+    {
+      "name": "unit",
+      "command": "cd frontend && node node_modules/vitest/vitest.mjs run",
+      "exit_code": 0,
+      "value": "527 tests / 38 files",
+      "expected": ">= 527 tests / >= 38 files",
+      "passed": true,
+      "seconds": 24.1
+    },
+    {
+      "name": "build",
+      "command": "cd frontend && node node_modules/vite/bin/vite.js build",
+      "exit_code": 0,
+      "value": "exit",
+      "expected": 0,
+      "passed": true,
+      "seconds": 3.8
+    },
+    {
+      "name": "bundle",
+      "command": "cd frontend && node scripts/check_bundle.mjs --out <temp>",
+      "exit_code": 0,
+      "value": "entry 124.72 kB gzip, 11 route chunks, largest assets/ReportDetailPage-CqYl6fUJ.js 20.84 kB",
+      "expected": "entry <= 202.45 kB, 11 lazy chunks, each <= 60.0 kB",
+      "passed": true,
+      "seconds": 0.1
+    },
+    {
+      "name": "backend group",
+      "command": ".venv/Scripts/python.exe -m pytest tests/backend -q",
+      "exit_code": 0,
+      "value": "417 passed in 154.99s (0:02:34)",
+      "expected": "exit 0",
+      "passed": true,
+      "seconds": 156.9
+    },
+    {
+      "name": "python full",
+      "command": ".venv/Scripts/python.exe -m pytest -q",
+      "exit_code": 0,
+      "value": "789 passed / 4 skipped",
+      "expected": ">= 789 passed / 4 skipped",
+      "passed": true,
+      "seconds": 220.5
+    },
+    {
+      "name": "regression p2",
+      "command": "python e2e/e2e_p2.py",
+      "exit_code": 0,
+      "value": "102 checks, 0 failures",
+      "expected": "exit 0, 0 failures",
+      "passed": true,
+      "seconds": 338.5
+    },
+    {
+      "name": "regression p3",
+      "command": "python e2e/e2e_p3.py",
+      "exit_code": 0,
+      "value": "19 checks, 0 failures",
+      "expected": "exit 0, 0 failures",
+      "passed": true,
+      "seconds": 170.8
+    },
+    {
+      "name": "regression p4",
+      "command": "python e2e/e2e_p4.py",
+      "exit_code": 0,
+      "value": "26 checks, 0 failures",
+      "expected": "exit 0, 0 failures",
+      "passed": true,
+      "seconds": 381.7
+    },
+    {
+      "name": "suite keyboard",
+      "command": "python e2e/keyboard_e2e.py",
+      "exit_code": 0,
+      "value": "59 checks, 0 failures",
+      "expected": ">= 59 checks, 0 failures",
+      "passed": true,
+      "seconds": 32.3
+    },
+    {
+      "name": "suite settings",
+      "command": "python e2e/settings_e2e.py",
+      "exit_code": 0,
+      "value": "73 checks, 0 failures",
+      "expected": ">= 73 checks, 0 failures",
+      "passed": true,
+      "seconds": 17.9
+    },
+    {
+      "name": "suite journal",
+      "command": "python e2e/journal_e2e.py",
+      "exit_code": 0,
+      "value": "80 checks, 0 failures",
+      "expected": ">= 80 checks, 0 failures",
+      "passed": true,
+      "seconds": 69.4
+    },
+    {
+      "name": "suite a11y",
+      "command": "python e2e/a11y_e2e.py",
+      "exit_code": 0,
+      "value": "29 page states, 0 critical, 0 serious",
+      "expected": "29 states, 0 critical, 0 serious",
+      "passed": true,
+      "seconds": 48.6
+    },
+    {
+      "name": "suite mobile",
+      "command": "python e2e/mobile_e2e.py",
+      "exit_code": 0,
+      "value": "24 pages, 0 undersized, 26 screenshots",
+      "expected": "24 pages, 0 undersized, >= 26 screenshots",
+      "passed": true,
+      "seconds": 36.4
+    },
+    {
+      "name": "suite market",
+      "command": "python e2e/market_e2e.py",
+      "exit_code": 0,
+      "value": "103 checks, 0 failures",
+      "expected": ">= 103 checks, 0 failures",
+      "passed": true,
+      "seconds": 53.4
+    },
+    {
+      "name": "suite stock",
+      "command": "python e2e/stock_e2e.py",
+      "exit_code": 0,
+      "value": "99 checks, 0 failures",
+      "expected": ">= 99 checks, 0 failures",
+      "passed": true,
+      "seconds": 53.2
+    },
+    {
+      "name": "migration head",
+      "command": ".venv/Scripts/python.exe -m alembic -c backend/alembic.ini heads",
+      "exit_code": 0,
+      "value": "0007 (head)",
+      "expected": "0007 (single head)",
+      "passed": true,
+      "seconds": 0.5
+    },
+    {
+      "name": "restore child evidence",
+      "command": "git checkout -- <P3-09 / P5-08 evidence>",
+      "exit_code": null,
+      "value": "restored ['docs/upgrade/reviews/2026-11-06_P3-09性能结果.json']",
+      "expected": "tracked evidence back to HEAD",
+      "passed": true
+    },
+    {
+      "name": "preflight",
+      "command": ".venv/Scripts/python.exe scripts/p0_preflight.py --full --smoke",
+      "exit_code": 0,
+      "value": "10 PASS / 0 FAIL, legacy smoke ok",
+      "expected": "10 PASS / 0 FAIL",
+      "passed": true,
+      "seconds": 250.7
+    }
+  ],
+  "axe": {
+    "version": "4.10.3",
+    "pages_scanned": 29,
+    "critical": 0,
+    "serious": 0
+  },
+  "mobile": {
+    "pages_measured": 24,
+    "undersized": 0,
+    "exceptions": 6,
+    "screenshots": 26
+  },
+  "legacy": {
+    "python_passed": 789,
+    "python_skipped": 4,
+    "unit_tests": 527,
+    "e2e_checks": 541,
+    "migration_head": "0007"
+  },
+  "leftovers": [
+    "R1 百度 403 风控与负缓存：独立后续票",
+    "C4 旧版日志桥与外部 trade-journal 的来源校验：外部仓库 + 旧版解冻",
+    "C9 市场文案位置与契约指向不一致：长期书面例外",
+    "控件边框 1.52/1.79 与禁用文字 3.70/3.78 的非文本对比：P5-07 记录，axe 未报"
+  ],
+  "suites": {
+    "keyboard": {
+      "script": "e2e/keyboard_e2e.py",
+      "checks": 59,
+      "failures": [],
+      "axe_version": null,
+      "critical": null,
+      "serious": null,
+      "pages_scanned": null,
+      "pages_measured": null,
+      "undersized": null,
+      "exceptions": null,
+      "screenshots": [
+        "ui_shots_p5\\P5-06"
+      ],
+      "passed": true
+    },
+    "settings": {
+      "script": "e2e/settings_e2e.py",
+      "checks": 73,
+      "failures": [],
+      "axe_version": null,
+      "critical": null,
+      "serious": null,
+      "pages_scanned": null,
+      "pages_measured": null,
+      "undersized": null,
+      "exceptions": null,
+      "screenshots": [
+        "ui_shots_p5\\P5-03",
+        "ui_shots_p5\\P5-05"
+      ],
+      "passed": true
+    },
+    "journal": {
+      "script": "e2e/journal_e2e.py",
+      "checks": 80,
+      "failures": [],
+      "axe_version": null,
+      "critical": null,
+      "serious": null,
+      "pages_scanned": null,
+      "pages_measured": null,
+      "undersized": null,
+      "exceptions": null,
+      "screenshots": [
+        "ui_shots_p5\\P5-04"
+      ],
+      "passed": true
+    },
+    "a11y": {
+      "script": "e2e/a11y_e2e.py",
+      "checks": 42,
+      "failures": [],
+      "axe_version": "4.10.3",
+      "critical": 0,
+      "serious": 0,
+      "pages_scanned": 29,
+      "pages_measured": null,
+      "undersized": null,
+      "exceptions": null,
+      "screenshots": null,
+      "passed": true
+    },
+    "mobile": {
+      "script": "e2e/mobile_e2e.py",
+      "checks": 85,
+      "failures": [],
+      "axe_version": null,
+      "critical": null,
+      "serious": null,
+      "pages_scanned": null,
+      "pages_measured": 24,
+      "undersized": 0,
+      "exceptions": 6,
+      "screenshots": 26,
+      "passed": true
+    },
+    "market": {
+      "script": "e2e/market_e2e.py",
+      "checks": 103,
+      "failures": [],
+      "axe_version": null,
+      "critical": null,
+      "serious": null,
+      "pages_scanned": null,
+      "pages_measured": null,
+      "undersized": null,
+      "exceptions": null,
+      "screenshots": [
+        "ui_shots_p4\\P4-06",
+        "ui_shots_p4\\P4-07"
+      ],
+      "passed": true
+    },
+    "stock": {
+      "script": "e2e/stock_e2e.py",
+      "checks": 99,
+      "failures": [],
+      "axe_version": null,
+      "critical": null,
+      "serious": null,
+      "pages_scanned": null,
+      "pages_measured": null,
+      "undersized": null,
+      "exceptions": null,
+      "screenshots": [
+        "ui_shots_p4\\P4-09",
+        "ui_shots_p4\\P4-10"
+      ],
+      "passed": true
+    }
+  },
+  "regression": {
+    "p2": {
+      "script": "e2e/e2e_p2.py",
+      "checks": 102,
+      "failures": [],
+      "passed": true
+    },
+    "p3": {
+      "script": "e2e/e2e_p3.py",
+      "checks": 19,
+      "failures": [],
+      "passed": true
+    },
+    "p4": {
+      "script": "e2e/e2e_p4.py",
+      "checks": 26,
+      "failures": [],
+      "passed": true
+    }
+  },
+  "preflight": {
+    "passed": 10,
+    "failed": 0,
+    "smoke": true,
+    "ok": true
+  },
+  "seconds": 1866.6,
+  "failed_gates": [],
+  "failed_criteria": [],
+  "passed": true
+}
