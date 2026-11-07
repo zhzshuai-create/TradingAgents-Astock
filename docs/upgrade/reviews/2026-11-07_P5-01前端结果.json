@@ -1,0 +1,140 @@
+{
+  "ticket": "P5-01",
+  "title": "偏好内核与密度基础",
+  "measured_at": "2026-11-07T12:35:00+08:00",
+  "base_head": "d3ce784",
+  "environment": {
+    "platform": "Windows-11-10.0.26200-SP0",
+    "node": "22.22.2",
+    "python": "3.13.3",
+    "vite": "7.3.7",
+    "react": "19.3.1",
+    "vitest": "5.1.0",
+    "new_runtime_dependencies": 0
+  },
+  "commands": {
+    "typecheck": "cd frontend && node node_modules/typescript/bin/tsc --noEmit",
+    "unit": "cd frontend && node node_modules/vitest/vitest.mjs run",
+    "build": "cd frontend && node node_modules/vite/bin/vite.js build",
+    "bundle": "cd frontend && node scripts/check_bundle.mjs --out <临时路径>",
+    "preflight": ".venv/Scripts/python.exe scripts/p0_preflight.py --full --smoke"
+  },
+  "unit": {
+    "test_files": 35,
+    "tests": 446,
+    "new_test_files": 1,
+    "new_tests": 15,
+    "failures": 0,
+    "result": "pass",
+    "breakdown": {
+      "lib/preferences.test.ts": 11,
+      "styles/tokens.test.ts": 3,
+      "shell/AppShell.test.tsx": 1
+    },
+    "note": "P5-00 基线 34 文件 / 431 条；新增偏好测试文件 11 条、tokens 3 条、AppShell 根属性 1 条，合计 446/446。"
+  },
+  "typecheck": {
+    "errors": 0,
+    "result": "pass"
+  },
+  "python": {
+    "passed": 789,
+    "skipped": 4,
+    "failures": 0,
+    "result": "pass",
+    "note": "本票零后端改动；预检全量复跑与 P4 基线一致"
+  },
+  "bundle": {
+    "measured_with": "frontend/scripts/check_bundle.mjs（node:zlib gzipSync level 9）",
+    "entry_gzip_kb": 124.36,
+    "entry_budget_gzip_kb": 202.45,
+    "entry_within_budget": true,
+    "entry_delta_gzip_kb": 0.62,
+    "route_chunks": 11,
+    "route_chunk_limit_gzip_kb": 60,
+    "largest_route_chunk": {
+      "file": "assets/ReportDetailPage-C8bINi4C.js",
+      "gzip_kb": 20.72
+    },
+    "stock_chunk_gzip_kb": 11.94,
+    "market_chunk_gzip_kb": 5.92,
+    "all_route_chunks_within_limit": true,
+    "passed": true,
+    "note": "入口增量来自 preferences 模块随 AppShell 进入主包；无新增第三方依赖。"
+  },
+  "preferences": {
+    "storage_key": "astock.prefs.v1",
+    "defaults": {
+      "density": "comfortable",
+      "refresh": "standard",
+      "export": "pdf",
+      "launcher": {}
+    },
+    "validation": "白名单枚举；launcher 只收 string / boolean；未知键丢弃；整值非法回默认；字段级非法只回退该字段",
+    "storage_failure": "getItem/setItem 抛异常均不外抛；getItem 失败读默认，setItem 失败保留内存值（memoryOnly）",
+    "subscription": "模块级 Set + storage 事件；最后一个订阅者退订时移除 window 监听",
+    "forbidden_fields": ["api_key", "base_url", "journal_url", "data_dir"]
+  },
+  "density": {
+    "tokens": { "comfortable": "44px / 10px", "compact": "36px / 6px" },
+    "root_attribute": "document.documentElement.dataset.density",
+    "write_point": "AppShell useLayoutEffect（首帧绘制前），卸载不移除",
+    "mobile_override": "@media (max-width: 767px) 把 :root 与 compact 一起固定为 44px / 10px",
+    "consumers": [
+      "features/jobs/JobTable.module.css（td）",
+      "features/reports/ReportTable.module.css（td）",
+      "features/market/MarketPage.module.css（行业表与强势股表共用的 td）",
+      "features/stocks/StockPage.module.css（股票报告行 reportItem / reportLink）"
+    ]
+  },
+  "acceptance": {
+    "PREF-01": {
+      "item": "容错读取",
+      "test": "preferences.test.ts（空存储返回默认；非法 JSON / 越界枚举 / 非对象 / null 全回默认；部分字段越界只回退该字段）",
+      "result": "pass"
+    },
+    "PREF-02": {
+      "item": "白名单合并与一次通知",
+      "test": "preferences.test.ts（合并 density/refresh、未知键与 api_key/base_url 不落盘、订阅者每次收到一次；launcher 合并保留已有键并丢弃非法值）",
+      "result": "pass"
+    },
+    "PREF-03": {
+      "item": "存储异常",
+      "test": "preferences.test.ts（Storage.prototype.getItem 抛异常读默认；setItem 抛异常不抛且内存值生效、存储仍为空）",
+      "result": "pass"
+    },
+    "PREF-04": {
+      "item": "跨标签页同步",
+      "test": "preferences.test.ts（其他键与坏值不通知不改变内存；本键合法值通知一次并更新）",
+      "result": "pass"
+    },
+    "DEN-01": {
+      "item": "两组密度令牌",
+      "test": "tokens.test.ts（44/10、compact 36/6、data-density 选择器）",
+      "result": "pass"
+    },
+    "DEN-02": {
+      "item": "根属性默认 comfortable、切换后 compact；四份 CSS 引用令牌",
+      "test": "AppShell.test.tsx（渲染后 dataset.density=comfortable，setPreferences 后=compact）+ tokens.test.ts（四份 CSS 都含 var(--row-height)/var(--row-padding-y)）",
+      "result": "pass"
+    },
+    "DEN-03": {
+      "item": "390 宽固定回标准密度",
+      "test": "tokens.test.ts（max-width: 767px 块内 :root 与 compact 均固定 44px / 10px）",
+      "result": "pass"
+    }
+  },
+  "preflight": {
+    "passed": 10,
+    "failed": 0,
+    "result": "pass",
+    "note": "代码与证据两次本地提交后，在工作区干净状态复跑"
+  },
+  "notes": [
+    "偏好只进 localStorage，不读后端、不进任务配置快照；设置页控件留给 P5-03。",
+    "密度只作用于桌面列表与表格行；移动端由 tokens.css 媒体查询强制回 44px，触控目标不回退。",
+    "根属性用 useLayoutEffect 在首帧绘制前写入，避免先标准后紧凑的闪烁；卸载不移除，与 useTheme 行为一致。",
+    "快照缓存按存储原文比较，storage 事件只对本键合法对象生效；写入失败时内存值优先。",
+    "本票零后端改动、零契约改动、零迁移、零新增运行时依赖；旧版 tradingagents/、web/、run_all.bat 与 8501 入口未动。"
+  ]
+}
