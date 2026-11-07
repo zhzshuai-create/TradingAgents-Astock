@@ -24,7 +24,6 @@ import argparse
 import json
 import logging
 import os
-import signal
 import sys
 import tempfile
 import threading
@@ -62,11 +61,13 @@ from backend.app.services.report_store import (  # noqa: E402
 )
 from backend.app.services.ticker_directory import TickerDirectory  # noqa: E402
 from backend.app.worker.main import Worker  # noqa: E402
+from backend.app.worker.runloop import (  # noqa: E402
+    install_shutdown_handlers,
+    worker_loop,
+)
 
 DEV_ROOT_ENV = "TA_DEV_ROOT"
 DEFAULT_PORT = 8600
-POLL_SECONDS = 0.1
-LEASE_RETRY_SECONDS = 1.0
 
 logger = logging.getLogger("astock.dev")
 
@@ -144,47 +145,6 @@ class StageDelayExecutor:
                 time.sleep(self._delay)
 
         return self._inner.run(request, on_stage=stage, on_chunk=on_chunk)
-
-
-def worker_loop(worker: Worker, stop: threading.Event) -> None:
-    try:
-        while not stop.is_set():
-            if not worker.acquired:
-                if worker.acquire():
-                    logger.info("worker %s owns the lease", worker.owner)
-                else:
-                    stop.wait(LEASE_RETRY_SECONDS)
-                    continue
-            if worker.lost:
-                logger.error("worker lost the lease; stopping")
-                return
-            try:
-                outcome = worker.run_once()
-            except Exception:
-                logger.exception("worker iteration failed")
-                stop.wait(LEASE_RETRY_SECONDS)
-                continue
-            if outcome is None:
-                stop.wait(POLL_SECONDS)
-    finally:
-        worker.shutdown()
-
-
-def install_shutdown_handlers(server: uvicorn.Server, stop: threading.Event) -> None:
-    """First signal stops both loops gracefully; a second one forces the server."""
-
-    def handle(signum, _frame) -> None:
-        logger.info("received signal %s; shutting down", signum)
-        if stop.is_set():
-            server.force_exit = True
-            return
-        stop.set()
-        server.should_exit = True
-
-    for name in ("SIGINT", "SIGTERM", "SIGBREAK"):
-        sig = getattr(signal, name, None)
-        if sig is not None:
-            signal.signal(sig, handle)
 
 
 def main(argv: list[str] | None = None) -> int:

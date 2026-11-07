@@ -1,11 +1,11 @@
 """Analysis executor factory and the default fake-graph adapter.
 
-P1 runs the deterministic Day 6 fake graph. It lives under ``tests/`` on
-purpose: it is a development default, not the product's real executor, and it
-never imports a model SDK. Real model execution needs BOTH
-``TA_ENABLE_REAL_RUNNER=1`` and a server config with ``real_runner_enabled``;
-P1 ships no real adapter, so that combination fails fast instead of quietly
-running the fake graph while an operator believes models are on.
+The default is the deterministic fake graph. It lives under ``tests/`` on
+purpose: it is a development default and never imports a model SDK. Real model
+execution needs BOTH ``TA_ENABLE_REAL_RUNNER=1`` and a server config with
+``real_runner_enabled``; only that combination selects
+:class:`backend.app.services.real_runner.RealAnalysisExecutor`. The graph is
+imported lazily, so constructing the executor never builds a model client.
 
 The adapter consumes the same cumulative chunks the legacy runner consumes,
 so callers can hook the stream into an existing progress tracker (GF-06)
@@ -47,6 +47,9 @@ class AnalysisRequest:
     job_id: str | None = None
     generated_at: datetime | None = None
     retry_of_job_id: str | None = None
+    # Normalized job snapshot (llm_profile / parallel_analysts /
+    # stage_toggles). The real executor uses it; the fake graph ignores it.
+    config: Mapping[str, Any] | None = None
 
 
 @dataclass(frozen=True)
@@ -254,8 +257,9 @@ def create_analysis_executor(
 ) -> AnalysisExecutor:
     config = server_config or ServerConfig()
     if real_runner_enabled(config, environ=environ):
-        raise AnalysisRunError(
-            "real_runner_unavailable",
-            "真实执行器尚未接入 P1；请关闭开关或等待 P6 接入",
-        )
+        # Local import keeps the lazy graph import out of the default path and
+        # avoids a cycle: real_runner imports the request/result types above.
+        from backend.app.services.real_runner import RealAnalysisExecutor
+
+        return RealAnalysisExecutor(environ=environ)
     return FakeAnalysisExecutor()

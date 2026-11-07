@@ -263,6 +263,7 @@ class Worker:
                     job_id=job.id,
                     generated_at=self._jobs.now(),
                     retry_of_job_id=job.retry_of_job_id,
+                    config=dict(job.config_snapshot or {}),
                 ),
                 on_stage=on_stage,
             )

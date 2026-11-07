@@ -6,7 +6,7 @@ GF-06: the fake chunk stream drives the real ProgressTracker stage detection.
 S00: 14 model calls, 182430 input tokens, 41208 output tokens and 40 events,
      matching the fake-graph documents.
 AD-01: the real runner stays off by default; it needs both the environment
-       variable and the server config flag before the factory refuses to fake.
+       variable and the server config flag before the factory leaves the fake.
 """
 
 from __future__ import annotations
@@ -45,6 +45,7 @@ from backend.app.services.analysis_runner import (  # noqa: E402
 )
 from backend.app.services.job_service import CST, JobService  # noqa: E402
 from backend.app.services.lease import LeaseService  # noqa: E402
+from backend.app.services.real_runner import RealAnalysisExecutor  # noqa: E402
 from backend.app.services.report_store import ReportStore  # noqa: E402
 from backend.app.worker.main import Worker  # noqa: E402
 from web.progress import STAGE_IDS as REAL_STAGE_IDS  # noqa: E402
@@ -220,11 +221,11 @@ def test_ad01_real_runner_needs_environment_and_config(monkeypatch):
         ServerConfig(real_runner_enabled=True), environ={REAL_RUNNER_ENV: "true"}
     ) is False
 
-    with pytest.raises(AnalysisRunError) as excinfo:
-        create_analysis_executor(
-            ServerConfig(real_runner_enabled=True), environ={REAL_RUNNER_ENV: "1"}
-        )
-    assert excinfo.value.code == "real_runner_unavailable"
+    real = create_analysis_executor(
+        ServerConfig(real_runner_enabled=True), environ={REAL_RUNNER_ENV: "1"}
+    )
+    assert isinstance(real, RealAnalysisExecutor)
+    assert real.name == "real"
 
     monkeypatch.delenv(REAL_RUNNER_ENV, raising=False)
     assert isinstance(create_analysis_executor(ServerConfig()), FakeAnalysisExecutor)
@@ -385,6 +386,7 @@ def test_worker_executor_is_injectable(worker_env):
                 analysis_date="2026-10-30",
                 job_id=job_id,
                 generated_at=datetime(2026, 10, 30, 9, 0, tzinfo=CST),
+                config=CONFIG,
             )
         ]
         with Session(worker_env.engine) as session:
