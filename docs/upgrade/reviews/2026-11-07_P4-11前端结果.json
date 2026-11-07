@@ -1,0 +1,233 @@
+{
+  "ticket": "P4-11",
+  "title": "可见页刷新与上下文贯穿",
+  "measured_at": "2026-11-07T11:07:00+08:00",
+  "environment": {
+    "platform": "Windows-11-10.0.26200-SP0",
+    "node": "22.22.2",
+    "python": "3.13.3",
+    "vite": "7.3.7",
+    "react": "19.3.1",
+    "vitest": "5.1.0",
+    "new_runtime_dependencies": 0
+  },
+  "commands": {
+    "typecheck": "node node_modules/typescript/bin/tsc --noEmit",
+    "unit": "node node_modules/vitest/vitest.mjs run",
+    "build": "node node_modules/vite/bin/vite.js build",
+    "bundle": "node scripts/check_bundle.mjs --out <临时路径>",
+    "stock_e2e": "\"C:/Users/zhzsh/AppData/Local/Programs/Python/Python313/python.exe\" e2e/stock_e2e.py",
+    "market_e2e": "\"C:/Users/zhzsh/AppData/Local/Programs/Python/Python313/python.exe\" e2e/market_e2e.py",
+    "e2e_p2": "\"C:/Users/zhzsh/AppData/Local/Programs/Python/Python313/python.exe\" e2e/e2e_p2.py",
+    "e2e_p3": "\"C:/Users/zhzsh/AppData/Local/Programs/Python/Python313/python.exe\" e2e/e2e_p3.py",
+    "python": ".venv/Scripts/python.exe -m pytest -q",
+    "preflight": ".venv/Scripts/python.exe scripts/p0_preflight.py --full --smoke"
+  },
+  "unit": {
+    "test_files": 34,
+    "tests": 431,
+    "new_test_files": 1,
+    "new_tests": 18,
+    "failures": 0,
+    "result": "pass",
+    "breakdown": {
+      "lib/useVisibleRefetch.test.tsx": 5,
+      "features/market/MarketPage.test.tsx": 15,
+      "features/stocks/StockPage.test.tsx": 22,
+      "features/reports/ReportReaderPage.test.tsx": 23,
+      "features/jobs/JobListPage.test.tsx": 18
+    },
+    "note": "基线 33 文件 / 413 条；新增 1 个 hook 测试文件 5 条，四个既有文件加 13 条（市场 +5、股票 +5、阅读器 +2、任务列表 +1），合计 431/431。"
+  },
+  "typecheck": {
+    "errors": 0,
+    "result": "pass"
+  },
+  "python": {
+    "passed": 789,
+    "skipped": 4,
+    "subtests": 59,
+    "failures": 0,
+    "result": "pass",
+    "note": "本票未改后端；全量复跑与 P4-10 基线一致"
+  },
+  "bundle": {
+    "measured_with": "node:zlib gzipSync level 9 over dist files",
+    "entry_gzip_kb": 123.74,
+    "entry_budget_gzip_kb": 202.45,
+    "entry_within_budget": true,
+    "route_chunks": 11,
+    "route_chunk_limit_gzip_kb": 60,
+    "stock_chunk": {
+      "file": "assets/StockPage-CS99n-3G.js",
+      "gzip_kb": 11.93,
+      "previous_gzip_kb": 11.78,
+      "delta_gzip_kb": 0.15,
+      "within_60_kb": true
+    },
+    "market_chunk": {
+      "file": "assets/MarketPage-CbeJ-oup.js",
+      "gzip_kb": 5.91,
+      "within_60_kb": true
+    },
+    "all_route_chunks_within_limit": true,
+    "passed": true
+  },
+  "refresh_contract": {
+    "intervals_ms": {
+      "overview": 10000,
+      "newsflash": 120000,
+      "industries": 300000,
+      "constituents": 120000,
+      "strong_stocks": 3600000,
+      "stock_snapshot": 60000,
+      "kline": 300000,
+      "intraday_today": 30000,
+      "intraday_history": 3600000,
+      "stock_news": 300000,
+      "fund_flow": 60000
+    },
+    "single_source": "frontend/src/lib/useVisibleRefetch.ts 的 REFRESH_INTERVALS 从 lib/query.ts 的 MARKET_STALE_MS / STOCK_STALE_MS 派生，不另抄一份阈值",
+    "hidden_policy": "max(base, 60000) ms；refetchIntervalInBackground=true 让后台标签页仍执行 60s 降频",
+    "foreground_policy": "hidden→visible 时对 [\"market\"] / [\"stock\"] 作用域 invalidateQueries({ refetchType: \"active\" })",
+    "manual_policy": "trailing 500ms 防抖；一次点击只发一组；卸载时清 timer"
+  },
+  "browser": {
+    "tool": "Playwright Chromium（Python 3.13），vite preview，stubbed read APIs",
+    "stock_e2e": {
+      "checks": 99,
+      "failures": [],
+      "desktop": {
+        "viewport": "1440x900",
+        "checks": 54,
+        "note": "P4-09 流程原样复跑"
+      },
+      "refresh_r15": {
+        "checks": 7,
+        "flows": [
+          "隐藏 12s 内股票页 0 次读取（快照间隔本身已在 60s 下限）",
+          "回到前台立即重取快照（3s 窗口内 +1）",
+          "连点 3 次刷新：250ms 时快照/资金流均 0 次；防抖窗口后各 +1；再等 700ms 无额外请求",
+          "切到 /jobs 后 12s 内 0 次快照读取（定时器已清）",
+          "全部请求为 GET，控制台/页面 0 错误"
+        ]
+      },
+      "mobile": {
+        "viewports": ["390x844", "360x800"],
+        "checks_per_viewport": 19
+      }
+    },
+    "market_e2e": {
+      "checks": 103,
+      "failures": [],
+      "previous_checks": 95,
+      "refresh_r15": {
+        "checks": 8,
+        "visible_poll_seconds": 10.0,
+        "flows": [
+          "可见时 overview 按 10s 轮询（实测 10.0s）",
+          "隐藏 12s 内 overview 0 次读取（降到 60s 下限）",
+          "回到前台立即重取 overview（3s 窗口内 +1）",
+          "连点 3 次刷新：250ms 时四块均 0 次",
+          "防抖窗口后一次点击组：overview/industries/strong stocks/newsflash 各 +1；再等 700ms 无额外请求",
+          "切到 /jobs 后 12s 内 overview 0 次读取（定时器已清）",
+          "全部请求为 GET，控制台/页面 0 错误"
+        ]
+      }
+    },
+    "screenshots": [
+      "ui_shots_p4/P4-06（市场桌面，人工核对）",
+      "ui_shots_p4/P4-09（股票桌面，人工核对）"
+    ]
+  },
+  "e2e_regression": {
+    "p2": {
+      "exit_code": 0,
+      "runner_checks": 102,
+      "suite_checks": 493,
+      "suite_failures": {
+        "shell": 0,
+        "workbench": 0,
+        "active_job": 0,
+        "launcher": 0,
+        "jobs": 0,
+        "job_detail": 0,
+        "job_stream": 0,
+        "job_actions": 0
+      },
+      "failures": []
+    },
+    "p3": {
+      "exit_code": 0,
+      "checks": 19,
+      "failures": [],
+      "suite_checks": 260,
+      "criteria": {
+        "C1": true,
+        "C2": true,
+        "C3": true,
+        "C4": true
+      },
+      "note": "统一脚本改写了 2026-11-06_P3-09性能结果.json，跑完已 git checkout 还原"
+    }
+  },
+  "acceptance": {
+    "REF-01": {
+      "item": "可见页轮询间隔",
+      "test": "useVisibleRefetch.test.tsx（REFRESH_INTERVALS 指数 10s、快讯 120s、行业 300s、行情 60s、分时 30s）+ MarketPage.test.tsx（overview 10s、industries 300s）+ StockPage.test.tsx（snapshot 60s、fundFlow 60s、K 线 300s）",
+      "result": "pass"
+    },
+    "REF-02": {
+      "item": "隐藏降频与回前台立即重取",
+      "test": "useVisibleRefetch.test.tsx（hidden → 60000、false 保持 false、visible 后 active 查询重取）+ 两页组件测试 + market/stock E2E（12s 隐藏 0 读取、回前台 3s 内重取）",
+      "result": "pass"
+    },
+    "REF-03": {
+      "item": "手动刷新防抖，一次只发一组",
+      "test": "useVisibleRefetch.test.tsx（三次调用 500ms 后只重取一次）+ 两页组件测试 + E2E（250ms 0 请求、窗口后每块 +1、再 700ms 无额外）",
+      "result": "pass"
+    },
+    "REF-04": {
+      "item": "切页停表、无重复请求",
+      "test": "两页组件测试（离开后假时钟推进 70s 无请求）+ E2E（/jobs 停留 12s 0 读取）",
+      "result": "pass"
+    },
+    "CTX-01": {
+      "item": "市场→股票→返回恢复",
+      "test": "MarketPage.test.tsx（top/date/board 恢复并重开抽屉）+ market_e2e.py R-11 原流程",
+      "result": "pass"
+    },
+    "CTX-02": {
+      "item": "股票→报告→返回股票；报告→股票链接",
+      "test": "ReportReaderPage.test.tsx（标题链接 /stocks/600519、从股票打开的报告返回 /stocks/600519?tab=reports）",
+      "result": "pass"
+    },
+    "CTX-03": {
+      "item": "股票→任务；活动任务按钮；任务页 ticker 回股票",
+      "test": "StockPage.test.tsx（/reports?ticker、/jobs?ticker 链接）+ JobListPage.test.tsx（job-ticker-link → /stocks/:code）+ stock_e2e.py 原活动任务流程",
+      "result": "pass"
+    },
+    "R-15": {
+      "item": "可见轮询、隐藏降频、手动防抖、切页停表",
+      "test": "market_e2e.py（8 checks）+ stock_e2e.py（7 checks）",
+      "result": "pass"
+    }
+  },
+  "preflight": {
+    "passed": 10,
+    "failed": 0,
+    "result": "pass",
+    "note": "代码与证据两次本地提交后，在工作区干净状态复跑"
+  },
+  "notes": [
+    "间隔表只写一处：REFRESH_INTERVALS 由 lib/query.ts 的 stale 阈值派生，页面与页签传入 usePolling(REFRESH_INTERVALS.*)，不重复写毫秒常量。",
+    "refetchIntervalInBackground=true 是降频成立的前提；TanStack Query 默认会暂停后台标签页的定时器，只靠 60s 数值不够。",
+    "可见性用模块级 useSyncExternalStore + 单个 visibilitychange 监听共享，页面和页签不各挂一份。",
+    "回前台用 invalidateQueries({ refetchType: \"active\" }) 只重取活跃查询，隐藏期间失活的查询不会复活。",
+    "定时器不需要手写清账：查询观察者随页面卸载销毁，E2E 用离开后 12s 的 0 读取取证。",
+    "移动端 JobCards 整卡已是链接，嵌套 ticker <a> 不合法且 jobs_e2e 断言整卡 href；ticker 回股票链接只加在桌面 JobTable，报告标题与任务表两处补齐。",
+    "首轮 stock_e2e 在 390 出现一次 pageerror（Cannot read properties of null），来源是移动流程里等周 K aria-pressed 的轮询谓词在重渲染窗口解引用了空节点；谓词改为 null 安全后 390/360 稳定全绿，断言未放宽。",
+    "轮询与刷新全部为 GET；无 POST、无任务创建、无 PDF 生成，E2E 对全量请求逐条断言。",
+    "本票零后端改动、零契约改动、零迁移、零新增运行时依赖；旧版 tradingagents/、web/、run_all.bat 与 8501 入口未动。"
+  ]
+}
