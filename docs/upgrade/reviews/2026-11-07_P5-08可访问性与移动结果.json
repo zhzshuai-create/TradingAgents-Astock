@@ -1,0 +1,706 @@
+{
+  "ticket": "P5-08",
+  "axe": {
+    "axe_version": "4.10.3",
+    "injection": "frontend/node_modules/axe-core/axe.min.js",
+    "tags": [
+      "wcag2a",
+      "wcag2aa",
+      "wcag21aa",
+      "wcag22aa"
+    ],
+    "dependency": {
+      "version": "4.10.3",
+      "injection": "frontend/node_modules/axe-core/axe.min.js",
+      "entry_gzip_kb": 124.72,
+      "entry_budget_kb": 202.45,
+      "max_route_gzip_kb": 20.84,
+      "route_limit_kb": 60
+    },
+    "pages": [
+      {
+        "path": "/workbench",
+        "state": "",
+        "width": 1440,
+        "critical": 0,
+        "serious": 0,
+        "moderate": 0,
+        "minor": 0,
+        "rules": []
+      },
+      {
+        "path": "/market",
+        "state": "",
+        "width": 1440,
+        "critical": 0,
+        "serious": 0,
+        "moderate": 0,
+        "minor": 0,
+        "rules": []
+      },
+      {
+        "path": "/stocks/600519",
+        "state": "",
+        "width": 1440,
+        "critical": 0,
+        "serious": 0,
+        "moderate": 0,
+        "minor": 0,
+        "rules": []
+      },
+      {
+        "path": "/jobs",
+        "state": "",
+        "width": 1440,
+        "critical": 0,
+        "serious": 0,
+        "moderate": 0,
+        "minor": 0,
+        "rules": []
+      },
+      {
+        "path": "/jobs/job-1",
+        "state": "",
+        "width": 1440,
+        "critical": 0,
+        "serious": 0,
+        "moderate": 0,
+        "minor": 0,
+        "rules": []
+      },
+      {
+        "path": "/reports",
+        "state": "",
+        "width": 1440,
+        "critical": 0,
+        "serious": 0,
+        "moderate": 0,
+        "minor": 0,
+        "rules": []
+      },
+      {
+        "path": "/reports/r-long",
+        "state": "",
+        "width": 1440,
+        "critical": 0,
+        "serious": 0,
+        "moderate": 0,
+        "minor": 0,
+        "rules": []
+      },
+      {
+        "path": "/journal",
+        "state": "",
+        "width": 1440,
+        "critical": 0,
+        "serious": 0,
+        "moderate": 0,
+        "minor": 0,
+        "rules": []
+      },
+      {
+        "path": "/journal",
+        "state": "starting",
+        "width": 1440,
+        "critical": 0,
+        "serious": 0,
+        "moderate": 0,
+        "minor": 0,
+        "rules": []
+      },
+      {
+        "path": "/settings",
+        "state": "",
+        "width": 1440,
+        "critical": 0,
+        "serious": 0,
+        "moderate": 0,
+        "minor": 0,
+        "rules": []
+      },
+      {
+        "path": "/journal",
+        "state": "available",
+        "width": 1440,
+        "critical": 0,
+        "serious": 0,
+        "moderate": 0,
+        "minor": 0,
+        "rules": []
+      },
+      {
+        "path": "/workbench",
+        "state": "",
+        "width": 390,
+        "critical": 0,
+        "serious": 0,
+        "moderate": 0,
+        "minor": 0,
+        "rules": []
+      },
+      {
+        "path": "/market",
+        "state": "",
+        "width": 390,
+        "critical": 0,
+        "serious": 0,
+        "moderate": 0,
+        "minor": 0,
+        "rules": []
+      },
+      {
+        "path": "/stocks/600519",
+        "state": "",
+        "width": 390,
+        "critical": 0,
+        "serious": 0,
+        "moderate": 0,
+        "minor": 0,
+        "rules": []
+      },
+      {
+        "path": "/jobs",
+        "state": "",
+        "width": 390,
+        "critical": 0,
+        "serious": 0,
+        "moderate": 0,
+        "minor": 0,
+        "rules": []
+      },
+      {
+        "path": "/jobs/job-1",
+        "state": "",
+        "width": 390,
+        "critical": 0,
+        "serious": 0,
+        "moderate": 0,
+        "minor": 0,
+        "rules": []
+      },
+      {
+        "path": "/reports",
+        "state": "",
+        "width": 390,
+        "critical": 0,
+        "serious": 0,
+        "moderate": 0,
+        "minor": 0,
+        "rules": []
+      },
+      {
+        "path": "/reports/r-long",
+        "state": "",
+        "width": 390,
+        "critical": 0,
+        "serious": 0,
+        "moderate": 0,
+        "minor": 0,
+        "rules": []
+      },
+      {
+        "path": "/journal",
+        "state": "",
+        "width": 390,
+        "critical": 0,
+        "serious": 0,
+        "moderate": 0,
+        "minor": 0,
+        "rules": []
+      },
+      {
+        "path": "/journal",
+        "state": "starting",
+        "width": 390,
+        "critical": 0,
+        "serious": 0,
+        "moderate": 0,
+        "minor": 0,
+        "rules": []
+      },
+      {
+        "path": "/settings",
+        "state": "",
+        "width": 390,
+        "critical": 0,
+        "serious": 0,
+        "moderate": 0,
+        "minor": 0,
+        "rules": []
+      },
+      {
+        "path": "/journal",
+        "state": "available",
+        "width": 390,
+        "critical": 0,
+        "serious": 0,
+        "moderate": 0,
+        "minor": 0,
+        "rules": []
+      },
+      {
+        "path": "/workbench",
+        "state": "",
+        "width": 360,
+        "critical": 0,
+        "serious": 0,
+        "moderate": 0,
+        "minor": 0,
+        "rules": []
+      },
+      {
+        "path": "/market",
+        "state": "",
+        "width": 360,
+        "critical": 0,
+        "serious": 0,
+        "moderate": 0,
+        "minor": 0,
+        "rules": []
+      },
+      {
+        "path": "/stocks/600519",
+        "state": "",
+        "width": 360,
+        "critical": 0,
+        "serious": 0,
+        "moderate": 0,
+        "minor": 0,
+        "rules": []
+      },
+      {
+        "path": "/journal",
+        "state": "",
+        "width": 360,
+        "critical": 0,
+        "serious": 0,
+        "moderate": 0,
+        "minor": 0,
+        "rules": []
+      },
+      {
+        "path": "/journal",
+        "state": "starting",
+        "width": 360,
+        "critical": 0,
+        "serious": 0,
+        "moderate": 0,
+        "minor": 0,
+        "rules": []
+      },
+      {
+        "path": "/settings",
+        "state": "",
+        "width": 360,
+        "critical": 0,
+        "serious": 0,
+        "moderate": 0,
+        "minor": 0,
+        "rules": []
+      },
+      {
+        "path": "/journal",
+        "state": "available",
+        "width": 360,
+        "critical": 0,
+        "serious": 0,
+        "moderate": 0,
+        "minor": 0,
+        "rules": []
+      }
+    ],
+    "exceptions": [],
+    "blocking_impacts": [
+      "critical",
+      "serious"
+    ],
+    "pages_scanned": 29,
+    "checks": 42,
+    "failures": []
+  },
+  "mobile": {
+    "touch_min_px": 44,
+    "pages": [
+      {
+        "width": 390,
+        "path": "/workbench",
+        "state": "",
+        "scroll_width": 390,
+        "client_width": 390,
+        "body_overflow_x": "visible",
+        "controls": 15,
+        "undersized": [],
+        "inline_exemptions": [],
+        "screenshot": "390-workbench.png"
+      },
+      {
+        "width": 390,
+        "path": "/market",
+        "state": "",
+        "scroll_width": 390,
+        "client_width": 390,
+        "body_overflow_x": "visible",
+        "controls": 11,
+        "undersized": [],
+        "inline_exemptions": [],
+        "screenshot": "390-market.png"
+      },
+      {
+        "width": 390,
+        "path": "/stocks/600519",
+        "state": "",
+        "scroll_width": 390,
+        "client_width": 390,
+        "body_overflow_x": "visible",
+        "controls": 16,
+        "undersized": [],
+        "inline_exemptions": [],
+        "screenshot": "390-stock.png"
+      },
+      {
+        "width": 390,
+        "path": "/jobs",
+        "state": "",
+        "scroll_width": 390,
+        "client_width": 390,
+        "body_overflow_x": "visible",
+        "controls": 9,
+        "undersized": [],
+        "inline_exemptions": [],
+        "screenshot": "390-jobs.png"
+      },
+      {
+        "width": 390,
+        "path": "/jobs/job-1",
+        "state": "",
+        "scroll_width": 390,
+        "client_width": 390,
+        "body_overflow_x": "visible",
+        "controls": 9,
+        "undersized": [],
+        "inline_exemptions": [
+          {
+            "name": "任务",
+            "short": 16
+          }
+        ],
+        "screenshot": "390-job-detail.png"
+      },
+      {
+        "width": 390,
+        "path": "/reports",
+        "state": "",
+        "scroll_width": 390,
+        "client_width": 390,
+        "body_overflow_x": "visible",
+        "controls": 9,
+        "undersized": [],
+        "inline_exemptions": [],
+        "screenshot": "390-reports.png"
+      },
+      {
+        "width": 390,
+        "path": "/reports/r-long",
+        "state": "",
+        "scroll_width": 390,
+        "client_width": 390,
+        "body_overflow_x": "visible",
+        "controls": 15,
+        "undersized": [],
+        "inline_exemptions": [
+          {
+            "name": "攀钢钒钛",
+            "short": 29
+          },
+          {
+            "name": "查看任务",
+            "short": 17
+          }
+        ],
+        "screenshot": "390-report-detail.png"
+      },
+      {
+        "width": 390,
+        "path": "/journal",
+        "state": "",
+        "scroll_width": 390,
+        "client_width": 390,
+        "body_overflow_x": "visible",
+        "controls": 8,
+        "undersized": [],
+        "inline_exemptions": [],
+        "screenshot": "390-journal.png"
+      },
+      {
+        "width": 390,
+        "path": "/settings",
+        "state": "",
+        "scroll_width": 390,
+        "client_width": 390,
+        "body_overflow_x": "visible",
+        "controls": 11,
+        "undersized": [],
+        "inline_exemptions": [],
+        "screenshot": "390-settings.png"
+      },
+      {
+        "width": 390,
+        "path": "/journal",
+        "state": "",
+        "scroll_width": 390,
+        "client_width": 390,
+        "body_overflow_x": "visible",
+        "controls": 8,
+        "undersized": [],
+        "inline_exemptions": [],
+        "screenshot": "390-journal.png"
+      },
+      {
+        "width": 390,
+        "path": "/journal",
+        "state": "starting",
+        "scroll_width": 390,
+        "client_width": 390,
+        "screenshot": "390-journal-starting.png"
+      },
+      {
+        "width": 390,
+        "path": "/journal",
+        "state": "available",
+        "scroll_width": 390,
+        "client_width": 390,
+        "screenshot": "390-journal-available.png"
+      },
+      {
+        "width": 360,
+        "path": "/workbench",
+        "state": "",
+        "scroll_width": 360,
+        "client_width": 360,
+        "body_overflow_x": "visible",
+        "controls": 15,
+        "undersized": [],
+        "inline_exemptions": [],
+        "screenshot": "360-workbench.png"
+      },
+      {
+        "width": 360,
+        "path": "/market",
+        "state": "",
+        "scroll_width": 360,
+        "client_width": 360,
+        "body_overflow_x": "visible",
+        "controls": 11,
+        "undersized": [],
+        "inline_exemptions": [],
+        "screenshot": "360-market.png"
+      },
+      {
+        "width": 360,
+        "path": "/stocks/600519",
+        "state": "",
+        "scroll_width": 360,
+        "client_width": 360,
+        "body_overflow_x": "visible",
+        "controls": 15,
+        "undersized": [],
+        "inline_exemptions": [],
+        "screenshot": "360-stock.png"
+      },
+      {
+        "width": 360,
+        "path": "/jobs",
+        "state": "",
+        "scroll_width": 360,
+        "client_width": 360,
+        "body_overflow_x": "visible",
+        "controls": 9,
+        "undersized": [],
+        "inline_exemptions": [],
+        "screenshot": "360-jobs.png"
+      },
+      {
+        "width": 360,
+        "path": "/jobs/job-1",
+        "state": "",
+        "scroll_width": 360,
+        "client_width": 360,
+        "body_overflow_x": "visible",
+        "controls": 9,
+        "undersized": [],
+        "inline_exemptions": [
+          {
+            "name": "任务",
+            "short": 16
+          }
+        ],
+        "screenshot": "360-job-detail.png"
+      },
+      {
+        "width": 360,
+        "path": "/reports",
+        "state": "",
+        "scroll_width": 360,
+        "client_width": 360,
+        "body_overflow_x": "visible",
+        "controls": 9,
+        "undersized": [],
+        "inline_exemptions": [],
+        "screenshot": "360-reports.png"
+      },
+      {
+        "width": 360,
+        "path": "/reports/r-long",
+        "state": "",
+        "scroll_width": 360,
+        "client_width": 360,
+        "body_overflow_x": "visible",
+        "controls": 15,
+        "undersized": [],
+        "inline_exemptions": [
+          {
+            "name": "攀钢钒钛",
+            "short": 29
+          },
+          {
+            "name": "查看任务",
+            "short": 17
+          }
+        ],
+        "screenshot": "360-report-detail.png"
+      },
+      {
+        "width": 360,
+        "path": "/journal",
+        "state": "",
+        "scroll_width": 360,
+        "client_width": 360,
+        "body_overflow_x": "visible",
+        "controls": 8,
+        "undersized": [],
+        "inline_exemptions": [],
+        "screenshot": "360-journal.png"
+      },
+      {
+        "width": 360,
+        "path": "/settings",
+        "state": "",
+        "scroll_width": 360,
+        "client_width": 360,
+        "body_overflow_x": "visible",
+        "controls": 11,
+        "undersized": [],
+        "inline_exemptions": [],
+        "screenshot": "360-settings.png"
+      },
+      {
+        "width": 360,
+        "path": "/journal",
+        "state": "",
+        "scroll_width": 360,
+        "client_width": 360,
+        "body_overflow_x": "visible",
+        "controls": 8,
+        "undersized": [],
+        "inline_exemptions": [],
+        "screenshot": "360-journal.png"
+      },
+      {
+        "width": 360,
+        "path": "/journal",
+        "state": "starting",
+        "scroll_width": 360,
+        "client_width": 360,
+        "screenshot": "360-journal-starting.png"
+      },
+      {
+        "width": 360,
+        "path": "/journal",
+        "state": "available",
+        "scroll_width": 360,
+        "client_width": 360,
+        "screenshot": "360-journal-available.png"
+      }
+    ],
+    "exceptions": [
+      {
+        "width": 390,
+        "path": "/jobs/job-1",
+        "name": "任务",
+        "tag": "A",
+        "short_edge": 16,
+        "reason": "正文内联链接，WCAG 2.5.8 行内文本例外"
+      },
+      {
+        "width": 390,
+        "path": "/reports/r-long",
+        "name": "攀钢钒钛",
+        "tag": "A",
+        "short_edge": 29,
+        "reason": "正文内联链接，WCAG 2.5.8 行内文本例外"
+      },
+      {
+        "width": 390,
+        "path": "/reports/r-long",
+        "name": "查看任务",
+        "tag": "A",
+        "short_edge": 17,
+        "reason": "正文内联链接，WCAG 2.5.8 行内文本例外"
+      },
+      {
+        "width": 360,
+        "path": "/jobs/job-1",
+        "name": "任务",
+        "tag": "A",
+        "short_edge": 16,
+        "reason": "正文内联链接，WCAG 2.5.8 行内文本例外"
+      },
+      {
+        "width": 360,
+        "path": "/reports/r-long",
+        "name": "攀钢钒钛",
+        "tag": "A",
+        "short_edge": 29,
+        "reason": "正文内联链接，WCAG 2.5.8 行内文本例外"
+      },
+      {
+        "width": 360,
+        "path": "/reports/r-long",
+        "name": "查看任务",
+        "tag": "A",
+        "short_edge": 17,
+        "reason": "正文内联链接，WCAG 2.5.8 行内文本例外"
+      }
+    ],
+    "screenshots": [
+      "360-job-detail.png",
+      "360-jobs.png",
+      "360-journal-available.png",
+      "360-journal-starting.png",
+      "360-journal-unavailable.png",
+      "360-journal.png",
+      "360-market.png",
+      "360-report-detail.png",
+      "360-reports.png",
+      "360-settings-groups.png",
+      "360-settings.png",
+      "360-stock.png",
+      "360-workbench.png",
+      "390-job-detail.png",
+      "390-jobs.png",
+      "390-journal-available.png",
+      "390-journal-starting.png",
+      "390-journal-unavailable.png",
+      "390-journal.png",
+      "390-market.png",
+      "390-report-detail.png",
+      "390-reports.png",
+      "390-settings-groups.png",
+      "390-settings.png",
+      "390-stock.png",
+      "390-workbench.png"
+    ],
+    "checks": 85,
+    "failures": []
+  }
+}
