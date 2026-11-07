@@ -1,0 +1,177 @@
+{
+  "ticket": "P5-06",
+  "title": "键盘与焦点",
+  "measured_at": "2026-11-07T16:45:00+08:00",
+  "base_head": "53055a7",
+  "code_head": "dc2d7ba",
+  "environment": {
+    "platform": "Windows-11-10.0.26200-SP0",
+    "node": "22.22.2",
+    "python": "3.13.3",
+    "vite": "7.3.7",
+    "react": "19.3.1",
+    "vitest": "5.1.0",
+    "new_runtime_dependencies": 0
+  },
+  "commands": {
+    "typecheck": "cd frontend && node node_modules/typescript/bin/tsc --noEmit",
+    "unit": "cd frontend && node node_modules/vitest/vitest.mjs run",
+    "build": "cd frontend && node node_modules/vite/bin/vite.js build",
+    "bundle": "cd frontend && node scripts/check_bundle.mjs --out <临时文件路径>",
+    "e2e": "C:/Users/zhzsh/AppData/Local/Programs/Python/Python313/python.exe e2e/keyboard_e2e.py，随后 settings_e2e.py、journal_e2e.py、market_e2e.py、stock_e2e.py",
+    "preflight": ".venv/Scripts/python.exe scripts/p0_preflight.py --full --smoke"
+  },
+  "unit": {
+    "test_files": 37,
+    "tests": 499,
+    "failures": 0,
+    "result": "pass",
+    "p5_06_tests": 13,
+    "breakdown": {
+      "shell/AppShell.test.tsx": {
+        "total": 41,
+        "added": 11,
+        "ids": ["KB-01 ×2", "KB-02 ×2", "KB-03", "KB-04", "KB-05", "KB-08 ×4"]
+      },
+      "ui/ui.test.tsx": {
+        "added": 2,
+        "ids": ["KB-06", "KB-07"]
+      }
+    },
+    "note": "P5-05 基线 486；本票新增 13 条，499/499 通过。"
+  },
+  "typecheck": {
+    "errors": 0,
+    "result": "pass"
+  },
+  "python": {
+    "passed": 789,
+    "skipped": 4,
+    "failures": 0,
+    "result": "pass",
+    "note": "零后端改动；全量数字与 P5-05 基线一致。"
+  },
+  "bundle": {
+    "measured_with": "frontend/scripts/check_bundle.mjs（node:zlib gzipSync level 9）",
+    "entry_gzip_kb": 124.72,
+    "entry_budget_gzip_kb": 202.45,
+    "entry_within_budget": true,
+    "entry_delta_gzip_kb": 0.14,
+    "route_chunks": 11,
+    "route_chunk_limit_gzip_kb": 60,
+    "largest_route_chunk": {
+      "file": "assets/ReportDetailPage-BsPKQXhy.js",
+      "gzip_kb": 20.82
+    },
+    "settings_chunk_gzip_kb": 4.01,
+    "journal_chunk_gzip_kb": 2.63,
+    "all_route_chunks_within_limit": true,
+    "passed": true,
+    "note": "入口 +0.14 kB 来自路由 effect、标题与移动搜索焦点归还；无新增依赖。"
+  },
+  "e2e": {
+    "keyboard": {
+      "checks": 59,
+      "failures": 0,
+      "desktop_checks": 27,
+      "mobile_checks": 10,
+      "accessible_name_checks": 22,
+      "note": "新脚本只用 Tab / Shift+Tab / Enter / Escape / page.keyboard.type，不调用 .click()。"
+    },
+    "settings": { "checks": 73, "failures": 0 },
+    "journal": { "checks": 80, "failures": 0 },
+    "market": { "checks": 103, "failures": 0 },
+    "stock": { "checks": 99, "failures": 0 },
+    "note": "四套既有 E2E 为同代码状态下的回归；截图写入 ui_shots_p5/P5-06/，不入库。"
+  },
+  "implementation": {
+    "route_focus": {
+      "file": "frontend/src/shell/AppShell.tsx:56-65",
+      "mechanism": "useRef(pathname) 记录上次路径；首次渲染只写标题，pathname 变化时 main.focus({ preventScroll: true })",
+      "strict_mode": "比较上次路径而不是一次性布尔值，StrictMode 双挂载不会误聚焦",
+      "hash": "只依赖 pathname，hash 变化不触发聚焦",
+      "scroll": "不重置滚动位置（沿用既有行为）"
+    },
+    "title": {
+      "file": "frontend/src/shell/AppShell.tsx:59",
+      "format": "`${pageTitle(pathname)} · AStock Pro`",
+      "unknown_route": "pageTitle 返回默认值时只写一次「AStock Pro」",
+      "single_source": "只由 shell 设置，页面组件不各写一份"
+    },
+    "skip_link": {
+      "file": "frontend/src/shell/AppShell.tsx:69-77",
+      "change": "onClick 里 preventDefault 后显式聚焦 #main-content",
+      "reason": "各浏览器对 fragment 目标是否获焦不一致；显式聚焦保证 KB-03 可断言"
+    },
+    "mobile_search_escape": {
+      "files": [
+        "frontend/src/features/search/SearchBox.tsx（新增 onEscape 回调）",
+        "frontend/src/shell/TopBar.tsx:71-81,113-116（关闭后归还焦点）"
+      ],
+      "mechanism": "Escape 先关建议列表并调用宿主回调；面板卸载后由 effect 把焦点还给「打开搜索」",
+      "reason": "输入框卸载会把焦点丢给 body，必须等 React 提交后再取回"
+    },
+    "dialog_return": {
+      "file": "frontend/src/ui/useDialogFocus.ts",
+      "changed": false,
+      "note": "焦点陷阱、Escape、归还焦点原本已实现；本票只补 KB-06/07 回归用例"
+    }
+  },
+  "acceptance": {
+    "P5-KB-01": {
+      "item": "首屏不聚焦；路由变化后焦点在 #main-content；仅 hash 变化不聚焦",
+      "test": "AppShell.test.tsx KB-01 ×2；keyboard_e2e.py（首屏无焦点、三跳均落到 main）",
+      "result": "pass"
+    },
+    "P5-KB-02": {
+      "item": "挂载即设置标题；路由变化更新为「页面名 · AStock Pro」；未知路由不重复产品名",
+      "test": "AppShell.test.tsx KB-02 ×2；keyboard_e2e.py 逐页标题与 /no-such-page",
+      "result": "pass"
+    },
+    "P5-KB-03": {
+      "item": "跳过链接是首个 Tab 停靠点，Enter 后焦点进入主内容",
+      "test": "AppShell.test.tsx KB-03；keyboard_e2e.py 桌面与 390 各一条",
+      "result": "pass"
+    },
+    "P5-KB-04": {
+      "item": "桌面 Tab 顺序 跳过链接 → 品牌 → 主导航 → 次级 → 收起 → 顶栏；焦点环可见",
+      "test": "AppShell.test.tsx KB-04（13 个停靠点逐个断言）；keyboard_e2e.py 断言 9 个导航停靠点顺序与 outline 2px solid",
+      "result": "pass"
+    },
+    "P5-KB-05": {
+      "item": "键盘完成搜索与 Enter 跳转；移动搜索 Escape 关闭并归还焦点",
+      "test": "AppShell.test.tsx KB-05（面板关闭）；keyboard_e2e.py（桌面输入 600519 进启动器、390 上 Escape 后焦点回到「打开搜索」）",
+      "result": "pass"
+    },
+    "P5-KB-06": {
+      "item": "Dialog：Tab 循环、Shift+Tab 反向、Escape 关闭、焦点归还",
+      "test": "ui.test.tsx KB-06",
+      "result": "pass"
+    },
+    "P5-KB-07": {
+      "item": "Drawer：同 KB-06，且关闭后滚动锁恢复",
+      "test": "ui.test.tsx KB-07（含 body 与 [data-scroll-lock] 恢复）；keyboard_e2e.py 390 抽屉 Tab 留在容器内、Escape 归还焦点",
+      "result": "pass"
+    },
+    "P5-KB-08": {
+      "item": "无键盘陷阱；关键路由无空可访问名称的按钮/链接；无 div onClick",
+      "test": "AppShell.test.tsx KB-08 ×4 路由；keyboard_e2e.py 九页 × 1440/390 扫描可访问名称；源码 grep 无 div/span/li/section 上的 onClick；连续 30 次 Tab 不粘滞",
+      "result": "pass"
+    }
+  },
+  "preflight": {
+    "passed": 10,
+    "failed": 0,
+    "result": "pass",
+    "head": "dc2d7ba",
+    "note": "代码提交后在工作区干净状态复跑；随后提交本证据与 P5-07 交接卡并复跑一次。"
+  },
+  "notes": [
+    "首个 Tab 停靠点断言依赖真实 DOM 顺序：跳过链接 → 侧栏品牌 → 主导航 → 次级 + 旧版入口 → 收起侧栏 → 顶栏搜索/主题；移动端顶栏与移动导航在桌面宽度下不参与。",
+    "KB-05 的焦点归还只放在浏览器 E2E：jsdom 的默认视口是 1024px，移动顶栏命中 display:none，隐藏元素不可聚焦，单测只断言面板关闭与 aria-expanded。",
+    "未知路由标题直接写「AStock Pro」，没有「AStock Pro · AStock Pro」；pageTitle 映射未改，/stocks/:ticker 与 /jobs/:id 仍归到所属一级页。",
+    "搜索结果列表沿用 ARIA combobox + listbox（选项是 div[role=option]，键盘由输入框的 aria-activedescendant 驱动），没有新增 div onClick，也没有改成 button 破坏组合框语义。",
+    "没有新增路由、没有写 localStorage、没有改数据请求；后端、契约、迁移（头仍 0007）零改动；tradingagents/、web/、run_all.bat、trade-journal 未动。",
+    "全量 vitest 一次通过；四套既有 E2E 与预检均复跑通过，没有出现 P5-05 记录的并行抖动。"
+  ]
+}
