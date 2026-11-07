@@ -1,0 +1,39 @@
+{
+  "ticket": "P6-03",
+  "recorded_at": "2026-11-07T21:01:58+08:00",
+  "command": ".venv/Scripts/python.exe scripts/backup_restore.py backup --live",
+  "zip_name": "backup-20261107-210158.zip",
+  "zip_bytes": 1155749,
+  "zip_sha256": "a8d3a22b726ea73fe8ed780bbed00d994324d389d0f269a11183ba835ed27881",
+  "manifest_sha256": "576cf8d19383540ff617fbac549aa2d1a7038e83b3954962fb543cc761a7f464",
+  "manifest_created_at": "2026-11-07T21:01:58+08:00",
+  "counts": {
+    "files": 44,
+    "bytes": 5515414
+  },
+  "db": {
+    "path": "jobs.db",
+    "bytes": 12288,
+    "sha256": "4b51137b38d308bb2bdf9efc63e5fc45224bba888a5ec74af958741fc60d661f"
+  },
+  "included": [
+    "jobs.db",
+    "logs",
+    "exports",
+    "memory",
+    "incomplete_tasks.json"
+  ],
+  "excluded": [
+    "cache/",
+    "cache_ds_*/",
+    "logs_ds_*/",
+    "ds_run_console.log",
+    "llm_config.json"
+  ],
+  "migration_head": "0007",
+  "write_mode": "legacy",
+  "duration_seconds": 0.583,
+  "data_root_file_count": 193,
+  "data_root_unchanged": true,
+  "notes": "白名单实测；只记录计数、字节与哈希，不含任何文件内容、API Key 或数据根绝对路径。"
+}
