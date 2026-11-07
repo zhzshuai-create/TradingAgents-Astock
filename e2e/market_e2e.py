@@ -869,12 +869,19 @@ def refresh_flow(browser: Browser, base: str) -> None:
     )
 
     # R-15: returning to the foreground refetches at once, not on the next tick.
-    before = count_requests(requests, overview)
+    foreground = {needle: count_requests(requests, needle) for needle in blocks}
     set_visibility(page, "visible")
     check(
-        wait_for_count(page, requests, overview, before + 1, timeout=3.0),
+        wait_for_count(
+            page, requests, overview, foreground[overview] + 1, timeout=3.0
+        ),
         "R-15 returning to the foreground refetches immediately",
     )
+    # The same foreground group refetches the other blocks too; let all four
+    # land before sampling the burst baseline, or a late request from this
+    # group is counted as part of the next one.
+    for needle in blocks:
+        wait_for_count(page, requests, needle, foreground[needle] + 1, timeout=3.0)
 
     # R-15: a click burst is one 500ms debounced request group.
     before = {needle: count_requests(requests, needle) for needle in blocks}
