@@ -1,0 +1,179 @@
+{
+  "ticket": "P4-12",
+  "measured_at": "2026-11-07T11:42:26+08:00",
+  "environment": {
+    "platform": "Windows-11-10.0.26200-SP0",
+    "python": "3.13.3",
+    "backend": "TestClient(create_app) in-process",
+    "browser": "Playwright Chromium（Python 3.13），vite preview，stubbed read APIs",
+    "node": "node:zlib gzipSync level 9"
+  },
+  "commands": {
+    "fixture": ".venv/Scripts/python.exe scripts/p4_market_perf.py --fixture --ticker 600000 --samples 30 --out docs/upgrade/reviews/2026-11-07_P4-12性能结果.json",
+    "live": ".venv/Scripts/python.exe scripts/p4_market_perf.py --live --ticker 600000 --samples 30 --out <临时路径>（人工一次，不作 CI 门槛）",
+    "route_switch": "C:/Users/zhzsh/AppData/Local/Programs/Python/Python313/python.exe e2e/e2e_p4.py"
+  },
+  "thresholds": {
+    "snapshot_warm_p95_ms": 1500.0,
+    "snapshot_cold_p95_ms": 4000.0,
+    "route_switch_p95_ms": 300.0,
+    "entry_gzip_kb": 202.45,
+    "route_chunk_gzip_kb": 60.0
+  },
+  "fixture": {
+    "ticket": "P4-12",
+    "mode": "fixture",
+    "measured_at": "2026-11-07T11:40:59+08:00",
+    "environment": {
+      "platform": "Windows-11-10.0.26200-SP0",
+      "python": "3.13.3",
+      "backend": "TestClient(create_app) in-process"
+    },
+    "dataset": {
+      "ticker": "600000",
+      "payload_source": "tests/backend/stock_helpers.py",
+      "blocks": [
+        "quote",
+        "valuation",
+        "sector_blocks"
+      ]
+    },
+    "samples": {
+      "warmups": 3,
+      "measured": 30
+    },
+    "snapshot_warm": {
+      "median_ms": 2.88,
+      "p95_ms": 3.39,
+      "hard_line_ms": 1500.0,
+      "pass": true
+    },
+    "snapshot_cold": {
+      "median_ms": 2.79,
+      "p95_ms": 3.2,
+      "hard_line_ms": 4000.0,
+      "pass": true
+    },
+    "provider_calls": {
+      "quote": 31,
+      "valuation": 31,
+      "sector_blocks": 31
+    },
+    "external_network_calls": 0,
+    "conclusion": "pass",
+    "command": ".venv/Scripts/python.exe scripts/p4_market_perf.py --fixture --ticker 600000 --samples 30",
+    "note": "fixture 模式只验采样、分位与阈值逻辑，数值不代表供应商时延；真实门槛以 --live 的 30 样本为准。"
+  },
+  "live": {
+    "ticket": "P4-12",
+    "mode": "live",
+    "measured_at": "2026-11-07T11:42:26+08:00",
+    "environment": {
+      "platform": "Windows-11-10.0.26200-SP0",
+      "python": "3.13.3",
+      "backend": "TestClient(create_app) in-process"
+    },
+    "dataset": {
+      "ticker": "600000",
+      "payload_source": "DefaultMarketProviders（真实供应商）",
+      "blocks": [
+        "quote",
+        "valuation",
+        "sector_blocks"
+      ]
+    },
+    "samples": {
+      "warmups": 3,
+      "measured": 30
+    },
+    "snapshot_warm": {
+      "median_ms": 751.59,
+      "p95_ms": 3841.22,
+      "hard_line_ms": 1500.0,
+      "pass": false
+    },
+    "snapshot_cold": {
+      "median_ms": 760.75,
+      "p95_ms": 865.21,
+      "hard_line_ms": 4000.0,
+      "pass": true
+    },
+    "provider_calls": {
+      "quote": 31,
+      "valuation": 31,
+      "sector_blocks": 63
+    },
+    "external_network_calls": 125,
+    "conclusion": "fail",
+    "command": ".venv/Scripts/python.exe scripts/p4_market_perf.py --live --ticker 600000 --samples 30",
+    "note": "live 模式每次冷样本清空 MarketCache，三个块都会打到真实供应商。"
+  },
+  "route_switch": {
+    "metric": "cached market→stock client-side switch, stamp to stock-price first paint",
+    "samples": 30,
+    "warmups": 3,
+    "median_ms": 15.9,
+    "p95_ms": 17.7,
+    "line_ms": 300.0,
+    "samples_ms": [
+      9.6,
+      15.5,
+      11.6,
+      17.7,
+      14.7,
+      17,
+      16.8,
+      11.4,
+      16.1,
+      16.4,
+      2.2,
+      12.5,
+      16,
+      16.3,
+      2.1,
+      3.6,
+      12.1,
+      15.5,
+      16.6,
+      15.4,
+      15.6,
+      16.1,
+      16.6,
+      15.9,
+      16.1,
+      16,
+      15.3,
+      17.7,
+      13.2,
+      17.2
+    ],
+    "snapshot_requests": {
+      "before": 1,
+      "after": 1,
+      "cached": true
+    },
+    "all_requests_get": true,
+    "console_or_page_errors": [],
+    "pass": true
+  },
+  "external_network_calls": {
+    "fixture": 0,
+    "live": 125,
+    "note": "live 计数是 provider 调用次数之和，不是底层 socket 计数"
+  },
+  "conclusion": {
+    "fixture": "pass",
+    "live_cold": "pass",
+    "live_warm": "fail",
+    "route_switch": "pass",
+    "overall": "fixture 与路由切换通过；live 冷加载通过、暖缓存未达标",
+    "warm_failure": {
+      "p95_ms": 3841.22,
+      "line_ms": 1500.0,
+      "cause": "百度 getrelatedblock 对 python-requests 的 TLS 指纹返回 HTTP 403 （Result.code=403、isCaptchaEnabled=true）；失败块不入缓存，暖请求每次都重试，暖缓存 p95 达 3841 ms",
+      "evidence": "同一 URL 与请求头下 curl 返回 200，requests 返回 403；tradingagents/dataflows/a_stock/signals.py 的同接口注释已记录该风控",
+      "impact": "sector_blocks 长期为 partial；快照退化为逐请求重试失败块",
+      "follow_up": "P4-12 只记录不修；负缓存/退避或换客户端需另开票"
+    }
+  }
+}
