@@ -1,0 +1,183 @@
+{
+  "ticket": "P5-04",
+  "title": "交易日志外壳 W09",
+  "measured_at": "2026-11-07T15:02:00+08:00",
+  "base_head": "8eaf4b1",
+  "code_head": "b8083d8",
+  "environment": {
+    "platform": "Windows-11-10.0.26200-SP0",
+    "node": "22.22.2",
+    "python": "3.13.3",
+    "vite": "7.3.7",
+    "react": "19.3.1",
+    "vitest": "5.1.0",
+    "new_runtime_dependencies": 0
+  },
+  "commands": {
+    "typecheck": "cd frontend && node node_modules/typescript/bin/tsc --noEmit",
+    "unit": "cd frontend && node node_modules/vitest/vitest.mjs run",
+    "build": "cd frontend && node node_modules/vite/bin/vite.js build",
+    "bundle": "cd frontend && node scripts/check_bundle.mjs --out <临时文件路径>",
+    "e2e": "C:/Users/zhzsh/AppData/Local/Programs/Python/Python313/python.exe e2e/journal_e2e.py，随后 settings_e2e.py、market_e2e.py、stock_e2e.py",
+    "preflight": ".venv/Scripts/python.exe scripts/p0_preflight.py --full --smoke"
+  },
+  "unit": {
+    "test_files": 37,
+    "tests": 483,
+    "new_tests": 17,
+    "failures": 0,
+    "result": "pass",
+    "new_file": "frontend/src/features/journal/JournalPage.test.tsx",
+    "note": "P5-03 基线 36 文件 / 466 条；本票只新增 17 条日志外壳用例，未改既有断言。"
+  },
+  "typecheck": {
+    "errors": 0,
+    "result": "pass"
+  },
+  "python": {
+    "passed": 789,
+    "skipped": 4,
+    "failures": 0,
+    "result": "pass",
+    "note": "本票零后端改动；预检全量测试与 P5-03 基线一致。"
+  },
+  "bundle": {
+    "measured_with": "frontend/scripts/check_bundle.mjs（node:zlib gzipSync level 9）",
+    "entry_gzip_kb": 124.52,
+    "entry_budget_gzip_kb": 202.45,
+    "entry_within_budget": true,
+    "entry_delta_gzip_kb": 0.02,
+    "route_chunks": 11,
+    "route_chunk_limit_gzip_kb": 60,
+    "largest_route_chunk": {
+      "file": "assets/ReportDetailPage-CGtULD18.js",
+      "gzip_kb": 20.8
+    },
+    "journal_chunk_gzip_kb": 2.63,
+    "all_route_chunks_within_limit": true,
+    "passed": true,
+    "note": "入口 +0.02 kB 相对 P5-03 的 124.5 kB（测量粒度 0.01 kB）；日志三态、说明文案与主题桥全部落在懒加载的 JournalPage 块（2.63 kB）。"
+  },
+  "e2e": {
+    "journal": {
+      "checks": 80,
+      "failures": 0,
+      "viewports": ["1440x900", "390x844", "360x800"],
+      "flows": [
+        "available：iframe src、新窗口属性、初始主题、切换深色、同源回执、异源与异窗口消息被忽略",
+        "starting：重试后每 2s 取 meta，可用后停止",
+        "timeout：31s 后回不可用，reason 不变，之后无请求",
+        "not_running / not_installed / probe_failed：文案分支、隔离声明、无 iframe、市场与任务页仍可打开",
+        "mobile 390/360：无横向溢出、页面不滚动、iframe 贴底、触控 ≥44px"
+      ]
+    },
+    "settings": { "checks": 62, "failures": 0 },
+    "market": { "checks": 103, "failures": 0 },
+    "stock": { "checks": 99, "failures": 0 },
+    "note": "journal_e2e.py 在 commit b8083d8 上复跑；settings/market/stock 为同代码状态下的回归运行。截图写入 ui_shots_p5/P5-04/。"
+  },
+  "journal_shell": {
+    "states": {
+      "available": "journal.available === true 且 entry_url 可解析为 http/https origin",
+      "starting": "前端本地等待态，不进契约；每 2s refetch，30s 超时回到最后 reason",
+      "unavailable": "not_running | not_installed | probe_failed；reason 为 null 时按 probe_failed 展示"
+    },
+    "constants": { "retry_interval_ms": 2000, "retry_limit_ms": 30000 },
+    "copy": {
+      "not_running": "run.bat 路径 + 「已启动，重试」",
+      "not_installed": "安装说明，不出现 run.bat",
+      "probe_failed": "端口占用、代理与 127.0.0.1 检查步骤 + 「重新检测」",
+      "isolation": "本系统不会读取或修改交易日志的数据。"
+    },
+    "theme_bridge": {
+      "module": "frontend/src/features/journal/useJournalThemeBridge.ts",
+      "request_type": "astock-theme-request",
+      "target_origin": "new URL(entry_url).origin，非 \"*\"",
+      "receipt_check": ["event.origin === journalOrigin", "event.source === frame.contentWindow", "data.type === astock-theme-request"],
+      "theme_source": "document.documentElement.dataset.theme（MutationObserver），不新增 useTheme 实例",
+      "on_load": "iframe onLoad 与刷新后重载都会再发一次当前主题"
+    },
+    "layout": {
+      "desktop_1440": "iframe 1158x747，容器底部与 main-content 底部对齐，main scrollHeight == clientHeight (840)",
+      "mobile_390_360": "docScroll == docClient；main scrollTop 恒 0；iframe 底部贴合内容区；容器 overflow hidden + overscroll-behavior contain",
+      "scroll_lock": "可用态给 #main-content 写 inline overflowY: hidden 并 scrollTop=0，离开或卸载时恢复原值",
+      "implementation_note": "用 height:100% + flex:1 + min-height:0 填满内容区，数值等价于 calc(100dvh - 顶栏 - 间距)，且在 ActiveJobBar 出现时仍不产生第二条滚动条。"
+    },
+    "requests": {
+      "write_requests": 0,
+      "http_methods": ["GET"],
+      "polling": "仅 meta/options；可用后立即停止",
+      "journal_access": "只做 iframe 嵌入与 postMessage；不读写日志数据、不启动进程"
+    }
+  },
+  "acceptance": {
+    "P5-JRN-01": {
+      "item": "available 渲染运行态、iframe src、新窗口链接",
+      "test": "JournalPage.test.tsx（运行态 + 同址链接 + rel=noreferrer；file:// entry_url 不嵌入）；journal_e2e.py（iframe src、target/rel、刷新重载）",
+      "result": "pass"
+    },
+    "P5-JRN-02": {
+      "item": "not_running 文案含 run.bat，不出现安装命令与端口文案",
+      "test": "JournalPage.test.tsx（not_running offers run.bat and the manual retry only）；journal_e2e.py（三原因逐项断言禁用词）",
+      "result": "pass"
+    },
+    "P5-JRN-03": {
+      "item": "not_installed 给安装说明且无 run.bat；probe_failed 给端口/代理检查",
+      "test": "JournalPage.test.tsx（not_installed / probe_failed / null reason 三条）；journal_e2e.py（三原因文案与可操作项）",
+      "result": "pass"
+    },
+    "P5-JRN-04": {
+      "item": "重试进入 starting，每 2s 重取，available 后停止",
+      "test": "JournalPage.test.tsx（1999ms 不请求、2000ms 请求、可用后无新请求；等待秒数 3s；取消后停止）；journal_e2e.py（meta 调用 1→2→3→4 后停在 4）",
+      "result": "pass"
+    },
+    "P5-JRN-05": {
+      "item": "30s 超时回 unavailable，沿用最后 reason；无残留定时器",
+      "test": "JournalPage.test.tsx（29s 仍在等待、30s 回不可用；卸载后无请求）；journal_e2e.py（31s 超时后不再发请求）",
+      "result": "pass"
+    },
+    "P5-JRN-06": {
+      "item": "postMessage targetOrigin 为 entry_url origin",
+      "test": "JournalPage.test.tsx（捕获 postMessage 参数断言 origin，非 \"*\"）；journal_e2e.py（第二个异源 iframe 收到 0 条）",
+      "result": "pass"
+    },
+    "P5-JRN-07": {
+      "item": "异源、异窗口、异 type 回执均不处理",
+      "test": "JournalPage.test.tsx（三种消息均忽略，合法回执才触发）；journal_e2e.py（同源 /evil 页面伪造回执被忽略）",
+      "result": "pass"
+    },
+    "P5-JRN-08": {
+      "item": "可用态 iframe 填满视口，页面无第二条滚动条",
+      "test": "journal_e2e.py（1440x900：iframe 1158x747、底边贴合、main 无纵向溢出、overflowY hidden）",
+      "result": "pass"
+    },
+    "P5-JRN-09": {
+      "item": "360/390 无页面级横向溢出、页面不滚动、触控 ≥44px",
+      "test": "journal_e2e.py（390x844 与 360x800 的 available/unavailable 两组量测）",
+      "result": "pass"
+    },
+    "P5-JRN-10": {
+      "item": "三原因都有隔离声明；日志故障不影响其他页面",
+      "test": "JournalPage.test.tsx（三原因 + meta 失败路径的隔离声明）；journal_e2e.py（/market、/jobs、/reports 在日志不可用时仍渲染）",
+      "result": "pass"
+    }
+  },
+  "preflight": {
+    "passed": 10,
+    "failed": 0,
+    "result": "pass",
+    "head": "b8083d8",
+    "note": "代码提交后在工作区干净状态复跑；随后再提交本证据与 P5-05 交接卡并复跑一次。"
+  },
+  "notes": [
+    "reason 为 null 时并入 probe_failed 文案，不新增状态名；available 仍以契约布尔值为准。",
+    "entry_url 不能解析或不是 http/https 时按不可用处理，避免嵌入 file:// 等不可信来源。",
+    "meta 请求失败不猜日志原因：显示独立的读取失败提示、隔离声明与重试按钮。",
+    "刷新用 iframe key 递增而非改 src：重载后 onLoad 会再发一次当前主题；E2E 断言重载后恰好记录 1 条深色消息。",
+    "targetOrigin 的反证是第二个异源 iframe：若误用 \"*\"，该 frame 会收到消息；实际记录为 0。source 的反证是同源 /evil frame 伪造回执，未触发重发。",
+    "JournalFrame 自带 h1「交易日志」；不可用/启动中分支的 h1 与之互斥，不会同页出现两个一级标题。",
+    "外壳 AppShell 未改：滚动锁只在本页可用态临时写 #main-content 的 inline overflowY，卸载恢复。",
+    "零后端改动、零契约改动、零迁移（头仍 0007）、零新增运行时依赖；tradingagents/、web/、run_all.bat、trade-journal 未动。",
+    "遗留 C4 不变：旧版 Streamlit 日志桥与外部 trade-journal 仍用 * 与不校验来源，P5 只保证新版严格。"
+  ]
+}
