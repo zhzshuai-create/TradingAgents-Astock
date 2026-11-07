@@ -86,6 +86,12 @@ GENERATED_BY_CHILDREN = (
 gates: list[dict[str, Any]] = []
 results: dict[str, dict[str, Any]] = {}
 
+ANSI = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def plain(text: str) -> str:
+    return ANSI.sub("", text or "")
+
 
 def gate(
     name: str,
@@ -172,9 +178,9 @@ def frontend_chain(temp: Path) -> dict[str, Any]:
     )
 
     unit, seconds = run_node("vitest", "node_modules/vitest/vitest.mjs", "run")
-    plain = (unit.stdout or "") + (unit.stderr or "")
-    files = re.search(r"Test Files\s+(\d+)\s+passed", plain)
-    tests = re.search(r"Tests\s+(\d+)\s+passed", plain)
+    text = plain((unit.stdout or "") + (unit.stderr or ""))
+    files = re.search(r"Test Files\s+(\d+)\s+passed", text)
+    tests = re.search(r"Tests\s+(\d+)\s+passed", text)
     file_count = int(files.group(1)) if files else 0
     test_count = int(tests.group(1)) if tests else 0
     unit_ok = (
@@ -261,8 +267,8 @@ def python_groups() -> dict[str, Any]:
     )
 
     full, seconds = run("pytest_full", [str(PYTHON), "-m", "pytest", "-q"])
-    plain = full.stdout or ""
-    passed_match = re.search(r"(\d+) passed", plain)
+    text = plain(full.stdout or "")
+    passed_match = re.search(r"(\d+) passed", text)
     skipped_match = re.search(r"(\d+) skipped", plain)
     passed = int(passed_match.group(1)) if passed_match else 0
     skipped = int(skipped_match.group(1)) if skipped_match else 0
@@ -415,12 +421,12 @@ def preflight() -> dict[str, Any]:
     proc, seconds = run(
         "preflight", [str(PYTHON), "scripts/p0_preflight.py", "--full", "--smoke"]
     )
-    plain = proc.stdout or ""
-    counts = re.search(r"通过 (\d+)，失败 (\d+)", plain)
+    text = plain(proc.stdout or "")
+    counts = re.search(r"通过 (\d+)，失败 (\d+)", text)
     passed = int(counts.group(1)) if counts else 0
     failed = int(counts.group(2)) if counts else 99
     ok = proc.returncode == 0 and passed == PREFLIGHT_ITEMS and failed == 0
-    smoke = "健康检查 ok" in plain
+    smoke = "健康检查 ok" in text
     gate(
         "preflight",
         ".venv/Scripts/python.exe scripts/p0_preflight.py --full --smoke",
