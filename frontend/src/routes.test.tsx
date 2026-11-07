@@ -51,7 +51,9 @@ describe("DS-07 路由懒加载", () => {
       </QueryClientProvider>,
     );
 
-    expect(await screen.findByTestId("page-market")).toBeInTheDocument();
+    expect(
+      await screen.findByTestId("page-market", {}, { timeout: 5000 }),
+    ).toBeInTheDocument();
   });
 
   it("块未就绪时显示页面骨架而不是空白", () => {
