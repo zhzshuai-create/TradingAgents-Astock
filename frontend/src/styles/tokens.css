@@ -148,6 +148,24 @@
   --bp-md: 768px;
   --bp-lg: 1024px;
   --bp-xl: 1280px;
+
+  /* Density: desktop list and table rows only (p5-backlog D2). */
+  --row-height: 44px;
+  --row-padding-y: 10px;
+}
+
+:root[data-density="compact"] {
+  --row-height: 36px;
+  --row-padding-y: 6px;
+}
+
+/* Touch targets stay at 44px on small screens, whatever the preference. */
+@media (max-width: 767px) {
+  :root,
+  :root[data-density="compact"] {
+    --row-height: 44px;
+    --row-padding-y: 10px;
+  }
 }
 
 :root[data-theme="dark"] {

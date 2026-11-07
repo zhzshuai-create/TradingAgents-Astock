@@ -1,5 +1,12 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -171,6 +178,7 @@ function renderAt(path: string) {
 afterEach(() => {
   localStorage.clear();
   delete document.documentElement.dataset.theme;
+  delete document.documentElement.dataset.density;
 });
 
 const ROUTES = [
@@ -364,6 +372,20 @@ describe("WEB-03 shell controls", () => {
       "href",
       "http://localhost:8501",
     );
+  });
+
+  it("writes the density preference to the document root", async () => {
+    const { setPreferences } = await import("../lib/preferences");
+    renderAt("/workbench");
+    expect(await screen.findByTestId("page-workbench")).toBeInTheDocument();
+    expect(document.documentElement.dataset.density).toBe("comfortable");
+
+    act(() => {
+      setPreferences({ density: "compact" });
+    });
+    await waitFor(() => {
+      expect(document.documentElement.dataset.density).toBe("compact");
+    });
   });
 
   it("closes the more drawer after navigating", async () => {

@@ -35,6 +35,37 @@ describe("WEB-01 设计令牌", () => {
     expect(css).toMatch(/--color-bg-canvas:/);
   });
 
+  it("DEN-01 密度令牌有标准与紧凑两组", () => {
+    const css = readFileSync(TOKENS, "utf8");
+    expect(css).toMatch(/--row-height:\s*44px/);
+    expect(css).toMatch(/--row-padding-y:\s*10px/);
+    expect(css).toContain(':root[data-density="compact"]');
+    expect(css).toMatch(/--row-height:\s*36px/);
+    expect(css).toMatch(/--row-padding-y:\s*6px/);
+  });
+
+  it("DEN-02 五类列表使用密度令牌", () => {
+    const consumers = [
+      "features/jobs/JobTable.module.css",
+      "features/reports/ReportTable.module.css",
+      "features/market/MarketPage.module.css",
+      "features/stocks/StockPage.module.css",
+    ];
+    for (const file of consumers) {
+      const css = readFileSync(join(SRC, file), "utf8");
+      expect(css, file).toMatch(/var\(--row-height\)/);
+      expect(css, file).toMatch(/var\(--row-padding-y\)/);
+    }
+  });
+
+  it("DEN-03 窄屏把密度固定回标准值", () => {
+    const css = readFileSync(TOKENS, "utf8");
+    const block = css.slice(css.indexOf("@media (max-width: 767px)"));
+    expect(block).toMatch(/:root\[data-density="compact"\]/);
+    expect(block).toMatch(/--row-height:\s*44px/);
+    expect(block).toMatch(/--row-padding-y:\s*10px/);
+  });
+
   it("除 tokens.css 外不出现十六进制色值", () => {
     const hex = /#[0-9a-fA-F]{3,8}\b/;
     const offenders = sourceFiles(SRC)

@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 
+import { usePreferences } from "../lib/preferences";
 import { ActiveJobBar } from "./ActiveJobBar";
 import styles from "./AppShell.module.css";
 import { MobileNav } from "./MobileNav";
@@ -24,6 +25,7 @@ export function AppShell() {
   const [moreOpen, setMoreOpen] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const { theme, toggle } = useTheme();
+  const { density } = usePreferences();
   const { pathname } = useLocation();
   // The workbench puts the active job in its own content block; elsewhere the
   // shell keeps one strip above the page.
@@ -36,6 +38,12 @@ export function AppShell() {
       // Storage can be blocked (private mode); the layout still works.
     }
   }, [collapsed]);
+
+  // Before paint so a stored "compact" never flashes a comfortable layout.
+  // Like the theme attribute, it stays after unmount.
+  useLayoutEffect(() => {
+    document.documentElement.dataset.density = density;
+  }, [density]);
 
   useEffect(() => {
     setMoreOpen(false);
