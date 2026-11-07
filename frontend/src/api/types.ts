@@ -366,6 +366,8 @@ export interface MetaOptions {
   };
   journal: JournalStatus;
   contract_version: string;
+  /** api-v1.md 1.8 optional field; missing means legacy for old clients. */
+  write_mode?: "legacy" | "next";
 }
 
 export type MarketStatus = "ok" | "empty" | "stale" | "error";

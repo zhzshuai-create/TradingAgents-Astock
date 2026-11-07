@@ -42,6 +42,7 @@ if str(ROOT) not in sys.path:
 from backend.app.core.config import JOBS_DB_ENV  # noqa: E402
 from backend.app.core.db import build_engine  # noqa: E402
 from backend.app.core.server_config import load_server_config  # noqa: E402
+from backend.app.core.write_mode import WRITE_MODE_ENV  # noqa: E402
 from backend.app.main import create_app  # noqa: E402
 from backend.app.services.analysis_runner import (  # noqa: E402
     AnalysisExecutor,
@@ -196,6 +197,8 @@ def main(argv: list[str] | None = None) -> int:
     root = dev_root()
     db_path, reports_path, engine = migrate_and_build(root)
     fixture = load_ticker_fixture(args.ticker_fixture)
+    # This entry serves the new UI, so it is a writer unless told otherwise.
+    os.environ.setdefault(WRITE_MODE_ENV, "next")
     server_config = load_server_config()
     reports = ReportStore(reports_path)
     jobs = JobService(engine, server_config, reports=reports)

@@ -70,6 +70,7 @@ SERVER_CONFIG = ServerConfig(
     llm_profiles=("deepseek-default",),
     parallel_analysts=True,
     stage_toggles={"policy": True, "hot_money": True, "lockup": True},
+    write_mode="next",
 )
 S00_STATS = StatsSnapshot(
     model_calls=14,

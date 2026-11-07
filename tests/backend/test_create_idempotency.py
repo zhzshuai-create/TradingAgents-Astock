@@ -58,6 +58,7 @@ SERVER_CONFIG = ServerConfig(
     llm_profiles=("deepseek-default", "openai-default"),
     parallel_analysts=True,
     stage_toggles={"policy": True, "hot_money": True, "lockup": True},
+    write_mode="next",
 )
 
 

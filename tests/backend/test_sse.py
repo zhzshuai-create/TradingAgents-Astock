@@ -67,6 +67,7 @@ SERVER_CONFIG = ServerConfig(
     llm_profiles=("deepseek-default",),
     parallel_analysts=True,
     stage_toggles={"policy": True, "hot_money": True, "lockup": True},
+    write_mode="next",
 )
 MEDIA = {"Accept": "text/event-stream"}
 TOTAL_EVENTS = 40

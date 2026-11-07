@@ -112,6 +112,10 @@ export function useCreateJob({
                 });
           setSubmitting(false);
           setError(apiError);
+          if (apiError.code === "write_mode_legacy") {
+            // Nothing was created, so the same key stays valid after the switch.
+            return;
+          }
           if (apiError.code === "idempotency_mismatch") {
             intentRef.current?.reset();
             return;

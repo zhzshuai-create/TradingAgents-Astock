@@ -55,7 +55,7 @@ CLOCK_TEXT = CLOCK.isoformat(timespec="seconds")
 RID = "00000000-0000-4000-8000-000000000001"
 LEGACY_RID = "00000000-0000-4000-8000-000000000002"
 FAKE_PDF = b"%PDF-1.4\n% fake export\n%%EOF\n"
-SERVER_CONFIG = ServerConfig()
+SERVER_CONFIG = ServerConfig(write_mode="next")
 
 
 def _alembic_config() -> Config:

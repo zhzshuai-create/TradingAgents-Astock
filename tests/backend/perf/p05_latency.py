@@ -72,6 +72,7 @@ SERVER_CONFIG = ServerConfig(
     llm_profiles=("deepseek-default",),
     parallel_analysts=True,
     stage_toggles={"policy": True, "hot_money": True, "lockup": True},
+    write_mode="next",
 )
 LATENCY_BUDGET_MS = 500.0
 STAGE_GAP_BUDGET_PERCENT = 5.0

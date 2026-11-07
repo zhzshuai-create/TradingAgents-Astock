@@ -53,6 +53,7 @@
 | `illegal_transition` | 409 | 当前状态不允许该动作，对应 I01–I11 | 当前状态不支持这个操作 | 刷新任务详情，按 `allowed_actions` 重画按钮 |
 | `resume_fingerprint_mismatch` | 409 | 续跑时配置指纹或图版本不一致 | 配置已变化，无法从检查点继续 | 只给「重新分析」 |
 | `export_not_ready` | 409 | 导出尚未 ready 时请求文件 | 导出尚未完成 | 轮询导出状态 |
+| `write_mode_legacy` | 409 | `legacy` 模式下新版请求新建分析（含重试） | 当前由旧版发起分析，请到旧版入口开始分析 | 到旧版入口发起，或切换写入者后重启 |
 | `ticker_unresolved` | 422 | 代码或名称解析不到 | 找不到这只股票 | 改输入；搜索接口可给候选 |
 | `ticker_ambiguous` | 422 | 中文名匹配到多只 | 匹配到多只股票，请选择一只 | 用 `details.candidates` 让用户选 |
 | `invalid_date` | 422 | 日期格式错误或晚于今天 | 分析日期不正确 | 修日期 |

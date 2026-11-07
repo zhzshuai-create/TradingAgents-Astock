@@ -76,6 +76,8 @@ export function LauncherDialog({
 
   const busy = create.submitting || create.done || existingJob !== null;
   const fieldErrors = fieldErrorsFor(create.error);
+  const writeMode = metaData?.write_mode;
+  const writesAllowed = writeMode !== "legacy";
   const dateTooLate =
     effectiveDate !== "" && defaultDate !== "" && effectiveDate > defaultDate;
   const ready =
@@ -86,6 +88,7 @@ export function LauncherDialog({
     !dateTooLate;
   const canSubmit =
     ready &&
+    writesAllowed &&
     !busy &&
     create.cooldownSeconds === 0 &&
     create.conflictJobId === null;
@@ -194,6 +197,11 @@ export function LauncherDialog({
           )}
 
           <div className={styles.notes}>
+            {writeMode === "legacy" ? (
+              <p className={styles.note} data-testid="launcher-write-mode">
+                当前由旧版发起分析，请到旧版入口开始分析
+              </p>
+            ) : null}
             <p className={styles.cost}>
               分析会调用付费模型，预计 5–15 分钟。
             </p>

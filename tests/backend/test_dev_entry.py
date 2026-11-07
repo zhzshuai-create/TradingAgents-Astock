@@ -144,6 +144,7 @@ def _start(tmp_path: Path, *args: str, home: Path | None = None) -> DevServer:
             "USERPROFILE": str(home),
             "PYTHONIOENCODING": "utf-8",
             "PYTHONUTF8": "1",
+            "ACTIVE_ANALYSIS_UI": "next",
         }
     )
     for key in (

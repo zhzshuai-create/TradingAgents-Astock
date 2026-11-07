@@ -66,4 +66,5 @@ def options(request: Request) -> dict[str, Any]:
         },
         "journal": _journal_payload(request.app.state.journal_probe),
         "contract_version": CONTRACT_VERSION,
+        "write_mode": config.write_mode,
     }

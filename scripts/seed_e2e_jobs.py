@@ -18,6 +18,7 @@ import os
 import sys
 import tempfile
 import uuid
+from dataclasses import replace
 from datetime import datetime
 from pathlib import Path
 
@@ -221,7 +222,7 @@ def main() -> int:
     os.environ[JOB_REPORTS_ENV] = str(reports_path)
     command.upgrade(_alembic_config(), "head")
 
-    config = load_server_config()
+    config = replace(load_server_config(), write_mode="next")
     engine = build_engine(db_path)
     reports = ReportStore(reports_path)
     jobs = JobService(engine, config, reports=reports)

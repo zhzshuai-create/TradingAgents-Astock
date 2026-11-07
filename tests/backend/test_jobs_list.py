@@ -36,7 +36,7 @@ from backend.app.services.ticker_directory import TickerDirectory  # noqa: E402
 
 BACKEND = ROOT / "backend"
 NOW = datetime(2026, 11, 5, 9, 30, tzinfo=CST)
-SERVER_CONFIG = ServerConfig()
+SERVER_CONFIG = ServerConfig(write_mode="next")
 DIRECTORY_NAMES = {"000629": "钒钛股份"}
 
 PENDING_BY_STATUS = {

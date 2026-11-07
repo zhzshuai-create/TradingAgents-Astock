@@ -289,7 +289,7 @@ def worker_env(tmp_path, monkeypatch):
 
     clock = _FixedClock(datetime(2026, 10, 30, 9, 0, tzinfo=CST))
     engine = build_engine()
-    jobs = JobService(engine, ServerConfig(), clock=clock)
+    jobs = JobService(engine, ServerConfig(write_mode="next"), clock=clock)
     try:
         yield SimpleNamespace(
             engine=engine,

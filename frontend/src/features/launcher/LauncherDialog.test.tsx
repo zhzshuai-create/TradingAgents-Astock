@@ -562,4 +562,61 @@ describe("WEB-09 launcher form", () => {
     );
     expect(document.body.textContent).not.toMatch(/¥|\d+\s*元/);
   });
+
+  // FE-WM-01 ------------------------------------------------------------
+
+  it("blocks submit and explains why while the legacy UI is the writer", async () => {
+    let posts = 0;
+    server.use(
+      http.get(META_URL, () =>
+        HttpResponse.json({ ...META, write_mode: "legacy" }),
+      ),
+      http.post(JOBS_URL, () => {
+        posts += 1;
+        return HttpResponse.json(JOB, { status: 201 });
+      }),
+    );
+    renderLauncher({ initialTicker: SELECTED });
+
+    expect(await screen.findByTestId("launcher-write-mode")).toHaveTextContent(
+      "当前由旧版发起分析，请到旧版入口开始分析",
+    );
+    expect(screen.getByRole("button", { name: "开始分析" })).toBeDisabled();
+    expect(posts).toBe(0);
+  });
+
+  it("stays submittable when write_mode is next or absent", async () => {
+    server.use(
+      http.get(META_URL, () => HttpResponse.json({ ...META, write_mode: "next" })),
+      http.post(JOBS_URL, () => HttpResponse.json(JOB, { status: 201 })),
+    );
+    renderLauncher({ initialTicker: SELECTED });
+
+    await submitButton();
+    expect(screen.queryByTestId("launcher-write-mode")).toBeNull();
+  });
+
+  // FE-WM-02 ------------------------------------------------------------
+
+  it("shows the legacy-writer message when the server answers 409", async () => {
+    server.use(
+      http.post(JOBS_URL, () =>
+        HttpResponse.json(
+          errorBody(
+            "write_mode_legacy",
+            "当前由旧版发起分析，请到旧版入口开始分析",
+          ),
+          { status: 409 },
+        ),
+      ),
+    );
+    renderLauncher({ initialTicker: SELECTED });
+
+    fireEvent.click(await submitButton());
+
+    expect(
+      await screen.findByText("当前由旧版发起分析，请到旧版入口开始分析"),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "开始分析" })).toBeEnabled();
+  });
 });

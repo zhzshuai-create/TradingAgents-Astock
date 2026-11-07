@@ -98,7 +98,7 @@ def test_options_has_every_frozen_field(client, monkeypatch):
     assert response.status_code == 200
     body = response.json()
 
-    assert set(body) == {
+    assert {
         "app_version",
         "server_time",
         "default_analysis_date",
@@ -107,7 +107,20 @@ def test_options_has_every_frozen_field(client, monkeypatch):
         "limits",
         "journal",
         "contract_version",
+    } <= set(body)
+    # api-v1.md 1.8: write_mode is optional for old clients, top-level when sent.
+    assert set(body) <= {
+        "app_version",
+        "server_time",
+        "default_analysis_date",
+        "llm_profiles",
+        "stage_toggles",
+        "limits",
+        "journal",
+        "contract_version",
+        "write_mode",
     }
+    assert body["write_mode"] == "legacy"
     assert body["app_version"] == "0.9.0"
     assert body["server_time"] == "2026-11-05T00:30:00+08:00"
     assert body["default_analysis_date"] == "2026-11-05"

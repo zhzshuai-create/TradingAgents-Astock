@@ -360,6 +360,11 @@ class JobService:
                 )
             raise JobCreateError("active_conflict", active_job_id=conflict.id)
 
+        # Step 5 precondition: steps 1-4 still answer a replay or an existing
+        # job; only a brand-new job is refused while the legacy UI is the writer.
+        if self._config.write_mode == "legacy":
+            raise JobCreateError("write_mode_legacy", status_code=409)
+
         job = Job(
             id=str(uuid.uuid4()),
             ticker_code=prepared.ticker_code,

@@ -10,6 +10,12 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 
+from backend.app.core.write_mode import (
+    DEFAULT_WRITE_MODE,
+    WRITE_MODE_ENV,
+    parse_write_mode,
+)
+
 DEFAULT_LLM_PROFILE = "deepseek-default"
 DEFAULT_STAGE_TOGGLES: dict[str, bool] = {
     "policy": True,
@@ -27,6 +33,7 @@ class ServerConfig:
         default_factory=lambda: dict(DEFAULT_STAGE_TOGGLES)
     )
     real_runner_enabled: bool = False
+    write_mode: str = DEFAULT_WRITE_MODE
 
     def config_defaults(self) -> dict:
         return {
@@ -44,4 +51,5 @@ def load_server_config() -> ServerConfig:
     return ServerConfig(
         graph_version=os.environ.get("TA_GRAPH_VERSION", "graph-v1"),
         llm_profiles=profiles or (DEFAULT_LLM_PROFILE,),
+        write_mode=parse_write_mode(os.environ.get(WRITE_MODE_ENV)),
     )

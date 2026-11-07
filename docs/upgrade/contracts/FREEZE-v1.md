@@ -42,10 +42,10 @@
 
 | 文件 | SHA-256 | 说明 |
 | --- | --- | --- |
-| `api-v1.md` | `b0f53c59899313bcf2e41c0bd1122a777de8ce46838a8ca564a60c71516ab5b5` | 任务、报告与市场接口 |
+| `api-v1.md` | `f6d8040177e09617734a7999b1cbc32e98e725f486c8adfa55c8053e4e3c21f5` | 任务、报告与市场接口 |
 | `core-wireframes.md` | `909c528c80164f4f075094cc117e5a5a9f25fbcad55ce1884378688b435ef000` | 十屏线框结构说明 |
 | `crash-boundaries.md` | `721499392d166bf7a5b9b163bece89fdd8509c17f29fa60765067c9702f5379b` | 崩溃边界 B1–B6 |
-| `error-codes-v1.md` | `5afc486e8ef6c8e210d89971649891feed3074ea1c5b7a286d82c4b6933e6b81` | 错误码与用户动作 |
+| `error-codes-v1.md` | `316272a4e0dece2a3cd3be06dd7be2f233fae014403e39e7da36f35ac008ca17` | 错误码与用户动作 |
 | `idempotency-conflicts.md` | `ca0a1e0bb69d059289408bed780e6849da9b27cf8dc98a26525795df2a6bd371` | 幂等五步与冲突裁决 |
 | `interaction-checklist.md` | `e536ad0817ced335aa79cb30f71f146e3eeef973950fef0fc84cce7b3eb60350` | 交互走查清单 |
 | `job-state-machine.md` | `99ac0b9f92b86e94653074a29e7d29566285a42af679803dfa4f25cb6e6737c4` | 九状态、T01–T20、I01–I11 |
@@ -57,6 +57,9 @@
 | `routes.md` | `195c9f5077f5c73ad53fec39f7bdb8e443b1ef259936e0e096808e0189eb58a6` | 九条路由规则 |
 | `semantic-dictionary.md` | `72cfa0a5bad64e1d76e6178ecac7465677f027ade08719e9e8d0fa84e9ae4aab` | 状态文案与禁用词 |
 | `sse-events-v1.md` | `ecfb67191b9ffc339fff7e7cf31c51394320c9fa39302c3fbb7caf4614725cd7` | SSE 六类事件与序号规则 |
+
+变更记录（2026-11-07）：`api-v1.md` 新增可选字段 `write_mode`，`error-codes-v1.md` 新增错误码 `write_mode_legacy`（409）。两者均属第 1 节允许的「新增可选字段」「新增错误码」，不升版本；同行更新 `META-01` 断言为「八键必在 + `write_mode` 可选」。理由见 `docs/upgrade/reviews/2026-11-07_P6-01写入者契约变更.md`。
+
 
 ## 3. 冻结依据
 

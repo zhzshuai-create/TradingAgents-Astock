@@ -605,6 +605,20 @@ describe("WEB-06 nullable fields", () => {
     expect(options.llm_profiles[0].label).toBe("DeepSeek 默认");
   });
 
+  it("carries write_mode when present and leaves it absent otherwise", async () => {
+    server.use(
+      http.get(`${API}/meta/options`, () => HttpResponse.json(META)),
+    );
+    expect((await getMetaOptions()).write_mode).toBeUndefined();
+
+    server.use(
+      http.get(`${API}/meta/options`, () =>
+        HttpResponse.json({ ...META, write_mode: "legacy" }),
+      ),
+    );
+    expect((await getMetaOptions()).write_mode).toBe("legacy");
+  });
+
   it("tolerates an error response without details", async () => {
     server.use(
       http.get(`${API}/jobs`, () =>

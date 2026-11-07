@@ -38,7 +38,7 @@ BACKEND = ROOT / "backend"
 FIXTURES = ROOT / "tests" / "fixtures" / "upgrade"
 CLOCK = datetime(2026, 10, 30, 9, 0, tzinfo=CST)
 REPORT_ID = "55555555-4b5a-6978-8765-4321fedcba98"
-SERVER_CONFIG = ServerConfig()
+SERVER_CONFIG = ServerConfig(write_mode="next")
 
 
 def _fixture(name: str) -> dict:
