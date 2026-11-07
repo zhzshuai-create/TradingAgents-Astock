@@ -222,7 +222,13 @@ export function ReportReaderPage() {
             ) : null}
             <div className={styles.identity}>
               <h1 className={styles.title}>
-                {meta.ticker_name ?? meta.ticker_code}
+                <Link
+                  className={styles.titleLink}
+                  to={`/stocks/${meta.ticker_code}`}
+                  data-testid="reader-stock-link"
+                >
+                  {meta.ticker_name ?? meta.ticker_code}
+                </Link>
               </h1>
               {meta.ticker_name === null ? null : (
                 <span className={styles.code}>{meta.ticker_code}</span>

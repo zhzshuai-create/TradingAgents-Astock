@@ -1,4 +1,4 @@
-"""P4-06/P4-07 W08 market dashboard E2E.
+"""P4-06/P4-07/P4-11 W08 market dashboard E2E.
 
 Runs the built frontend on ``vite preview`` with stubbed read APIs:
 
@@ -11,8 +11,11 @@ industry -> constituents -> stock -> back with industry, topN, date, drawer
 and scroll restored. Mobile 390x844 and 360x800 (P4-07) covers W08M-01..04:
 index strip scrolls inside its container, cards replace tables, the
 full-screen board drills and restores, and touch targets reach 44px without
-page-level horizontal overflow. Prints one JSON line; desktop screenshots go
-to ui_shots_p4/P4-06/, mobile ones to ui_shots_p4/P4-07/.
+page-level horizontal overflow. P4-11 adds R-15: the visible 10s overview
+poll, the 60s floor while hidden, an immediate refetch on returning to the
+foreground, a 500ms debounced manual refresh that issues one request group,
+and timers cleared when the page is left. Prints one JSON line; desktop
+screenshots go to ui_shots_p4/P4-06/, mobile ones to ui_shots_p4/P4-07/.
 """
 
 from __future__ import annotations
@@ -510,6 +513,43 @@ def wait_for_request(
     return False
 
 
+def count_requests(requests: list[tuple[str, str]], needle: str) -> int:
+    return sum(1 for _method, url in requests if needle in url)
+
+
+def wait_for_count(
+    page: Page,
+    requests: list[tuple[str, str]],
+    needle: str,
+    minimum: int,
+    timeout: float,
+) -> bool:
+    """Pump the sync Playwright event loop while polling the request log."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if count_requests(requests, needle) >= minimum:
+            return True
+        page.wait_for_timeout(50)
+    return count_requests(requests, needle) >= minimum
+
+
+def set_visibility(page: Page, state: str) -> None:
+    page.evaluate(
+        """(state) => {
+          Object.defineProperty(document, 'visibilityState', {
+            configurable: true,
+            get: () => state,
+          });
+          Object.defineProperty(document, 'hidden', {
+            configurable: true,
+            get: () => state === 'hidden',
+          });
+          document.dispatchEvent(new Event('visibilitychange'));
+        }""",
+        state,
+    )
+
+
 def main_flow(browser: Browser, base: str) -> None:
     context = browser.new_context(
         viewport={"width": 1440, "height": 900},
@@ -787,6 +827,100 @@ def states_flow(browser: Browser, base: str) -> None:
     context.close()
 
 
+def refresh_flow(browser: Browser, base: str) -> None:
+    context = browser.new_context(
+        viewport={"width": 1440, "height": 900},
+        timezone_id="Asia/Shanghai",
+    )
+    stub_api(context)
+    page = context.new_page()
+    errors, requests = watch(page)
+    overview = "/api/v1/market/overview"
+    blocks = {
+        overview: "overview",
+        "/api/v1/market/industries?": "industries",
+        "/api/v1/market/strong-stocks": "strong stocks",
+        "/api/v1/market/newsflash": "newsflash",
+    }
+
+    page.goto(f"{base}/market")
+    page.get_by_test_id("industry-table").wait_for(state="visible")
+
+    # R-15: while visible the overview polls on its contract interval (10s).
+    before = count_requests(requests, overview)
+    started = time.monotonic()
+    polled = wait_for_count(page, requests, overview, before + 1, timeout=15.0)
+    elapsed = time.monotonic() - started
+    check(
+        polled and 8.5 <= elapsed <= 15.0,
+        f"R-15 visible tab polls overview on the 10s interval ({elapsed:.1f}s)",
+    )
+
+    # R-15: hidden tabs fall back to the 60s floor, so 12s stays quiet.
+    before = count_requests(requests, overview)
+    set_visibility(page, "hidden")
+    page.wait_for_timeout(12_000)
+    hidden_delta = count_requests(requests, overview) - before
+    check(
+        hidden_delta == 0,
+        f"R-15 hidden tab drops the 10s poll to the 60s floor ({hidden_delta} reads)",
+    )
+
+    # R-15: returning to the foreground refetches at once, not on the next tick.
+    before = count_requests(requests, overview)
+    set_visibility(page, "visible")
+    check(
+        wait_for_count(page, requests, overview, before + 1, timeout=3.0),
+        "R-15 returning to the foreground refetches immediately",
+    )
+
+    # R-15: a click burst is one 500ms debounced request group.
+    before = {needle: count_requests(requests, needle) for needle in blocks}
+    for _ in range(3):
+        page.get_by_test_id("market-refresh").click()
+    page.wait_for_timeout(250)
+    early = {
+        name: count_requests(requests, needle) - before[needle]
+        for needle, name in blocks.items()
+    }
+    check(
+        all(delta == 0 for delta in early.values()),
+        f"R-15 refresh holds the burst inside the debounce window ({early})",
+    )
+    wait_for_count(page, requests, overview, before[overview] + 1, timeout=3.0)
+    page.wait_for_timeout(700)
+    after = {
+        name: count_requests(requests, needle) - before[needle]
+        for needle, name in blocks.items()
+    }
+    check(
+        all(delta == 1 for delta in after.values()),
+        f"R-15 one refresh group reads every block once ({after})",
+    )
+
+    # R-15: leaving the page clears the interval instead of polling in the
+    # background.
+    page.locator('aside[aria-label="主导航"]').get_by_role(
+        "link", name="任务", exact=True
+    ).click()
+    page.wait_for_url(lambda url: url.rstrip("/").endswith("/jobs"))
+    page.get_by_test_id("page-jobs").wait_for(state="visible")
+    before = count_requests(requests, overview)
+    page.wait_for_timeout(12_000)
+    left_delta = count_requests(requests, overview) - before
+    check(
+        left_delta == 0,
+        f"R-15 leaving the market page clears its poll timer ({left_delta} reads)",
+    )
+
+    check(
+        all(method == "GET" for method, _ in requests),
+        "R-15 refresh and polling stay read-only",
+    )
+    check(not errors, f"R-15 console/page errors: {errors}")
+    context.close()
+
+
 def touch_violations(page: Page, selectors: list[str]) -> list[str]:
     script = """
     (selectors) => selectors.flatMap((selector) =>
@@ -1038,12 +1172,13 @@ def main() -> int:
             browser = playwright.chromium.launch()
             main_flow(browser, base)
             states_flow(browser, base)
+            refresh_flow(browser, base)
             mobile_flow(browser, base, 390, 844, "390")
             mobile_flow(browser, base, 360, 800, "360")
             browser.close()
 
     result = {
-        "ticket": "P4-07",
+        "ticket": "P4-11",
         "checks": checks,
         "failures": failures,
         "screenshots": [

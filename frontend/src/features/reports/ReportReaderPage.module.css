@@ -37,6 +37,16 @@
   overflow-wrap: anywhere;
 }
 
+.titleLink {
+  color: inherit;
+  text-decoration: none;
+}
+
+.titleLink:hover {
+  color: var(--color-accent);
+  text-decoration: underline;
+}
+
 .code {
   color: var(--color-text-muted);
   font-family: var(--font-family-mono);

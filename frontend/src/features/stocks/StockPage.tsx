@@ -4,6 +4,12 @@ import { useSearchParams } from "react-router-dom";
 
 import { ApiError } from "../../api/errors";
 import { stockSnapshotQuery } from "../../lib/query";
+import { useDebouncedRefresh } from "../../lib/useDebouncedRefresh";
+import {
+  REFRESH_INTERVALS,
+  usePolling,
+  useVisibleRefetch,
+} from "../../lib/useVisibleRefetch";
 import { InvalidTickerPage } from "../../pages/InvalidTickerPage";
 import { LauncherDialog } from "../launcher/LauncherDialog";
 import { envelopeState } from "../market/state";
@@ -35,6 +41,9 @@ export function isTickerRejected(error: unknown): boolean {
   );
 }
 
+/** Stable key prefix for polling and manual refresh (P4-11). */
+const STOCK_SCOPE = ["stock"] as const;
+
 export interface StockPageProps {
   ticker: string;
 }
@@ -43,7 +52,12 @@ export function StockPage({ ticker }: StockPageProps) {
   const [params, setParams] = useSearchParams();
   const state = parseStockSearch(params.toString());
   const isMobile = useIsMobile();
-  const snapshot = useQuery(stockSnapshotQuery(ticker));
+  const { refreshNow } = useVisibleRefetch(STOCK_SCOPE);
+  const onRefresh = useDebouncedRefresh(refreshNow);
+  const snapshot = useQuery({
+    ...stockSnapshotQuery(ticker),
+    ...usePolling(REFRESH_INTERVALS.stock.snapshot),
+  });
   const snapshotData = snapshot.data?.data ?? null;
   const quote = snapshotData?.quote ?? null;
   const actions = useStockActions(ticker, quote?.name ?? null);
@@ -90,6 +104,7 @@ export function StockPage({ ticker }: StockPageProps) {
         failedBlocks={snapshot.data?.failed_blocks ?? []}
         staleReason={snapshot.data?.stale_reason ?? null}
         onRetry={() => void snapshot.refetch()}
+        onRefresh={onRefresh}
         primary={actions.primary}
         mobile={isMobile}
       />

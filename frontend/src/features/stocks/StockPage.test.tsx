@@ -1,5 +1,12 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import {
@@ -8,7 +15,7 @@ import {
   useLocation,
   useParams,
 } from "react-router-dom";
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import type {
   FundFlowData,
@@ -321,7 +328,7 @@ function renderStock(entry = "/stocks/600000") {
       <RouterProvider router={router} />
     </QueryClientProvider>,
   );
-  return router;
+  return { client, router };
 }
 
 describe("W07-01 stock header", () => {
@@ -545,7 +552,7 @@ describe("W07-08 deep links", () => {
 
   it("falls back to defaults without rewriting the path", async () => {
     serveStock();
-    const router = renderStock(
+    const { router } = renderStock(
       "/stocks/600000?tab=bad&period=bad&date=2026-13-01",
     );
     await screen.findByTestId("stock-valuation");
@@ -593,5 +600,136 @@ describe("W07-10 partial snapshot", () => {
     );
     expect(screen.getByTestId("partial-blocks")).toHaveTextContent("估值");
     expect(screen.getByTestId("stock-price")).toHaveTextContent("10.52");
+  });
+});
+
+function snapshotCalls(): number {
+  return requests.filter(
+    (url) => url.pathname === "/api/v1/stocks/600000/snapshot",
+  ).length;
+}
+
+function fundFlowCalls(): number {
+  return requests.filter(
+    (url) => url.pathname === "/api/v1/stocks/600000/fund-flow",
+  ).length;
+}
+
+function setVisibility(value: "visible" | "hidden") {
+  act(() => {
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      get: () => value,
+    });
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+}
+
+afterEach(() => {
+  delete (document as { visibilityState?: unknown }).visibilityState;
+});
+
+describe("REF-01 stock polling", () => {
+  it("polls the snapshot and fund flow at 60 s and the K line at 5 min", async () => {
+    serveStock();
+    const { client } = renderStock();
+    await screen.findByTestId("stock-valuation");
+    const intervalOf = (queryKey: unknown[]) =>
+      client
+        .getQueryCache()
+        .find({ queryKey })?.observers[0]?.options.refetchInterval;
+
+    expect(intervalOf(["stock", "snapshot", "600000"])).toBe(60_000);
+    expect(intervalOf(["stock", "fundFlow", "600000"])).toBe(60_000);
+
+    fireEvent.click(screen.getByRole("tab", { name: "K 线" }));
+    await waitFor(() =>
+      expect(intervalOf(["stock", "kline", "600000", "day", 120])).toBe(
+        300_000,
+      ),
+    );
+  });
+});
+
+describe("REF-02 stock hidden tab", () => {
+  it("refetches the workspace at once when the tab returns", async () => {
+    serveStock();
+    renderStock();
+    await screen.findByTestId("stock-valuation");
+    const before = snapshotCalls();
+    const flows = fundFlowCalls();
+
+    setVisibility("hidden");
+    expect(snapshotCalls()).toBe(before);
+
+    setVisibility("visible");
+    await waitFor(() => expect(snapshotCalls()).toBe(before + 1));
+    await waitFor(() => expect(fundFlowCalls()).toBe(flows + 1));
+  });
+});
+
+describe("REF-03 stock manual refresh", () => {
+  it("sends one refresh group for a burst of clicks", async () => {
+    serveStock();
+    renderStock();
+    await screen.findByTestId("stock-valuation");
+    const before = snapshotCalls();
+    const flows = fundFlowCalls();
+
+    const button = screen.getByTestId("stock-refresh");
+    fireEvent.click(button);
+    fireEvent.click(button);
+    fireEvent.click(button);
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(snapshotCalls()).toBe(before);
+
+    await waitFor(() => expect(snapshotCalls()).toBe(before + 1), {
+      timeout: 2000,
+    });
+    expect(fundFlowCalls()).toBe(flows + 1);
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    expect(snapshotCalls()).toBe(before + 1);
+  });
+});
+
+describe("REF-04 stock leaving the page", () => {
+  it("clears the poll timer when the workspace unmounts", async () => {
+    serveStock();
+    const { router } = renderStock();
+    await screen.findByTestId("stock-valuation");
+    await act(async () => {
+      await router.navigate("/jobs");
+    });
+    expect(screen.queryByTestId("page-stock")).toBeNull();
+    const settled = snapshotCalls();
+
+    vi.useFakeTimers();
+    try {
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(70_000);
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+    expect(snapshotCalls()).toBe(settled);
+  });
+});
+
+describe("CTX-03 stock to jobs", () => {
+  it("links the workspace into reports and the ticker-filtered job list", async () => {
+    serveStock();
+    renderStock();
+    await screen.findByTestId("stock-header");
+    expect(
+      screen.getByRole("link", { name: "查看最新报告" }),
+    ).toHaveAttribute("href", "/reports?ticker=600000");
+    const jobs = screen.getByRole("link", { name: "查看该股票任务" });
+    expect(jobs).toHaveAttribute("href", "/jobs?ticker=600000");
+    fireEvent.click(jobs);
+    await waitFor(() =>
+      expect(screen.getByTestId("location")).toHaveTextContent(
+        "/jobs?ticker=600000",
+      ),
+    );
   });
 });

@@ -1,4 +1,4 @@
-"""P4-10 W07 stock workspace mobile E2E.
+"""P4-10/P4-11 W07 stock workspace E2E.
 
 Runs the built frontend on ``vite preview`` with stubbed read APIs:
 
@@ -10,9 +10,12 @@ tickers) and R-13 (stock <-> reports/jobs context and the active job
 button), plus W07-01..W07-10. Mobile 390x844 and 360x800 (P4-10) covers
 W07M-01..04: tabs scroll inside their strip at 44px, the analyze button
 docks above the bottom nav, charts stay in their own scroll containers
-with period buttons, and no viewport gains a horizontal scrollbar.
-Desktop screenshots go to ui_shots_p4/P4-09/, mobile ones to
-ui_shots_p4/P4-10/.
+with period buttons, and no viewport gains a horizontal scrollbar. P4-11
+adds R-15 on the workspace: a hidden tab stays quiet, returning to the
+foreground refreshes the quote at once, the manual refresh coalesces a
+click burst into one snapshot + fund-flow group, and leaving the page
+clears the timers. Desktop screenshots go to ui_shots_p4/P4-09/, mobile
+ones to ui_shots_p4/P4-10/.
 """
 
 from __future__ import annotations
@@ -575,6 +578,42 @@ def wait_for_request(
     return False
 
 
+def count_requests(requests: list[tuple[str, str]], needle: str) -> int:
+    return sum(1 for _method, url in requests if needle in url)
+
+
+def wait_for_count(
+    page: Page,
+    requests: list[tuple[str, str]],
+    needle: str,
+    minimum: int,
+    timeout: float,
+) -> bool:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if count_requests(requests, needle) >= minimum:
+            return True
+        page.wait_for_timeout(50)
+    return count_requests(requests, needle) >= minimum
+
+
+def set_visibility(page: Page, state: str) -> None:
+    page.evaluate(
+        """(state) => {
+          Object.defineProperty(document, 'visibilityState', {
+            configurable: true,
+            get: () => state,
+          });
+          Object.defineProperty(document, 'hidden', {
+            configurable: true,
+            get: () => state === 'hidden',
+          });
+          document.dispatchEvent(new Event('visibilitychange'));
+        }""",
+        state,
+    )
+
+
 def main_flow(browser: Browser, base: str) -> None:
     context = browser.new_context(
         viewport={"width": 1440, "height": 900},
@@ -915,6 +954,87 @@ def main_flow(browser: Browser, base: str) -> None:
     context.close()
 
 
+def refresh_flow(browser: Browser, base: str) -> None:
+    context = browser.new_context(
+        viewport={"width": 1440, "height": 900},
+        timezone_id="Asia/Shanghai",
+    )
+    stub_api(context)
+    page = context.new_page()
+    errors, requests = watch(page)
+    snapshot = f"/api/v1/stocks/{TICKER}/snapshot"
+    fund_flow = f"/api/v1/stocks/{TICKER}/fund-flow"
+    blocks = {snapshot: "snapshot", fund_flow: "fund flow"}
+
+    page.goto(f"{base}/stocks/{TICKER}")
+    page.get_by_test_id("stock-price").wait_for(state="visible")
+    page.get_by_test_id("fund-flow-table").wait_for(state="visible")
+
+    # R-15: a hidden tab stays quiet (the quote's own interval is already
+    # at the 60s floor, so 12s must see nothing).
+    before = count_requests(requests, snapshot)
+    set_visibility(page, "hidden")
+    page.wait_for_timeout(12_000)
+    hidden_delta = count_requests(requests, snapshot) - before
+    check(
+        hidden_delta == 0,
+        f"R-15 hidden stock workspace reads nothing inside 12s ({hidden_delta})",
+    )
+
+    # R-15: returning to the foreground refreshes the quote at once.
+    before = count_requests(requests, snapshot)
+    set_visibility(page, "visible")
+    check(
+        wait_for_count(page, requests, snapshot, before + 1, timeout=3.0),
+        "R-15 returning to the foreground refreshes the quote immediately",
+    )
+
+    # R-15: a click burst is one 500ms debounced snapshot + fund-flow group.
+    before = {needle: count_requests(requests, needle) for needle in blocks}
+    for _ in range(3):
+        page.get_by_test_id("stock-refresh").click()
+    page.wait_for_timeout(250)
+    early = {
+        name: count_requests(requests, needle) - before[needle]
+        for needle, name in blocks.items()
+    }
+    check(
+        all(delta == 0 for delta in early.values()),
+        f"R-15 stock refresh holds the burst inside the debounce window ({early})",
+    )
+    wait_for_count(page, requests, snapshot, before[snapshot] + 1, timeout=3.0)
+    page.wait_for_timeout(700)
+    after = {
+        name: count_requests(requests, needle) - before[needle]
+        for needle, name in blocks.items()
+    }
+    check(
+        all(delta == 1 for delta in after.values()),
+        f"R-15 one stock refresh reads snapshot and fund flow once ({after})",
+    )
+
+    # R-15: leaving the workspace clears its timers.
+    page.locator('aside[aria-label="主导航"]').get_by_role(
+        "link", name="任务", exact=True
+    ).click()
+    page.wait_for_url(lambda url: url.rstrip("/").endswith("/jobs"))
+    page.get_by_test_id("page-jobs").wait_for(state="visible")
+    before = count_requests(requests, snapshot)
+    page.wait_for_timeout(12_000)
+    left_delta = count_requests(requests, snapshot) - before
+    check(
+        left_delta == 0,
+        f"R-15 leaving the stock page clears its poll timer ({left_delta} reads)",
+    )
+
+    check(
+        all(method == "GET" for method, _ in requests),
+        "R-15 stock refresh and polling stay read-only",
+    )
+    check(not errors, f"R-15 stock console/page errors: {errors}")
+    context.close()
+
+
 def invalid_flow(browser: Browser, base: str) -> None:
     """A 6-digit code missing from the name table: the app handles a real 400."""
     context = browser.new_context(
@@ -1231,8 +1351,11 @@ def mobile_flow(
     )
     try:
         page.wait_for_function(
-            "document.querySelector('[data-testid=\"kline-period-week\"]')"
-            ".getAttribute('aria-pressed') === 'true'",
+            "() => {"
+            " const node = document.querySelector("
+            "'[data-testid=\"kline-period-week\"]');"
+            " return node !== null"
+            " && node.getAttribute('aria-pressed') === 'true'; }",
             timeout=3000,
         )
     except Exception:  # noqa: BLE001 - reported as a failed check below
@@ -1301,6 +1424,7 @@ def main() -> int:
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch()
             main_flow(browser, base)
+            refresh_flow(browser, base)
             invalid_flow(browser, base)
             partial_flow(browser, base)
             states_flow(browser, base)
@@ -1311,7 +1435,7 @@ def main() -> int:
             browser.close()
 
     result = {
-        "ticket": "P4-10",
+        "ticket": "P4-11",
         "checks": checks,
         "failures": failures,
         "screenshots": [

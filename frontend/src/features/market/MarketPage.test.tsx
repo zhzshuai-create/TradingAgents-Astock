@@ -1,5 +1,12 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 import {
@@ -7,7 +14,7 @@ import {
   RouterProvider,
   useLocation,
 } from "react-router-dom";
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import type {
   MarketConstituentsData,
@@ -175,12 +182,38 @@ function renderMarket(entry = "/market") {
       <RouterProvider router={router} />
     </QueryClientProvider>,
   );
-  return router;
+  return { client, router };
 }
 
 function section(name: string): HTMLElement {
   return screen.getByRole("region", { name });
 }
+
+function overviewCalls(): number {
+  return requests.filter(
+    (url) => url.pathname === "/api/v1/market/overview",
+  ).length;
+}
+
+function industriesCalls(): number {
+  return requests.filter(
+    (url) => url.pathname === "/api/v1/market/industries",
+  ).length;
+}
+
+function setVisibility(value: "visible" | "hidden") {
+  act(() => {
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      get: () => value,
+    });
+    document.dispatchEvent(new Event("visibilitychange"));
+  });
+}
+
+afterEach(() => {
+  delete (document as { visibilityState?: unknown }).visibilityState;
+});
 
 describe("W08-01 session bar and index cards", () => {
   it("renders the session, source, update time and three indices", async () => {
@@ -339,7 +372,7 @@ describe("W08-06 states", () => {
 describe("W08-07 query state", () => {
   it("falls back on illegal values and writes valid controls to the query", async () => {
     serveMarket();
-    const router = renderMarket(
+    const { router } = renderMarket(
       "/market?top=999&date=2026-13-01&board=bad&theme=none",
     );
     await screen.findByTestId("industry-table");
@@ -359,5 +392,123 @@ describe("W08-07 query state", () => {
       expect(router.state.location.search).toContain("date=2026-11-04"),
     );
     expect(router.state.location.pathname).toBe("/market");
+  });
+});
+describe("REF-01 visible polling", () => {
+  it("polls every block at its contract threshold", async () => {
+    serveMarket();
+    const { client } = renderMarket();
+    await screen.findByTestId("industry-table");
+    const cache = client.getQueryCache();
+    const intervalOf = (queryKey: unknown[]) =>
+      cache.find({ queryKey })?.observers[0]?.options.refetchInterval;
+
+    expect(intervalOf(["market", "overview"])).toBe(10_000);
+    expect(intervalOf(["market", "industries", 20])).toBe(300_000);
+    expect(intervalOf(["market", "strong", null])).toBe(3_600_000);
+    expect(intervalOf(["market", "newsflash", 30])).toBe(120_000);
+  });
+});
+
+describe("REF-02 hidden tab", () => {
+  it("drops to one minute and refetches at once on return", async () => {
+    serveMarket();
+    const { client } = renderMarket();
+    await screen.findByTestId("industry-table");
+    const overviewKey = ["market", "overview"];
+    const intervalOf = () =>
+      client
+        .getQueryCache()
+        .find({ queryKey: overviewKey })?.observers[0]?.options
+        .refetchInterval;
+    expect(intervalOf()).toBe(10_000);
+
+    setVisibility("hidden");
+    await waitFor(() => expect(intervalOf()).toBe(60_000));
+    expect(overviewCalls()).toBe(1);
+
+    const before = overviewCalls();
+    setVisibility("visible");
+    await waitFor(() => expect(intervalOf()).toBe(10_000));
+    await waitFor(() => expect(overviewCalls()).toBe(before + 1));
+  });
+});
+
+describe("REF-03 manual refresh", () => {
+  it("sends exactly one group for a burst of clicks", async () => {
+    serveMarket();
+    renderMarket();
+    await screen.findByTestId("industry-table");
+    const overviewBefore = overviewCalls();
+    const industriesBefore = industriesCalls();
+
+    const button = screen.getByTestId("market-refresh");
+    fireEvent.click(button);
+    fireEvent.click(button);
+    fireEvent.click(button);
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(overviewCalls()).toBe(overviewBefore);
+
+    await waitFor(() => expect(overviewCalls()).toBe(overviewBefore + 1), {
+      timeout: 2000,
+    });
+    expect(industriesCalls()).toBe(industriesBefore + 1);
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    expect(overviewCalls()).toBe(overviewBefore + 1);
+    expect(industriesCalls()).toBe(industriesBefore + 1);
+  });
+});
+
+describe("REF-04 leaving the page", () => {
+  it("clears the poll timer when the route unmounts", async () => {
+    serveMarket();
+    const { router } = renderMarket();
+    await screen.findByTestId("industry-table");
+    await act(async () => {
+      await router.navigate("/stocks/600000");
+    });
+    expect(screen.queryByTestId("page-market")).toBeNull();
+    const settled = overviewCalls();
+
+    vi.useFakeTimers();
+    try {
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(70_000);
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+    expect(overviewCalls()).toBe(settled);
+  });
+});
+
+describe("CTX-01 market to stock and back", () => {
+  it("restores industry, topN and date from the query", async () => {
+    serveMarket();
+    const { router } = renderMarket("/market?top=10&date=2026-11-04");
+    await screen.findByTestId("industry-table");
+    fireEvent.click(screen.getByRole("button", { name: "半导体" }));
+    const drawer = await screen.findByRole("dialog", { name: /半导体/ });
+    fireEvent.click(
+      await within(drawer).findByRole("link", { name: /浦发银行/ }),
+    );
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe("/stocks/600000"),
+    );
+    expect(router.state.location.search).toBe("?tab=valuation");
+
+    await act(async () => {
+      await router.navigate(-1);
+    });
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe("/market"),
+    );
+    const search = router.state.location.search;
+    expect(search).toContain("top=10");
+    expect(search).toContain("date=2026-11-04");
+    expect(search).toContain("board=BK0475");
+    expect(
+      await screen.findByRole("dialog", { name: /半导体/ }),
+    ).toBeInTheDocument();
   });
 });

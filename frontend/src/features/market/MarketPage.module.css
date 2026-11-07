@@ -13,6 +13,15 @@
   min-width: 0;
 }
 
+.headRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-4);
+  min-width: 0;
+}
+
 .title {
   color: var(--color-text-primary);
   font-size: var(--font-size-3xl);

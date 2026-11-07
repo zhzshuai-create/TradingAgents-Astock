@@ -6,6 +6,7 @@ import type {
   StockSnapshotData,
 } from "../../api/types";
 import { stockFundFlowQuery } from "../../lib/query";
+import { REFRESH_INTERVALS, usePolling } from "../../lib/useVisibleRefetch";
 import { DataState } from "../../ui";
 import type { DataStateValue } from "../market/copy";
 import { envelopeState } from "../market/state";
@@ -112,7 +113,10 @@ const FLOW_COLUMNS: Array<{ key: keyof FundFlowData["items"][number]; label: str
   ];
 
 function FundFlowBlock({ ticker }: { ticker: string }) {
-  const query = useQuery(stockFundFlowQuery(ticker));
+  const query = useQuery({
+    ...stockFundFlowQuery(ticker),
+    ...usePolling(REFRESH_INTERVALS.stock.fundFlow),
+  });
   const state = envelopeState(query);
   const items = query.data?.data?.items ?? [];
 

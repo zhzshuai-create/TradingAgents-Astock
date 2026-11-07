@@ -50,6 +50,17 @@
   background: var(--color-bg-inset);
 }
 
+.ticker {
+  display: inline-block;
+  color: inherit;
+  text-decoration: none;
+}
+
+.ticker:hover .name {
+  color: var(--color-accent);
+  text-decoration: underline;
+}
+
 .name {
   display: block;
   color: var(--color-text-primary);

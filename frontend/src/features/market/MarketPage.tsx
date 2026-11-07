@@ -8,7 +8,13 @@ import {
   marketOverviewQuery,
   marketStrongStocksQuery,
 } from "../../lib/query";
-import { DataState } from "../../ui";
+import { useDebouncedRefresh } from "../../lib/useDebouncedRefresh";
+import {
+  REFRESH_INTERVALS,
+  usePolling,
+  useVisibleRefetch,
+} from "../../lib/useVisibleRefetch";
+import { Button, DataState } from "../../ui";
 import { ConstituentDrawer } from "./ConstituentDrawer";
 import { EMPTY_COPY } from "./copy";
 import { IndexCards } from "./IndexCards";
@@ -34,6 +40,9 @@ import styles from "./MarketPage.module.css";
 const SCROLL_PREFIX = "ta:market-scroll:";
 const SCROLL_MARKER = "taMarketScroll";
 
+/** Stable key prefix for polling and manual refresh (P4-11). */
+const MARKET_SCOPE = ["market"] as const;
+
 function scrollStorageKey(pathname: string, search: string): string {
   return `${SCROLL_PREFIX}${pathname}${search}`;
 }
@@ -51,10 +60,25 @@ export function MarketPage() {
   const state = parseMarketSearch(params.toString());
   const isMobile = useIsMobile();
 
-  const overview = useQuery(marketOverviewQuery());
-  const industries = useQuery(marketIndustriesQuery(state.top));
-  const strong = useQuery(marketStrongStocksQuery(state.date || null));
-  const news = useQuery(marketNewsflashQuery(NEWSFLASH_LIMIT));
+  const { refreshNow } = useVisibleRefetch(MARKET_SCOPE);
+  const onRefresh = useDebouncedRefresh(refreshNow);
+
+  const overview = useQuery({
+    ...marketOverviewQuery(),
+    ...usePolling(REFRESH_INTERVALS.market.overview),
+  });
+  const industries = useQuery({
+    ...marketIndustriesQuery(state.top),
+    ...usePolling(REFRESH_INTERVALS.market.industries),
+  });
+  const strong = useQuery({
+    ...marketStrongStocksQuery(state.date || null),
+    ...usePolling(REFRESH_INTERVALS.market.strongStocks),
+  });
+  const news = useQuery({
+    ...marketNewsflashQuery(NEWSFLASH_LIMIT),
+    ...usePolling(REFRESH_INTERVALS.market.newsflash),
+  });
 
   const overviewData = overview.data?.data;
   const industriesData = industries.data?.data;
@@ -144,10 +168,22 @@ export function MarketPage() {
   return (
     <div className={styles.page} data-testid="page-market">
       <header className={styles.pageHead}>
-        <h1 className={styles.title}>市场</h1>
-        <p className={styles.subtitle}>
-          指数、行业与强势股的只读摘要，可钻取到个股工作区。
-        </p>
+        <div className={styles.headRow}>
+          <div>
+            <h1 className={styles.title}>市场</h1>
+            <p className={styles.subtitle}>
+              指数、行业与强势股的只读摘要，可钻取到个股工作区。
+            </p>
+          </div>
+          <Button
+            variant="secondary"
+            size="sm"
+            data-testid="market-refresh"
+            onClick={onRefresh}
+          >
+            刷新
+          </Button>
+        </div>
       </header>
 
       <section className={styles.section} aria-labelledby="market-overview">

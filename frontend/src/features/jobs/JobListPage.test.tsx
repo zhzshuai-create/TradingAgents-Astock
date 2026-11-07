@@ -529,3 +529,13 @@ describe("WEB-10 job list", () => {
     expect(router.state.location.search).toContain("cursor=c1");
   });
 });
+
+describe("CTX-03 job list ticker link", () => {
+  it("links every row ticker to the stock workspace", async () => {
+    serveJobs(() => ({ body: page([job()]) }));
+    renderPage("/jobs");
+    const link = await screen.findByTestId("job-ticker-link");
+    expect(link).toHaveAttribute("href", "/stocks/000629");
+    expect(link).toHaveTextContent("钒钛股份");
+  });
+});

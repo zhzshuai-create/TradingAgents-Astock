@@ -22,10 +22,18 @@ function JobRow({ job }: { job: JobSummary }) {
   return (
     <tr data-testid="job-row">
       <td>
-        <span className={styles.name}>{job.ticker_name ?? job.ticker_code}</span>
-        {job.ticker_name ? (
-          <span className={styles.code}>{job.ticker_code}</span>
-        ) : null}
+        <Link
+          className={styles.ticker}
+          to={`/stocks/${job.ticker_code}`}
+          data-testid="job-ticker-link"
+        >
+          <span className={styles.name}>
+            {job.ticker_name ?? job.ticker_code}
+          </span>
+          {job.ticker_name ? (
+            <span className={styles.code}>{job.ticker_code}</span>
+          ) : null}
+        </Link>
       </td>
       <td>
         <time dateTime={job.analysis_date}>{job.analysis_date}</time>

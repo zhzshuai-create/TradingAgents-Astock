@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { stockIntradayQuery } from "../../lib/query";
+import { REFRESH_INTERVALS, usePolling } from "../../lib/useVisibleRefetch";
 import { DataState } from "../../ui";
 import { IntradayChart } from "../charts/IntradayChart";
 import { EMPTY_COPY } from "../market/copy";
@@ -14,7 +15,14 @@ export interface IntradayTabProps {
 }
 
 export function IntradayTab({ ticker, date, onDateChange }: IntradayTabProps) {
-  const query = useQuery(stockIntradayQuery(ticker, date === "" ? null : date));
+  const query = useQuery({
+    ...stockIntradayQuery(ticker, date === "" ? null : date),
+    ...usePolling(
+      date === ""
+        ? REFRESH_INTERVALS.stock.intradayToday
+        : REFRESH_INTERVALS.stock.intradayHistory,
+    ),
+  });
   const state = envelopeState(query);
   const data = query.data?.data ?? null;
 

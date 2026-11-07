@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { stockNewsQuery } from "../../lib/query";
+import { REFRESH_INTERVALS, usePolling } from "../../lib/useVisibleRefetch";
 import { DataState } from "../../ui";
 import { sourceLabel } from "../market/copy";
 import { envelopeState } from "../market/state";
@@ -34,7 +35,10 @@ export function safeHref(raw: string): string | null {
 }
 
 export function NewsTab({ ticker }: { ticker: string }) {
-  const query = useQuery(stockNewsQuery(ticker, STOCK_NEWS_LIMIT));
+  const query = useQuery({
+    ...stockNewsQuery(ticker, STOCK_NEWS_LIMIT),
+    ...usePolling(REFRESH_INTERVALS.stock.news),
+  });
   const state = envelopeState(query);
   const items = query.data?.data?.items ?? [];
 

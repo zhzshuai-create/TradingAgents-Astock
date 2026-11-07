@@ -38,6 +38,7 @@ export interface StockHeaderProps {
   failedBlocks: string[];
   staleReason: StaleReason | null;
   onRetry: () => void;
+  onRefresh: () => void;
   primary: StockPrimaryAction;
   /** Below 767px the primary action moves into the fixed bottom bar. */
   mobile?: boolean;
@@ -83,6 +84,7 @@ export function StockHeader({
   failedBlocks,
   staleReason,
   onRetry,
+  onRefresh,
   primary,
   mobile = false,
 }: StockHeaderProps) {
@@ -106,6 +108,14 @@ export function StockHeader({
           </p>
         </div>
         <div className={styles.headerActions}>
+          <Button
+            variant="ghost"
+            size="sm"
+            data-testid="stock-refresh"
+            onClick={onRefresh}
+          >
+            刷新
+          </Button>
           {mobile ? null : (
             <Button
               variant="primary"

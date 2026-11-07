@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import type { KlinePeriod } from "../../api/types";
 import { stockKlineQuery } from "../../lib/query";
+import { REFRESH_INTERVALS, usePolling } from "../../lib/useVisibleRefetch";
 import { DataState } from "../../ui";
 import { KLineChart } from "../charts/KLineChart";
 import { envelopeState } from "../market/state";
@@ -21,7 +22,10 @@ export function KLineTab({
   onPeriodChange,
   mobile = false,
 }: KLineTabProps) {
-  const query = useQuery(stockKlineQuery(ticker, period, KLINE_LIMIT));
+  const query = useQuery({
+    ...stockKlineQuery(ticker, period, KLINE_LIMIT),
+    ...usePolling(REFRESH_INTERVALS.stock.kline),
+  });
   const state = envelopeState(query);
   const data = query.data?.data ?? null;
 

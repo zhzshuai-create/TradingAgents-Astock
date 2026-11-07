@@ -9,7 +9,11 @@ import {
 } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
-import { createMemoryRouter, RouterProvider } from "react-router-dom";
+import {
+  createMemoryRouter,
+  RouterProvider,
+  useLocation,
+} from "react-router-dom";
 import {
   afterAll,
   afterEach,
@@ -177,7 +181,17 @@ function serve(body: ReportDetail, status = 200): void {
   );
 }
 
-function renderPage(entry: string) {
+function StockEcho() {
+  const location = useLocation();
+  return (
+    <div data-testid="page-stock-stub">
+      {location.pathname}
+      {location.search}
+    </div>
+  );
+}
+
+function renderPage(entry: string | string[], initialIndex?: number) {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
@@ -185,10 +199,14 @@ function renderPage(entry: string) {
     [
       { path: "/reports", element: <div data-testid="page-reports-stub" /> },
       { path: "/reports/:reportId", element: <ReportReaderPage /> },
+      { path: "/stocks/:ticker", element: <StockEcho /> },
       { path: "/jobs/:jobId", element: <div data-testid="page-job-stub" /> },
       { path: "/workbench", element: <div data-testid="page-workbench-stub" /> },
     ],
-    { initialEntries: [entry] },
+    {
+      initialEntries: Array.isArray(entry) ? entry : [entry],
+      initialIndex,
+    },
   );
   render(
     <QueryClientProvider client={client}>
@@ -815,5 +833,29 @@ describe("reader states", () => {
     failing = false;
     fireEvent.click(screen.getByRole("button", { name: "重试" }));
     expect(await screen.findByTestId("report-article")).toBeInTheDocument();
+  });
+});
+
+describe("CTX-02 report to stock", () => {
+  it("links the reader ticker back to the stock workspace", async () => {
+    serve(detail());
+    renderPage("/reports/r-1");
+    const link = await screen.findByTestId("reader-stock-link");
+    expect(link).toHaveAttribute("href", "/stocks/600519");
+    expect(link).toHaveTextContent("贵州茅台");
+    expect(screen.getByRole("heading", { level: 1 })).toContainElement(link);
+    fireEvent.click(link);
+    expect(await screen.findByTestId("page-stock-stub")).toBeInTheDocument();
+  });
+
+  it("returns to the stock workspace it was opened from", async () => {
+    serve(detail());
+    renderPage(["/stocks/600519?tab=reports", "/reports/r-1"], 1);
+    await screen.findByTestId("reader-stock-link");
+    // The browser router stamps ``idx``; the memory router needs the same hint.
+    window.history.replaceState({ idx: 1 }, "");
+    fireEvent.click(screen.getByRole("button", { name: "返回" }));
+    const back = await screen.findByTestId("page-stock-stub");
+    expect(back).toHaveTextContent("/stocks/600519?tab=reports");
   });
 });
