@@ -461,3 +461,85 @@ a.newsTitle:hover {
   color: var(--color-text-muted);
   font-size: var(--font-size-xs);
 }
+
+/* P4-10 mobile branch: fixed action bar, scrollable tabs, compact cards. */
+
+.actionBar {
+  position: fixed;
+  inset-inline: 0;
+  bottom: calc(56px + env(safe-area-inset-bottom));
+  z-index: var(--z-sticky);
+  display: flex;
+  justify-content: center;
+  padding: var(--space-2) var(--space-5);
+  border-top: 1px solid var(--color-border-subtle);
+  background: var(--color-bg-surface);
+}
+
+.actionBarButton {
+  width: 100%;
+  max-width: 1160px;
+  min-height: 44px;
+}
+
+@media (max-width: 767px) {
+  .page {
+    gap: var(--space-4);
+    /* Room for the fixed action bar above the 56px bottom nav. */
+    padding-bottom: calc(56px + env(safe-area-inset-bottom));
+  }
+
+  .header {
+    padding: var(--space-5);
+  }
+
+  .tabs {
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .tab {
+    flex: 0 0 auto;
+    min-width: 88px;
+    scroll-snap-align: start;
+  }
+
+  .headerLink {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  .quoteGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-3);
+  }
+
+  .quoteLead {
+    grid-column: 1 / -1;
+  }
+
+  .control,
+  .textButton,
+  .input {
+    min-height: 44px;
+  }
+
+  .input {
+    max-width: 100%;
+  }
+
+  .fieldGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .sectorGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .newsTitle,
+  .reportLink,
+  .sectorName {
+    overflow-wrap: anywhere;
+  }
+}

@@ -17,6 +17,7 @@ export function StockTabs({ active, onChange }: StockTabsProps) {
       role="tablist"
       aria-label="股票工作区页签"
       data-testid="stock-tabs"
+      data-scroll="x"
     >
       {STOCK_TABS.map((tab) => (
         <button

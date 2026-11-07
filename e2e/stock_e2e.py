@@ -1,14 +1,18 @@
-"""P4-09 W07 stock workspace desktop E2E.
+"""P4-10 W07 stock workspace mobile E2E.
 
 Runs the built frontend on ``vite preview`` with stubbed read APIs:
 
     "C:/Users/zhzsh/AppData/Local/Programs/Python/Python313/python.exe" \
         e2e/stock_e2e.py
 
-Desktop 1440 only (P4-09). Covers R-12 (five tabs, deep links, refresh,
-invalid tickers) and R-13 (stock <-> reports/jobs context and the active job
-button), plus W07-01..W07-10. Prints one JSON line; screenshots go to
-ui_shots_p4/P4-09/.
+Desktop 1440 (P4-09) covers R-12 (five tabs, deep links, refresh, invalid
+tickers) and R-13 (stock <-> reports/jobs context and the active job
+button), plus W07-01..W07-10. Mobile 390x844 and 360x800 (P4-10) covers
+W07M-01..04: tabs scroll inside their strip at 44px, the analyze button
+docks above the bottom nav, charts stay in their own scroll containers
+with period buttons, and no viewport gains a horizontal scrollbar.
+Desktop screenshots go to ui_shots_p4/P4-09/, mobile ones to
+ui_shots_p4/P4-10/.
 """
 
 from __future__ import annotations
@@ -29,6 +33,7 @@ from playwright.sync_api import Browser, BrowserContext, Page, sync_playwright
 ROOT = Path(__file__).resolve().parent.parent
 FRONTEND = ROOT / "frontend"
 SHOTS = ROOT / "ui_shots_p4" / "P4-09"
+SHOTS_MOBILE = ROOT / "ui_shots_p4" / "P4-10"
 
 AS_OF = "2026-11-05T09:30:00+08:00"
 TICKER = "600000"
@@ -1061,10 +1066,234 @@ def active_job_flow(browser: Browser, base: str) -> None:
     context.close()
 
 
+def boxes(page: Page, selector: str) -> list[dict]:
+    return page.eval_on_selector_all(
+        selector,
+        """(els) => els.map((el) => {
+            const r = el.getBoundingClientRect();
+            return {
+              top: r.top, bottom: r.bottom, height: r.height,
+              left: r.left, right: r.right, width: r.width,
+            };
+        })""",
+    )
+
+
+def touch_violations(page: Page, selectors: list[str]) -> list[str]:
+    return page.evaluate(
+        """(selectors) => {
+            const out = [];
+            for (const sel of selectors) {
+              for (const el of document.querySelectorAll(sel)) {
+                const r = el.getBoundingClientRect();
+                if (r.width === 0 && r.height === 0) continue;
+                if (r.height < 44 || r.width < 44) {
+                  const label = el.textContent.trim().slice(0, 24);
+                  out.push(`${sel} ${Math.round(r.width)}x${Math.round(r.height)} ${label}`);
+                }
+              }
+            }
+            return out;
+        }""",
+        selectors,
+    )
+
+
+MOBILE_TOUCH_SELECTORS = [
+    '[data-testid="stock-tab"]',
+    '[data-testid="stock-primary-action"]',
+    '[data-testid="kline-period-day"]',
+    '[data-testid="kline-period-week"]',
+    '[data-testid="kline-period-month"]',
+]
+
+
+def mobile_flow(
+    browser: Browser,
+    base: str,
+    width: int,
+    height: int,
+    tag: str,
+) -> None:
+    context = browser.new_context(
+        viewport={"width": width, "height": height},
+        device_scale_factor=3,
+        is_mobile=True,
+        has_touch=True,
+        timezone_id="Asia/Shanghai",
+    )
+    stub_api(context)
+    page = context.new_page()
+    errors, requests = watch(page)
+    page.goto(f"{base}/stocks/{TICKER}")
+    page.get_by_test_id("stock-price").wait_for(state="visible")
+    page.get_by_test_id("stock-action-bar").wait_for(state="visible")
+
+    # W07M-01: the five tabs slide inside their strip; the page does not.
+    tabs = page.get_by_test_id("stock-tabs")
+    tab_metrics = tabs.evaluate(
+        """(node) => ({scroll: node.scrollWidth, client: node.clientWidth})"""
+    )
+    check(
+        tab_metrics["scroll"] > tab_metrics["client"],
+        f"{tag} W07M-01 tab strip overflows horizontally "
+        f"({tab_metrics['scroll']} > {tab_metrics['client']})",
+    )
+    tab_boxes = boxes(page, '[data-testid="stock-tab"]')
+    check(
+        len(tab_boxes) == 5
+        and all(box["height"] >= 44 for box in tab_boxes),
+        f"{tag} W07M-01 five tabs are at least 44px tall "
+        f"({[round(box['height']) for box in tab_boxes]})",
+    )
+    layout = page.evaluate(
+        """() => {
+            const main = document.getElementById('main-content');
+            return {
+              docScroll: document.documentElement.scrollWidth,
+              docClient: document.documentElement.clientWidth,
+              mainScroll: main.scrollWidth,
+              mainClient: main.clientWidth,
+            };
+        }"""
+    )
+    check(
+        layout["docScroll"] == layout["docClient"]
+        and layout["mainScroll"] == layout["mainClient"],
+        f"{tag} W07M-01/04 neither the page nor the scroll container widens "
+        f"({layout})",
+    )
+    page.screenshot(path=str(SHOTS_MOBILE / f"stock_{tag}.png"), full_page=True)
+
+    # W07M-02: the primary action docks directly above the 56px bottom nav.
+    bar = page.get_by_test_id("stock-action-bar")
+    bar_box = bar.bounding_box()
+    total = page.get_by_test_id("stock-primary-action").count()
+    button_box = page.get_by_test_id("stock-primary-action").bounding_box()
+    check(
+        bar_box is not None
+        and abs(bar_box["x"]) <= 1
+        and abs(bar_box["width"] - width) <= 1,
+        f"{tag} W07M-02 action bar spans the viewport ({bar_box})",
+    )
+    check(
+        bar_box is not None
+        and abs((bar_box["y"] + bar_box["height"]) - (height - 56)) <= 1.5,
+        f"{tag} W07M-02 action bar sits on top of the bottom nav "
+        f"({None if bar_box is None else bar_box['y'] + bar_box['height']} vs {height - 56})",
+    )
+    check(
+        total == 1 and button_box is not None and button_box["height"] >= 44,
+        f"{tag} W07M-02 one docked primary button at least 44px tall "
+        f"({total}, {button_box})",
+    )
+    check(
+        bar.inner_text() == "分析这只股票",
+        f"{tag} W07M-02 docked button reads analyze ({bar.inner_text()!r})",
+    )
+    check(
+        page.get_by_test_id("stock-header")
+        .get_by_test_id("stock-primary-action")
+        .count()
+        == 0,
+        f"{tag} W07M-02 the header no longer carries a second primary button",
+    )
+    violations = touch_violations(page, MOBILE_TOUCH_SELECTORS)
+    check(not violations, f"{tag} W07M-01/03 touch targets reach 44px ({violations})")
+
+    # W07M-04: valuation cards stay inside the viewport.
+    cards = boxes(page, '[data-testid="valuation-field"]')
+    check(
+        len(cards) == 12
+        and all(box["left"] >= -0.5 and box["right"] <= width + 0.5 for box in cards),
+        f"{tag} W07M-04 twelve valuation fields fit the viewport ({len(cards)})",
+    )
+
+    # W07M-03: K line periods switch by button; the chart scrolls inside.
+    page.get_by_role("tab", name="K 线").click()
+    page.get_by_test_id("kline-chart").wait_for(state="visible")
+    kline_metrics = page.get_by_test_id("kline-scroll").evaluate(
+        """(node) => ({scroll: node.scrollWidth, client: node.clientWidth})"""
+    )
+    check(
+        kline_metrics["scroll"] > kline_metrics["client"],
+        f"{tag} W07M-03 K line scrolls inside its container "
+        f"({kline_metrics['scroll']} > {kline_metrics['client']})",
+    )
+    check(
+        "周期按钮" in page.get_by_test_id("kline-hint").inner_text()
+        and page.get_by_test_id("kline-hint").get_attribute("data-mobile") == "true",
+        f"{tag} W07M-03 mobile hint points at the period buttons",
+    )
+    page.get_by_test_id("kline-period-week").click()
+    page.wait_for_function(
+        "new URLSearchParams(location.search).get('period') === 'week'"
+    )
+    try:
+        page.wait_for_function(
+            "document.querySelector('[data-testid=\"kline-period-week\"]')"
+            ".getAttribute('aria-pressed') === 'true'",
+            timeout=3000,
+        )
+    except Exception:  # noqa: BLE001 - reported as a failed check below
+        pass
+    check(
+        page.get_by_test_id("kline-period-week").get_attribute("aria-pressed")
+        == "true",
+        f"{tag} W07M-03 week period switches by button",
+    )
+    check(
+        layout["docScroll"] == layout["docClient"]
+        and page.evaluate("document.getElementById('main-content').scrollWidth")
+        == page.evaluate("document.getElementById('main-content').clientWidth"),
+        f"{tag} W07M-04 the K line does not widen the page",
+    )
+    page.screenshot(path=str(SHOTS_MOBILE / f"stock_{tag}_kline.png"), full_page=True)
+
+    page.get_by_role("tab", name="分时").click()
+    page.get_by_test_id("intraday-chart").wait_for(state="visible")
+    intraday_metrics = page.get_by_test_id("intraday-scroll").evaluate(
+        """(node) => ({scroll: node.scrollWidth, client: node.clientWidth})"""
+    )
+    intraday_violations = touch_violations(
+        page, ['input[type="date"]', '[data-testid="intraday-latest"]']
+    )
+    check(
+        intraday_metrics["scroll"] > intraday_metrics["client"],
+        f"{tag} W07M-03 intraday scrolls inside its container "
+        f"({intraday_metrics['scroll']} > {intraday_metrics['client']})",
+    )
+    check(
+        not intraday_violations,
+        f"{tag} W07M-04 intraday controls reach 44px ({intraday_violations})",
+    )
+    final_layout = page.evaluate(
+        """() => ({
+            docScroll: document.documentElement.scrollWidth,
+            docClient: document.documentElement.clientWidth,
+            mainScroll: document.getElementById('main-content').scrollWidth,
+            mainClient: document.getElementById('main-content').clientWidth,
+        })"""
+    )
+    check(
+        final_layout["docScroll"] == final_layout["docClient"]
+        and final_layout["mainScroll"] == final_layout["mainClient"],
+        f"{tag} W07M-04 no horizontal overflow after tab switches ({final_layout})",
+    )
+
+    check(
+        all(method == "GET" for method, _ in requests),
+        f"{tag} W07M-04 mobile reads are all GET",
+    )
+    check(not errors, f"{tag} W07M-01..04 console/page errors: {errors}")
+    context.close()
+
+
 def main() -> int:
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     SHOTS.mkdir(parents=True, exist_ok=True)
+    SHOTS_MOBILE.mkdir(parents=True, exist_ok=True)
     print("building frontend...")
     build()
     with Server() as base:
@@ -1077,13 +1306,18 @@ def main() -> int:
             states_flow(browser, base)
             reports_error_flow(browser, base)
             active_job_flow(browser, base)
+            mobile_flow(browser, base, 390, 844, "390")
+            mobile_flow(browser, base, 360, 800, "360")
             browser.close()
 
     result = {
-        "ticket": "P4-09",
+        "ticket": "P4-10",
         "checks": checks,
         "failures": failures,
-        "screenshots": [str(SHOTS.relative_to(ROOT))],
+        "screenshots": [
+            str(SHOTS.relative_to(ROOT)),
+            str(SHOTS_MOBILE.relative_to(ROOT)),
+        ],
     }
     print(json.dumps(result, ensure_ascii=True))
     return 1 if failures else 0

@@ -39,6 +39,8 @@ export interface StockHeaderProps {
   staleReason: StaleReason | null;
   onRetry: () => void;
   primary: StockPrimaryAction;
+  /** Below 767px the primary action moves into the fixed bottom bar. */
+  mobile?: boolean;
 }
 
 interface QuoteField {
@@ -82,6 +84,7 @@ export function StockHeader({
   staleReason,
   onRetry,
   primary,
+  mobile = false,
 }: StockHeaderProps) {
   const name = quote?.name ?? ticker;
   const updated = asOf ?? fetchedAt;
@@ -103,13 +106,15 @@ export function StockHeader({
           </p>
         </div>
         <div className={styles.headerActions}>
-          <Button
-            variant="primary"
-            onClick={primary.onClick}
-            data-testid="stock-primary-action"
-          >
-            {primary.label}
-          </Button>
+          {mobile ? null : (
+            <Button
+              variant="primary"
+              onClick={primary.onClick}
+              data-testid="stock-primary-action"
+            >
+              {primary.label}
+            </Button>
+          )}
           <Link className={styles.headerLink} to={`/reports?ticker=${ticker}`}>
             查看最新报告
           </Link>

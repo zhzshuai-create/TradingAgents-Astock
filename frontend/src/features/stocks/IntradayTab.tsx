@@ -33,6 +33,7 @@ export function IntradayTab({ ticker, date, onDateChange }: IntradayTabProps) {
         <button
           type="button"
           className={styles.textButton}
+          data-testid="intraday-latest"
           disabled={date === ""}
           onClick={() => onDateChange("")}
         >

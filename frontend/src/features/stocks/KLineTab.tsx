@@ -12,9 +12,15 @@ export interface KLineTabProps {
   ticker: string;
   period: KlinePeriod;
   onPeriodChange: (period: KlinePeriod) => void;
+  mobile?: boolean;
 }
 
-export function KLineTab({ ticker, period, onPeriodChange }: KLineTabProps) {
+export function KLineTab({
+  ticker,
+  period,
+  onPeriodChange,
+  mobile = false,
+}: KLineTabProps) {
   const query = useQuery(stockKlineQuery(ticker, period, KLINE_LIMIT));
   const state = envelopeState(query);
   const data = query.data?.data ?? null;
@@ -38,6 +44,7 @@ export function KLineTab({ ticker, period, onPeriodChange }: KLineTabProps) {
             onPeriodChange={onPeriodChange}
             asOf={query.data?.as_of ?? null}
             fetchedAt={query.data?.fetched_at ?? null}
+            mobile={mobile}
           />
         )}
       </DataState>

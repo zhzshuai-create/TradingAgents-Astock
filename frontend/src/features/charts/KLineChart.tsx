@@ -43,6 +43,8 @@ export interface KLineChartProps {
   fetchedAt?: string | null;
   /** Bars shown before the user zooms; defaults to every loaded bar. */
   initialCount?: number;
+  /** Below 767px zoom/pan gestures are off; periods and scrolling take over. */
+  mobile?: boolean;
 }
 
 type Direction = "up" | "down" | "flat";
@@ -71,6 +73,7 @@ export function KLineChart({
   asOf = null,
   fetchedAt = null,
   initialCount,
+  mobile = false,
 }: KLineChartProps) {
   const bars = data.bars;
   const total = bars.length;
@@ -118,6 +121,9 @@ export function KLineChart({
 
   // React's wheel listener is passive; prevent page scroll with a native one.
   useEffect(() => {
+    if (mobile) {
+      return undefined;
+    }
     const svg = svgRef.current;
     if (svg === null || total === 0) {
       return undefined;
@@ -137,7 +143,7 @@ export function KLineChart({
     };
     svg.addEventListener("wheel", onWheel, { passive: false });
     return () => svg.removeEventListener("wheel", onWheel);
-  }, [total]);
+  }, [total, mobile]);
 
   function pointerX(clientX: number): number {
     const svg = svgRef.current;
@@ -285,8 +291,8 @@ export function KLineChart({
           数据时间 {formatChartTime(asOf ?? fetchedAt)}
         </span>
       </div>
-      <p className={styles.hint}>
-        滚轮缩放 · 拖拽平移 ·{" "}
+      <p className={styles.hint} data-testid="kline-hint" data-mobile={mobile}>
+        {mobile ? "周期按钮切换 · 图表可横向滑动 · " : "滚轮缩放 · 拖拽平移 · "}
         <span
           data-testid="kline-window"
           data-start={barWindow.start}

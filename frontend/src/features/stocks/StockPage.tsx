@@ -7,10 +7,12 @@ import { stockSnapshotQuery } from "../../lib/query";
 import { InvalidTickerPage } from "../../pages/InvalidTickerPage";
 import { LauncherDialog } from "../launcher/LauncherDialog";
 import { envelopeState } from "../market/state";
+import { useIsMobile } from "../market/useIsMobile";
 import { IntradayTab } from "./IntradayTab";
 import { KLineTab } from "./KLineTab";
 import { NewsTab } from "./NewsTab";
 import { ReportsTab } from "./ReportsTab";
+import { StockActionBar } from "./StockActionBar";
 import { StockHeader } from "./StockHeader";
 import { StockTabs } from "./StockTabs";
 import {
@@ -40,6 +42,7 @@ export interface StockPageProps {
 export function StockPage({ ticker }: StockPageProps) {
   const [params, setParams] = useSearchParams();
   const state = parseStockSearch(params.toString());
+  const isMobile = useIsMobile();
   const snapshot = useQuery(stockSnapshotQuery(ticker));
   const snapshotData = snapshot.data?.data ?? null;
   const quote = snapshotData?.quote ?? null;
@@ -88,6 +91,7 @@ export function StockPage({ ticker }: StockPageProps) {
         staleReason={snapshot.data?.stale_reason ?? null}
         onRetry={() => void snapshot.refetch()}
         primary={actions.primary}
+        mobile={isMobile}
       />
 
       <StockTabs
@@ -116,6 +120,7 @@ export function StockPage({ ticker }: StockPageProps) {
             ticker={ticker}
             period={state.period}
             onPeriodChange={(period) => patch({ period })}
+            mobile={isMobile}
           />
         ) : null}
         {state.tab === "intraday" ? (
@@ -128,6 +133,8 @@ export function StockPage({ ticker }: StockPageProps) {
         {state.tab === "news" ? <NewsTab ticker={ticker} /> : null}
         {state.tab === "reports" ? <ReportsTab ticker={ticker} /> : null}
       </div>
+
+      {isMobile ? <StockActionBar primary={actions.primary} /> : null}
 
       {actions.launcherOpen ? (
         <LauncherDialog
