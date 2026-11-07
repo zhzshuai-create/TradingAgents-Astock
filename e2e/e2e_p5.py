@@ -269,7 +269,7 @@ def python_groups() -> dict[str, Any]:
     full, seconds = run("pytest_full", [str(PYTHON), "-m", "pytest", "-q"])
     text = plain(full.stdout or "")
     passed_match = re.search(r"(\d+) passed", text)
-    skipped_match = re.search(r"(\d+) skipped", plain)
+    skipped_match = re.search(r"(\d+) skipped", text)
     passed = int(passed_match.group(1)) if passed_match else 0
     skipped = int(skipped_match.group(1)) if skipped_match else 0
     full_ok = (
