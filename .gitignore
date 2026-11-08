@@ -230,3 +230,6 @@ ui_shots_*/
 
 # qlib 基线实验专用 venv（Python 3.12，与主环境物理隔离）
 .venv-qlib/
+
+# P6-06 双栈开关：本机状态，切模式不弄脏工作区
+.env.stack
