@@ -801,7 +801,9 @@ def performance(temp: Path) -> dict[str, Any]:
     doc: dict[str, Any] = {}
     if out.exists():
         doc = json.loads(out.read_text(encoding="utf-8"))
-    metrics = doc.get("metrics") or {}
+    # perf_core appends one record per run; --out is a fresh file each time.
+    run_doc = (doc.get("runs") or [{}])[-1]
+    metrics = run_doc.get("metrics") or {}
     summary = {
         viewport: {
             key: (entry or {}).get("p75")
@@ -809,17 +811,18 @@ def performance(temp: Path) -> dict[str, Any]:
         }
         for viewport in ("mobile", "desktop")
     }
-    ok = proc.returncode == 0 and doc.get("conclusion") == "pass"
+    conclusion = run_doc.get("conclusion")
+    ok = proc.returncode == 0 and conclusion == "pass"
     gate(
         "perf lcp/cls/inp",
         f"python scripts/perf_core.py --no-build --samples {PERF_SAMPLES}",
-        f"conclusion={doc.get('conclusion')}, p75 {summary}",
+        f"conclusion={conclusion}, p75 {summary}",
         "conclusion pass (all p75 below the regression lines)",
         ok,
         proc.returncode,
         seconds,
     )
-    return {"conclusion": doc.get("conclusion"), "p75": summary, "passed": ok}
+    return {"conclusion": conclusion, "p75": summary, "passed": ok}
 
 
 def migrations() -> str | None:

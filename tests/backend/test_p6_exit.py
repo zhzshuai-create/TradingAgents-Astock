@@ -167,3 +167,35 @@ def test_py02_p5_tolerates_only_the_skipped_criterion(monkeypatch, tmp_path):
         monkeypatch, tmp_path / "crit", {**base, "failed_criteria": ["1", "2"]}
     ) is False
     assert _run_p5_aggregate(monkeypatch, tmp_path / "missing", None) is False
+
+
+def _run_performance(monkeypatch, temp: Path, run_doc: dict, returncode: int = 0) -> dict:
+    import types
+
+    def fake_run(_label, command, **_kwargs):
+        out = Path(command[command.index("--out") + 1])
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(json.dumps({"ticket": "P6-05", "runs": [run_doc]}), encoding="utf-8")
+        return types.SimpleNamespace(returncode=returncode, stdout="", stderr=""), 0.1
+
+    monkeypatch.setattr(e2e_p6, "run", fake_run)
+    monkeypatch.setattr(e2e_p6, "gates", [])
+    return e2e_p6.performance(temp)
+
+
+def test_py02_perf_reads_the_last_run_record(monkeypatch, tmp_path):
+    good = {
+        "conclusion": "pass",
+        "metrics": {
+            "mobile": {"lcp_ms": {"p75": 400.0}},
+            "desktop": {"lcp_ms": {"p75": 440.0}},
+        },
+    }
+    result = _run_performance(monkeypatch, tmp_path / "ok", good)
+    assert result["passed"] is True
+    assert result["conclusion"] == "pass"
+    assert result["p75"]["mobile"]["lcp_ms"] == 400.0
+
+    bad = {**good, "conclusion": "fail"}
+    assert _run_performance(monkeypatch, tmp_path / "bad", bad)["passed"] is False
+    assert _run_performance(monkeypatch, tmp_path / "rc", good, 1)["passed"] is False
