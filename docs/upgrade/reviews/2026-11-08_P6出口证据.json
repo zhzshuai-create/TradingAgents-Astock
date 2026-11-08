@@ -1,0 +1,406 @@
+{
+  "ticket": "P6-07",
+  "generated_at": "2026-11-08T19:00:56+08:00",
+  "head": "9ce7339",
+  "criteria": [
+    {
+      "id": "1",
+      "statement": "回滚演练通过（八步在副本上走通，真实目录未替换）",
+      "evidence": "D0..D15 + R0..R8（含 R2b：等无在跑任务后补证 409）全绿；真实根前后 manifest 一致；R7 只在副本还原",
+      "passed": true
+    },
+    {
+      "id": "2",
+      "statement": "Canary 无重复调用",
+      "evidence": "P6-04a：单次真实分析 27 次调用；同键重放 0 次调用、stats 与 job 行不变",
+      "passed": true
+    },
+    {
+      "id": "3",
+      "statement": "连续主用观察通过",
+      "evidence": "P6-04b：7 次真实运行、0 异常、报告哈希稳定、无自动重跑（6 次同日为已记录偏离）",
+      "passed": true
+    },
+    {
+      "id": "4",
+      "statement": "旧版可独立启动",
+      "evidence": "P6-06 D3 与 P6-07 D3/R3 均在 8600 关闭时起 8501；E2E-04 读投影报告",
+      "passed": true
+    }
+  ],
+  "gates": [
+    {
+      "name": "typecheck",
+      "command": "cd frontend && node node_modules/typescript/bin/tsc --noEmit",
+      "exit_code": 0,
+      "value": "exit 0",
+      "expected": "exit 0",
+      "passed": true,
+      "seconds": 7.6
+    },
+    {
+      "name": "unit",
+      "command": "cd frontend && node node_modules/vitest/vitest.mjs run",
+      "exit_code": 0,
+      "value": "534 tests / 38 files",
+      "expected": ">= 527 tests / >= 38 files",
+      "passed": true,
+      "seconds": 22.9
+    },
+    {
+      "name": "build",
+      "command": "cd frontend && node node_modules/vite/bin/vite.js build",
+      "exit_code": 0,
+      "value": "exit",
+      "expected": 0,
+      "passed": true,
+      "seconds": 3.8
+    },
+    {
+      "name": "bundle",
+      "command": "cd frontend && node scripts/check_bundle.mjs --out <temp>",
+      "exit_code": 0,
+      "value": "entry 124.77 kB gzip, 11 route chunks, largest assets/ReportDetailPage-Z4CTSHMg.js 20.84 kB",
+      "expected": "entry <= 202.45 kB, 11 lazy chunks, each <= 60.0 kB",
+      "passed": true,
+      "seconds": 0.1
+    },
+    {
+      "name": "python full",
+      "command": ".venv/Scripts/python.exe -m pytest -q",
+      "exit_code": 0,
+      "value": "838 passed / 4 skipped",
+      "expected": ">= 832 passed / 4 skipped",
+      "passed": true,
+      "seconds": 256.6
+    },
+    {
+      "name": "regression p2",
+      "command": "python e2e/e2e_p2.py --skip-build",
+      "exit_code": 0,
+      "value": "102 checks, 0 failures",
+      "expected": ">= 102 checks, 0 failures",
+      "passed": true,
+      "seconds": 355.2
+    },
+    {
+      "name": "regression p3",
+      "command": "python e2e/e2e_p3.py --skip-build",
+      "exit_code": 0,
+      "value": "15 checks, 0 failures, criteria {'1': True, '2': True, '3': True, '4': True}",
+      "expected": ">= 15 checks, 0 failures, all criteria true",
+      "passed": true,
+      "seconds": 169.4
+    },
+    {
+      "name": "regression p4",
+      "command": "python e2e/e2e_p4.py --skip-build --skip-python-full",
+      "exit_code": 1,
+      "value": "21 checks, 1 failures, criteria {'1': True, '2': True, '3': True, '4': False}, route_switch True",
+      "expected": ">= 21 checks; criteria 1-3 true; only 'exit criterion 4' may fail (build gate is the aggregate's)",
+      "passed": true,
+      "seconds": 125.3
+    },
+    {
+      "name": "p5 aggregate",
+      "command": "python e2e/e2e_p5.py --skip-build --skip-python --skip-regression --skip-preflight",
+      "exit_code": 1,
+      "value": "exit 1, passed=False, gates=8, failed=[], failed criteria=['1']",
+      "expected": "8 suite gates green, no failed gate; only criterion 1 (P2 half skipped)",
+      "passed": true,
+      "seconds": 316.6
+    },
+    {
+      "name": "p6 e2e 01",
+      "command": "run_backend.py (ACTIVE_ANALYSIS_UI=next) + POST /api/v1/jobs",
+      "exit_code": 0,
+      "value": "write_mode=next, POST 201, job=af7fa038-8b36-4539-8406-cbd68b8309e3",
+      "expected": "write_mode=next, 201 with job_id",
+      "passed": true,
+      "seconds": 2.7
+    },
+    {
+      "name": "p6 e2e 02",
+      "command": "run_backend.py (legacy) + new key then replay",
+      "exit_code": 0,
+      "value": "mode=legacy, new={'status': 409, 'code': 'write_mode_legacy'}, replay={'status': 200, 'job_id': 'af7fa038-8b36-4539-8406-cbd68b8309e3', 'same_job': True}",
+      "expected": "409 write_mode_legacy on a new key; 200 same job on replay",
+      "passed": true,
+      "seconds": 2.6
+    },
+    {
+      "name": "p6 e2e 03",
+      "command": "stack_launch.py + stack_mode.py status",
+      "exit_code": 0,
+      "value": "mode=legacy, meta=None, status exit 0, consistent=True",
+      "expected": "stack_launch follows .env.stack; status exit 0 and consistent",
+      "passed": true,
+      "seconds": 3.8
+    },
+    {
+      "name": "p6 e2e 04",
+      "command": "web/launch.py + legacy_projection_e2e.py",
+      "exit_code": 0,
+      "value": "8501 health=True, 8600=False, projection {'exit': 0, 'checks': 12, 'failures': 0, 'seconds': 2.8}",
+      "expected": "8501 health ok, 8600 closed, projection suite green",
+      "passed": true,
+      "seconds": 5.8
+    },
+    {
+      "name": "perf lcp/cls/inp",
+      "command": "python scripts/perf_core.py --no-build --samples 20",
+      "exit_code": 0,
+      "value": "conclusion=pass, p75 {'mobile': {'lcp_ms': 436.0, 'cls': 0.0065, 'inp_ms': 16.0}, 'desktop': {'lcp_ms': 444.0, 'cls': 0.0025, 'inp_ms': 16.0}}",
+      "expected": "conclusion pass (all p75 below the regression lines)",
+      "passed": true,
+      "seconds": 71.6
+    },
+    {
+      "name": "migration head",
+      "command": ".venv/Scripts/python.exe -m alembic -c backend/alembic.ini heads",
+      "exit_code": 0,
+      "value": "0007 (head)",
+      "expected": "0007 (single head)",
+      "passed": true,
+      "seconds": 0.5
+    },
+    {
+      "name": "legacy smoke",
+      "command": ".venv/Scripts/python.exe -m streamlit run web/app.py --server.port 8599",
+      "exit_code": 0,
+      "value": "health ok",
+      "expected": "Streamlit health ok on 8599",
+      "passed": true,
+      "seconds": 1.5
+    },
+    {
+      "name": "rollback drill",
+      "command": "python 2026-11-08_P6-07回滚演练.json (D0..D15 + R0..R8)",
+      "exit_code": null,
+      "value": "conclusion=pass, swap 17/17, rollback 10/10, head=3240a349",
+      "expected": "conclusion pass; every swap and rollback step green",
+      "passed": true
+    },
+    {
+      "name": "canary evidence",
+      "command": "read 2026-11-07_P6-04aCanary结果.json",
+      "exit_code": null,
+      "value": "verdict=pass, replay_llm_calls=0, job=8ca94e36-fd0f-43cb-88e7-e4784fc212b4",
+      "expected": "verdict pass; replay makes no model call and keeps stats/job rows",
+      "passed": true
+    },
+    {
+      "name": "observation evidence",
+      "command": "read 2026-11-08_P6-04b观察结论.json",
+      "exit_code": null,
+      "value": "days=7, runs=7, anomalies=0, deviation=True",
+      "expected": ">=7 runs; 0 anomalies; report hash stable; no auto rerun",
+      "passed": true
+    },
+    {
+      "name": "restore child evidence",
+      "command": "git checkout -- <P3-09 / P5-08 / P5 exit evidence>",
+      "exit_code": null,
+      "value": "restored ['docs/upgrade/reviews/2026-11-06_P3-09性能结果.json', 'docs/upgrade/reviews/2026-11-07_P5-08可访问性与移动结果.json', 'docs/upgrade/reviews/2026-11-07_P5出口证据.json']",
+      "expected": "tracked evidence back to HEAD",
+      "passed": true
+    },
+    {
+      "name": "preflight",
+      "command": ".venv/Scripts/python.exe scripts/p0_preflight.py --full --smoke",
+      "exit_code": 0,
+      "value": "10 PASS / 0 FAIL, legacy smoke ok",
+      "expected": "10 PASS / 0 FAIL",
+      "passed": true,
+      "seconds": 261.0
+    }
+  ],
+  "numbers": {
+    "python": {
+      "passed": 838,
+      "skipped": 4,
+      "ok": true
+    },
+    "unit": {
+      "tests": 534,
+      "files": 38,
+      "passed": true
+    },
+    "bundle": {
+      "entry_gzip_kb": 124.77,
+      "entry_budget_gzip_kb": 202.45,
+      "route_chunks": 11,
+      "route_chunk_limit_gzip_kb": 60.0,
+      "largest_route_chunk": {
+        "file": "assets/ReportDetailPage-Z4CTSHMg.js",
+        "gzip_kb": 20.84
+      },
+      "passed": true
+    },
+    "regression": {
+      "p2": {
+        "script": "e2e/e2e_p2.py",
+        "args": [
+          "--skip-build"
+        ],
+        "checks": 102,
+        "failures": [],
+        "criteria": {},
+        "passed": true
+      },
+      "p3": {
+        "script": "e2e/e2e_p3.py",
+        "args": [
+          "--skip-build"
+        ],
+        "checks": 15,
+        "failures": [],
+        "criteria": {
+          "1": true,
+          "2": true,
+          "3": true,
+          "4": true
+        },
+        "passed": true
+      },
+      "p4": {
+        "script": "e2e/e2e_p4.py",
+        "args": [
+          "--skip-build",
+          "--skip-python-full"
+        ],
+        "checks": 21,
+        "failures": [
+          "exit criterion 4"
+        ],
+        "criteria": {
+          "1": true,
+          "2": true,
+          "3": true,
+          "4": false
+        },
+        "passed": true
+      }
+    },
+    "p5": {
+      "checks": 541,
+      "gates": 8,
+      "criteria": 3,
+      "failed_gates": [],
+      "passed": true
+    },
+    "perf": {
+      "conclusion": "pass",
+      "p75": {
+        "mobile": {
+          "lcp_ms": 436.0,
+          "cls": 0.0065,
+          "inp_ms": 16.0
+        },
+        "desktop": {
+          "lcp_ms": 444.0,
+          "cls": 0.0025,
+          "inp_ms": 16.0
+        }
+      },
+      "passed": true
+    },
+    "migration_head": "0007",
+    "legacy_smoke": {
+      "healthy": true,
+      "seconds": 1.5
+    },
+    "preflight": {
+      "passed": 10,
+      "failed": 0,
+      "smoke": true,
+      "ok": true
+    }
+  },
+  "scenarios": {
+    "01": {
+      "write_mode": "next",
+      "contract_version": "api-v1",
+      "status": 201,
+      "job_id": "af7fa038-8b36-4539-8406-cbd68b8309e3",
+      "key": "d74190f2-0bff-4e30-b9cd-48793f261777",
+      "passed": true
+    },
+    "02": {
+      "write_mode": "legacy",
+      "new_key": {
+        "status": 409,
+        "code": "write_mode_legacy"
+      },
+      "replay": {
+        "status": 200,
+        "job_id": "af7fa038-8b36-4539-8406-cbd68b8309e3",
+        "same_job": true
+      },
+      "passed": true
+    },
+    "03": {
+      "env_stack_mode": "legacy",
+      "entry_port": 8501,
+      "entry_up": true,
+      "meta_mode": null,
+      "status_exit": 0,
+      "status": {
+        "mode": "legacy",
+        "legacy_listening": true,
+        "backend_listening": false,
+        "backend_write_mode": null,
+        "consistent": true,
+        "reason": ""
+      },
+      "passed": true
+    },
+    "04": {
+      "health": true,
+      "8600": false,
+      "projection": {
+        "exit": 0,
+        "checks": 12,
+        "failures": 0,
+        "seconds": 2.8
+      },
+      "passed": true
+    }
+  },
+  "rollback_evidence": {
+    "file": "docs/upgrade/reviews/2026-11-08_P6-07回滚演练.json",
+    "conclusion": "pass",
+    "swap_steps": 17,
+    "rollback_steps": 10,
+    "drilled_at": "2026-11-08T17:29:26+08:00",
+    "repo_head": "3240a349e13b715755d2ee720cca18c50cb01031",
+    "passed": true
+  },
+  "canary_evidence": {
+    "file": "docs/upgrade/reviews/2026-11-07_P6-04aCanary结果.json",
+    "job_id": "8ca94e36-fd0f-43cb-88e7-e4784fc212b4",
+    "model_calls": 27,
+    "replay_llm_calls": 0,
+    "passed": true
+  },
+  "observation_evidence": {
+    "file": "docs/upgrade/reviews/2026-11-08_P6-04b观察结论.json",
+    "days": 7,
+    "runs": 7,
+    "same_day_runs": 6,
+    "deviation": "7 次运行中 6 次落在同一天（2026-11-08），未覆盖跨日问题（日期边界、索引增长）；索引 3–4、5–6 各有一组在同对话内连跑，未按「一任务一对话」新开对话",
+    "anomalies": 0,
+    "pending_checks": [
+      "8ff726b9-3f25-4eaa-9af7-d821bf7df1d8 的 rating/signal 落库为 unknown（PM 结构化输出失败后改自由文本重试），正文结论为 Underweight；不属五类异常，本票不修"
+    ],
+    "passed": true
+  },
+  "leftovers": [
+    "R1 百度 403 风控与负缓存：真实供应商暖加载 p95 未达标，独立后续票",
+    "C4 旧版日志桥 postMessage('*') 与外部 trade-journal 来源校验：外部仓库 + 旧版解冻"
+  ],
+  "seconds": 1608.6,
+  "failed_gates": [],
+  "failed_criteria": [],
+  "passed": true
+}
