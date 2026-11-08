@@ -67,10 +67,13 @@ MIGRATION_HEAD = "0007"
 PREFLIGHT_ITEMS = 10
 PERF_SAMPLES = 20
 
+# The floors are the check counts each child reports with ``--skip-build``:
+# P3 drops its 4 build/preview checks (19 -> 15), P4 drops its 5 (26 -> 21);
+# the aggregate's own build gate judges the bundle once for all of them.
 REGRESSION = (
     ("p2", "e2e_p2.py", ["--skip-build"], 102),
-    ("p3", "e2e_p3.py", ["--skip-build"], 19),
-    ("p4", "e2e_p4.py", ["--skip-build", "--skip-python-full"], 26),
+    ("p3", "e2e_p3.py", ["--skip-build"], 15),
+    ("p4", "e2e_p4.py", ["--skip-build", "--skip-python-full"], 21),
 )
 P5_ARGS = ("--skip-build", "--skip-python", "--skip-regression", "--skip-preflight")
 
@@ -372,24 +375,47 @@ def regression() -> dict[str, Any]:
 
 
 def p5_aggregate() -> dict[str, Any]:
+    # The child's printed summary omits the gates array; only the evidence file
+    # it rewrites has it, so trust the file only when this run actually wrote it.
+    p5_file = REVIEWS / "2026-11-07_P5出口证据.json"
+    before = p5_file.stat().st_mtime_ns if p5_file.exists() else 0
     proc, seconds = run("p5", [str(SYSTEM), str(E2E / "e2e_p5.py"), *P5_ARGS])
     payload = parse_last_json(proc.stdout or "")
-    failed_gates = payload.get("failed_gates") or []
-    criteria = payload.get("criteria") or []
-    ok = proc.returncode == 0 and bool(payload.get("passed")) and not failed_gates
+    doc: dict[str, Any] = {}
+    if p5_file.exists() and p5_file.stat().st_mtime_ns != before:
+        doc = json.loads(p5_file.read_text(encoding="utf-8"))
+    gate_entries = doc.get("gates") or []
+    failed_gates = doc.get("failed_gates") or payload.get("failed_gates") or []
+    criteria = doc.get("criteria") or payload.get("criteria") or []
+    failed_criteria = set(
+        doc.get("failed_criteria", payload.get("failed_criteria") or [])
+    )
+    # P5's criterion 1 also cites the P2 regression, which the four skips omit
+    # here; this aggregate runs P2 itself, so criterion 1 may stay false.
+    tolerated = failed_criteria <= {"1"}
+    suite_gates_ok = (
+        len(gate_entries) >= 8
+        and not failed_gates
+        and all(entry.get("passed") for entry in gate_entries)
+    )
+    ok = suite_gates_ok and tolerated and proc.returncode in (0, 1)
     gate(
         "p5 aggregate",
         f"python e2e/e2e_p5.py {' '.join(P5_ARGS)}",
-        f"exit {proc.returncode}, passed={payload.get('passed')}, "
-        f"gates={len(payload.get('gates') or [])}, failed={failed_gates}",
-        "exit 0, passed true, no failed gates",
+        f"exit {proc.returncode}, passed={doc.get('passed', payload.get('passed'))}, "
+        f"gates={len(gate_entries)}, failed={failed_gates}, "
+        f"failed criteria={sorted(failed_criteria)}",
+        "8 suite gates green, no failed gate; only criterion 1 (P2 half skipped)",
         ok,
         proc.returncode,
         seconds,
     )
     return {
-        "checks": sum((entry.get("checks") or 0) for entry in (payload.get("suites") or {}).values()),
-        "gates": len(payload.get("gates") or []),
+        "checks": sum(
+            (entry.get("checks") or 0)
+            for entry in ((doc.get("suites") or payload.get("suites") or {}).values())
+        ),
+        "gates": len(gate_entries),
         "criteria": sum(1 for item in criteria if item.get("passed")),
         "failed_gates": failed_gates,
         "passed": ok,
@@ -766,9 +792,10 @@ def p6_scenarios() -> dict[str, Any]:
 
 def performance(temp: Path) -> dict[str, Any]:
     out = temp / "perf.json"
+    # Playwright only lives in the system Python 3.13 (P6-05 ticket).
     proc, seconds = run(
         "perf_core",
-        [str(PYTHON), "scripts/perf_core.py", "--no-build", "--samples", str(PERF_SAMPLES), "--out", str(out)],
+        [str(SYSTEM), "scripts/perf_core.py", "--no-build", "--samples", str(PERF_SAMPLES), "--out", str(out)],
         timeout=1800,
     )
     doc: dict[str, Any] = {}
@@ -785,7 +812,7 @@ def performance(temp: Path) -> dict[str, Any]:
     ok = proc.returncode == 0 and doc.get("conclusion") == "pass"
     gate(
         "perf lcp/cls/inp",
-        f".venv/Scripts/python.exe scripts/perf_core.py --no-build --samples {PERF_SAMPLES}",
+        f"python scripts/perf_core.py --no-build --samples {PERF_SAMPLES}",
         f"conclusion={doc.get('conclusion')}, p75 {summary}",
         "conclusion pass (all p75 below the regression lines)",
         ok,

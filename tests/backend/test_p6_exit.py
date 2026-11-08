@@ -115,3 +115,55 @@ def test_py02_p4_tolerates_only_the_skip_build_failure():
     ) is False
     assert e2e_p6.p4_passed(1, {**good, "checks": floor - 1}, floor) is False
     assert e2e_p6.p4_passed(2, {**good, "failures": ["timeout"]}, floor) is False
+
+
+def _run_p5_aggregate(
+    monkeypatch, root: Path, doc: dict | None, returncode: int = 1
+) -> bool:
+    import types
+
+    root.mkdir(parents=True, exist_ok=True)
+
+    def fake_run(_label, _command, **_kwargs):
+        if doc is not None:
+            (root / "2026-11-07_P5出口证据.json").write_text(
+                json.dumps(doc), encoding="utf-8"
+            )
+        return types.SimpleNamespace(returncode=returncode, stdout="", stderr=""), 0.1
+
+    monkeypatch.setattr(e2e_p6, "REVIEWS", root)
+    monkeypatch.setattr(e2e_p6, "run", fake_run)
+    monkeypatch.setattr(e2e_p6, "gates", [])
+    return e2e_p6.p5_aggregate()["passed"]
+
+
+def test_py02_p5_tolerates_only_the_skipped_criterion(monkeypatch, tmp_path):
+    gates = [{"name": f"g{i}", "passed": True} for i in range(8)]
+    base = {
+        "gates": gates,
+        "failed_gates": [],
+        "failed_criteria": ["1"],
+        "passed": False,
+        "criteria": [{"id": str(i), "passed": i != 1} for i in range(1, 5)],
+        "suites": {},
+    }
+
+    assert _run_p5_aggregate(monkeypatch, tmp_path / "ok", base) is True
+    all_green = {
+        **base,
+        "failed_criteria": [],
+        "passed": True,
+        "criteria": [{"id": str(i), "passed": True} for i in range(1, 5)],
+    }
+    assert _run_p5_aggregate(monkeypatch, tmp_path / "all", all_green, 0) is True
+
+    bad_gate = {
+        **base,
+        "gates": gates[:-1] + [{"name": "g7", "passed": False}],
+        "failed_gates": ["g7"],
+    }
+    assert _run_p5_aggregate(monkeypatch, tmp_path / "gate", bad_gate) is False
+    assert _run_p5_aggregate(
+        monkeypatch, tmp_path / "crit", {**base, "failed_criteria": ["1", "2"]}
+    ) is False
+    assert _run_p5_aggregate(monkeypatch, tmp_path / "missing", None) is False
