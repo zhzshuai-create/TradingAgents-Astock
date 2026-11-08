@@ -1,4 +1,6 @@
 @echo off
-REM 一键启动: A股平台(8501) + 交易日志(8502, 被 iframe 嵌入)
+REM One-click start: .env.stack picks next (8600 backend + 5173 UI + 8502 journal)
+REM or legacy (8501 + 8502). --real-models only affects next and still needs
+REM TA_ENABLE_REAL_RUNNER=1 in .env.
 cd /d %~dp0
-python scripts\stack_launch.py
+python scripts\stack_launch.py --real-models

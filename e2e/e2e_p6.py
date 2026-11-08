@@ -79,6 +79,7 @@ P5_ARGS = ("--skip-build", "--skip-python", "--skip-regression", "--skip-preflig
 
 LEGACY_PORT = 8501
 BACKEND_PORT = 8600
+PREVIEW_PORT = 5173
 SMOKE_PORT = 8599
 
 # Child suites refresh these tracked files; the preflight's clean-worktree check
@@ -611,7 +612,7 @@ def scenario_03(temp: Path) -> dict[str, Any]:
     mode = stack_mode_value()
     proc = start_process(
         "e2e03-stack",
-        [str(SYSTEM), "scripts/stack_launch.py", "--no-journal"],
+        [str(SYSTEM), "scripts/stack_launch.py", "--no-ui", "--no-journal"],
         isolated_env(root, home),
     )
     try:
@@ -661,7 +662,9 @@ def scenario_03(temp: Path) -> dict[str, Any]:
             ),
         }
     finally:
-        stop_process(proc, (BACKEND_PORT, LEGACY_PORT))
+        # The next plan may have started the preview in older builds; tolerate
+        # 5173 being cold as well as occupied by this run.
+        stop_process(proc, (BACKEND_PORT, LEGACY_PORT, PREVIEW_PORT))
 
 
 def scenario_04(temp: Path) -> dict[str, Any]:
