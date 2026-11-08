@@ -2,9 +2,9 @@
   "ticket": "P6-08",
   "kind": "本机日常入口常驻切 next（入口、日志与前端托管）",
   "date": "2026-11-08",
-  "authorized_by": "用户确认：四条口径全按推荐（1A 前端预览、8502 自启、--real-models 双开关、不改仓库默认）；S6 真实分析先不跑，记未验",
+  "authorized_by": "用户确认：四条口径全按推荐（1A 前端预览、8502 自启、--real-models 双开关、不改仓库默认）；S6 随后经用户补授权「补一次真实分析链路 S6」",
   "repo_head": "a1114f6",
-  "conclusion": "pass",
+  "conclusion": "pass（切换目标完成；S6 因供应商账户余额 402 未取得成功报告，记 blocked）",
   "default_after_run": "next（仅本机 .env.stack；仓库 DEFAULT_WRITE_MODE 仍为 legacy）",
   "services_running_at_end": false,
   "switch_scope": "只写本机 .env.stack=next 与 .env 的 TA_ENABLE_REAL_RUNNER=1；api-v1 契约与 DEFAULT_WRITE_MODE 未改",
@@ -21,7 +21,7 @@
     "journal": "8502 随栈自启，用 .venv 解释器显式起 streamlit，不写 trade-journal 任何文件",
     "real_models": "run_all.bat 带 --real-models；本机 .env 追加 TA_ENABLE_REAL_RUNNER=1（gitignore，不回显）",
     "repo_default": "不改 DEFAULT_WRITE_MODE；常驻只落本机 .env.stack",
-    "s6_real_job": "未执行，按用户决定记为「真实链路未验」"
+    "s6_real_job": "用户补授权后执行：首轮 6bebe5e1 失败（internal_error）；retry same_config 重跑 b51633ec，11/12 阶段时供应商返回 402 Insufficient account balance"
   },
   "steps": [
     {
@@ -98,12 +98,47 @@
     },
     {
       "id": "S6",
-      "what": "一次真实分析",
-      "command": "未执行",
-      "observed": {"authorized": false},
-      "assertion": "未授权；按用户决定记「真实链路未验」，不得写成通过",
+      "what": "一次真实分析（首轮失败后 retry same_config 一次）",
+      "command": "POST /api/v1/jobs（新幂等键，002138 / 2026-11-08 / 默认配置）→ POST /api/v1/jobs/{id}/retry {mode:same_config} → 轮询 GET /api/v1/jobs/{id}",
+      "observed": {
+        "authorized": true,
+        "attempt_1": {
+          "job_id": "6bebe5e1-5b7f-4882-9b9a-8c868bdaa7c2",
+          "created_at": "2026-11-08T20:07:24+08:00",
+          "finished_at": "2026-11-08T20:09:01+08:00",
+          "status": "failed",
+          "failed_stage": "market",
+          "stage_duration_ms": 85000,
+          "stats": {"model_calls": 0, "tokens_in": 0, "tokens_out": 0, "elapsed_ms": 0},
+          "error": {"code": "internal_error", "message": "分析执行失败"}
+        },
+        "attempt_2": {
+          "job_id": "b51633ec-43a8-4896-b489-88fa6592ae8c",
+          "retry_of_job_id": "6bebe5e1-5b7f-4882-9b9a-8c868bdaa7c2",
+          "created_at": "2026-11-08T20:12:14+08:00",
+          "finished_at": "2026-11-08T20:38:57+08:00",
+          "status": "failed",
+          "stages_done": 11,
+          "stages_total": 12,
+          "failed_stage": "risk",
+          "pending_stage": "pm",
+          "stats": {"model_calls": 29, "tokens_in": 189594, "tokens_out": 79723, "elapsed_ms": 1569230},
+          "report_id": null,
+          "provider_error": {"code": "402", "message": "Error code: 402 - {'error': {'code': '402', 'message': 'Insufficient account balance', 'type': 'insufficient_balance'}}"}
+        },
+        "console": [
+          "INFO astock.backend: write    next",
+          "INFO astock.backend: worker   real",
+          "POST https://api.xiaomimimo.com/v1/chat/completions -> HTTP/1.1 200 OK（前 28 次调用）",
+          "POST https://api.xiaomimimo.com/v1/chat/completions -> HTTP/1.1 402 Payment Required（risk 阶段）"
+        ],
+        "idempotency_replay": "两个幂等键各重放一次：均 200 + Idempotency-Replayed: 1 + 同一 job_id；jobs 12 不增、reports 7 不增，无重复模型调用"
+      },
+      "assertion": "201 建单、worker 认领、真实模型调用累积（29 次/18.96 万输入 token）、阶段推进到 11/12；最终成功被供应商账户余额 402 阻断（非切换缺陷），报告未落库",
       "passed": false,
-      "skipped": true
+      "skipped": false,
+      "blocked": true,
+      "blocked_reason": "provider_insufficient_balance_402"
     },
     {
       "id": "S7",
@@ -136,13 +171,16 @@
   "verification": {
     "new_tests": "tests/backend/test_stack_launch.py 6 条通过（计划三子进程、--no-ui/--no-journal、5173 与 .venv 护栏、legacy 计划不变、require_ui、dry-run 三行）",
     "full_pytest": "844 passed / 4 skipped / 59 subtests，256.95s",
-    "isolated_no_ui": "TA_DATA_ROOT 临时根 + --no-ui --no-journal：8600 write_mode=next，stack_mode status consistent=true 退出 0，5173/8502/8501 无监听"
+    "isolated_no_ui": "TA_DATA_ROOT 临时根 + --no-ui --no-journal：8600 write_mode=next，stack_mode status consistent=true 退出 0，5173/8502/8501 无监听",
+    "s6_real_chain": "真实模型被实际调用并推进 11/12 阶段；最终失败为供应商 402 余额不足。幂等重放 2 次均不新增任务与模型调用；收尾 stack_mode status consistent=true、三端口关闭"
   },
   "deviations": [
     "后端日志走控制台（stack_launch 直接 Popen 继承输出），不写 %TEMP%\\astock-stack\\backend-next.log；用控制台「worker real」确认真实 runner。",
     "第一次 run_all.bat 因 UTF-8 中文 REM 在 cmd/GBK 下解析失败（「此时不应有…」）；注释改 ASCII 后正常。批处理内不要写非 ASCII。",
     "S4 用 taskkill /T 模拟关闭控制台，未在自动化里发真正的 Ctrl+C；finally 回收路径由代码保障，未做真机按键验证。",
-    "S0 备份为 150 个白名单文件（P6-07 交接卡记的 240 是真实根含 cache/logs 的总数），manifest 校验通过。"
+    "S0 备份为 150 个白名单文件（P6-07 交接卡记的 240 是真实根含 cache/logs 的总数），manifest 校验通过。",
+    "S6 首轮失败只落 internal_error（0 累计统计），worker 捕获异常未 logger.exception，控制台没有 traceback；二轮才由供应商 402 明确根因。补一次重试仍属 S6，不是另开分析范围。",
+    "S6 收尾用 taskkill /T 关栈，未走控制台 Ctrl+C；与 S4 同一偏离。"
   ],
   "files_changed": [
     "scripts/stack_launch.py",
@@ -151,7 +189,8 @@
     "tests/backend/test_stack_launch.py"
   ],
   "leftovers": [
-    "S6 真实链路未验：可在界面点一次分析，核对 201、worker 认领、succeeded、报告落库、无重复调用。",
+    "S6 未取到 succeeded：MiMo 账户余额不足（402）。充值后按同一配置重跑，即可复核报告落库与「无重复调用」。",
+    "worker 失败路径只记录 code/message，不打异常栈；排障需看供应商响应或补 logger.exception（后续小修）。",
     "旧版仍可 set legacy + run_all.bat 独立起 8501；仓库缺省不变。"
   ]
 }
