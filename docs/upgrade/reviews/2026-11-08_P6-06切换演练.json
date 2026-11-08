@@ -1,0 +1,243 @@
+{
+  "ticket": "P6-06",
+  "drilled_at": "2026-11-08T16:29:59+08:00",
+  "repo_head": "fcdff07d47619610e9f83d18d24e53481dff4f28",
+  "interpreters": {
+    "system": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+    "venv": "3.13.3 (tags/v3.13.3:6280bb5, Apr  8 2025, 14:47:33) [MSC v.1943 64 bit (AMD64)]"
+  },
+  "data_root": {
+    "source": "~/.tradingagents",
+    "drill_copy": "C:\\Users\\zhzsh\\AppData\\Local\\Temp\\astock-p6-06-drill\\data"
+  },
+  "fake_executor_only": true,
+  "isolation_env": {
+    "TA_DATA_ROOT": "C:\\Users\\zhzsh\\AppData\\Local\\Temp\\astock-p6-06-drill\\data",
+    "TRADINGAGENTS_RESULTS_DIR": "C:\\Users\\zhzsh\\AppData\\Local\\Temp\\astock-p6-06-drill\\data\\logs",
+    "TRADINGAGENTS_CACHE_DIR": "C:\\Users\\zhzsh\\AppData\\Local\\Temp\\astock-p6-06-drill\\data\\cache",
+    "USERPROFILE": "C:\\Users\\zhzsh\\AppData\\Local\\Temp\\astock-p6-06-drill\\home",
+    "HOME": "C:\\Users\\zhzsh\\AppData\\Local\\Temp\\astock-p6-06-drill\\home"
+  },
+  "steps": [
+    {
+      "id": "D0",
+      "action": "preconditions: 8501/8600/8610 closed",
+      "expected": "no listeners",
+      "observed": {
+        "8501": false,
+        "8600": false,
+        "8610": false
+      },
+      "pass": true
+    },
+    {
+      "id": "D1",
+      "action": "backup the real root before the drill",
+      "expected": "zip + manifest with >=1 file",
+      "observed": {
+        "files": 142,
+        "sha256": "1f5d2c60e5aa674e309c1647ed33ce88e53865094153fcdfe6c9d9ad1dd28556"
+      },
+      "pass": true
+    },
+    {
+      "id": "D2",
+      "action": "restore the backup into the drill copy",
+      "expected": "exit 0 and C:\\Users\\zhzsh\\AppData\\Local\\Temp\\astock-p6-06-drill\\data\\jobs.db exists",
+      "observed": {
+        "exit": 0,
+        "tail": [
+          "[OK] C:\\Users\\zhzsh\\AppData\\Local\\Temp\\astock-p6-06-drill\\data"
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "D3",
+      "action": "legacy starts alone (no backend on 8600)",
+      "expected": "8501 health ok, 8600 closed, 8502 unchanged",
+      "observed": {
+        "health": true,
+        "8600": false,
+        "8502_before": false,
+        "8502_now": false,
+        "pid": 17556
+      },
+      "pass": true
+    },
+    {
+      "id": "D4",
+      "action": "set next refuses while 8501 listens",
+      "expected": "exit 1, mentions 8501, .env.stack unchanged",
+      "observed": {
+        "exit": 1,
+        "message": "[stack] 8501 仍在监听：旧版还在写 ~/.tradingagents，先停旧版再切 next",
+        "file_unchanged": true
+      },
+      "pass": true
+    },
+    {
+      "id": "D5",
+      "action": "stop legacy",
+      "expected": "8501 closed",
+      "observed": {
+        "8501": false
+      },
+      "pass": true
+    },
+    {
+      "id": "D6",
+      "action": "set next writes .env.stack",
+      "expected": "exit 0 and ACTIVE_ANALYSIS_UI=next",
+      "observed": {
+        "exit": 0,
+        "file": "ACTIVE_ANALYSIS_UI=next",
+        "stdout": [
+          "written C:\\Users\\zhzsh\\TradingAgents-astock\\.env.stack: ACTIVE_ANALYSIS_UI=next",
+          "backend 8600 not running; start it and run status"
+        ]
+      },
+      "pass": true
+    },
+    {
+      "id": "D7",
+      "action": "next stack starts on 8600 with write_mode=next",
+      "expected": "meta/options.write_mode=next, 8501 closed",
+      "observed": {
+        "write_mode": "next",
+        "8501": false,
+        "8600": true
+      },
+      "pass": true
+    },
+    {
+      "id": "D8",
+      "action": "next is the writer: POST /jobs returns 201",
+      "expected": "201 with job_id",
+      "observed": {
+        "status": 201,
+        "job_id": "daea3b08-b3b2-4987-a367-8d2311c339db",
+        "cancelled_before": 0
+      },
+      "pass": true
+    },
+    {
+      "id": "D9",
+      "action": "fake job reaches a terminal state on the copy",
+      "expected": "status=succeeded",
+      "observed": {
+        "status": "succeeded"
+      },
+      "pass": true
+    },
+    {
+      "id": "D10",
+      "action": "set legacy restarts the backend and verifies meta",
+      "expected": "exit 0 and meta/options.write_mode=legacy",
+      "observed": {
+        "exit": 0,
+        "stdout": [
+          "written C:\\Users\\zhzsh\\TradingAgents-astock\\.env.stack: ACTIVE_ANALYSIS_UI=legacy",
+          "[warn] 8501 未监听：legacy 下没有入口能发起分析",
+          "backend restarted: /api/v1/meta/options write_mode=legacy"
+        ],
+        "stderr": ""
+      },
+      "pass": true
+    },
+    {
+      "id": "D11",
+      "action": "legacy backend refuses new jobs with 409 write_mode_legacy",
+      "expected": "meta write_mode=legacy and 409 write_mode_legacy",
+      "observed": {
+        "write_mode": "legacy",
+        "status": 409,
+        "code": "write_mode_legacy"
+      },
+      "pass": true
+    },
+    {
+      "id": "D12",
+      "action": "stop the backend after the drill",
+      "expected": "8501/8600 closed",
+      "observed": {
+        "8501": false,
+        "8600": false
+      },
+      "pass": true
+    },
+    {
+      "id": "D13",
+      "action": "status reports legacy with both ports closed",
+      "expected": "exit 0, mode=legacy, consistent, no listeners",
+      "observed": {
+        "mode": "legacy",
+        "legacy_listening": false,
+        "backend_listening": false,
+        "backend_write_mode": null,
+        "consistent": true,
+        "reason": ""
+      },
+      "pass": true
+    },
+    {
+      "id": "D14",
+      "action": "the ticket ends in legacy",
+      "expected": "ACTIVE_ANALYSIS_UI=legacy (or no file)",
+      "observed": {
+        "file": "ACTIVE_ANALYSIS_UI=legacy",
+        "exists": true
+      },
+      "pass": true
+    },
+    {
+      "id": "D15",
+      "action": "the real root was untouched by the drill (pre/post manifests agree)",
+      "expected": "same path->sha256 map in both backups",
+      "observed": {
+        "files_before": 142,
+        "files_after": 142,
+        "changed": []
+      },
+      "pass": true
+    }
+  ],
+  "backup_pre": {
+    "zip": "C:\\Users\\zhzsh\\AppData\\Local\\Temp\\astock-p6-06-drill\\pre-drill.zip",
+    "zip_bytes": 2791437,
+    "zip_sha256": "1f5d2c60e5aa674e309c1647ed33ce88e53865094153fcdfe6c9d9ad1dd28556",
+    "files": 142,
+    "migration_head": "0007",
+    "active_analysis_ui": null
+  },
+  "drill_copy": {
+    "jobs_db_bytes": 2183168,
+    "job_reports": 8
+  },
+  "backend": {
+    "contract_version": "api-v1",
+    "write_mode": "next"
+  },
+  "job": {
+    "job_id": "daea3b08-b3b2-4987-a367-8d2311c339db",
+    "status": "succeeded"
+  },
+  "backup_post": {
+    "zip": "C:\\Users\\zhzsh\\AppData\\Local\\Temp\\astock-p6-06-drill\\post-drill.zip",
+    "zip_bytes": 2791437,
+    "zip_sha256": "ce5840f593542144abb48a82704e1f8ed507fd4ea12d37ca866847f96796e696",
+    "files": 142,
+    "migration_head": "0007",
+    "active_analysis_ui": null
+  },
+  "conclusion": "pass",
+  "logs": {
+    "legacy": "C:\\Users\\zhzsh\\AppData\\Local\\Temp\\astock-p6-06-drill\\legacy.log",
+    "next": "C:\\Users\\zhzsh\\AppData\\Local\\Temp\\astock-p6-06-drill\\next.log"
+  },
+  "ports_after": {
+    "8501": false,
+    "8600": false,
+    "8610": false
+  }
+}
