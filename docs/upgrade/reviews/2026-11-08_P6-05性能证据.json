@@ -1,0 +1,238 @@
+{
+  "ticket": "P6-05",
+  "updated_at": "2026-11-08T15:17:12+08:00",
+  "runs": [
+    {
+      "ticket": "P6-05",
+      "measured_at": "2026-11-08T15:15:30+08:00",
+      "command": "perf_core.py --samples 20",
+      "build": {
+        "manifest": "frontend/dist/.vite/manifest.json",
+        "mtime": "2026-11-08T15:14:18+08:00"
+      },
+      "load_route": "/market",
+      "samples_per_viewport": 20,
+      "viewports": {
+        "mobile": "390x844",
+        "desktop": "1440x900"
+      },
+      "interactions": [
+        "manual_refresh",
+        "market_to_stock",
+        "list_filter"
+      ],
+      "interaction_definitions": {
+        "manual_refresh": "在 /market 点击 [data-testid=market-refresh]，触发四个市场查询重取。",
+        "market_to_stock": "在 /market 点击强势股链接 a[href^=/stocks/]，客户端路由切到个股页。",
+        "list_filter": "在 /jobs 切换一个状态筛选复选框；移动档先点 [data-testid=job-filter-open] 打开筛选弹窗。"
+      },
+      "inp_floor_ms": 16.0,
+      "metrics": {
+        "mobile": {
+          "lcp_ms": {
+            "p75": 436.0,
+            "target": 2000.0,
+            "regression": 2500.0,
+            "pass": true,
+            "warn": false,
+            "samples": 20
+          },
+          "cls": {
+            "p75": 0.0065,
+            "target": 0.05,
+            "regression": 0.1,
+            "pass": true,
+            "warn": false,
+            "samples": 20
+          },
+          "inp_ms": {
+            "p75": 16.0,
+            "target": 150.0,
+            "regression": 200.0,
+            "pass": true,
+            "warn": false,
+            "samples": 20
+          }
+        },
+        "desktop": {
+          "lcp_ms": {
+            "p75": 436.0,
+            "target": 2000.0,
+            "regression": 2500.0,
+            "pass": true,
+            "warn": false,
+            "samples": 20
+          },
+          "cls": {
+            "p75": 0.0025,
+            "target": 0.05,
+            "regression": 0.1,
+            "pass": true,
+            "warn": false,
+            "samples": 20
+          },
+          "inp_ms": {
+            "p75": 16.0,
+            "target": 150.0,
+            "regression": 200.0,
+            "pass": true,
+            "warn": false,
+            "samples": 20
+          }
+        }
+      },
+      "inp_by_interaction": {
+        "mobile": {
+          "manual_refresh": {
+            "samples": 7,
+            "p75": 16.0
+          },
+          "market_to_stock": {
+            "samples": 7,
+            "p75": 16.0
+          },
+          "list_filter": {
+            "samples": 6,
+            "p75": 16.0
+          }
+        },
+        "desktop": {
+          "manual_refresh": {
+            "samples": 7,
+            "p75": 16.0
+          },
+          "market_to_stock": {
+            "samples": 7,
+            "p75": 24.0
+          },
+          "list_filter": {
+            "samples": 6,
+            "p75": 16.0
+          }
+        }
+      },
+      "requests": {
+        "total": 1056,
+        "external": []
+      },
+      "target_warnings": [],
+      "conclusion": "pass"
+    },
+    {
+      "ticket": "P6-05",
+      "measured_at": "2026-11-08T15:17:12+08:00",
+      "command": "perf_core.py --samples 20",
+      "build": {
+        "manifest": "frontend/dist/.vite/manifest.json",
+        "mtime": "2026-11-08T15:16:00+08:00"
+      },
+      "load_route": "/market",
+      "samples_per_viewport": 20,
+      "viewports": {
+        "mobile": "390x844",
+        "desktop": "1440x900"
+      },
+      "interactions": [
+        "manual_refresh",
+        "market_to_stock",
+        "list_filter"
+      ],
+      "interaction_definitions": {
+        "manual_refresh": "在 /market 点击 [data-testid=market-refresh]，触发四个市场查询重取。",
+        "market_to_stock": "在 /market 点击强势股链接 a[href^=/stocks/]，客户端路由切到个股页。",
+        "list_filter": "在 /jobs 切换一个状态筛选复选框；移动档先点 [data-testid=job-filter-open] 打开筛选弹窗。"
+      },
+      "inp_floor_ms": 16.0,
+      "metrics": {
+        "mobile": {
+          "lcp_ms": {
+            "p75": 436.0,
+            "target": 2000.0,
+            "regression": 2500.0,
+            "pass": true,
+            "warn": false,
+            "samples": 20
+          },
+          "cls": {
+            "p75": 0.0065,
+            "target": 0.05,
+            "regression": 0.1,
+            "pass": true,
+            "warn": false,
+            "samples": 20
+          },
+          "inp_ms": {
+            "p75": 16.0,
+            "target": 150.0,
+            "regression": 200.0,
+            "pass": true,
+            "warn": false,
+            "samples": 20
+          }
+        },
+        "desktop": {
+          "lcp_ms": {
+            "p75": 436.0,
+            "target": 2000.0,
+            "regression": 2500.0,
+            "pass": true,
+            "warn": false,
+            "samples": 20
+          },
+          "cls": {
+            "p75": 0.0025,
+            "target": 0.05,
+            "regression": 0.1,
+            "pass": true,
+            "warn": false,
+            "samples": 20
+          },
+          "inp_ms": {
+            "p75": 16.0,
+            "target": 150.0,
+            "regression": 200.0,
+            "pass": true,
+            "warn": false,
+            "samples": 20
+          }
+        }
+      },
+      "inp_by_interaction": {
+        "mobile": {
+          "manual_refresh": {
+            "samples": 7,
+            "p75": 16.0
+          },
+          "market_to_stock": {
+            "samples": 7,
+            "p75": 16.0
+          },
+          "list_filter": {
+            "samples": 6,
+            "p75": 16.0
+          }
+        },
+        "desktop": {
+          "manual_refresh": {
+            "samples": 7,
+            "p75": 16.0
+          },
+          "market_to_stock": {
+            "samples": 7,
+            "p75": 24.0
+          },
+          "list_filter": {
+            "samples": 6,
+            "p75": 16.0
+          }
+        }
+      },
+      "requests": {
+        "total": 1056,
+        "external": []
+      },
+      "target_warnings": [],
+      "conclusion": "pass"
+    }
+  ]
+}
