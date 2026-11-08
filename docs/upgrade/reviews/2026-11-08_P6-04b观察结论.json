@@ -1,0 +1,73 @@
+{
+  "days": 7,
+  "calendar_days": 2,
+  "same_day_runs": 6,
+  "anomalies": 0,
+  "report_hash_stable": true,
+  "no_auto_rerun": true,
+  "window": "2026-11-07 .. 2026-11-08",
+  "deviation": "7 次运行中 6 次落在同一天（2026-11-08），未覆盖跨日问题（日期边界、索引增长）；索引 3–4、5–6 各有一组在同对话内连跑，未按「一任务一对话」新开对话",
+  "jobs": [
+    {
+      "job_id": "8ca94e36-fd0f-43cb-88e7-e4784fc212b4",
+      "created_at": "2026-11-07T21:55:57+08:00",
+      "status": "succeeded",
+      "model_calls": 27,
+      "report_id": "c13be8d8-1fde-4ccd-8364-3d322d59f62f",
+      "content_hash": "384d855aeb8144755d50606bfd44aed28a454623c0218dd3acc76fb40351edb2"
+    },
+    {
+      "job_id": "4e8a0d47-7076-4f05-8f04-45a88337ae2a",
+      "created_at": "2026-11-08T00:23:45+08:00",
+      "status": "succeeded",
+      "model_calls": 31,
+      "report_id": "193add28-a0a8-4c31-99e4-bdb1021fa370",
+      "content_hash": "ef18483eb8be0e3c3b1bed748affa0691e9332cd13e30a06f545d999d6cdee64"
+    },
+    {
+      "job_id": "80a67afe-1525-4b5e-81fb-e69fc8b731c9",
+      "created_at": "2026-11-08T10:01:05+08:00",
+      "status": "succeeded",
+      "model_calls": 40,
+      "report_id": "bb477e6c-8dc1-4cef-9d28-5bd699213773",
+      "content_hash": "917c7d0f51abf09b29c1ffaf9d53af360bb44c00d1ccff88291d47b512d3a00c"
+    },
+    {
+      "job_id": "7ed0f1ea-64b0-4a80-a31c-d25d4e2fbafd",
+      "created_at": "2026-11-08T10:40:12+08:00",
+      "status": "succeeded",
+      "model_calls": 33,
+      "report_id": "52d55a8d-91fa-4a8d-87a8-1ec9f055d2df",
+      "content_hash": "98611813dbfa66df82831824af6d4e72976474e580af7cd851d76aad523c35ef"
+    },
+    {
+      "job_id": "5f22734b-4e5c-4b5e-a8fa-e58a3f558c54",
+      "created_at": "2026-11-08T11:13:20+08:00",
+      "status": "succeeded",
+      "model_calls": 33,
+      "report_id": "e4ea4446-2f13-455d-aabc-e572a7f3d0ed",
+      "content_hash": "908564964befbc6d16de25137cdde7dc25f4cd50634a02d18c60e4b43e18cfc7"
+    },
+    {
+      "job_id": "8ff726b9-3f25-4eaa-9af7-d821bf7df1d8",
+      "created_at": "2026-11-08T12:08:35+08:00",
+      "status": "succeeded",
+      "model_calls": 37,
+      "report_id": "725e16c6-3711-46b4-b35b-46ca70a9f099",
+      "content_hash": "50a3aecc53ac940981591d2ae8445cfebf9e5101b67cbdd1c650a22c2ee59908"
+    },
+    {
+      "job_id": "ee4039e4-573a-4744-9ad7-b00bbd8449ce",
+      "created_at": "2026-11-08T14:20:43+08:00",
+      "status": "succeeded",
+      "model_calls": 46,
+      "report_id": "03af4d42-70fa-4b86-83c4-dda7b866f70a",
+      "content_hash": "1b2c1cc1099c0104e766192cd5cc85041f5fb68cd4af3fa3f4f7b8a53b817bfb"
+    }
+  ],
+  "records": "docs/upgrade/reviews/2026-11-08_P6主用观察.md",
+  "audit_cmd": "stack_audit --date 2026-11-08",
+  "pending_checks": [
+    "8ff726b9-3f25-4eaa-9af7-d821bf7df1d8 的 rating/signal 落库为 unknown（PM 结构化输出失败后改自由文本重试），正文结论为 Underweight；不属五类异常，本票不修"
+  ]
+}
