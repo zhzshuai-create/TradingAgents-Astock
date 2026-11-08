@@ -1,0 +1,105 @@
+{
+  "ticket": "P6-07",
+  "kind": "切默认冒烟与立即回退",
+  "date": "2026-11-08",
+  "authorized_by": "用户当场确认：现在切并立即回退",
+  "repo_head": "3dd6a01",
+  "conclusion": "pass",
+  "default_after_run": "legacy",
+  "default_switched_permanently": false,
+  "switch_scope": "只写本机 .env.stack=next；DEFAULT_WRITE_MODE 未改，api-v1 契约未动",
+  "preconditions": {
+    "env_stack": "ACTIVE_ANALYSIS_UI=legacy",
+    "worktree_clean": true,
+    "ports": {"8501": false, "8502": false, "8600": false, "8610": false, "5173": false}
+  },
+  "steps": [
+    {
+      "id": "S0",
+      "what": "切 .env.stack 到 next",
+      "command": ".venv/Scripts/python.exe scripts/stack_mode.py set next",
+      "output": "written .env.stack: ACTIVE_ANALYSIS_UI=next；backend 8600 not running; start it and run status",
+      "assertion": ".env.stack == ACTIVE_ANALYSIS_UI=next",
+      "passed": true
+    },
+    {
+      "id": "S1",
+      "what": "按 .env.stack 起新版后端",
+      "command": ".venv/Scripts/python.exe scripts/stack_launch.py",
+      "observed": {"backend_pid": 58088, "listen": "127.0.0.1:8600", "meta_write_mode": "next", "contract_version": "api-v1", "app_version": "0.9.0", "journal": {"available": false, "entry_url": "http://127.0.0.1:8502", "reason": "not_running"}, "legacy_8501": false},
+      "assertion": "/api/v1/meta/options 的 write_mode == next，8501 未起（互斥生效）",
+      "passed": true
+    },
+    {
+      "id": "S2",
+      "what": "起前端预览（后端不托管 SPA）",
+      "command": "cd frontend && node node_modules/vite/bin/vite.js preview --port 5173 --strictPort",
+      "observed": {"listen": "[::1]:5173", "pid": 54460, "backend_root": "GET http://127.0.0.1:8600/ -> 404（后端只提供 api）", "proxy": "GET http://localhost:5173/api/v1/meta/options -> 200 application/json"},
+      "assertion": "preview 的 /api 代理指向 8600，写入口读取与后端一致",
+      "passed": true
+    },
+    {
+      "id": "S3",
+      "what": "浏览器冒烟（只读，不建真实任务）",
+      "command": "系统 Python 3.13 + Playwright: switch_smoke.py http://[::1]:5173",
+      "observed": {
+        "settings": {
+          "path": "/settings",
+          "writer": "新版入口",
+          "writer_ok": true,
+          "pairs": {
+            "接口状态": "接口可达",
+            "应用版本": "0.9.0",
+            "契约版本": "api-v1",
+            "分析写入者": "新版入口",
+            "交易日志": "日志服务当前没有在运行 / 打开交易日志"
+          }
+        },
+        "jobs": {"rows": 10, "cards": 10, "empty": false, "loading": false},
+        "reports": {"rows": 7, "cards": 7, "empty": false, "loading": false},
+        "console_errors": [],
+        "page_errors": [],
+        "failed_requests": [],
+        "elapsed_s": 3.2
+      },
+      "new_job_created": false,
+      "screenshots": [
+        "docs/upgrade/reviews/p6_07_switch_shots/settings.png",
+        "docs/upgrade/reviews/p6_07_switch_shots/jobs.png",
+        "docs/upgrade/reviews/p6_07_switch_shots/reports.png"
+      ],
+      "assertion": "设置页写入者显示「新版入口」，任务/报告列表可读，控制台 0 error、0 失败请求",
+      "passed": true
+    },
+    {
+      "id": "S4",
+      "what": "立即回退 .env.stack 到 legacy（后端在跑，由 set 重启）",
+      "command": ".venv/Scripts/python.exe scripts/stack_mode.py set legacy",
+      "output": "written .env.stack: ACTIVE_ANALYSIS_UI=legacy；[warn] 8501 未监听：legacy 下没有入口能发起分析；backend restarted: /api/v1/meta/options write_mode=legacy",
+      "assertion": "重启后 8600 自报 write_mode=legacy；8501 未起属预期（本机不常驻旧版）",
+      "passed": true
+    },
+    {
+      "id": "S5",
+      "what": "回退后的写入判据",
+      "command": "GET /api/v1/meta/options；POST /api/v1/jobs（新幂等键、600519、2026-11-08、独立配置）",
+      "observed": {"meta_write_mode": "legacy", "contract_version": "api-v1", "post_status": 409, "error_code": "write_mode_legacy", "jobs_total_before": 10, "jobs_total_after": 10},
+      "assertion": "legacy 下新键被 409 write_mode_legacy 拒绝，且没有新增任务行",
+      "passed": true
+    },
+    {
+      "id": "S6",
+      "what": "收尾：停后端与预览，确认无监听",
+      "command": "Stop-Process 55164,54680,54460；Get-NetTCPConnection -State Listen -LocalPort 8501,8502,8600,8610,5173",
+      "observed": {"listeners": {}, "env_stack": "ACTIVE_ANALYSIS_UI=legacy"},
+      "assertion": "五个端口均无监听，默认入口回到 legacy",
+      "passed": true
+    }
+  ],
+  "notes": [
+    "后端不托管前端：GET / 返回 404 是既有设计，冒烟必须经 Vite 预览或开发服务器访问，不能把 404 当故障。",
+    "冒烟只读设置、任务与报告列表，未创建任务；S5 的 409 探测也没有落库（任务总数 10 不变）。",
+    "新版后端 pid 在后端重启后变为 55164，父进程 54680 同为 run_backend.py；收尾按进程树停掉，未杀其他程序。",
+    "预览首次绑定 [::1]:5173，127.0.0.1 探活会得到拒绝，冒烟统一走 localhost/(::1)。"
+  ]
+}
