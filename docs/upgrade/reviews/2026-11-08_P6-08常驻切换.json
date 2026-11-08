@@ -1,0 +1,157 @@
+{
+  "ticket": "P6-08",
+  "kind": "本机日常入口常驻切 next（入口、日志与前端托管）",
+  "date": "2026-11-08",
+  "authorized_by": "用户确认：四条口径全按推荐（1A 前端预览、8502 自启、--real-models 双开关、不改仓库默认）；S6 真实分析先不跑，记未验",
+  "repo_head": "a1114f6",
+  "conclusion": "pass",
+  "default_after_run": "next（仅本机 .env.stack；仓库 DEFAULT_WRITE_MODE 仍为 legacy）",
+  "services_running_at_end": false,
+  "switch_scope": "只写本机 .env.stack=next 与 .env 的 TA_ENABLE_REAL_RUNNER=1；api-v1 契约与 DEFAULT_WRITE_MODE 未改",
+  "preconditions": {
+    "head_before": "05b20a7",
+    "worktree_clean": true,
+    "env_stack": "ACTIVE_ANALYSIS_UI=legacy",
+    "ports": {"8501": false, "8502": false, "8600": false, "8610": false, "5173": false},
+    "preflight": "10 PASS / 0 FAIL（基线，含 838 passed / 4 skipped）",
+    "backup_before": "C:\\Users\\zhzsh\\tradingagents-backups\\backup-20261108-194424.zip"
+  },
+  "decisions": {
+    "frontend_hosting": "A. stack_launch.py 起 vite preview 5173 --host 127.0.0.1 --strictPort，复用 dist 与 /api 代理",
+    "journal": "8502 随栈自启，用 .venv 解释器显式起 streamlit，不写 trade-journal 任何文件",
+    "real_models": "run_all.bat 带 --real-models；本机 .env 追加 TA_ENABLE_REAL_RUNNER=1（gitignore，不回显）",
+    "repo_default": "不改 DEFAULT_WRITE_MODE；常驻只落本机 .env.stack",
+    "s6_real_job": "未执行，按用户决定记为「真实链路未验」"
+  },
+  "steps": [
+    {
+      "id": "S0",
+      "what": "全量备份（只读校验真实数据根）",
+      "command": ".venv/Scripts/python.exe scripts/backup_restore.py backup --live",
+      "output": "backup-20261108-194424.zip；150 个文件 / 11359751 B；manifest 全量哈希一致",
+      "assertion": "zip 存在，校验通过",
+      "passed": true
+    },
+    {
+      "id": "S1",
+      "what": "切 .env.stack 到 next",
+      "command": ".venv/Scripts/python.exe scripts/stack_mode.py set next",
+      "output": "written .env.stack: ACTIVE_ANALYSIS_UI=next；backend 8600 not running; start it and run status",
+      "assertion": ".env.stack == ACTIVE_ANALYSIS_UI=next",
+      "passed": true
+    },
+    {
+      "id": "S2",
+      "what": "双击等价入口 run_all.bat（系统 Python 3.12 + .venv 解释器）",
+      "command": "cmd /c run_all.bat",
+      "output": "三行启动：backend(venv python scripts/run_backend.py --real-models)、ui(node vite.js preview --port 5173 --host 127.0.0.1 --strictPort)、journal(venv python -m streamlit run <parent>/trade-journal/app.py --server.headless true --server.port 8502)",
+      "observed": {
+        "listeners": {"8600": "127.0.0.1", "5173": "127.0.0.1", "8502": "0.0.0.0"},
+        "meta": {"write_mode": "next", "contract_version": "api-v1", "app_version": "0.9.0", "journal": {"available": true, "entry_url": "http://127.0.0.1:8502", "reason": null}},
+        "ui_root": 200,
+        "proxy": "GET http://127.0.0.1:5173/api/v1/meta/options -> 200 application/json",
+        "journal_health": "ok",
+        "backend_worker": "INFO astock.backend: worker   real（无 fake graph 警告）",
+        "legacy_8501": false
+      },
+      "assertion": "三端口监听；meta write_mode=next、journal.available=true；真实 runner 生效",
+      "passed": true
+    },
+    {
+      "id": "S3",
+      "what": "浏览器走查（Playwright，系统 Python 3.13，只读）",
+      "command": "Python313 switch_smoke.py http://127.0.0.1:5173",
+      "observed": {
+        "settings": {"has_writer_label": true, "writer": "next", "has_contract": true, "has_version": true},
+        "jobs": {"cards": 10},
+        "reports": {"cards": 7},
+        "journal": {"iframe_present": true, "frame_url": "http://127.0.0.1:8502/", "frame_text_len": 381, "frame_has_streamlit": true},
+        "console_errors": [],
+        "page_errors": [],
+        "failed_requests": []
+      },
+      "new_job_created": false,
+      "screenshots": [
+        "docs/upgrade/reviews/p6_08_switch_shots/settings.png",
+        "docs/upgrade/reviews/p6_08_switch_shots/jobs.png",
+        "docs/upgrade/reviews/p6_08_switch_shots/reports.png",
+        "docs/upgrade/reviews/p6_08_switch_shots/journal.png"
+      ],
+      "assertion": "设置页写入者「新版入口」，任务/报告可读，日志 iframe 指向 8502，控制台 0 error、0 失败请求",
+      "passed": true
+    },
+    {
+      "id": "S4",
+      "what": "关栈并复核端口",
+      "command": "taskkill /PID <launcher> /T /F（模拟关闭控制台）",
+      "observed": {"listeners": {}, "residual_preview": false},
+      "assertion": "8501/8502/8600/8610/5173 全部释放，无预览残留",
+      "passed": true
+    },
+    {
+      "id": "S5",
+      "what": "第二次冷启动",
+      "command": "cmd /c run_all.bat",
+      "observed": {"listeners": {"8600": true, "5173": true, "8502": true}, "meta_write_mode": "next", "journal_available": true, "ui_root": 200},
+      "assertion": "与 S2 同结果，证明不是一次性成功",
+      "passed": true
+    },
+    {
+      "id": "S6",
+      "what": "一次真实分析",
+      "command": "未执行",
+      "observed": {"authorized": false},
+      "assertion": "未授权；按用户决定记「真实链路未验」，不得写成通过",
+      "passed": false,
+      "skipped": true
+    },
+    {
+      "id": "S7",
+      "what": "回退演练：set legacy + run_all.bat + legacy 写入判据",
+      "command": ".venv/Scripts/python.exe scripts/stack_mode.py set legacy；cmd /c run_all.bat；ACTIVE_ANALYSIS_UI=legacy run_backend.py --no-worker + POST /api/v1/jobs",
+      "observed": {
+        "env_stack": "ACTIVE_ANALYSIS_UI=legacy",
+        "legacy_8501_health": "ok",
+        "legacy_8502_health": "ok",
+        "8600": false,
+        "5173": false,
+        "legacy_backend_meta_write_mode": "legacy",
+        "post_new_key_status": 409,
+        "error_code": "write_mode_legacy",
+        "jobs_total_before": 10,
+        "jobs_total_after": 10
+      },
+      "assertion": "8501 起、8600/5173 关；legacy 后端拒绝新键 409，未新增任务行",
+      "passed": true
+    },
+    {
+      "id": "S8",
+      "what": "再切回 next 并停在「已配置、服务关闭」",
+      "command": ".venv/Scripts/python.exe scripts/stack_mode.py set next",
+      "observed": {"env_stack": "ACTIVE_ANALYSIS_UI=next", "listeners": {}},
+      "assertion": ".env.stack=next；四端口全关；日常靠双击 run_all.bat",
+      "passed": true
+    }
+  ],
+  "verification": {
+    "new_tests": "tests/backend/test_stack_launch.py 6 条通过（计划三子进程、--no-ui/--no-journal、5173 与 .venv 护栏、legacy 计划不变、require_ui、dry-run 三行）",
+    "full_pytest": "844 passed / 4 skipped / 59 subtests，256.95s",
+    "isolated_no_ui": "TA_DATA_ROOT 临时根 + --no-ui --no-journal：8600 write_mode=next，stack_mode status consistent=true 退出 0，5173/8502/8501 无监听"
+  },
+  "deviations": [
+    "后端日志走控制台（stack_launch 直接 Popen 继承输出），不写 %TEMP%\\astock-stack\\backend-next.log；用控制台「worker real」确认真实 runner。",
+    "第一次 run_all.bat 因 UTF-8 中文 REM 在 cmd/GBK 下解析失败（「此时不应有…」）；注释改 ASCII 后正常。批处理内不要写非 ASCII。",
+    "S4 用 taskkill /T 模拟关闭控制台，未在自动化里发真正的 Ctrl+C；finally 回收路径由代码保障，未做真机按键验证。",
+    "S0 备份为 150 个白名单文件（P6-07 交接卡记的 240 是真实根含 cache/logs 的总数），manifest 校验通过。"
+  ],
+  "files_changed": [
+    "scripts/stack_launch.py",
+    "run_all.bat",
+    "e2e/e2e_p6.py",
+    "tests/backend/test_stack_launch.py"
+  ],
+  "leftovers": [
+    "S6 真实链路未验：可在界面点一次分析，核对 201、worker 认领、succeeded、报告落库、无重复调用。",
+    "旧版仍可 set legacy + run_all.bat 独立起 8501；仓库缺省不变。"
+  ]
+}
