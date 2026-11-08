@@ -9,6 +9,7 @@ under ``docs/upgrade/reviews/`` and exits non-zero on any failed gate.
     "C:/Users/zhzsh/AppData/Local/Programs/Python/Python313/python.exe" \
         e2e/e2e_p5.py
     ... e2e/e2e_p5.py --skip-build        # reuse dist, skip tsc/vitest/build/bundle
+    ... e2e/e2e_p5.py --skip-python       # skip the backend groups and the full suite
     ... e2e/e2e_p5.py --skip-regression   # skip the P2/P3/P4 aggregators
     ... e2e/e2e_p5.py --skip-preflight    # skip the trailing P0 preflight
 
@@ -442,6 +443,7 @@ def preflight() -> dict[str, Any]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="P5-09 P5 exit acceptance")
     parser.add_argument("--skip-build", action="store_true")
+    parser.add_argument("--skip-python", action="store_true")
     parser.add_argument("--skip-regression", action="store_true")
     parser.add_argument("--skip-preflight", action="store_true")
     args = parser.parse_args(argv)
@@ -464,8 +466,12 @@ def main(argv: list[str] | None = None) -> int:
             print("running the frontend build chain...", flush=True)
             front = frontend_chain(temp)
 
-    print("running the python groups...", flush=True)
-    python = python_groups()
+    python: dict[str, Any] = {}
+    if args.skip_python:
+        print("skipping the python groups", flush=True)
+    else:
+        print("running the python groups...", flush=True)
+        python = python_groups()
 
     regressions: dict[str, Any] = {}
     if args.skip_regression:
