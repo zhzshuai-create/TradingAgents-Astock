@@ -264,15 +264,13 @@ tradingagents --help    # 查看所有命令
 
 浏览器访问 `http://localhost:8501`。
 
-**同时启动嵌入式交易日志（可选）：**
-
-顶部模式切到"交易日志"需要独立的 trade-journal 应用跑在 8502。一键同时拉起两者：
+**一键启动新版分析工作台（8600 后端 + 5173 界面 + 8502 交易日志）：**
 
 ```bash
-run_all.bat                       # Windows 双击
-# 或
-python web/launch.py --with-journal
+run_all.bat                       # Windows 双击；缺省 ACTIVE_ANALYSIS_UI=next
 ```
+
+要回到旧版：先 `.venv\Scripts\python scripts\stack_mode.py set legacy`，再运行 `python web/launch.py --with-journal`（8501 + 8502）。
 
 要求 trade-journal 与本项目同级目录。未启动时，"交易日志"页会给出手动启动引导而非白屏。
 

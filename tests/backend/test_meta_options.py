@@ -120,7 +120,7 @@ def test_options_has_every_frozen_field(client, monkeypatch):
         "contract_version",
         "write_mode",
     }
-    assert body["write_mode"] == "legacy"
+    assert body["write_mode"] == "next"
     assert body["app_version"] == "0.9.0"
     assert body["server_time"] == "2026-11-05T00:30:00+08:00"
     assert body["default_analysis_date"] == "2026-11-05"

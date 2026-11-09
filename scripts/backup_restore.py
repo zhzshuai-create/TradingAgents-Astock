@@ -39,6 +39,10 @@ from backend.app.core.config import (  # noqa: E402
     get_exports_dir,
     get_jobs_db_path,
 )
+from backend.app.core.write_mode import (  # noqa: E402
+    DEFAULT_WRITE_MODE,
+    WRITE_MODE_ENV,
+)
 
 CST = timezone(timedelta(hours=8))
 CHUNK = 1024 * 1024
@@ -82,7 +86,8 @@ def _stamp(moment: datetime | None = None) -> str:
 
 
 def _write_mode() -> str:
-    return os.environ.get("ACTIVE_ANALYSIS_UI", "legacy").strip().lower() or "legacy"
+    raw = os.environ.get(WRITE_MODE_ENV, DEFAULT_WRITE_MODE)
+    return raw.strip().lower() or DEFAULT_WRITE_MODE
 
 
 def _migration_head() -> str:

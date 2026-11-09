@@ -42,7 +42,7 @@
 
 | 文件 | SHA-256 | 说明 |
 | --- | --- | --- |
-| `api-v1.md` | `f6d8040177e09617734a7999b1cbc32e98e725f486c8adfa55c8053e4e3c21f5` | 任务、报告与市场接口 |
+| `api-v1.md` | `ee634bf075871845999034bcbc6280693f8cae05896bda905676f9ae30070bac` | 任务、报告与市场接口 |
 | `core-wireframes.md` | `909c528c80164f4f075094cc117e5a5a9f25fbcad55ce1884378688b435ef000` | 十屏线框结构说明 |
 | `crash-boundaries.md` | `721499392d166bf7a5b9b163bece89fdd8509c17f29fa60765067c9702f5379b` | 崩溃边界 B1–B6 |
 | `error-codes-v1.md` | `316272a4e0dece2a3cd3be06dd7be2f233fae014403e39e7da36f35ac008ca17` | 错误码与用户动作 |
@@ -59,6 +59,8 @@
 | `sse-events-v1.md` | `ecfb67191b9ffc339fff7e7cf31c51394320c9fa39302c3fbb7caf4614725cd7` | SSE 六类事件与序号规则 |
 
 变更记录（2026-11-07）：`api-v1.md` 新增可选字段 `write_mode`，`error-codes-v1.md` 新增错误码 `write_mode_legacy`（409）。两者均属第 1 节允许的「新增可选字段」「新增错误码」，不升版本；同行更新 `META-01` 断言为「八键必在 + `write_mode` 可选」。理由见 `docs/upgrade/reviews/2026-11-07_P6-01写入者契约变更.md`。
+
+变更记录（2026-11-09）：`api-v1.md` 把 `write_mode` 的缺省语义由 `legacy` 改为 `next`，示例同步。属第 1 节「修改默认值」类别，**经评审通过**（`docs/upgrade/reviews/2026-11-09_P6-10缺省切next评审.md`）；字段类型、可选性与取值集合未变，不升版本；`api-v1.md` 哈希同步为本表新值，测试 `WM-01`、`META-01`、`ST-01` 同提交更新。
 
 
 ## 3. 冻结依据

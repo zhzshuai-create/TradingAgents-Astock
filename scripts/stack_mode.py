@@ -5,7 +5,7 @@
     .venv/Scripts/python.exe scripts/stack_mode.py set legacy
 
 仓库根的 ``.env.stack`` 只有一行 ``ACTIVE_ANALYSIS_UI=legacy|next``，不入库：
-切模式不该弄脏工作区，文件缺失时按 legacy 处理，与后端默认一致。
+切模式不该弄脏工作区，文件缺失时按 next 处理，与后端默认一致。
 
 只有端口能拦住第二个写入者：旧版 Streamlit 直写 ``~/.tradingagents``，后端拦不住。
 所以 ``set next`` 在 8501 有监听时拒绝且不写文件；本脚本从不启停 8501。
@@ -61,7 +61,7 @@ def env_path() -> Path:
 
 
 def read_mode(path: Path | None = None) -> str:
-    """Missing file means legacy; a present file must name the key once."""
+    """Missing file means the backend default (next); a present file must name the key once."""
     path = path or env_path()
     if not path.exists():
         return DEFAULT_WRITE_MODE

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 WRITE_MODE_ENV = "ACTIVE_ANALYSIS_UI"
 WRITE_MODES = ("legacy", "next")
-DEFAULT_WRITE_MODE = "legacy"
+DEFAULT_WRITE_MODE = "next"
 
 
 def parse_write_mode(raw: str | None) -> str:

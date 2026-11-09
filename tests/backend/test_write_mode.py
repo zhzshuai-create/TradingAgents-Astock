@@ -120,15 +120,15 @@ def _counts(engine) -> tuple[int, int, int]:
 # WM-01 ------------------------------------------------------------------
 
 
-def test_wm01_defaults_to_legacy(tmp_path, monkeypatch):
+def test_wm01_defaults_to_next(tmp_path, monkeypatch):
     monkeypatch.delenv(WRITE_MODE_ENV, raising=False)
-    assert load_server_config().write_mode == "legacy"
+    assert load_server_config().write_mode == "next"
 
-    env = _env(tmp_path, monkeypatch, "legacy")
+    env = _env(tmp_path, monkeypatch, "next")
     try:
         response = env.client.get("/api/v1/meta/options")
         assert response.status_code == 200
-        assert response.json()["write_mode"] == "legacy"
+        assert response.json()["write_mode"] == "next"
     finally:
         env.client.close()
         env.engine.dispose()

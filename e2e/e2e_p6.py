@@ -525,12 +525,12 @@ def stop_process(proc: subprocess.Popen, ports: tuple[int, ...]) -> None:
 
 def stack_mode_value() -> str:
     if not STACK_FILE.exists():
-        return "legacy"
+        return "next"
     for line in STACK_FILE.read_text(encoding="utf-8-sig").splitlines():
         key, sep, value = line.strip().partition("=")
         if sep and key.strip() == "ACTIVE_ANALYSIS_UI":
-            return value.strip() or "legacy"
-    return "legacy"
+            return value.strip() or "next"
+    return "next"
 
 
 def scenario_01(temp: Path) -> dict[str, Any]:

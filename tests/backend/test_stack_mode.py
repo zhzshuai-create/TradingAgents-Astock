@@ -77,9 +77,9 @@ def test_st01_illegal_modes_are_refused(tmp_path, stack, monkeypatch):
         stack.plan_change("both", legacy_listening=False, backend_listening=False)
 
 
-def test_st01_missing_file_means_legacy_and_roundtrips(tmp_path, stack):
+def test_st01_missing_file_means_next_and_roundtrips(tmp_path, stack):
     missing = tmp_path / "absent.env"
-    assert stack.read_mode(missing) == "legacy"
+    assert stack.read_mode(missing) == "next"
 
     stack.write_mode_file("next", missing)
     assert missing.read_text(encoding="utf-8").strip() == "ACTIVE_ANALYSIS_UI=next"

@@ -243,7 +243,7 @@ GET /api/v1/meta/options
   "stage_toggles": [{"id": "policy", "label": "政策分析", "default": true}],
   "limits": {"max_active_jobs": 1, "max_date_ahead_days": 0},
   "journal": {"available": false, "entry_url": "http://127.0.0.1:8502", "reason": "not_running"},
-  "write_mode": "legacy",
+  "write_mode": "next",
   "contract_version": "api-v1"
 }
 ```
@@ -256,7 +256,7 @@ GET /api/v1/meta/options
 | `journal.available` | bool | 交易日志服务是否可用，依据 TCP 连通加健康端点身份校验 |
 | `journal.entry_url` | string | 日志应用入口地址，不可用时也返回，用于手动打开 |
 | `journal.reason` | enum 或 null | `not_running`、`not_installed`、`probe_failed`；可用时为 null |
-| `write_mode` | string enum | 当前唯一分析写入者，可选，`legacy` 或 `next`；缺省按 `legacy` 理解；旧客户端忽略后行为不变 |
+| `write_mode` | string enum | 当前唯一分析写入者，可选，`legacy` 或 `next`；缺省按 `next` 理解（2026-11-09 起，此前为 `legacy`）；旧客户端忽略后行为不变 |
 
 `journal` 只做探活，**不自动拉起日志服务**；启动必须由用户在日志页手动执行。
 
