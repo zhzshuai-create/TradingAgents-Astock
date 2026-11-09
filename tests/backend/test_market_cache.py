@@ -338,3 +338,158 @@ def test_env06_provider_source_has_no_write_or_legacy_access():
     )
     for token in ("import web", "from web", "web.", "makedirs", ".to_csv(", "open("):
         assert token not in source, token
+
+
+# -- R1 negative cache -------------------------------------------------------
+
+R1_ENDPOINT = "stock:snapshot:sector_blocks"
+R1_PARAMS = {"ticker": "600000"}
+
+
+def _broken(calls: dict[str, int], *, kind: str = "upstream"):
+    def fetch() -> Fetched:
+        calls["n"] += 1
+        raise ProviderError(kind)
+
+    return fetch
+
+
+def test_r1_t1_repeated_failure_calls_provider_once():
+    clock = _Clock(NOW)
+    cache = MarketCache(clock=clock)
+    calls = {"n": 0}
+
+    outcomes = [
+        cache.get_or_fetch(R1_ENDPOINT, R1_PARAMS, _broken(calls), source="baidu")
+        for _ in range(5)
+    ]
+
+    assert calls["n"] == 1
+    assert [outcome.status for outcome in outcomes] == ["error"] * 5
+    assert {outcome.error_code for outcome in outcomes} == {"upstream_error"}
+    assert {outcome.fetched_at for outcome in outcomes} == {format_cst(NOW)}
+    assert outcomes[0].from_cache is False
+    assert all(outcome.from_cache for outcome in outcomes[1:])
+
+
+def test_r1_t2_negative_cache_expires_and_retries():
+    clock = _Clock(NOW)
+    cache = MarketCache(clock=clock)
+    calls = {"n": 0}
+
+    cache.get_or_fetch(R1_ENDPOINT, R1_PARAMS, _broken(calls), source="baidu")
+    clock.advance(seconds=60)
+    cache.get_or_fetch(R1_ENDPOINT, R1_PARAMS, _broken(calls), source="baidu")
+    assert calls["n"] == 1, "60 秒内负缓存必须仍然生效"
+
+    clock.advance(seconds=1)
+    cache.get_or_fetch(R1_ENDPOINT, R1_PARAMS, _broken(calls), source="baidu")
+    clock.advance(seconds=30)
+    cache.get_or_fetch(R1_ENDPOINT, R1_PARAMS, _broken(calls), source="baidu")
+
+    assert calls["n"] == 2, "到期后应重试一次，并重新进入 60 秒窗口"
+
+
+def test_r1_t3_negative_cache_never_masks_old_data():
+    clock = _Clock(NOW)
+    cache = MarketCache(clock=clock)
+    calls = {"n": 0}
+    old = {"industry": [{"name": "银行"}], "concept": [], "region": []}
+
+    cache.get_or_fetch(
+        R1_ENDPOINT,
+        R1_PARAMS,
+        lambda: Fetched(data=old, as_of=AS_OF, source="baidu"),
+        source="baidu",
+    )
+    clock.advance(hours=25)
+    first = cache.get_or_fetch(R1_ENDPOINT, R1_PARAMS, _broken(calls), source="baidu")
+    later = [
+        cache.get_or_fetch(R1_ENDPOINT, R1_PARAMS, _broken(calls), source="baidu")
+        for _ in range(3)
+    ]
+
+    assert calls["n"] == 1
+    assert first.status == "stale"
+    assert first.data == old
+    assert [outcome.status for outcome in later] == ["stale"] * 3
+    assert all(outcome.data == old for outcome in later)
+    assert {outcome.fetched_at for outcome in later} == {AS_OF}
+
+
+def test_r1_t4_success_after_expiry_clears_negative_cache():
+    clock = _Clock(NOW)
+    cache = MarketCache(clock=clock)
+    calls = {"n": 0}
+
+    cache.get_or_fetch(R1_ENDPOINT, R1_PARAMS, _broken(calls), source="baidu")
+    clock.advance(seconds=61)
+    recovered = cache.get_or_fetch(
+        R1_ENDPOINT,
+        R1_PARAMS,
+        lambda: Fetched(data={"industry": []}, as_of=format_cst(clock()), source="baidu"),
+        source="baidu",
+    )
+    again = cache.get_or_fetch(R1_ENDPOINT, R1_PARAMS, _broken(calls), source="baidu")
+
+    assert recovered.status == "ok"
+    assert again.status == "ok"
+    assert again.from_cache is True
+    assert calls["n"] == 1
+    assert cache._failures == {}
+
+
+def test_r1_t5_unregistered_endpoint_retries_every_time():
+    clock = _Clock(NOW)
+    cache = MarketCache(clock=clock)
+    calls = {"n": 0}
+
+    for _ in range(3):
+        outcome = cache.get_or_fetch(
+            "stock:snapshot:quote", R1_PARAMS, _broken(calls), source="tencent"
+        )
+        assert outcome.status == "error"
+
+    assert calls["n"] == 3
+    assert cache._failures == {}
+
+
+def test_r1_t6_clear_drops_negative_cache_too():
+    clock = _Clock(NOW)
+    cache = MarketCache(clock=clock)
+    calls = {"n": 0}
+
+    cache.get_or_fetch(R1_ENDPOINT, R1_PARAMS, _broken(calls), source="baidu")
+    cache.clear()
+    cache.get_or_fetch(R1_ENDPOINT, R1_PARAMS, _broken(calls), source="baidu")
+
+    assert calls["n"] == 2
+
+
+def test_r1_t7_concurrent_negative_hits_do_not_wait():
+    clock = _Clock(NOW)
+    cache = MarketCache(clock=clock)
+    calls = {"n": 0}
+
+    cache.get_or_fetch(R1_ENDPOINT, R1_PARAMS, _broken(calls), source="baidu")
+
+    def slow_fetch() -> Fetched:
+        calls["n"] += 1
+        time.sleep(5)
+        return fetched()
+
+    barrier = threading.Barrier(2)
+
+    def worker():
+        barrier.wait()
+        return cache.get_or_fetch(R1_ENDPOINT, R1_PARAMS, slow_fetch, source="baidu")
+
+    started = time.perf_counter()
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        outcomes = [future.result() for future in [pool.submit(worker) for _ in range(2)]]
+    elapsed = time.perf_counter() - started
+
+    assert calls["n"] == 1
+    assert [outcome.status for outcome in outcomes] == ["error", "error"]
+    assert all(outcome.from_cache for outcome in outcomes)
+    assert elapsed < 1.0

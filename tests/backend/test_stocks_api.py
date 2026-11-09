@@ -468,6 +468,36 @@ def test_valid_code_without_data_is_an_empty_envelope(env):
     assert payload["error_code"] is None
 
 
+def test_snapshot_is_partial_when_sector_blocks_fails(env):
+    set_ok(env, "quote", dict(QUOTE), "tencent")
+    set_ok(env, "valuation", {"eps_forecast": 60.5}, "ths")
+    env.providers.set("sector_blocks", error=ProviderError("upstream"))
+
+    payload = _get(env, "/api/v1/stocks/600519/snapshot")
+
+    assert payload["status"] == "ok"
+    assert payload["partial"] is True
+    assert payload["failed_blocks"] == ["sector_blocks"]
+    assert payload["data"]["sector_blocks"] is None
+    assert payload["blocks"]["sector_blocks"]["error_code"] == "upstream_error"
+
+
+def test_snapshot_with_all_three_blocks_is_not_partial(env):
+    _seed_all(env)
+
+    payload = _get(env, "/api/v1/stocks/600519/snapshot")
+
+    assert payload["status"] == "ok"
+    assert payload["partial"] is False
+    assert payload["failed_blocks"] == []
+    assert set(payload["data"]) == {
+        "quote",
+        "valuation",
+        "sector_blocks",
+        "units",
+    }
+
+
 # STK-10 ---------------------------------------------------------------
 
 

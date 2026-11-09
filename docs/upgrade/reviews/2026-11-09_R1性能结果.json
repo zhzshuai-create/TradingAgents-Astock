@@ -1,0 +1,107 @@
+{
+  "ticket": "P4-12",
+  "mode": "live",
+  "measured_at": "2026-11-09T10:09:36+08:00",
+  "environment": {
+    "platform": "Windows-11-10.0.26200-SP0",
+    "python": "3.13.3",
+    "backend": "TestClient(create_app) in-process"
+  },
+  "dataset": {
+    "ticker": "600000",
+    "payload_source": "DefaultMarketProviders（真实供应商）",
+    "blocks": [
+      "quote",
+      "valuation",
+      "sector_blocks"
+    ]
+  },
+  "samples": {
+    "warmups": 3,
+    "measured": 30
+  },
+  "snapshot_warm": {
+    "median_ms": 2.58,
+    "p95_ms": 3.44,
+    "hard_line_ms": 1500.0,
+    "pass": true
+  },
+  "snapshot_cold": {
+    "median_ms": 151.96,
+    "p95_ms": 249.96,
+    "hard_line_ms": 4000.0,
+    "pass": true
+  },
+  "provider_calls": {
+    "quote": 31,
+    "valuation": 31,
+    "sector_blocks": 31
+  },
+  "external_network_calls": 93,
+  "conclusion": "pass",
+  "command": ".venv/Scripts/python.exe scripts/p4_market_perf.py --live --ticker 600000 --samples 30",
+  "note": "live 模式每次冷样本清空 MarketCache，三个块都会打到真实供应商。",
+  "annotations": {
+    "ticket": "R1",
+    "source_script": "scripts/p4_market_perf.py（本票未改动；脚本内 ticket 字段固定为 P4-12）",
+    "network": {
+      "env_proxy": {
+        "HTTP_PROXY": null,
+        "HTTPS_PROXY": null,
+        "ALL_PROXY": null,
+        "NO_PROXY": "localhost,.localhost,127.0.0.1,127.0.0.0/8,[::1],::1"
+      },
+      "windows_proxy": {
+        "ProxyEnable": 0,
+        "ProxyServer": "127.0.0.1:7890",
+        "note": "注册表残留但 ProxyEnable=0，系统代理未启用"
+      },
+      "uses_proxy": false,
+      "sector_transport": "curl_cffi 0.16.3 requests.get(impersonate=chrome, timeout=10)"
+    },
+    "warm_window_provider_calls": {
+      "quote": 1,
+      "valuation": 1,
+      "sector_blocks": 1,
+      "derivation": "总数 31 − 30 个冷样本 = 1"
+    },
+    "previous_run": {
+      "file": "docs/upgrade/reviews/2026-11-07_P4-12性能结果.json",
+      "warm_p95_ms": 3841.22,
+      "cold_p95_ms": 865.21,
+      "provider_calls": {
+        "quote": 31,
+        "valuation": 31,
+        "sector_blocks": 63
+      },
+      "external_network_calls": 125
+    },
+    "change_reason": "sector_blocks 由 python-requests 换成 curl_cffi 浏览器指纹后返回 200 并进入正缓存；暖窗口只在上游首取一次，403 重试消失，sector 调用 63→31、总调用 125→93",
+    "risk_control": {
+      "observed_in_this_run": false,
+      "evidence": "单次探针 HTTP 200，industry=2/concept=13/region=1，235.7 ms；暖快照 blocks 全部 ok、partial=false",
+      "negative_cache": {
+        "endpoint": "stock:snapshot:sector_blocks",
+        "ttl_seconds": 60,
+        "purpose": "若百度再次风控，暖请求不再逐次重试"
+      }
+    },
+    "block_status_probe": {
+      "status": "ok",
+      "partial": false,
+      "failed_blocks": [],
+      "blocks": {
+        "quote": "ok",
+        "valuation": "ok",
+        "sector_blocks": "ok"
+      },
+      "first_call_ms": 3868.61,
+      "second_call_ms": 3.93,
+      "provider_calls": {
+        "quote": 1,
+        "valuation": 1,
+        "sector_blocks": 1
+      }
+    }
+  }
+}

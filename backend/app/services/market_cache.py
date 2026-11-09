@@ -1,8 +1,10 @@
 """In-process TTL cache with single-flight refresh and stale fallback.
 
 Keys are ``(endpoint_id, normalised params)``; values carry the data plus the
-metadata a block needs. Only successful answers (ok/empty/stale) are stored;
-an error is returned immediately and never masks old data when old data exists.
+metadata a block needs. Only successful answers (ok/empty/stale) enter the
+positive cache. A failed fetch may additionally be remembered for a short,
+per-endpoint negative TTL so a known-failing upstream is not retried on every
+request; old data still wins and is served as ``stale``.
 Entirely in memory: no disk, no database, no directory creation.
 """
 
@@ -43,6 +45,10 @@ STALE_AFTER: dict[str, timedelta] = {
     "stock:fund-flow": timedelta(seconds=60),
 }
 
+NEGATIVE_TTL: dict[str, timedelta] = {
+    "stock:snapshot:sector_blocks": MINUTE,
+}
+
 
 @dataclass(frozen=True)
 class CacheOutcome:
@@ -66,6 +72,14 @@ class _Entry:
     source: str
     status: str
     stale_reason: str | None = None
+
+
+@dataclass(frozen=True)
+class _Failure:
+    failed_at: datetime
+    error_code: str
+    error_message: str
+    fetched_at_text: str
 
 
 class _Flight:
@@ -102,9 +116,11 @@ class MarketCache:
         clock: Callable[[], datetime] | None = None,
     ) -> None:
         self._stale_after = dict(stale_after if stale_after is not None else STALE_AFTER)
+        self._negative_ttl = dict(NEGATIVE_TTL)
         self._clock = clock or now_cst
         self._lock = threading.Lock()
         self._entries: dict[tuple[str, tuple[tuple[str, Any], ...]], _Entry] = {}
+        self._failures: dict[tuple[str, tuple[tuple[str, Any], ...]], _Failure] = {}
         self._flights: dict[tuple[str, tuple[tuple[str, Any], ...]], _Flight] = {}
 
     def stale_after(self, endpoint_id: str) -> timedelta:
@@ -129,6 +145,17 @@ class MarketCache:
             entry = self._entries.get(key)
             if entry is not None and not self._needs_refresh(entry, now, ttl):
                 return self._from_entry(entry, from_cache=True)
+            negative = self._active_failure(endpoint_id, key, now)
+            if negative is not None:
+                if entry is not None and entry.data is not None:
+                    return self._stale_from_entry(entry, now)
+                return self._error_outcome(
+                    source,
+                    negative.error_code,
+                    negative.error_message,
+                    negative.fetched_at_text,
+                    from_cache=True,
+                )
             flight = self._flights.get(key)
             leader = flight is None
             if leader:
@@ -160,32 +187,19 @@ class MarketCache:
             stale_entry = self._entries.get(key)
             if fetched is not None:
                 outcome = self._store(key, fetched, now)
-            elif stale_entry is not None and stale_entry.data is not None:
-                reason = (
-                    "trading_day_mismatch"
-                    if trading_day_mismatch(stale_entry.as_of, now)
-                    else "ttl_exceeded"
-                )
-                outcome = CacheOutcome(
-                    status="stale",
-                    data=stale_entry.data,
-                    as_of=stale_entry.as_of,
-                    fetched_at=stale_entry.fetched_at_text,
-                    source=stale_entry.source,
-                    stale_reason=reason,
-                    from_cache=True,
-                )
+                self._failures.pop(key, None)
             else:
                 error = as_provider_error(failure or ProviderError("upstream"))
-                outcome = CacheOutcome(
-                    status="error",
-                    data=None,
-                    as_of=None,
-                    fetched_at=format_cst(now),
-                    source=source,
-                    error_code=error.code,
-                    error_message=error.message,
-                )
+                self._remember_failure(endpoint_id, key, now, error)
+                if stale_entry is not None and stale_entry.data is not None:
+                    outcome = self._stale_from_entry(stale_entry, now)
+                else:
+                    outcome = self._error_outcome(
+                        source,
+                        error.code,
+                        error.message,
+                        format_cst(now),
+                    )
             self._flights.pop(key, None)
             flight.outcome = outcome
             flight.event.set()
@@ -194,10 +208,44 @@ class MarketCache:
     def clear(self) -> None:
         with self._lock:
             self._entries.clear()
+            self._failures.clear()
 
     def __len__(self) -> int:
         with self._lock:
             return len(self._entries)
+
+    def _active_failure(
+        self,
+        endpoint_id: str,
+        key: tuple[str, tuple[tuple[str, Any], ...]],
+        now: datetime,
+    ) -> _Failure | None:
+        ttl = self._negative_ttl.get(endpoint_id)
+        if ttl is None:
+            return None
+        failure = self._failures.get(key)
+        if failure is None:
+            return None
+        if now - failure.failed_at > ttl:
+            self._failures.pop(key, None)
+            return None
+        return failure
+
+    def _remember_failure(
+        self,
+        endpoint_id: str,
+        key: tuple[str, tuple[tuple[str, Any], ...]],
+        now: datetime,
+        error: ProviderError,
+    ) -> None:
+        if endpoint_id not in self._negative_ttl:
+            return
+        self._failures[key] = _Failure(
+            failed_at=now,
+            error_code=error.code,
+            error_message=error.message,
+            fetched_at_text=format_cst(now),
+        )
 
     def _needs_refresh(self, entry: _Entry, now: datetime, ttl: timedelta) -> bool:
         if now - entry.fetched_at > ttl:
@@ -212,6 +260,42 @@ class MarketCache:
             fetched_at=entry.fetched_at_text,
             source=entry.source,
             stale_reason=entry.stale_reason,
+            from_cache=from_cache,
+        )
+
+    def _stale_from_entry(self, entry: _Entry, now: datetime) -> CacheOutcome:
+        reason = (
+            "trading_day_mismatch"
+            if trading_day_mismatch(entry.as_of, now)
+            else "ttl_exceeded"
+        )
+        return CacheOutcome(
+            status="stale",
+            data=entry.data,
+            as_of=entry.as_of,
+            fetched_at=entry.fetched_at_text,
+            source=entry.source,
+            stale_reason=reason,
+            from_cache=True,
+        )
+
+    @staticmethod
+    def _error_outcome(
+        source: str,
+        error_code: str,
+        error_message: str,
+        fetched_at: str,
+        *,
+        from_cache: bool = False,
+    ) -> CacheOutcome:
+        return CacheOutcome(
+            status="error",
+            data=None,
+            as_of=None,
+            fetched_at=fetched_at,
+            source=source,
+            error_code=error_code,
+            error_message=error_message,
             from_cache=from_cache,
         )
 

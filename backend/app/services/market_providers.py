@@ -333,7 +333,7 @@ class DefaultMarketProviders:
             "Origin": "https://gushitong.baidu.com",
             "Referer": "https://gushitong.baidu.com/",
         }
-        payload = _json(_get(url, params=params, headers=headers))
+        payload = _json(_get_baidu(url, params=params, headers=headers))
         if str(payload.get("ResultCode", -1)) != "0":
             raise ProviderError("upstream", str(payload.get("ResultMsg") or "百度返回错误"))
         result = payload.get("Result")
@@ -571,7 +571,7 @@ class FakeMarketProviders:
 # -- helpers -----------------------------------------------------------------
 
 
-def _get(
+def _request(
     url: str,
     *,
     params: dict[str, Any] | None = None,
@@ -579,26 +579,68 @@ def _get(
     timeout: float = 10,
 ) -> requests.Response:
     try:
-        response = requests.get(url, params=params, headers=headers, timeout=timeout)
+        return requests.get(url, params=params, headers=headers, timeout=timeout)
     except requests.Timeout as exc:
         raise ProviderError("timeout") from exc
     except requests.RequestException as exc:
         raise as_provider_error(exc) from exc
+
+
+def _get(
+    url: str,
+    *,
+    params: dict[str, Any] | None = None,
+    headers: dict[str, str] | None = None,
+    timeout: float = 10,
+) -> requests.Response:
+    response = _request(url, params=params, headers=headers, timeout=timeout)
     _check_status(response)
     return response
 
 
-def _check_status(response: requests.Response) -> None:
+def _get_baidu(
+    url: str,
+    *,
+    params: dict[str, Any] | None = None,
+    headers: dict[str, str] | None = None,
+    timeout: float = 10,
+) -> Any:
+    """Baidu 按 TLS 指纹风控，python-requests 会被 403，需浏览器指纹。"""
+
+    try:
+        from curl_cffi import requests as curl_requests
+    except ImportError:
+        response = _request(url, params=params, headers=headers, timeout=timeout)
+    else:
+        try:
+            response = curl_requests.get(
+                url,
+                params=params,
+                headers=headers,
+                timeout=timeout,
+                impersonate="chrome",
+            )
+        except curl_requests.exceptions.Timeout as exc:
+            raise ProviderError("timeout") from exc
+        except curl_requests.RequestsError as exc:
+            raise ProviderError("upstream") from exc
+    if response.status_code == 403:
+        raise ProviderError("upstream", "百度接口风控拦截")
+    _check_status(response)
+    return response
+
+
+def _check_status(response: Any) -> None:
     if response.status_code == 429:
         raise ProviderError("rate_limited")
     if response.status_code >= 400:
         raise ProviderError("upstream", f"上游返回 HTTP {response.status_code}")
 
 
-def _json(response: requests.Response) -> dict[str, Any]:
+def _json(response: Any) -> dict[str, Any]:
     try:
         payload = response.json()
-    except ValueError as exc:
+    except Exception as exc:  # noqa: BLE001 - curl_cffi 的 JSONDecodeError 不继承 ValueError
         raise ProviderError("parse_error") from exc
     if not isinstance(payload, dict):
         raise ProviderError("parse_error")
