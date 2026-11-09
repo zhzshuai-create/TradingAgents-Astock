@@ -1,0 +1,82 @@
+{
+  "ticket": "P6-12",
+  "kind": "report.json 内嵌 meta 改为落库前同一份最终 payload",
+  "date": "2026-11-09",
+  "authorized_by": "用户指定：提交 report.json 内嵌 meta 改写的 patch",
+  "repo_head": "2293c76",
+  "conclusion": "pass",
+  "root_cause": "worker 先把执行器的原始报告写进 <job>/report.json，再由 finish_success 调 finalize_report 生成数据库 payload；文件因此保留 build_legacy_report 的默认 meta（job_id=null、origin=legacy_import、generated_at=null、config_digest=null、chart_snapshot_status=none、data_quality_status=absent）。",
+  "change": {
+    "job_service": "新增 build_success_report()：按 job 行与同一 generated_at 生成 finish_success 将要落库的 payload；finish_success 增加可选 generated_at，内部与 build 共用 _finalize_success_payload()。",
+    "worker": "成功与 pause_noop/cancel_noop 两个终态分支先取一次 generated_at，调 build_success_report() 得到 payload，写 report.json 后把同一 payload 与 generated_at 传给 finish_success。",
+    "ordering": "写文件仍在终态事务之前，B4 语义不变（崩溃在写盘与提交之间仍是对账的 unregistered_report）。",
+    "unchanged": "api-v1 响应形状、报告表结构、SSE 事件顺序、chart_snapshot.json 格式、错误码均不变；改变的是 report.json 里的 meta 值与数据库一致。"
+  },
+  "verification": {
+    "targeted": {
+      "command": ".venv/Scripts/python.exe -m pytest tests/backend/test_terminal_retry.py tests/backend/test_chart_snapshot.py -q",
+      "output": "25 passed in 7.86s",
+      "passed": true
+    },
+    "related": {
+      "command": ".venv/Scripts/python.exe -m pytest tests/backend/test_terminal_retry.py tests/backend/test_chart_snapshot.py tests/backend/test_reports_api.py tests/backend/test_legacy_projection.py -q",
+      "output": "44 passed in 15.39s",
+      "passed": true
+    },
+    "full": {
+      "command": ".venv/Scripts/python.exe -m pytest -q",
+      "output": "873 passed, 4 skipped, 59 subtests passed in 248.43s",
+      "passed": true
+    },
+    "new_tests": [
+      "test_sm03_report_artifact_matches_the_committed_row：artifact meta 的 report_id/job_id/origin/generated_at/generated_at_source/config_digest/data_quality_status/chart_snapshot_status/content_hash 与 report 行逐项相等，sections 与行 payload 相等",
+      "test_rpt_t1_frozen_row_matches_the_written_evidence 增补：frozen 时 report.json 内嵌 meta 的 chart_snapshot_status 与 config_digest 同 row 一致"
+    ],
+    "raw_run": {
+      "command": ".venv/Scripts/python.exe %TEMP%\\astock-p6-12\\evidence_run.py",
+      "job_id": "bcf8814f-98fb-486a-98d2-49ae3be18d1c",
+      "artifact_meta": {
+        "report_id": "964e5bac-2e36-57d3-9fb8-37da73a9b299",
+        "job_id": "bcf8814f-98fb-486a-98d2-49ae3be18d1c",
+        "origin": "new",
+        "generated_at": "2026-10-30T09:00:00+08:00",
+        "generated_at_source": "job_clock",
+        "config_digest": "a1c469fc08926725a274de41cfdf5f39b06a0455ae40795d2daddb894f008b9d",
+        "data_quality_status": "ok",
+        "chart_snapshot_status": "none",
+        "content_hash": "869ee791c7c3af089050e7734aa0605d6f37efddeac0dc1066f978b87f3a6202"
+      },
+      "row": {
+        "report_id": "964e5bac-2e36-57d3-9fb8-37da73a9b299",
+        "generated_at": "2026-10-30T09:00:00+08:00",
+        "generated_at_source": "job_clock",
+        "origin": "new",
+        "config_digest": "a1c469fc08926725a274de41cfdf5f39b06a0455ae40795d2daddb894f008b9d",
+        "data_quality_status": "ok",
+        "chart_snapshot_status": "none",
+        "content_hash": "869ee791c7c3af089050e7734aa0605d6f37efddeac0dc1066f978b87f3a6202",
+        "sections_equal": true
+      },
+      "match": "report_id/origin/generated_at/generated_at_source/config_digest/data_quality_status/chart_snapshot_status/content_hash 全部 true"
+    }
+  },
+  "baseline_evidence": "P6-09 真实任务 6873fe1d 的 report.json 内嵌 meta 当时为 origin=legacy_import、job_id=null、generated_at=null、config_digest=null、chart_snapshot_status=none，而数据库行与 API 正确；本次修复即针对该差异。",
+  "final_state": {
+    "services_running": false,
+    "env_stack": "ACTIVE_ANALYSIS_UI=next"
+  },
+  "files_changed": [
+    "backend/app/services/job_service.py",
+    "backend/app/worker/main.py",
+    "tests/backend/test_terminal_retry.py",
+    "tests/backend/test_chart_snapshot.py",
+    "docs/upgrade/reviews/2026-11-09_P6-12报告文件meta.json",
+    "docs/upgrade/reviews/2026-11-09_P6-12报告文件meta评审.md"
+  ],
+  "leftovers": [
+    "601138 评级字段降级待查（11-08 主用观察）。",
+    "C4 外部 trade-journal 来源校验未开工。",
+    "旧任务已落盘的 report.json 不回溯重写；只有修复后的新任务保证文件与行一致。",
+    "本票本地提交，未推送。"
+  ]
+}
