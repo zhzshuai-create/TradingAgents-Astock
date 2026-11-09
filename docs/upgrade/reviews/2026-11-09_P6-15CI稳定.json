@@ -1,0 +1,142 @@
+{
+  "ticket": "P6-15",
+  "kind": "CI 偶发红：P05 性能用例共享 runner 噪声",
+  "date": "2026-11-09",
+  "authorized_by": "用户选择默认方案 A（压测阶段 500ms→2000ms）",
+  "repo_base": "ee114d5",
+  "repo_head": "e445401",
+  "conclusion": "pass",
+  "observed_failure": {
+    "run": "42594570849",
+    "head": "ee114d5",
+    "leg": "test (windows-latest, 3.13)",
+    "test": "tests/backend/test_kernel_perf_faults.py::test_p05_server_latency_and_stage_gap_stay_within_budget",
+    "annotation": "assert 12.148973774628221 <= 5.0（第 387 行，间隙偏差中位数超过 STAGE_GAP_BUDGET_PERCENT=5.0）",
+    "same_run_ubuntu_313": "success",
+    "previous_code_head": "8da2a23 的 run 42591732202 同用例通过",
+    "local_at_500ms": {
+      "latency_median_ms": 4.3,
+      "gap_deviation_median_percent": 2.42,
+      "gap_deviation_samples_percent": "1.11–3.19（11 个样本）"
+    }
+  },
+  "root_cause": {
+    "finding": "间隙是前一阶段 done 写库、stats 事件与下一阶段 started 写库的固定开销，与阶段时长无关；本地 8–17ms，共享 runner 约 60ms。500ms 阶段下约 60ms 即约 12%，超过 5% 预算，属于比值随阶段变短而放大，不是产品性能回归。",
+    "evidence": "同一提交的 ubuntu-latest,3.13 腿通过；上一代码头同用例通过；本地 500ms 口径偏差中位数 2.42%。"
+  },
+  "change": {
+    "file": "tests/backend/test_kernel_perf_faults.py",
+    "line": 375,
+    "before": "measurement = p05_latency.measure()",
+    "after": "measurement = p05_latency.measure(per_stage_ms=2000)",
+    "comment_added": "2000ms stages keep the fixed ~60ms boundary write under 5% (12% at 500ms).",
+    "unchanged": [
+      "p05_latency.measure() 默认 per_stage_ms=500.0",
+      "p05_latency.py --per-stage-ms 默认 500.0",
+      "LATENCY_BUDGET_MS = 500.0",
+      "STAGE_GAP_BUDGET_PERCENT = 5.0",
+      "延迟样本 5 个、间隙样本 11 个（len(STAGE_IDS) - 1）",
+      "产品代码、api-v1 语义、数据库、报告契约"
+    ],
+    "cost": "单用例约 6s → 25s；CI 每条测试腿多约 18s。",
+    "why_2000ms": "固定约 60ms 边界开销在 2000ms 下约 3%，距 5% 预算留约 2 个百分点；测的仍是 done → 下一个 started 的写入延迟占阶段时长比例，且更接近真实阶段时长。"
+  },
+  "verification": {
+    "local_repeated": {
+      "command": ".venv/Scripts/python.exe -m pytest tests/backend/test_kernel_perf_faults.py::test_p05_server_latency_and_stage_gap_stay_within_budget -q --tb=line",
+      "runs": [
+        "RUN 1: 1 passed in 25.17s",
+        "RUN 2: 1 passed in 25.20s",
+        "RUN 3: 1 passed in 25.24s"
+      ],
+      "passed": true
+    },
+    "local_whole_file": {
+      "command": ".venv/Scripts/python.exe -m pytest tests/backend/test_kernel_perf_faults.py -q --tb=line",
+      "output": "7 passed in 30.63s",
+      "passed": true
+    },
+    "local_measure_2000ms": {
+      "command": "p05_latency.measure(per_stage_ms=2000)",
+      "latency_samples_ms": [3.78, 4.30, 3.79, 3.81, 4.25],
+      "latency_median_ms": 3.81,
+      "gap_deviation_samples_percent": [0.411, 0.633, 0.794, 0.768, 0.476, 0.602, 0.871, 0.680, 0.783, 0.721, 0.757],
+      "gap_deviation_median_percent": 0.721,
+      "gap_samples_ms": [8.2, 12.7, 15.9, 15.4, 9.5, 12.1, 17.4, 13.6, 15.7, 14.4, 15.2],
+      "duration_samples_ms": [2000.6, 2000.2, 2001.0, 2000.3, 2000.1, 2001.3, 2001.0, 2000.6, 2000.2, 2000.4, 2002.0, 2000.5],
+      "latency_budget_ms": 500.0,
+      "gap_budget_percent": 5.0,
+      "passed": true
+    },
+    "clean_clone": {
+      "command": "git clone --depth 1 --no-hardlinks file:///C:/Users/zhzsh/TradingAgents-astock %TEMP%/ta-clone-p615; 用主仓 .venv 解释器跑 tests/backend/test_kernel_perf_faults.py",
+      "head": "e445401",
+      "worktree": "只含已跟踪文件，无 .venv/.env/未跟踪产物",
+      "output": "7 passed in 31.82s",
+      "passed": true
+    },
+    "ruff": {
+      "command": "ruff check .（0.15.20）",
+      "output": "All checks passed!",
+      "passed": true
+    },
+    "ci_run": {
+      "id": "42597719440",
+      "head": "e445401",
+      "conclusion": "success",
+      "url": "https://github.com/zhzshuai-create/TradingAgents-Astock/actions/runs/42597719440"
+    },
+    "ci_jobs": [
+      {
+        "name": "lint",
+        "conclusion": "success",
+        "started_at": "2026-11-09T10:00:58Z",
+        "completed_at": "2026-11-09T10:01:05Z"
+      },
+      {
+        "name": "frontend",
+        "conclusion": "success",
+        "started_at": "2026-11-09T10:02:24Z",
+        "completed_at": "2026-11-09T10:03:24Z"
+      },
+      {
+        "name": "test (ubuntu-latest, 3.11)",
+        "conclusion": "success",
+        "run_tests": "2026-11-09T10:02:02Z -> 2026-11-09T10:14:36Z"
+      },
+      {
+        "name": "test (ubuntu-latest, 3.13)",
+        "conclusion": "success",
+        "run_tests": "2026-11-09T10:02:01Z -> 2026-11-09T10:14:35Z"
+      },
+      {
+        "name": "test (windows-latest, 3.11)",
+        "conclusion": "success",
+        "run_tests": "2026-11-09T10:02:37Z -> 2026-11-09T10:06:51Z"
+      },
+      {
+        "name": "test (windows-latest, 3.13)",
+        "conclusion": "success",
+        "run_tests": "2026-11-09T10:03:17Z -> 2026-11-09T10:07:12Z"
+      },
+      {
+        "name": "audit",
+        "conclusion": "failure",
+        "policy": "pip-audit 已知通告，continue-on-error，2026-12 复评；非本次回归"
+      }
+    ],
+    "ci_annotations": "四条测试腿的注解只有 Node.js 20 弃用 warning 与 ubuntu-latest 迁移 notice，无 pytest/pytest-exit/pytest-tail 注解。",
+    "remote_p05_value": "CI 日志需 admin，远端 P05 偏差值不可读；2000ms 下的约 3% 由同一 runner 500ms 时 12.15% 的同源绝对开销推算，不是远端实测。"
+  },
+  "change_scope": {
+    "product_code": "无改动",
+    "tests": "只改 P05 验收用例的压测阶段时长；预算、样本数与断言未动",
+    "ci": "无改动；未加 skip、CI-only 放宽、continue-on-error"
+  },
+  "leftovers": [
+    "audit 作业仍为红：pip-audit 已知通告，continue-on-error，复评期限 2026-12。",
+    "R1 真实供应商暖加载 p95 未达标；C4 外部 trade-journal postMessage origin 校验 blocked。",
+    "旧审计债不变：M11–M16、H1–H7、L1–L4。",
+    "文档提交的 CI run 结论在推送后回填本文件。"
+  ]
+}
