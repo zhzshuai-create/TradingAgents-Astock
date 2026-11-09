@@ -53,6 +53,10 @@ jobs:
           cache-dependency-path: |
             pyproject.toml
             constraints.txt
+      - name: Install CJK font for PDF tests
+        # Ubuntu runners ship no CJK font; report PDF export fails loudly.
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y fonts-wqy-zenhei
       - name: Install project
         # tests/backend imports fastapi/sqlalchemy/alembic directly; the base
         # install alone cannot even collect them. TestClient also needs httpx.
