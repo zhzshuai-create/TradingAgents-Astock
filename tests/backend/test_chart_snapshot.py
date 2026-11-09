@@ -220,6 +220,10 @@ def test_rpt_t1_frozen_row_matches_the_written_evidence(env):
     snapshot = _snapshot(env, job_id)
     assert row.chart_snapshot_status == "frozen"
     assert row.payload["meta"]["chart_snapshot_status"] == "frozen"
+    artifact = env.reports.read_final_report(job_id)
+    assert artifact is not None
+    assert artifact["meta"]["chart_snapshot_status"] == "frozen"
+    assert artifact["meta"]["config_digest"] == row.config_digest
     assert snapshot["schema_version"] == CHART_SNAPSHOT_VERSION
     assert snapshot["ticker"] == "000629"
     assert snapshot["status"] == "frozen"

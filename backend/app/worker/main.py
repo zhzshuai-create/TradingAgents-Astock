@@ -24,7 +24,7 @@ honours control requests at stage boundaries:
   become ``interrupted`` (never auto-rerun), a paused row whose artifacts are
   gone becomes ``interrupted(checkpoint_missing)``, and B5 appends the missing
   ``report_ready``. ``TA_STARTUP_RECONCILE=0`` turns the scan off;
-* before the terminal transaction the executor's report is written to
+* before the terminal transaction the finalized report payload is written to
   ``<job>/report.json``; a crash between that write and the commit is B4, and
   reconcile records it without importing it;
 * RPT-01: before the same commit, an injected chart snapshotter writes
@@ -326,13 +326,17 @@ class Worker:
         if status in ("pause_requested", "cancel_requested"):
             detail = "pause_noop" if status == "pause_requested" else "cancel_noop"
             snapshot_status = self._capture_chart_snapshot(job, result.report)
-            self._publish_report(job.id, result.report)
+            generated_at, report = self._prepare_report(
+                job, result.report, snapshot_status
+            )
+            self._publish_report(job.id, report)
             self._jobs.finish_success(
                 job.id,
                 detail=detail,
                 stats=cumulative,
-                report=result.report,
+                report=report,
                 chart_snapshot_status=snapshot_status,
+                generated_at=generated_at,
             )
             return WorkerOutcome(
                 job=self._jobs.get_job(job.id) or job,
@@ -349,15 +353,35 @@ class Worker:
         # the terminal status event and report_ready. The report file goes to
         # disk first; a crash in between is B4 and reconcile only notes it.
         snapshot_status = self._capture_chart_snapshot(job, result.report)
-        self._publish_report(job.id, result.report)
+        generated_at, report = self._prepare_report(
+            job, result.report, snapshot_status
+        )
+        self._publish_report(job.id, report)
         self._jobs.finish_success(
             job.id,
             detail=None,
             stats=cumulative,
-            report=result.report,
+            report=report,
             chart_snapshot_status=snapshot_status,
+            generated_at=generated_at,
         )
         return WorkerOutcome(job=self._jobs.get_job(job.id) or job, result=result)
+
+    def _prepare_report(
+        self,
+        job: Job,
+        report: Mapping[str, Any] | None,
+        snapshot_status: str,
+    ) -> tuple[str, dict[str, Any] | None]:
+        """Finalize once so the B4 artifact and the row share one payload."""
+        generated_at = self._jobs.now().isoformat(timespec="seconds")
+        prepared = self._jobs.build_success_report(
+            job.id,
+            report,
+            chart_snapshot_status=snapshot_status,
+            generated_at=generated_at,
+        )
+        return generated_at, prepared
 
     def _capture_chart_snapshot(
         self, job: Job, report: Mapping[str, Any] | None
@@ -396,7 +420,7 @@ class Worker:
     def _publish_report(
         self, job_id: str, report: Mapping[str, Any] | None
     ) -> None:
-        """Write the complete report to ``<job>/report.json`` before commit.
+        """Write the finalized report to ``<job>/report.json`` before commit.
 
         The file is evidence for reconciliation (B4), never a source of truth:
         a crash after this write leaves a worker-held row next to a full

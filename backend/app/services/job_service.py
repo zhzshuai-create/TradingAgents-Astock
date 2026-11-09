@@ -933,6 +933,32 @@ class JobService:
             session.commit()
             return True
 
+    def build_success_report(
+        self,
+        job_id: str,
+        report: Mapping[str, Any] | None,
+        *,
+        chart_snapshot_status: str | None = None,
+        generated_at: str | None = None,
+    ) -> dict[str, Any] | None:
+        """Finalized payload for the pre-commit B4 artifact.
+
+        ``finish_success`` commits the same payload when given this result and
+        the same ``generated_at``; finalization is deterministic, so the file
+        on disk and the report row cannot disagree about meta or hash.
+        """
+        if report is None:
+            return None
+        job = self.get_job(job_id)
+        if job is None:
+            return None
+        return _finalize_success_payload(
+            report,
+            job,
+            generated_at=generated_at or self._now(),
+            chart_snapshot_status=chart_snapshot_status,
+        )
+
     def finish_success(
         self,
         job_id: str,
@@ -941,6 +967,7 @@ class JobService:
         stats: StatsSnapshot,
         report: Mapping[str, Any] | None = None,
         chart_snapshot_status: str | None = None,
+        generated_at: str | None = None,
     ) -> bool:
         """T03/T07/T14: succeeded once, with its report in the same commit.
 
@@ -953,19 +980,10 @@ class JobService:
         ``chart_snapshot_status`` is the worker's evidence-backed verdict
         (RPT-01). ``None`` keeps the report's own meta so every other caller is
         unchanged; an explicit value overrides a shallow copy, never the
-        caller's object.
+        caller's object. ``generated_at`` pins the report clock to the value
+        the worker used for the B4 artifact; ``None`` means now.
         """
-        now = self._now()
-        if chart_snapshot_status is not None and report is not None:
-            effective = (
-                chart_snapshot_status
-                if chart_snapshot_status in CHART_SNAPSHOT_STATUSES
-                else "none"
-            )
-            report = dict(report)
-            meta = dict(report.get("meta") or {})
-            meta["chart_snapshot_status"] = effective
-            report["meta"] = meta
+        now = generated_at or self._now()
         with Session(self._engine) as session:
             job = session.get(Job, job_id)
             if job is None:
@@ -993,15 +1011,11 @@ class JobService:
 
             ready = None
             if report is not None:
-                payload = finalize_report(
+                payload = _finalize_success_payload(
                     report,
-                    job_id=job_id,
-                    ticker_code=job.ticker_code,
-                    ticker_name=job.ticker_name,
-                    analysis_date=job.analysis_date,
+                    job,
                     generated_at=now,
-                    config_digest=job.config_hash,
-                    retry_of_job_id=job.retry_of_job_id,
+                    chart_snapshot_status=chart_snapshot_status,
                 )
                 meta = payload["meta"]
                 session.add(
@@ -1670,6 +1684,35 @@ class JobService:
 
     def _now(self) -> str:
         return self._clock().isoformat(timespec="seconds")
+
+
+def _finalize_success_payload(
+    report: Mapping[str, Any],
+    job: Job,
+    *,
+    generated_at: str,
+    chart_snapshot_status: str | None,
+) -> dict[str, Any]:
+    if chart_snapshot_status is not None:
+        effective = (
+            chart_snapshot_status
+            if chart_snapshot_status in CHART_SNAPSHOT_STATUSES
+            else "none"
+        )
+        report = dict(report)
+        meta = dict(report.get("meta") or {})
+        meta["chart_snapshot_status"] = effective
+        report["meta"] = meta
+    return finalize_report(
+        report,
+        job_id=job.id,
+        ticker_code=job.ticker_code,
+        ticker_name=job.ticker_name,
+        analysis_date=job.analysis_date,
+        generated_at=generated_at,
+        config_digest=job.config_hash,
+        retry_of_job_id=job.retry_of_job_id,
+    )
 
 
 def encode_cursor(*, created_at: str, job_id: str) -> str:

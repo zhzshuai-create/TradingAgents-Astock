@@ -493,6 +493,27 @@ def test_sm03_success_commits_one_report_and_one_report_ready(env):
     assert _detail(env, job_id) == detail
 
 
+def test_sm03_report_artifact_matches_the_committed_row(env):
+    job_id = _create(env)
+    outcome = _run(env)
+    assert outcome.result is not None
+
+    row = _report_row(env, job_id)
+    artifact = env.reports.read_final_report(job_id)
+    assert artifact is not None
+    meta = artifact["meta"]
+    assert meta["report_id"] == row.report_id
+    assert meta["job_id"] == job_id
+    assert meta["origin"] == "new"
+    assert meta["generated_at"] == row.generated_at
+    assert meta["generated_at_source"] == "job_clock"
+    assert meta["config_digest"] == row.config_digest
+    assert meta["data_quality_status"] == row.data_quality_status
+    assert meta["chart_snapshot_status"] == row.chart_snapshot_status
+    assert meta["content_hash"] == row.content_hash
+    assert artifact["sections"] == row.payload["sections"]
+
+
 def test_sm04_stage_failure_marks_the_active_stage_and_error(env):
     job_id = _create(env)
     outcome = _run(env, _FailingExecutor(fail_at="news"))
