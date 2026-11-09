@@ -67,11 +67,18 @@ jobs:
         # a platform-only failure diagnosable without admin log rights.
         run: |
           set -o pipefail
+          set +e  # the runner's bash uses -e; keep the failure branch reachable
           python -m pytest tests/ -q --tb=line 2>&1 | tee pytest.log
           status=$?
           if [ "$status" -ne 0 ]; then
+            echo "::error title=pytest-exit::status=${status} log_lines=$(wc -l < pytest.log)"
             grep -E "^(FAILED|ERROR) " pytest.log | while IFS= read -r line; do
               echo "::error title=pytest::${line}"
+            done
+            # A crash (segfault/OOM) leaves no FAILED summary; the tail is the
+            # only evidence that survives into the public annotations API.
+            tail -n 30 pytest.log | while IFS= read -r line; do
+              echo "::error title=pytest-tail::${line}"
             done
             {
               echo "### pytest failures"
@@ -81,6 +88,7 @@ jobs:
           fi
           exit "$status"
         env:
+          PYTHONFAULTHANDLER: "1"
           # conftest.py mocks keys, but keep CI hermetic just in case
           DEEPSEEK_API_KEY: test-key
           OPENAI_API_KEY: test-key
