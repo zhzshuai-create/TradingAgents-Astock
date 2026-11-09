@@ -12,6 +12,143 @@ import remarkGfm from "remark-gfm";
 
 import styles from "./ReportMarkdown.module.css";
 
+type MdNode = {
+  type: string;
+  value?: string;
+  children?: MdNode[];
+};
+
+// CommonMark flanking rules reject `**` glued between CJK text and punctuation
+// (e.g. 属于**“…”形态**。), leaving the markers literal. Mark just those pairs
+// with private-use characters before parsing, then turn the markers into strong
+// nodes. Stored markdown and content hashes are never modified.
+const BOLD_OPEN = "\uE000";
+const BOLD_CLOSE = "\uE001";
+const PUNCTUATION = /[\p{P}\p{S}]/u;
+const WHITESPACE = /\s/u;
+
+function leftFlanking(first: string, before: string): boolean {
+  if (WHITESPACE.test(first)) {
+    return false;
+  }
+  return (
+    !PUNCTUATION.test(first) ||
+    before === "" ||
+    WHITESPACE.test(before) ||
+    PUNCTUATION.test(before)
+  );
+}
+
+function rightFlanking(last: string, after: string): boolean {
+  if (WHITESPACE.test(last)) {
+    return false;
+  }
+  return (
+    !PUNCTUATION.test(last) ||
+    after === "" ||
+    WHITESPACE.test(after) ||
+    PUNCTUATION.test(after)
+  );
+}
+
+function repairLine(line: string, codeRanges: Array<[number, number]>): string {
+  const pair = /\*\*([^*\n]+?)\*\*/g;
+  return line.replace(pair, (match, content: string, offset: number) => {
+    const first = content[0] ?? "";
+    const last = content[content.length - 1] ?? "";
+    if (!content.trim() || /[`[\]<>]/.test(content)) {
+      return match;
+    }
+    if (codeRanges.some(([start, end]) => offset >= start && offset < end)) {
+      return match;
+    }
+    const before = line[offset - 1] ?? "";
+    const after = line[offset + match.length] ?? "";
+    if (leftFlanking(first, before) && rightFlanking(last, after)) {
+      return match;
+    }
+    return `${BOLD_OPEN}${content}${BOLD_CLOSE}`;
+  });
+}
+
+function normalizeBold(markdown: string): string {
+  let fenced = false;
+  return markdown
+    .split("\n")
+    .map((line) => {
+      const head = line.trimStart();
+      if (head.startsWith("```") || head.startsWith("~~~")) {
+        fenced = !fenced;
+        return line;
+      }
+      if (fenced || /^(\t| {4})/.test(line)) {
+        return line;
+      }
+      const codeRanges: Array<[number, number]> = [];
+      const code = /(`+)[\s\S]*?\1/g;
+      let match: RegExpExecArray | null;
+      while ((match = code.exec(line)) !== null) {
+        codeRanges.push([match.index, match.index + match[0].length]);
+      }
+      return repairLine(line, codeRanges);
+    })
+    .join("\n");
+}
+
+function splitMarkedBold(value: string): MdNode[] | null {
+  const nodes: MdNode[] = [];
+  let cursor = 0;
+  while (true) {
+    const open = value.indexOf(BOLD_OPEN, cursor);
+    if (open === -1) {
+      break;
+    }
+    const close = value.indexOf(BOLD_CLOSE, open + 1);
+    if (close === -1) {
+      break;
+    }
+    if (open > cursor) {
+      nodes.push({ type: "text", value: value.slice(cursor, open) });
+    }
+    nodes.push({
+      type: "strong",
+      children: [{ type: "text", value: value.slice(open + 1, close) }],
+    });
+    cursor = close + 1;
+  }
+  if (nodes.length === 0) {
+    return null;
+  }
+  if (cursor < value.length) {
+    nodes.push({ type: "text", value: value.slice(cursor) });
+  }
+  return nodes;
+}
+
+function rewriteBold(node: MdNode): void {
+  if (!node.children) {
+    return;
+  }
+  const next: MdNode[] = [];
+  for (const child of node.children) {
+    const replaced =
+      child.type === "text" && typeof child.value === "string"
+        ? splitMarkedBold(child.value)
+        : null;
+    if (replaced) {
+      next.push(...replaced);
+    } else {
+      rewriteBold(child);
+      next.push(child);
+    }
+  }
+  node.children = next;
+}
+
+function remarkCjkBold() {
+  return (tree: MdNode): void => rewriteBold(tree);
+}
+
 function isExternal(href: string | undefined): boolean {
   return typeof href === "string" && /^https?:\/\//i.test(href);
 }
@@ -147,10 +284,10 @@ export function ReportMarkdown({
     <div className={styles.prose}>
       <ReactMarkdown
         skipHtml
-        remarkPlugins={[remarkGfm]}
+        remarkPlugins={[remarkGfm, remarkCjkBold]}
         components={mobile ? MOBILE_COMPONENTS : DESKTOP_COMPONENTS}
       >
-        {children}
+        {normalizeBold(children)}
       </ReactMarkdown>
     </div>
   );
