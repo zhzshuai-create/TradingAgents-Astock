@@ -86,6 +86,24 @@
       "conclusion": "success",
       "url": "https://github.com/zhzshuai-create/TradingAgents-Astock/actions/runs/42597719440"
     },
+    "docs_run": {
+      "id": "42601972943",
+      "head": "04cf394",
+      "conclusion": "success",
+      "url": "https://github.com/zhzshuai-create/TradingAgents-Astock/actions/runs/42601972943",
+      "test_legs": {
+        "test (ubuntu-latest, 3.11)": {"conclusion": "success", "run_tests": "2026-11-09T10:36:42Z -> 2026-11-09T10:39:42Z"},
+        "test (ubuntu-latest, 3.13)": {"conclusion": "success", "run_tests": "2026-11-09T10:36:27Z -> 2026-11-09T10:48:13Z"},
+        "test (windows-latest, 3.11)": {"conclusion": "success", "run_tests": "2026-11-09T10:37:17Z -> 2026-11-09T10:41:30Z"},
+        "test (windows-latest, 3.13)": {"conclusion": "success", "run_tests": "2026-11-09T10:37:35Z -> 2026-11-09T10:41:37Z"}
+      },
+      "other_jobs": {
+        "lint": "success",
+        "frontend": "success",
+        "audit": "failure（既定策略，continue-on-error）"
+      },
+      "purpose": "完成定义要求的第二次连续观察：修复提交 run 与随后文档提交 run 均四条测试腿 success。"
+    },
     "ci_jobs": [
       {
         "name": "lint",
@@ -136,7 +154,6 @@
   "leftovers": [
     "audit 作业仍为红：pip-audit 已知通告，continue-on-error，复评期限 2026-12。",
     "R1 真实供应商暖加载 p95 未达标；C4 外部 trade-journal postMessage origin 校验 blocked。",
-    "旧审计债不变：M11–M16、H1–H7、L1–L4。",
-    "文档提交的 CI run 结论在推送后回填本文件。"
+    "旧审计债不变：M11–M16、H1–H7、L1–L4。"
   ]
 }
