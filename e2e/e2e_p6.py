@@ -488,6 +488,8 @@ def isolated_env(root: Path, home: Path, *, mode: str | None = None) -> dict[str
     # The legacy app is started and stopped inside the scenarios; never pop a tab.
     env["STREAMLIT_SERVER_HEADLESS"] = "true"
     env["BROWSER"] = "none"
+    # Offline determinism: RPT-01 chart capture would time out without a network.
+    env["TA_CHART_SNAPSHOT"] = "0"
     if mode:
         env["ACTIVE_ANALYSIS_UI"] = mode
     return env

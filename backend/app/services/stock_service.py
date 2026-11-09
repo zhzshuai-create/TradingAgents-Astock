@@ -68,6 +68,28 @@ class StockService:
             extra_data={"units": dict(SNAPSHOT_UNITS)},
         )
 
+    def chart_inputs(self, ticker: str) -> dict[str, Any]:
+        """Quote + daily K in one envelope: the frozen chart inputs (RPT-01).
+
+        Deliberately narrower than :meth:`snapshot`: the chart needs the live
+        quote and 120 daily bars, not valuation or sector blocks (RPT-01 D2).
+        """
+        quote = self._cache.get_or_fetch(
+            "stock:snapshot:quote",
+            {"ticker": ticker},
+            lambda: self._providers.quote(ticker),
+            source="tencent",
+        )
+        kline = self._cache.get_or_fetch(
+            "stock:kline",
+            {"ticker": ticker, "period": "day", "limit": DEFAULT_KLINE_LIMIT},
+            lambda: self._providers.kline(ticker, "day", DEFAULT_KLINE_LIMIT),
+            source="mootdx",
+        )
+        return build_blocks_envelope(
+            {"quote": block_result(quote), "kline": block_result(kline)}
+        )
+
     def kline(
         self,
         ticker: str,

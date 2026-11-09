@@ -67,6 +67,7 @@ from backend.app.services.config_snapshot import (
 from backend.app.services.event_log import append_event
 from backend.app.services.legacy_projection import project_latest
 from backend.app.services.report_document import (
+    CHART_SNAPSHOT_STATUSES,
     finalize_report,
     report_ready_payload,
 )
@@ -939,6 +940,7 @@ class JobService:
         detail: str | None,
         stats: StatsSnapshot,
         report: Mapping[str, Any] | None = None,
+        chart_snapshot_status: str | None = None,
     ) -> bool:
         """T03/T07/T14: succeeded once, with its report in the same commit.
 
@@ -947,8 +949,23 @@ class JobService:
         ``jobs.report_id``, the 13th stats event, the terminal status event and
         ``report_ready`` share one transaction, so B5 can only ever mean "all
         of it is missing", never a half-written report.
+
+        ``chart_snapshot_status`` is the worker's evidence-backed verdict
+        (RPT-01). ``None`` keeps the report's own meta so every other caller is
+        unchanged; an explicit value overrides a shallow copy, never the
+        caller's object.
         """
         now = self._now()
+        if chart_snapshot_status is not None and report is not None:
+            effective = (
+                chart_snapshot_status
+                if chart_snapshot_status in CHART_SNAPSHOT_STATUSES
+                else "none"
+            )
+            report = dict(report)
+            meta = dict(report.get("meta") or {})
+            meta["chart_snapshot_status"] = effective
+            report["meta"] = meta
         with Session(self._engine) as session:
             job = session.get(Job, job_id)
             if job is None:

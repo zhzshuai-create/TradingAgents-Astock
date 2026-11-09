@@ -53,13 +53,17 @@ from backend.app.services.analysis_runner import (  # noqa: E402
     AnalysisRunError,
     create_analysis_executor,
 )
+from backend.app.services.chart_snapshot import MarketChartSnapshotter  # noqa: E402
 from backend.app.services.job_service import JobService  # noqa: E402
 from backend.app.services.lease import LeaseService  # noqa: E402
+from backend.app.services.market_cache import MarketCache  # noqa: E402
+from backend.app.services.market_providers import DefaultMarketProviders  # noqa: E402
 from backend.app.services.real_runner import DATA_ROOT_ENV  # noqa: E402
 from backend.app.services.report_store import (  # noqa: E402
     JOB_REPORTS_ENV,
     ReportStore,
 )
+from backend.app.services.stock_service import StockService  # noqa: E402
 from backend.app.worker.main import Worker  # noqa: E402
 from backend.app.worker.runloop import (  # noqa: E402
     install_shutdown_handlers,
@@ -68,6 +72,7 @@ from backend.app.worker.runloop import (  # noqa: E402
 
 DEFAULT_PORT = 8600
 DEFAULT_ROOT = Path.home() / ".tradingagents"
+CHART_SNAPSHOT_ENV = "TA_CHART_SNAPSHOT"
 
 logger = logging.getLogger("astock.backend")
 
@@ -116,6 +121,24 @@ def migrate() -> None:
     command.upgrade(config, "head")
 
 
+def chart_snapshot_enabled(
+    environ: Mapping[str, str] | None = None,
+) -> bool:
+    """On by default; ``TA_CHART_SNAPSHOT=0`` is the RPT-01 rollback switch."""
+    env = os.environ if environ is None else environ
+    return env.get(CHART_SNAPSHOT_ENV, "1") != "0"
+
+
+def build_chart_snapshotter(
+    providers: DefaultMarketProviders,
+    cache: MarketCache,
+    environ: Mapping[str, str] | None = None,
+) -> MarketChartSnapshotter | None:
+    if not chart_snapshot_enabled(environ):
+        return None
+    return MarketChartSnapshotter(StockService(providers, cache))
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv)
     logging.basicConfig(
@@ -147,10 +170,14 @@ def main(argv: list[str] | None = None) -> int:
     if args.real_models:
         server_config = replace(server_config, real_runner_enabled=True)
     jobs = JobService(engine, server_config, reports=reports)
+    market_providers = DefaultMarketProviders()
+    market_cache = MarketCache()
     app = create_app(
         service=jobs,
         server_config=server_config,
         report_store=reports,
+        market_providers=market_providers,
+        market_cache=market_cache,
     )
 
     stop = threading.Event()
@@ -166,12 +193,16 @@ def main(argv: list[str] | None = None) -> int:
                 "worker runs the fake graph: --real-models and %s=1 are both required",
                 REAL_RUNNER_ENV,
             )
+        snapshotter = build_chart_snapshotter(market_providers, market_cache)
+        if snapshotter is None:
+            logger.info("chart snapshot off (%s=0)", CHART_SNAPSHOT_ENV)
         worker = Worker(
             LeaseService(engine),
             jobs=jobs,
             reports=reports,
             owner="backend-worker",
             executor=executor,
+            chart_snapshotter=snapshotter,
         )
         thread = threading.Thread(
             target=worker_loop,

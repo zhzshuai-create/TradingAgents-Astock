@@ -315,7 +315,11 @@ def test_gf03_full_run_persists_24_stage_events_and_13_stats(env):
         assert row.generated_at_source == "job_clock"
         assert row.config_digest == job.config_hash
         assert row.data_quality_status == golden["meta"]["data_quality_status"]
-        assert row.chart_snapshot_status == golden["meta"]["chart_snapshot_status"]
+        # RPT-01: without a chart snapshotter the run writes no file, so the
+        # evidence-backed status is none even though the golden fixture says
+        # frozen. The golden file itself is unchanged.
+        assert row.chart_snapshot_status == "none"
+        assert not (env.reports.root / job_id / "chart_snapshot.json").exists()
         assert row.payload["meta"]["job_id"] == job_id
         assert row.payload["meta"]["content_hash"] == row.content_hash
         assert row.payload["sections"] == golden["sections"]

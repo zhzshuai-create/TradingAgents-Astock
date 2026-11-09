@@ -32,6 +32,8 @@ from typing import Any
 JOB_REPORTS_ENV = "TA_JOB_REPORTS_DIR"
 MAX_STAGE_REPORT_BYTES = 128 * 1024
 FINAL_REPORT_NAME = "report.json"
+CHART_SNAPSHOT_NAME = "chart_snapshot.json"
+CHART_SNAPSHOT_VERSION = "chart-snapshot-v1"
 _CST = timezone(timedelta(hours=8))
 
 
@@ -128,6 +130,43 @@ class ReportStore:
         if not isinstance(meta, dict) or not isinstance(sections, dict):
             return None
         if not sections:
+            return None
+        return data
+
+    def write_chart_snapshot(
+        self, job_id: str, payload: Mapping[str, Any]
+    ) -> str:
+        """Write ``<job>/chart_snapshot.json`` and return its relative path."""
+        directory = self._root / _component(job_id)
+        directory.mkdir(parents=True, exist_ok=True)
+        target = directory / CHART_SNAPSHOT_NAME
+        temp = directory / f"{CHART_SNAPSHOT_NAME}.tmp"
+        temp.write_text(
+            json.dumps(
+                payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+            ),
+            encoding="utf-8",
+            newline="",
+        )
+        os.replace(temp, target)
+        return target.relative_to(self._root).as_posix()
+
+    def read_chart_snapshot(self, job_id: str) -> dict[str, Any] | None:
+        """Return the snapshot only when it is a complete v1 document."""
+        path = self._root / _component(job_id) / CHART_SNAPSHOT_NAME
+        if not path.is_file():
+            return None
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return None
+        if not isinstance(data, dict):
+            return None
+        if data.get("schema_version") != CHART_SNAPSHOT_VERSION:
+            return None
+        if not isinstance(data.get("ticker"), str) or not data["ticker"]:
+            return None
+        if not isinstance(data.get("blocks"), dict) or not data["blocks"]:
             return None
         return data
 

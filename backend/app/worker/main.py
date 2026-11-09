@@ -26,7 +26,11 @@ honours control requests at stage boundaries:
   ``report_ready``. ``TA_STARTUP_RECONCILE=0`` turns the scan off;
 * before the terminal transaction the executor's report is written to
   ``<job>/report.json``; a crash between that write and the commit is B4, and
-  reconcile records it without importing it.
+  reconcile records it without importing it;
+* RPT-01: before the same commit, an injected chart snapshotter writes
+  ``<job>/chart_snapshot.json`` for quote + daily K and supplies the report's
+  ``chart_snapshot_status``; a missing snapshotter, a capture error or a disk
+  error only downgrades the status to ``none``, never the run.
 
 Everything else stays where it was: exactly one worker owns the global lease,
 the heartbeat renews it, shutdown releases only its own lease, and the default
@@ -55,8 +59,13 @@ from backend.app.services.analysis_runner import (
     StageProgress,
     create_analysis_executor,
 )
+from backend.app.services.chart_snapshot import ChartSnapshotter
 from backend.app.services.job_service import JobService, StatsSnapshot
 from backend.app.services.lease import DEFAULT_HEARTBEAT_INTERVAL, LeaseService
+from backend.app.services.report_document import (
+    CHART_SNAPSHOT_STATUSES,
+    compute_content_hash,
+)
 from backend.app.services.report_store import ReportStore
 from backend.app.worker.reconcile import Reconciler
 
@@ -144,11 +153,13 @@ class Worker:
         executor: AnalysisExecutor | None = None,
         server_config: ServerConfig | None = None,
         reconcile_on_start: bool | None = None,
+        chart_snapshotter: ChartSnapshotter | None = None,
     ) -> None:
         self.owner = owner or f"worker-{uuid.uuid4().hex[:8]}"
         self._lease = lease
         self._jobs = jobs
         self._reports = reports
+        self._snapshotter = chart_snapshotter
         self._heartbeat = Heartbeat(lease, self.owner, heartbeat_interval)
         self._executor = (
             executor
@@ -299,9 +310,14 @@ class Worker:
         status = self._jobs.job_status(job.id)
         if status in ("pause_requested", "cancel_requested"):
             detail = "pause_noop" if status == "pause_requested" else "cancel_noop"
+            snapshot_status = self._capture_chart_snapshot(job, result.report)
             self._publish_report(job.id, result.report)
             self._jobs.finish_success(
-                job.id, detail=detail, stats=cumulative, report=result.report
+                job.id,
+                detail=detail,
+                stats=cumulative,
+                report=result.report,
+                chart_snapshot_status=snapshot_status,
             )
             return WorkerOutcome(
                 job=self._jobs.get_job(job.id) or job,
@@ -317,11 +333,50 @@ class Worker:
         # T03: one transaction writes the report row, the 13th stats event,
         # the terminal status event and report_ready. The report file goes to
         # disk first; a crash in between is B4 and reconcile only notes it.
+        snapshot_status = self._capture_chart_snapshot(job, result.report)
         self._publish_report(job.id, result.report)
         self._jobs.finish_success(
-            job.id, detail=None, stats=cumulative, report=result.report
+            job.id,
+            detail=None,
+            stats=cumulative,
+            report=result.report,
+            chart_snapshot_status=snapshot_status,
         )
         return WorkerOutcome(job=self._jobs.get_job(job.id) or job, result=result)
+
+    def _capture_chart_snapshot(
+        self, job: Job, report: Mapping[str, Any] | None
+    ) -> str:
+        """Freeze quote + daily K before the commit; any failure means ``none``.
+
+        The snapshot is evidence for a later export ticket, never a
+        precondition: a missing snapshotter, a provider error or a disk error
+        must not fail the run. ``frozen`` is impossible without the file
+        (RPT-01 D4).
+        """
+        if report is None or self._snapshotter is None or self._heartbeat.lost:
+            return "none"
+        sections = report.get("sections")
+        if not isinstance(sections, Mapping):
+            return "none"
+        try:
+            content_hash = compute_content_hash(sections)
+            payload = self._snapshotter.capture(
+                job.ticker_code, content_hash=content_hash
+            )
+        except Exception:
+            logger.exception("chart snapshot capture failed for %s", job.id)
+            return "none"
+        status = payload.get("status") if isinstance(payload, Mapping) else None
+        if status not in CHART_SNAPSHOT_STATUSES:
+            logger.warning("chart snapshot for %s has no valid status", job.id)
+            return "none"
+        try:
+            self._reports.write_chart_snapshot(job.id, payload)
+        except OSError:
+            logger.exception("failed to write the chart snapshot for %s", job.id)
+            return "none"
+        return status
 
     def _publish_report(
         self, job_id: str, report: Mapping[str, Any] | None

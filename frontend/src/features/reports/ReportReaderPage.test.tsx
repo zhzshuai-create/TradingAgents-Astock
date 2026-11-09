@@ -373,9 +373,21 @@ describe("RDR-05 meta panel", () => {
     );
     expect(screen.getByTestId("meta-origin")).toHaveTextContent("AI 分析");
     expect(screen.getByTestId("meta-data-quality")).toHaveTextContent("正常");
+    expect(screen.getByTestId("meta-chart-snapshot")).toHaveTextContent(
+      "分析时冻结",
+    );
     expect(screen.getByTestId("meta-job")).toHaveAttribute(
       "href",
       "/jobs/job-1",
+    );
+  });
+
+  it("labels a refetch-needed snapshot", async () => {
+    serve(detail({ metaOverrides: { chart_snapshot_status: "refetch_needed" } }));
+    renderPage("/reports/r-1");
+
+    expect(await screen.findByTestId("meta-chart-snapshot")).toHaveTextContent(
+      "需补数",
     );
   });
 
@@ -399,6 +411,7 @@ describe("RDR-05 meta panel", () => {
     );
     expect(screen.getByTestId("meta-origin")).toHaveTextContent("历史导入");
     expect(screen.getByTestId("meta-data-quality")).toHaveTextContent("缺失");
+    expect(screen.getByTestId("meta-chart-snapshot")).toHaveTextContent("无");
     expect(screen.queryByTestId("meta-job")).toBeNull();
   });
 });

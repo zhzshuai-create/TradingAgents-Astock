@@ -1,6 +1,7 @@
 /** Display vocabulary for ReportSummary rows (W05) and the reader (W06). */
 
 import type {
+  ReportChartSnapshot,
   ReportDataQuality,
   ReportMeta,
   ReportRating,
@@ -30,6 +31,12 @@ export const DATA_QUALITY_LABELS: Record<ReportDataQuality, string> = {
   ok: "正常",
   degraded: "部分缺失",
   absent: "缺失",
+};
+
+export const CHART_SNAPSHOT_LABELS: Record<ReportChartSnapshot, string> = {
+  frozen: "分析时冻结",
+  refetch_needed: "需补数",
+  none: "无",
 };
 
 function pad(value: number): string {

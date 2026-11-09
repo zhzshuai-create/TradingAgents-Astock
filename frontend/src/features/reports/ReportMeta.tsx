@@ -1,7 +1,12 @@
 import { Link } from "react-router-dom";
 
 import type { ReportMeta as ReportMetaDto } from "../../api/types";
-import { DATA_QUALITY_LABELS, formatGeneratedAt, originLabel } from "./format";
+import {
+  CHART_SNAPSHOT_LABELS,
+  DATA_QUALITY_LABELS,
+  formatGeneratedAt,
+  originLabel,
+} from "./format";
 import styles from "./ReportMeta.module.css";
 
 /** Right-column provenance: time, origin, data quality and the source job. */
@@ -28,6 +33,12 @@ export function ReportMeta({ meta }: { meta: ReportMetaDto }) {
           <dt>数据质量</dt>
           <dd data-testid="meta-data-quality">
             {DATA_QUALITY_LABELS[meta.data_quality_status]}
+          </dd>
+        </div>
+        <div className={styles.row}>
+          <dt>图表快照</dt>
+          <dd data-testid="meta-chart-snapshot">
+            {CHART_SNAPSHOT_LABELS[meta.chart_snapshot_status]}
           </dd>
         </div>
         {meta.job_id === null ? null : (
