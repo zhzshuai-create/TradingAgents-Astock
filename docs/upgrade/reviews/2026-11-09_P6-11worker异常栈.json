@@ -1,0 +1,59 @@
+{
+  "ticket": "P6-11",
+  "kind": "worker 失败路径补异常栈",
+  "date": "2026-11-09",
+  "authorized_by": "用户指定：先清 worker 异常栈（P6-08 遗留小票）",
+  "repo_head": "2aa357e",
+  "conclusion": "pass",
+  "change": {
+    "file": "backend/app/worker/main.py",
+    "failure_branch": "logger.error(\"analysis failed for job %s (code=%s): %s\", job.id, code, message, exc_info=True)，随后照旧 finish_failure",
+    "lease_lost_branch": "logger.warning(..., exc_info=True)，返回 stopped=lost",
+    "already_terminal_branch": "logger.warning(..., exc_info=True)，返回 stopped=stopped；job_status 只查一次",
+    "unchanged": "错误码、error_message、事件流、数据库、api-v1 全部不变；栈只写服务端日志"
+  },
+  "verification": {
+    "related_tests": {
+      "command": ".venv/Scripts/python.exe -m pytest tests/backend/test_terminal_retry.py tests/backend/test_control_actions.py tests/backend/test_crash_recovery.py tests/backend/test_stage_persistence.py tests/backend/test_worker_lease.py tests/backend/test_chart_snapshot.py -q",
+      "output": "63 passed in 15.47s",
+      "passed": true
+    },
+    "new_test": {
+      "id": "test_sm04_failure_logs_the_exception_traceback",
+      "file": "tests/backend/test_terminal_retry.py",
+      "asserts": ["analysis failed for job 在日志", "job_id 在日志", "Traceback 在日志", "_Boom 在日志", "API error 仍只有 code/message"],
+      "raw_log": [
+        "ERROR    backend.app.worker.main:main.py:308 analysis failed for job 24c0cdd3-dc74-4963-af4f-36f3d40c48fd (code=internal_error): 分析执行失败",
+        "Traceback (most recent call last):",
+        "  File \"C:\\Users\\zhzsh\\TradingAgents-astock\\backend\\app\\worker\\main.py\", line 269, in _run",
+        "    result = self._executor.run(",
+        "  File \"C:\\Users\\zhzsh\\TradingAgents-astock\\tests\\backend\\test_terminal_retry.py\", line 263, in run",
+        "    raise _Boom(self.code, self.message)",
+        "test_terminal_retry._Boom: 分析执行失败"
+      ],
+      "passed": true
+    },
+    "full": {
+      "command": ".venv/Scripts/python.exe -m pytest -q",
+      "output": "872 passed, 4 skipped, 59 subtests passed in 246.81s",
+      "passed": true
+    },
+    "console_path": "run_backend.py 使用 logging.basicConfig(level=INFO)；logger backend.app.worker.main 的 INFO 行已在常驻栈日志出现（P6-09/P6-10 证据），ERROR 带 exc_info 同样走该 handler"
+  },
+  "final_state": {
+    "services_running": false,
+    "env_stack": "ACTIVE_ANALYSIS_UI=next"
+  },
+  "files_changed": [
+    "backend/app/worker/main.py",
+    "tests/backend/test_terminal_retry.py",
+    "docs/upgrade/reviews/2026-11-09_P6-11worker异常栈.json",
+    "docs/upgrade/reviews/2026-11-09_P6-11worker异常栈评审.md"
+  ],
+  "leftovers": [
+    "旧报告 report.json 内嵌 meta 仍写 origin=legacy_import / chart_snapshot_status=none（P6-09 观察）。",
+    "601138 评级字段降级待查（11-08 主用观察）。",
+    "C4 外部 trade-journal 来源校验未开工。",
+    "本票本地提交，未推送。"
+  ]
+}
