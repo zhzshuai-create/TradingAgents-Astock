@@ -631,6 +631,35 @@ class TestPortfolioManagerInjection:
         assert "**Price Target**: 215.0" in md
         assert "**Time Horizon**: 3-6 months" in md
 
+    def test_pm_prompt_pins_the_rating_format(self):
+        """Both the structured and free-text paths share this prompt.
+
+        The 2026-11-08 601138 run fell back to free text, the PM wrote
+        ``评级裁定`` and a table instead of ``**Rating**:``, and the contract
+        parser (exact label only) stored ``unknown``. The prompt now demands
+        the machine-readable header.
+        """
+        captured = {}
+        llm = _structured_pm_llm(captured)
+        create_portfolio_manager(llm)(_make_pm_state())
+        prompt = captured["prompt"]
+        assert "**Output format**" in prompt
+        assert "**Rating**: <Buy / Overweight / Hold / Underweight / Sell>" in prompt
+        assert "**Executive Summary**:" in prompt
+        assert "**Investment Thesis**:" in prompt
+
+    def test_pm_freetext_fallback_receives_the_format_prompt(self):
+        llm = MagicMock()
+        llm.with_structured_output.side_effect = NotImplementedError(
+            "provider unsupported"
+        )
+        llm.invoke.return_value = MagicMock(
+            content="**Rating**: Underweight\n\nTrim exposure."
+        )
+        create_portfolio_manager(llm)(_make_pm_state())
+        prompt = llm.invoke.call_args.args[0]
+        assert "**Rating**: <Buy / Overweight / Hold / Underweight / Sell>" in prompt
+
     def test_pm_falls_back_to_freetext_when_structured_unavailable(self):
         """If a provider does not support with_structured_output, the agent
         falls back to a plain invoke and returns whatever prose the model

@@ -62,6 +62,13 @@ def create_portfolio_manager(llm):
 - **Underweight**: Reduce exposure, take partial profits
 - **Sell**: Exit position or avoid entry
 
+**Output format** (required, including when structured output is unavailable — downstream parsers read these exact labels):
+**Rating**: <Buy / Overweight / Hold / Underweight / Sell>
+**Executive Summary**: <concise summary of the decision>
+**Investment Thesis**: <detailed reasoning grounded in the debate>
+**Price Target**: <number, only when a target is meaningful>
+**Time Horizon**: <e.g. 3-6 months, only when meaningful>
+
 **Context:**
 - Research Manager's investment plan: **{research_plan}**
 - Trader's transaction proposal: **{trader_plan}**
