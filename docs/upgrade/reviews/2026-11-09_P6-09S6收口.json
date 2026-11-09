@@ -1,0 +1,570 @@
+{
+  "ticket": "P6-09",
+  "kind": "S6 收口：run_all.bat 常驻入口真实任务跑到 succeeded",
+  "date": "2026-11-09",
+  "authorized_by": "用户确认：授权一次 DeepSeek 真实任务（上限 2 次尝试），股票 000629，analysis_date=2026-11-09；并确认关闭 8600/5173 上的旧开发服务",
+  "repo_head": "7a6330f",
+  "conclusion": "pass",
+  "default_after_run": "next（仅本机 .env.stack；仓库 DEFAULT_WRITE_MODE 未改）",
+  "services_running_at_end": false,
+  "preconditions": {
+    "head_before": "7a6330f",
+    "worktree_clean": true,
+    "env_stack": "ACTIVE_ANALYSIS_UI=next",
+    "ports_before": {
+      "8600": "PID 20384 run_backend.py --real-models",
+      "5173": "PID 4752 vite dev",
+      "8501": false,
+      "8502": false
+    },
+    "preflight": {
+      "command": ".venv/Scripts/python.exe scripts/p0_preflight.py --full --smoke",
+      "output": "[PASS] x10；通过 10，失败 0；结论：可以开工（全量测试 871 passed / 4 skipped）",
+      "passed": true
+    },
+    "dist_rebuild": "dist 旧于 src 9 秒，执行 npm run build 退出 0（✓ built in 2.14s）"
+  },
+  "steps": [
+    {
+      "id": "S0",
+      "what": "提交交接卡并跑完整预检",
+      "command": "git commit；p0_preflight.py --full --smoke",
+      "output": "HEAD 7a6330f，工作区干净；预检 10 PASS / 0 FAIL（871 passed / 4 skipped）",
+      "passed": true
+    },
+    {
+      "id": "S1",
+      "what": "关闭 8600/5173 上的本栈开发进程",
+      "command": "taskkill //T //F //PID 20384；taskkill //T //F //PID 4752",
+      "output": "两个进程树结束；8600/5173/8501/8502 无监听",
+      "passed": true
+    },
+    {
+      "id": "S2",
+      "what": "前端 dist 新鲜度",
+      "command": "npm run build",
+      "output": "dist/index.html 旧于 src 最新文件 9 秒，重建退出 0",
+      "passed": true
+    },
+    {
+      "id": "S3",
+      "what": "cmd //c run_all.bat（后台，日志落 %TEMP%\u0007stock-p6-09\\stack.log）",
+      "command": "cmd //c run_all.bat > %TEMP%\u0007stock-p6-09\\stack.log 2>&1",
+      "output": {
+        "listeners": {
+          "8600": "127.0.0.1:8600 PID 1488",
+          "5173": "127.0.0.1:5173 PID 40544",
+          "8502": "0.0.0.0:8502 PID 7124"
+        },
+        "meta": {
+          "write_mode": "next",
+          "contract_version": "api-v1",
+          "journal": {
+            "available": true,
+            "entry_url": "http://127.0.0.1:8502",
+            "reason": null
+          },
+          "llm_profiles": [
+            {
+              "id": "deepseek-default",
+              "label": "DeepSeek 默认"
+            }
+          ],
+          "stage_toggles": [
+            {
+              "id": "policy",
+              "label": "政策分析",
+              "default": true
+            },
+            {
+              "id": "hot_money",
+              "label": "游资追踪",
+              "default": true
+            },
+            {
+              "id": "lockup",
+              "label": "解禁监控",
+              "default": true
+            }
+          ],
+          "default_analysis_date": "2026-11-09"
+        },
+        "log_lines": [
+          "INFO astock.backend: write    next",
+          "INFO astock.backend: worker   real",
+          "INFO backend.app.worker.runloop: worker backend-worker owns the lease"
+        ]
+      },
+      "assertion": "三端口监听；write_mode=next、contract_version=api-v1、journal.available=true；日志含 worker   real 与 owns the lease",
+      "passed": true
+    },
+    {
+      "id": "S4",
+      "what": "真实任务建单",
+      "command": "POST /api/v1/jobs（Idempotency-Key: p6-09-s6-20261109-01）",
+      "output": {
+        "http": 201,
+        "job_id": "6873fe1d-e25f-4018-8547-924630b4f00e",
+        "job_status": "queued",
+        "config_digest": "a1c469fc08926725a274de41cfdf5f39b06a0455ae40795d2daddb894f008b9d",
+        "request": {
+          "ticker": "000629",
+          "analysis_date": "2026-11-09",
+          "config": {
+            "llm_profile": "deepseek-default",
+            "parallel_analysts": true,
+            "stage_toggles": {
+              "policy": true,
+              "hot_money": true,
+              "lockup": true
+            }
+          }
+        }
+      },
+      "assertion": "201；worker 认领为 running；config_digest 与 RPT-01 同配置一致",
+      "passed": true
+    },
+    {
+      "id": "S5",
+      "what": "轮询至终态（每 10 秒，上限 15 分钟）",
+      "command": "GET /api/v1/jobs/6873fe1d-e25f-4018-8547-924630b4f00e",
+      "output": {
+        "status": "succeeded",
+        "report_id": "a3c0f057-f92e-4c4b-81fd-f43b33615af0",
+        "error": null,
+        "stats": {
+          "model_calls": 28,
+          "tokens_in": 246236,
+          "tokens_out": 38756,
+          "elapsed_ms": 261964
+        },
+        "stages": [
+          [
+            "market",
+            "done"
+          ],
+          [
+            "social",
+            "done"
+          ],
+          [
+            "news",
+            "done"
+          ],
+          [
+            "fundamentals",
+            "done"
+          ],
+          [
+            "policy",
+            "done"
+          ],
+          [
+            "hot_money",
+            "done"
+          ],
+          [
+            "lockup",
+            "done"
+          ],
+          [
+            "quality_gate",
+            "done"
+          ],
+          [
+            "debate",
+            "done"
+          ],
+          [
+            "trader",
+            "done"
+          ],
+          [
+            "risk",
+            "done"
+          ],
+          [
+            "pm",
+            "done"
+          ]
+        ]
+      },
+      "assertion": "succeeded；report_id 非空；error 为空；market→pm 12/12 阶段 done",
+      "passed": true
+    },
+    {
+      "id": "S6",
+      "what": "同键重放 + 60 秒复核",
+      "command": "再次 POST /api/v1/jobs，同 Idempotency-Key",
+      "output": {
+        "immediate": {
+          "status": 200,
+          "replayed": "1",
+          "job_id": "6873fe1d-e25f-4018-8547-924630b4f00e",
+          "calls": 28
+        },
+        "plus_60s": {
+          "status": "succeeded",
+          "calls": 28,
+          "tokens_in": 246236,
+          "tokens_out": 38756,
+          "jobs_total": 14,
+          "reports_total": 9
+        }
+      },
+      "assertion": "200 同一 job_id；Idempotency-Replayed=1；调用数 28→28；任务 14→14、报告 9→9",
+      "passed": true
+    },
+    {
+      "id": "S7",
+      "what": "关栈并复核",
+      "command": "taskkill //T //F //PID 39820（stack_launch.py）",
+      "output": {
+        "ports_after": {},
+        "env_stack": "ACTIVE_ANALYSIS_UI=next"
+      },
+      "assertion": "8600/5173/8501/8502 无监听；.env.stack 保持 next",
+      "passed": true
+    }
+  ],
+  "job": {
+    "id": "6873fe1d-e25f-4018-8547-924630b4f00e",
+    "status": "succeeded",
+    "error_code": null,
+    "error_message": null,
+    "report_id": "a3c0f057-f92e-4c4b-81fd-f43b33615af0",
+    "started_at": "2026-11-09T14:40:15+08:00",
+    "finished_at": "2026-11-09T14:44:44+08:00",
+    "config_hash": "a1c469fc08926725a274de41cfdf5f39b06a0455ae40795d2daddb894f008b9d",
+    "idempotency_key": "p6-09-s6-20261109-01",
+    "stats": {
+      "model_calls": 28,
+      "tokens_in": 246236,
+      "tokens_out": 38756,
+      "elapsed_ms": 261964
+    },
+    "report_row": {
+      "report_id": "a3c0f057-f92e-4c4b-81fd-f43b33615af0",
+      "chart_snapshot_status": "frozen",
+      "content_hash": "294fafd6d3ad9b53c3000ed2f7b87e6f395e41fb23994dfb8ba94d26d2f28865",
+      "rating": "Hold",
+      "signal": "Hold",
+      "data_quality_status": "absent",
+      "config_digest": "a1c469fc08926725a274de41cfdf5f39b06a0455ae40795d2daddb894f008b9d",
+      "origin": "new",
+      "generated_at": "2026-11-09T14:44:44+08:00"
+    },
+    "report_file": {
+      "exists": true,
+      "bytes": 190796,
+      "sha256": "eaddccd7e270506480db20c15c127bc00086ee194a6baaff973787fd1de896f3",
+      "sections": 13,
+      "section_ids": [
+        "sec-debate",
+        "sec-decision",
+        "sec-fundamentals",
+        "sec-hot-money",
+        "sec-lockup",
+        "sec-market",
+        "sec-news",
+        "sec-plan",
+        "sec-policy",
+        "sec-quality",
+        "sec-risk",
+        "sec-sentiment",
+        "sec-trader"
+      ],
+      "body_chars": 38057,
+      "replacement_chars": 0,
+      "mojibake": 0,
+      "control_chars": [],
+      "meta": {
+        "analysis_date": "2026-11-09",
+        "chart_snapshot_status": "none",
+        "config_digest": null,
+        "content_hash": "294fafd6d3ad9b53c3000ed2f7b87e6f395e41fb23994dfb8ba94d26d2f28865",
+        "data_quality_status": "absent",
+        "generated_at": null,
+        "generated_at_source": "unknown",
+        "job_id": null,
+        "origin": "legacy_import",
+        "price_target": 2.86,
+        "rating": "Hold",
+        "report_id": "a3c0f057-f92e-4c4b-81fd-f43b33615af0",
+        "retry_of_job_id": null,
+        "schema_version": "report-v1",
+        "signal": "Hold",
+        "signal_legacy": "Buy",
+        "stop_reference": "2.70",
+        "ticker_code": "000629",
+        "ticker_name": null,
+        "time_horizon": "3-6个月（下一次财报后一周内复核）"
+      }
+    },
+    "chart_snapshot": {
+      "exists": true,
+      "bytes": 13343,
+      "sha256": "61d811f19579a7300943ce9100a9890f16ac4dbd0d1959a64667a3d5dc2f2244",
+      "status": "frozen",
+      "reason": null,
+      "ticker": "000629",
+      "captured_at": "2026-11-09T14:44:44+08:00",
+      "report_content_hash": "294fafd6d3ad9b53c3000ed2f7b87e6f395e41fb23994dfb8ba94d26d2f28865",
+      "hash_equal_to_reports_row": true,
+      "blocks": {
+        "kline": {
+          "status": "ok",
+          "source": "mixed",
+          "as_of": "2026-11-06",
+          "bars": 120
+        },
+        "quote": {
+          "status": "ok",
+          "source": "tencent",
+          "as_of": "2026-11-09T14:44:39+08:00",
+          "bars": 0
+        }
+      }
+    },
+    "api_job": {
+      "status": 200,
+      "job": {
+        "job_id": "6873fe1d-e25f-4018-8547-924630b4f00e",
+        "status": "succeeded",
+        "pending_action": null,
+        "ticker_code": "000629",
+        "ticker_name": null,
+        "analysis_date": "2026-11-09",
+        "created_at": "2026-11-09T14:40:15+08:00",
+        "updated_at": "2026-11-09T14:44:44+08:00",
+        "started_at": "2026-11-09T14:40:15+08:00",
+        "finished_at": "2026-11-09T14:44:44+08:00",
+        "current_stage": null,
+        "stats": {
+          "model_calls": 28,
+          "tokens_in": 246236,
+          "tokens_out": 38756,
+          "elapsed_ms": 261964
+        },
+        "report_id": "a3c0f057-f92e-4c4b-81fd-f43b33615af0",
+        "error": null,
+        "config_digest": "a1c469fc08926725a274de41cfdf5f39b06a0455ae40795d2daddb894f008b9d",
+        "graph_version": "graph-v1",
+        "retry_of_job_id": null,
+        "resume_of_job_id": null,
+        "resume_from_stage": null,
+        "allowed_actions": [
+          "retry",
+          "reanalyze"
+        ],
+        "links": {
+          "self": "/api/v1/jobs/6873fe1d-e25f-4018-8547-924630b4f00e",
+          "events": "/api/v1/jobs/6873fe1d-e25f-4018-8547-924630b4f00e/events",
+          "report": "/api/v1/reports/a3c0f057-f92e-4c4b-81fd-f43b33615af0"
+        },
+        "reconcile_notes": []
+      },
+      "stages": [
+        [
+          "market",
+          "done"
+        ],
+        [
+          "social",
+          "done"
+        ],
+        [
+          "news",
+          "done"
+        ],
+        [
+          "fundamentals",
+          "done"
+        ],
+        [
+          "policy",
+          "done"
+        ],
+        [
+          "hot_money",
+          "done"
+        ],
+        [
+          "lockup",
+          "done"
+        ],
+        [
+          "quality_gate",
+          "done"
+        ],
+        [
+          "debate",
+          "done"
+        ],
+        [
+          "trader",
+          "done"
+        ],
+        [
+          "risk",
+          "done"
+        ],
+        [
+          "pm",
+          "done"
+        ]
+      ]
+    },
+    "api_report_meta": {
+      "status": 200,
+      "meta": {
+        "report_id": "a3c0f057-f92e-4c4b-81fd-f43b33615af0",
+        "job_id": "6873fe1d-e25f-4018-8547-924630b4f00e",
+        "ticker_code": "000629",
+        "ticker_name": null,
+        "analysis_date": "2026-11-09",
+        "generated_at": "2026-11-09T14:44:44+08:00",
+        "generated_at_source": "job_clock",
+        "origin": "new",
+        "schema_version": "report-v1",
+        "content_hash": "294fafd6d3ad9b53c3000ed2f7b87e6f395e41fb23994dfb8ba94d26d2f28865",
+        "config_digest": "a1c469fc08926725a274de41cfdf5f39b06a0455ae40795d2daddb894f008b9d",
+        "data_quality_status": "absent",
+        "chart_snapshot_status": "frozen",
+        "retry_of_job_id": null,
+        "rating": "Hold",
+        "signal": "Hold",
+        "signal_legacy": "Buy",
+        "price_target": 2.86,
+        "stop_reference": "2.70",
+        "time_horizon": "3-6个月（下一次财报后一周内复核）"
+      },
+      "section_ids": [
+        "sec-debate",
+        "sec-decision",
+        "sec-fundamentals",
+        "sec-hot-money",
+        "sec-lockup",
+        "sec-market",
+        "sec-news",
+        "sec-plan",
+        "sec-policy",
+        "sec-quality",
+        "sec-risk",
+        "sec-sentiment",
+        "sec-trader"
+      ],
+      "section_count": 13
+    }
+  },
+  "idempotency_delta": {
+    "model_calls": {
+      "before": 28,
+      "after": 28,
+      "delta": 0
+    },
+    "jobs_total": {
+      "before": 13,
+      "after": 14,
+      "delta": 1
+    },
+    "reports_total": {
+      "before": 8,
+      "after": 9,
+      "delta": 1
+    }
+  },
+  "files_check": {
+    "report_json": {
+      "exists": true,
+      "bytes": 190796,
+      "sha256": "eaddccd7e270506480db20c15c127bc00086ee194a6baaff973787fd1de896f3",
+      "sections": 13,
+      "section_ids": [
+        "sec-debate",
+        "sec-decision",
+        "sec-fundamentals",
+        "sec-hot-money",
+        "sec-lockup",
+        "sec-market",
+        "sec-news",
+        "sec-plan",
+        "sec-policy",
+        "sec-quality",
+        "sec-risk",
+        "sec-sentiment",
+        "sec-trader"
+      ],
+      "body_chars": 38057,
+      "replacement_chars": 0,
+      "mojibake": 0,
+      "control_chars": [],
+      "meta": {
+        "analysis_date": "2026-11-09",
+        "chart_snapshot_status": "none",
+        "config_digest": null,
+        "content_hash": "294fafd6d3ad9b53c3000ed2f7b87e6f395e41fb23994dfb8ba94d26d2f28865",
+        "data_quality_status": "absent",
+        "generated_at": null,
+        "generated_at_source": "unknown",
+        "job_id": null,
+        "origin": "legacy_import",
+        "price_target": 2.86,
+        "rating": "Hold",
+        "report_id": "a3c0f057-f92e-4c4b-81fd-f43b33615af0",
+        "retry_of_job_id": null,
+        "schema_version": "report-v1",
+        "signal": "Hold",
+        "signal_legacy": "Buy",
+        "stop_reference": "2.70",
+        "ticker_code": "000629",
+        "ticker_name": null,
+        "time_horizon": "3-6个月（下一次财报后一周内复核）"
+      }
+    },
+    "chart_snapshot": {
+      "exists": true,
+      "bytes": 13343,
+      "sha256": "61d811f19579a7300943ce9100a9890f16ac4dbd0d1959a64667a3d5dc2f2244",
+      "status": "frozen",
+      "reason": null,
+      "ticker": "000629",
+      "captured_at": "2026-11-09T14:44:44+08:00",
+      "report_content_hash": "294fafd6d3ad9b53c3000ed2f7b87e6f395e41fb23994dfb8ba94d26d2f28865",
+      "hash_equal_to_reports_row": true,
+      "blocks": {
+        "kline": {
+          "status": "ok",
+          "source": "mixed",
+          "as_of": "2026-11-06",
+          "bars": 120
+        },
+        "quote": {
+          "status": "ok",
+          "source": "tencent",
+          "as_of": "2026-11-09T14:44:39+08:00",
+          "bars": 0
+        }
+      }
+    },
+    "hash_rule": "report_content_hash == reports.content_hash；不成立则按失败记",
+    "hash_equal": true,
+    "stack_log_sha256": "88d6dc3e09cdf10fafb228c61e2639c497620c54cec13f73c94d17acbf9ee332",
+    "stack_log_path": "C:\\Users\\zhzsh\\AppData\\Local\\Temp\\astock-p6-09\\stack.log"
+  },
+  "deviations": [
+    "stdout 里中文标签显示为 GBK 乱码只发生在控制台管道；meta.json 与报告正文 UTF-8 正常（replacement_chars=0、mojibake=0）。",
+    "report.json 文件内 meta 仍写 origin=legacy_import、chart_snapshot_status=none、job_id/config_digest/generated_at=null；RPT-01 真实任务同款，属既有写盘行为，数据库行与 API 视图正确，本票不改。"
+  ],
+  "files_changed": [
+    "docs/upgrade/reviews/2026-11-09_P6-09S6收口.json",
+    "docs/upgrade/reviews/2026-11-09_P6-09S6收口评审.md",
+    "docs/upgrade/reviews/2026-11-08_P6-08常驻切换评审.md",
+    "docs/upgrade/进度存档.md"
+  ],
+  "leftovers": [
+    "worker 失败路径仍不打异常栈（P6-08 遗留小票）。",
+    "仓库缺省写模式仍为 legacy；是否切 next 由 S6 之后单独决定。",
+    "本机 jobs.db 新增 1 个任务 1 份报告（14/9）；未做跨日观察。"
+  ]
+}
