@@ -138,7 +138,6 @@ def _row(
             "generated_at": generated_at,
             "generated_at_source": "job_clock" if generated_at else "unknown",
             "origin": origin,
-            "origin": origin,
             "rating": rating,
             "signal": {
                 "Buy": "Buy",

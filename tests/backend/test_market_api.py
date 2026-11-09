@@ -388,7 +388,7 @@ def test_constituents_limit_accepts_range_boundaries(env, limit):
     _seed_market(env)
     _ok(env, "constituents", {"items": CONSTITUENTS}, "eastmoney")
 
-    payload = _get(env, f"/api/v1/market/industries/BK0475/stocks", limit=limit)
+    payload = _get(env, "/api/v1/market/industries/BK0475/stocks", limit=limit)
 
     assert payload["status"] == "ok"
 

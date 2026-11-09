@@ -1082,7 +1082,6 @@ def partial_flow(browser: Browser, base: str) -> None:
         and "估值" in header.get_by_test_id("partial-blocks").inner_text(),
         "W07-10 partial notice names the failed valuation block",
     )
-    valuation = page.get_by_test_id("stock-valuation")
     check(
         "不可得" in page.get_by_test_id("valuation-note").inner_text()
         and page.locator('[data-testid="valuation-field"][data-missing="true"]').count()

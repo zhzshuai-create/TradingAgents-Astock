@@ -49,10 +49,16 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: |
+            pyproject.toml
+            constraints.txt
       - name: Install project
+        # tests/backend imports fastapi/sqlalchemy/alembic directly; the base
+        # install alone cannot even collect them. TestClient also needs httpx.
         run: |
           python -m pip install --upgrade pip
-          pip install -e . -c constraints.txt pytest
+          pip install -e ".[backend]" -c constraints.txt pytest httpx
       - name: Check dependency consistency
         run: python -m pip check
       - name: Run tests
@@ -62,3 +68,24 @@ jobs:
           DEEPSEEK_API_KEY: test-key
           OPENAI_API_KEY: test-key
           ANTHROPIC_API_KEY: test-key
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Type check and build
+        run: npm run build
+      - name: Bundle budget
+        run: npm run check:bundle -- --out "$RUNNER_TEMP/bundle.json"
+      - name: Unit tests
+        run: npm test

@@ -17,7 +17,6 @@ Commands: .venv/Scripts/python.exe -m pytest tests/backend/test_legacy_import.py
 
 from __future__ import annotations
 
-import copy
 import json
 import os
 import subprocess

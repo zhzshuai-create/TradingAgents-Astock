@@ -34,7 +34,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from playwright.sync_api import Browser, BrowserContext, Page, sync_playwright
+from playwright.sync_api import Browser, Page, sync_playwright
 
 ROOT = Path(__file__).resolve().parent.parent
 FRONTEND = ROOT / "frontend"

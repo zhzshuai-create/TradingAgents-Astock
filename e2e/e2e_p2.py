@@ -413,7 +413,7 @@ def a04_flow(browser: Browser, base: str, api: str, job_ids: list[str]) -> None:
     bar = page.get_by_test_id("active-job-bar")
     bar.wait_for(state="visible", timeout=30_000)
     more = bar.get_by_role("link", name=re.compile("还有"))
-    check(more.count() == 1, f"A04 the bar shows 还有 N 个 with two active jobs")
+    check(more.count() == 1, "A04 the bar shows 还有 N 个 with two active jobs")
     more_text = more.inner_text()
     check("还有 1 个" in more_text, f"A04 the bar counts the extra job ({more_text!r})")
     more.click()

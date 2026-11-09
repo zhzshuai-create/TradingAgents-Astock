@@ -133,7 +133,6 @@ def build_blocks_envelope(
     for block in blocks.values():
         _check_block(block)
 
-    names = list(blocks)
     usable = [(name, block) for name, block in blocks.items() if block.status in USABLE_STATUSES]
     failed = [name for name, block in blocks.items() if block.status in FAILED_STATUSES]
     fetched = fetched_at or _latest_fetched_at(blocks)

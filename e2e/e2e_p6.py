@@ -1043,7 +1043,7 @@ def observation_evidence() -> dict[str, Any]:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="P6-07 P6 exit acceptance")
-    args = parser.parse_args(argv)
+    parser.parse_args(argv)
 
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
