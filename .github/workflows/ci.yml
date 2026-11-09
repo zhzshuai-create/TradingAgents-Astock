@@ -62,7 +62,24 @@ jobs:
       - name: Check dependency consistency
         run: python -m pip check
       - name: Run tests
-        run: python -m pytest tests/ -q
+        shell: bash
+        # pytest only fails the step; surfacing FAILED lines as annotations makes
+        # a platform-only failure diagnosable without admin log rights.
+        run: |
+          set -o pipefail
+          python -m pytest tests/ -q --tb=line 2>&1 | tee pytest.log
+          status=$?
+          if [ "$status" -ne 0 ]; then
+            grep -E "^(FAILED|ERROR) " pytest.log | while IFS= read -r line; do
+              echo "::error title=pytest::${line}"
+            done
+            {
+              echo "### pytest failures"
+              grep -E "^(FAILED|ERROR) " pytest.log || true
+              tail -n 60 pytest.log
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+          exit "$status"
         env:
           # conftest.py mocks keys, but keep CI hermetic just in case
           DEEPSEEK_API_KEY: test-key
