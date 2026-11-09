@@ -20,6 +20,7 @@ endpoint and renderer are P3 scope, so P1-09 does not pre-build them.
 from __future__ import annotations
 
 import copy
+import logging
 import sys
 import uuid
 from datetime import datetime
@@ -578,6 +579,28 @@ def test_sm04_post_stage_error_has_no_failed_stage(env):
     assert sse[-2].type == "stats"
     assert sse[-1].payload["detail"] == "post_stage_error"
     assert sse[-1].payload["error"] == {
+        "code": "internal_error",
+        "message": "分析执行失败",
+    }
+
+
+def test_sm04_failure_logs_the_exception_traceback(env, caplog):
+    job_id = _create(env)
+    with caplog.at_level(logging.ERROR, logger="backend.app.worker.main"):
+        outcome = _run(
+            env,
+            _FailingExecutor(
+                fail_at="news", code="internal_error", message="分析执行失败"
+            ),
+        )
+    assert outcome.stopped == "failed"
+
+    assert "analysis failed for job" in caplog.text
+    assert job_id in caplog.text
+    assert "Traceback" in caplog.text
+    assert "_Boom" in caplog.text
+    # 栈只进服务端日志；API 与数据库仍只有用户可读文本。
+    assert _detail(env, job_id)["error"] == {
         "code": "internal_error",
         "message": "分析执行失败",
     }

@@ -284,19 +284,34 @@ class Worker:
             )
         except Exception as exc:
             if self._heartbeat.lost:
+                logger.warning(
+                    "analysis raised after the lease was lost for job %s",
+                    job.id,
+                    exc_info=True,
+                )
                 return WorkerOutcome(
                     job=self._jobs.get_job(job.id) or job, stopped="lost"
                 )
-            if self._jobs.job_status(job.id) not in (
-                "running",
-                "pause_requested",
-                "cancel_requested",
-            ):
+            status = self._jobs.job_status(job.id)
+            if status not in ("running", "pause_requested", "cancel_requested"):
+                logger.warning(
+                    "analysis raised while job %s is %s; terminal state kept",
+                    job.id,
+                    status,
+                    exc_info=True,
+                )
                 return WorkerOutcome(
                     job=self._jobs.get_job(job.id) or job, stopped="stopped"
                 )
             code = getattr(exc, "code", None) or "internal_error"
             message = getattr(exc, "message", None) or "分析执行失败"
+            logger.error(
+                "analysis failed for job %s (code=%s): %s",
+                job.id,
+                code,
+                message,
+                exc_info=True,
+            )
             self._jobs.finish_failure(
                 job.id, code=str(code), message=str(message), stats=cumulative
             )
