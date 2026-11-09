@@ -1,0 +1,69 @@
+{
+  "ticket": "P6-13",
+  "kind": "601138 评级 unknown 排查与 PM 兜底格式修复",
+  "date": "2026-11-09",
+  "authorized_by": "用户指定：排查 601138 评级 unknown；选择方案 A（PM prompt 加格式约束）",
+  "repo_head": "1aaef0c",
+  "conclusion": "pass",
+  "root_cause": {
+    "chain": "MiMo 的 with_structured_output 返回 None（Trader 缺 action、PM 缺 rating）→ invoke_structured_or_freetext 捕获 AttributeError → 自由文本兜底 → 兜底 prompt 只列五档含义、不要求 **Rating**: 标签 → PM 写出「评级裁定：**Underweight**」和「| 评级 | **Underweight** |」→ 后端契约只认 **Rating**: X，解析为 unknown。",
+    "not_parser_bug": "report-schema-v1.md 明确「按 **Rating**: 精确解析，失败为 unknown，不做关键词猜测」；该正文同时出现 Overweight/SELL/Underweight 多处评级，关键词扫描会把 signal_legacy 判成 Buy，证明放宽解析不可取。"
+  },
+  "evidence": {
+    "job": "8ff726b9-3f25-4eaa-9af7-d821bf7df1d8",
+    "report": "725e16c6-3711-46b4-b35b-46ca70a9f099",
+    "ticker_date": "601138 / 2026-11-06",
+    "server_log": "%TEMP%\\p6_04b_job4_server.log",
+    "warnings": [
+      "WARNING tradingagents.agents.utils.structured: Trader: structured-output invocation failed ('NoneType' object has no attribute 'action'); retrying once as free text",
+      "WARNING tradingagents.agents.utils.structured: Portfolio Manager: structured-output invocation failed ('NoneType' object has no attribute 'rating'); retrying once as free text"
+    ],
+    "control": "同批 300750（ee4039e4）只有 Trader 兜底、PM 结构化成功，评级落库 Overweight；全库 9 份报告仅 1 份 unknown。",
+    "body_probe": "13 节全文 **Rating** 字面命中 0；sec-decision 含「## 评级裁定：**Underweight…**」与「| 评级 | **Underweight** |」。",
+    "legacy_signal": "signal_legacy=Buy，与正文最终 Underweight 相反，说明关键词猜测不可用。"
+  },
+  "change": {
+    "file": "tradingagents/agents/managers/portfolio_manager.py",
+    "prompt": "Rating Scale 后新增 **Output format** 段：**Rating**: <Buy / Overweight / Hold / Underweight / Sell>、Executive Summary、Investment Thesis，Price Target / Time Horizon 仅在有意义时输出。结构化与自由文本共用同一 prompt。",
+    "tests": [
+      "tests/test_memory_log.py::test_pm_prompt_pins_the_rating_format",
+      "tests/test_memory_log.py::test_pm_freetext_fallback_receives_the_format_prompt"
+    ],
+    "unchanged": "后端解析器、report-schema-v1 / FREEZE 契约、数据库、API、SSE、报告章节与 content_hash 均不变。"
+  },
+  "verification": {
+    "targeted": {
+      "command": ".venv/Scripts/python.exe -m pytest tests/test_memory_log.py tests/test_structured_agents.py tests/test_signal_processing.py -q",
+      "output": "86 passed in 1.94s",
+      "passed": true
+    },
+    "full": {
+      "command": ".venv/Scripts/python.exe -m pytest -q",
+      "output": "875 passed, 4 skipped, 59 subtests passed in 248.62s",
+      "passed": true
+    },
+    "parser_boundary": {
+      "command": "build_legacy_report() 分别喂入 601138 实际正文与 prompt 形状的兜底样本",
+      "actual": "rating=unknown signal=unknown legacy=Buy",
+      "prompt_shaped": "rating=Underweight signal=Sell legacy=N/A",
+      "passed": true
+    },
+    "real_run": "未新跑真实任务。本次修复点在 prompt 与解析边界，下一次自由文本兜底才能真正观察模型是否遵守；不以单测冒充真实模型验证。"
+  },
+  "final_state": {
+    "services_running": false,
+    "env_stack": "ACTIVE_ANALYSIS_UI=next",
+    "historical_report_rating": "725e16c6 仍为 unknown（不回溯重写）"
+  },
+  "files_changed": [
+    "tradingagents/agents/managers/portfolio_manager.py",
+    "tests/test_memory_log.py",
+    "docs/upgrade/reviews/2026-11-09_P6-13评级unknown.json",
+    "docs/upgrade/reviews/2026-11-09_P6-13评级unknown评审.md"
+  ],
+  "leftovers": [
+    "历史报告 725e16c6 的 rating/signal 保持 unknown；页面展示按 unknown 处理。",
+    "C4 外部 trade-journal 来源校验未开工。",
+    "本票本地提交，未推送。"
+  ]
+}
