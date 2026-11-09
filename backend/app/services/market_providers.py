@@ -383,7 +383,7 @@ class DefaultMarketProviders:
             frame = _resample(frame, period)
         frame = frame.tail(limit)
         bars = []
-        for row in frame:
+        for row in frame.to_dict("records"):
             bars.append(
                 {
                     "date": row["date"],

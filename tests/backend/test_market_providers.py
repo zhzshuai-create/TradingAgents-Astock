@@ -110,6 +110,41 @@ def test_fake_provider_defaults_to_empty():
     assert result.data is None
 
 
+def test_default_kline_parses_the_sina_fallback_dataframe(monkeypatch):
+    import pandas as pd
+
+    import backend.app.services.market_providers as providers
+
+    def bars(*args, **kwargs):
+        return pd.DataFrame(
+            [
+                {"date": "2026-11-06", "open": 2.7, "high": 2.8, "low": 2.69,
+                 "close": 2.76, "volume": 1000, "amount": 2760},
+                {"date": "2026-11-07", "open": 2.76, "high": 2.79, "low": 2.71,
+                 "close": 2.75, "volume": 900, "amount": 2475},
+            ]
+        )
+
+    monkeypatch.setattr(providers, "_mootdx_bars", lambda *a, **k: pd.DataFrame())
+    monkeypatch.setattr(providers, "_sina_daily_bars", bars)
+
+    result = DefaultMarketProviders().kline("000629", "day", 60)
+
+    assert result.status == "ok"
+    assert result.source == "mixed"
+    assert result.as_of == "2026-11-07"
+    assert [bar["date"] for bar in result.data["bars"]] == ["2026-11-06", "2026-11-07"]
+    assert result.data["bars"][-1] == {
+        "date": "2026-11-07",
+        "open": 2.76,
+        "high": 2.79,
+        "low": 2.71,
+        "close": 2.75,
+        "volume": 900.0,
+        "amount": 2475.0,
+    }
+
+
 def test_fake_provider_supports_delay():
     fake = FakeMarketProviders()
     fake.set("northbound", Fetched(data={}, as_of=AS_OF, source="hexin"), delay=0.02)
