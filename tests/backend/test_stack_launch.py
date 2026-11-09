@@ -16,6 +16,8 @@ import pytest
 ROOT = Path(__file__).resolve().parents[2]
 LAUNCH_SCRIPT = ROOT / "scripts" / "stack_launch.py"
 VENV_PY = ROOT / ".venv" / "Scripts" / "python.exe"
+# Guard tests need an interpreter that exists; CI has no repo .venv.
+EXISTING_PY = Path(sys.executable)
 
 
 def _load(name: str, path: Path):
@@ -109,7 +111,7 @@ def test_sl03_preview_port_and_venv_guards(launch):
         backend_listening=False,
         backend_meta=None,
         preview_listening=False,
-        venv_python=VENV_PY,
+        venv_python=EXISTING_PY,
     )
     # legacy never owns 5173 and must not be blocked by a preview.
     launch.check_guards(
@@ -191,6 +193,7 @@ def test_sl06_main_dry_run_prints_the_three_children(
     dist.write_text("", encoding="utf-8")
     monkeypatch.setattr(launch, "VITE_ENTRY", vite)
     monkeypatch.setattr(launch, "DIST_INDEX", dist)
+    monkeypatch.setattr(launch, "VENV_PY", EXISTING_PY)
 
     assert launch.main(["--dry-run"]) == 0
     out = capsys.readouterr().out

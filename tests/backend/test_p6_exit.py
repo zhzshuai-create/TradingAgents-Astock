@@ -24,6 +24,9 @@ from e2e import e2e_p5, e2e_p6  # noqa: E402
 
 
 def _stub_p5(monkeypatch, tmp_path, calls: list[str]) -> None:
+    # CI installs into the system interpreter; the dev-machine .venv guard in
+    # e2e_p5.main must not decide whether this contract test can run.
+    monkeypatch.setattr(e2e_p5, "PYTHON", Path(sys.executable))
     monkeypatch.setattr(e2e_p5, "ROOT", tmp_path)
     monkeypatch.setattr(e2e_p5, "EVIDENCE", tmp_path / "p5.json")
     monkeypatch.setattr(e2e_p5, "SHOTS", tmp_path / "shots")

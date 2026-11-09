@@ -28,5 +28,8 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: "./src/test/setup.ts",
     css: true,
+    // Report fixtures carry +08:00 stamps and assertions read Beijing wall
+    // time; CI runners default to UTC and would render 01:04 instead of 09:04.
+    env: { TZ: "Asia/Shanghai" },
   },
 });
