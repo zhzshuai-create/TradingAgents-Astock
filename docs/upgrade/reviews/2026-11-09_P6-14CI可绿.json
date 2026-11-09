@@ -1,0 +1,122 @@
+{
+  "ticket": "P6-14",
+  "kind": "CI 可绿：首次推送后的流水线修复",
+  "date": "2026-11-09",
+  "authorized_by": "用户选择「修好 CI 再推送」",
+  "repo_head": "8da2a23",
+  "conclusion": "pass",
+  "baseline": {
+    "origin_previous": "476ee0d (2026-10-07)",
+    "first_push": "476ee0d..6b8f63a，250 commits / 648 files / 139k insertions",
+    "local_suite_before": "875 passed, 4 skipped, 59 subtests passed"
+  },
+  "failures_found": [
+    {
+      "stage": "lint",
+      "detail": "10 个 ruff 错误（F401 未使用导入、F841 未使用变量、F541 空 f-string、F601 重复字典键）",
+      "fix": "6b8f63a"
+    },
+    {
+      "stage": "test install",
+      "detail": "CI 只装基础依赖时连 tests/backend 都无法收集：fastapi/sqlalchemy/alembic/jsonschema 不在基础依赖里",
+      "fix": "6b8f63a：pip install -e \".[backend]\" -c constraints.txt pytest httpx"
+    },
+    {
+      "stage": "frontend",
+      "detail": "CI 没有前端作业，构建、包体预算与 539 条单测从未在远端执行",
+      "fix": "6b8f63a：新增 npm ci / build / check:bundle / test 作业"
+    },
+    {
+      "stage": "frontend unit",
+      "detail": "GitHub runner 用 UTC，11-05 09:04+08:00 渲染成 01:04，3 个用例断言 09:04",
+      "fix": "1f33494：vite.config.ts 的 test.env 固定 TZ=Asia/Shanghai"
+    },
+    {
+      "stage": "test matrix",
+      "detail": "4 个测试用例硬依赖仓库 .venv/Scripts/python.exe（e2e_p5 的入口守卫、stack_launch 的已有解释器/主流程用例）；CI 装进系统解释器，没有 .venv",
+      "fix": "1f33494：test_p6_exit 把 e2e_p5.PYTHON 指向 sys.executable；test_stack_launch 的守卫用例用 sys.executable，SL-06 另行 patch launch.VENV_PY"
+    },
+    {
+      "stage": "test ubuntu",
+      "detail": "Ubuntu runner 没有中文字体，7 个 PDF 用例报 PdfFontMissing（test_pdf_renderer 4 条、test_p3_exit 1 条、test_exports 2 条；exp08 是导出失败的连带）",
+      "fix": "8da2a23：Linux 作业 apt-get install fonts-wqy-zenhei"
+    }
+  ],
+  "diagnostics": {
+    "problem": "GitHub 匿名账号读不到 Actions 日志（API 403 Must have admin rights）",
+    "first_attempt": "7187e48 把 FAILED 行写成 ::error 注解；runner 的 bash 默认 -e，pytest 非零后脚本立即退出，失败分支未执行，注解数为 0",
+    "fix": "6a98b65：pytest 前 set +e，失败时输出 pytest-exit、FAILED 行、日志尾部 30 行三条注解，并写作业摘要",
+    "result": "42591140700 的注解直接给出 7 条 PdfFontMissing，定位完成"
+  },
+  "verification": {
+    "ruff": {
+      "command": "ruff check .（0.15.20）",
+      "output": "All checks passed!",
+      "passed": true
+    },
+    "backend_local": {
+      "command": ".venv/Scripts/python.exe -m pytest -q",
+      "output": "875 passed, 4 skipped, 59 subtests passed in 250.59s",
+      "passed": true
+    },
+    "backend_utc": {
+      "command": "TZ=UTC .venv/Scripts/python.exe -m pytest -q",
+      "output": "875 passed, 4 skipped, 59 subtests passed",
+      "purpose": "排除后端时区依赖；证明后端 CI 失败不是 UTC 造成",
+      "passed": true
+    },
+    "backend_clean_clone": {
+      "command": "git clone --depth 1（只含已跟踪文件，无 .venv/.env/未跟踪产物）后跑 .venv/Scripts/python.exe -m pytest -q",
+      "before_fix": "4 failed, 871 passed（4 条全是 .venv 依赖）",
+      "after_fix": "875 passed, 4 skipped, 59 subtests passed in 253.68s",
+      "passed": true
+    },
+    "frontend": {
+      "tests": "39 files / 539 tests passed",
+      "utc_repro": "TZ=UTC npx vitest run 修复前 3 failed / 536 passed；加 test.env TZ 后 539 passed",
+      "build": "tsc --noEmit + vite build 通过；entry 124.94 kB gzip，最大路由 21.4 kB",
+      "bundle": "npm run check:bundle -- --out $TEMP/... 通过",
+      "passed": true
+    },
+    "ci_runs": [
+      {
+        "run": "42585709314",
+        "head": "6b8f63a",
+        "result": "lint 绿；frontend 红（UTC）；4 个测试矩阵红（.venv）；audit 红（非阻塞）"
+      },
+      {
+        "run": "42589225235",
+        "head": "1f33494",
+        "result": "frontend 绿；Windows 3.11 绿；Ubuntu 红（缺中文字体）"
+      },
+      {
+        "run": "42590100322",
+        "head": "7187e48",
+        "result": "诊断注解未生效（bash -e 提前退出）"
+      },
+      {
+        "run": "42591140700",
+        "head": "6a98b65",
+        "result": "注解暴露 7 条 PdfFontMissing，定位到 Linux 无 CJK 字体"
+      },
+      {
+        "run": "42591732202",
+        "head": "8da2a23",
+        "result": "conclusion=success；lint、frontend、4 个测试矩阵全绿；audit 红（continue-on-error，既有策略）",
+        "url": "https://github.com/zhzshuai-create/TradingAgents-Astock/actions/runs/42591732202"
+      }
+    ]
+  },
+  "change_scope": {
+    "product_code": "无改动；api-v1 语义、数据库、报告契约、SSE 均未动",
+    "frontend_runtime": "无改动；vite.config.ts 只改 test.env",
+    "ci": "补齐 backend extra、前端作业、Linux 字体与失败注解",
+    "tests": "解除对仓库 .venv 的硬依赖；其余断言未放宽"
+  },
+  "leftovers": [
+    "audit 作业仍为红：pip-audit 已知通告（soupsieve/torch/urllib3 传递依赖），continue-on-error，复评期限 2026-12，本次按既有策略不阻塞。",
+    "C4 外部 trade-journal 来源校验仍未开工。",
+    "旧审计债仍在：M15 质量闸门非阻塞、M14 数据层测试、M13 Docker 仅 CLI、M12 pip-audit 观察期、H7 桌面 bat、M11 前缀重复。",
+    "文档提交在 CI 绿之后单独推送，届时远端 head 会再前进一个提交，代码 head 仍为 8da2a23。"
+  ]
+}
