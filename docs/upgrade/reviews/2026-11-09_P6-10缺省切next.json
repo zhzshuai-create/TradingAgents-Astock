@@ -1,0 +1,88 @@
+{
+  "ticket": "P6-10",
+  "kind": "仓库缺省写模式从 legacy 切到 next",
+  "date": "2026-11-09",
+  "authorized_by": "用户确认：先做缺省切 next 小票；契约记账按「保持 v1 + 变更记录」",
+  "repo_head": "b3e21af",
+  "conclusion": "pass",
+  "decision": {
+    "freeze": "保持 v1，不改字段类型/可选性/取值集合；按 FREEZE-v1 第 1 节「修改默认值」走评审 + 哈希更新 + 变更记录",
+    "legacy_path": "显式 set legacy 仍可用；legacy 下新版 POST /jobs 仍 409 write_mode_legacy"
+  },
+  "preconditions": {
+    "head_before": "b3e21af",
+    "worktree_clean": true,
+    "ports": {"8600": false, "5173": false, "8501": false, "8502": false},
+    "env_stack": "ACTIVE_ANALYSIS_UI=next",
+    "preflight": {"command": ".venv/Scripts/python.exe scripts/p0_preflight.py --full --smoke", "output": "10 PASS / 0 FAIL", "passed": true}
+  },
+  "changes": [
+    {"file": "backend/app/core/write_mode.py", "before": "DEFAULT_WRITE_MODE = \"legacy\"", "after": "DEFAULT_WRITE_MODE = \"next\""},
+    {"file": "scripts/backup_restore.py", "before": "os.environ.get(\"ACTIVE_ANALYSIS_UI\", \"legacy\")", "after": "读取 WRITE_MODE_ENV，缺失回退 DEFAULT_WRITE_MODE（与后端一致）"},
+    {"file": "scripts/stack_mode.py", "before": "文档串：文件缺失按 legacy", "after": "文件缺失按 next，与后端默认一致"},
+    {"file": "e2e/e2e_p6.py", "before": "stack_mode_value() 缺文件回退 legacy", "after": "缺文件回退 next"},
+    {"file": "tests/backend/test_write_mode.py", "before": "WM-01 defaults_to_legacy", "after": "WM-01 defaults_to_next（无环境变量时 meta 报 next）"},
+    {"file": "tests/backend/test_meta_options.py", "before": "META-01 断言 write_mode == legacy", "after": "META-01 断言 write_mode == next"},
+    {"file": "tests/backend/test_stack_mode.py", "before": "ST-01 缺文件按 legacy", "after": "ST-01 缺文件按 next"},
+    {"file": "docs/upgrade/contracts/api-v1.md", "before": "缺省按 legacy 理解；示例 write_mode=legacy", "after": "缺省按 next 理解（2026-11-09 起）；示例 write_mode=next"},
+    {"file": "docs/upgrade/contracts/FREEZE-v1.md", "before": "api-v1.md 哈希 f6d80401…", "after": "api-v1.md 哈希 ee634bf0…，新增 2026-11-09 变更记录"},
+    {"file": "README.md", "before": "run_all.bat 描述为同时拉起旧版与日志", "after": "run_all.bat 缺省启动新版（8600+5173+8502）；旧版给出 set legacy + web/launch.py 路径"}
+  ],
+  "contract": {
+    "api_v1_hash_before": "f6d8040177e09617734a7999b1cbc32e98e725f486c8adfa55c8053e4e3c21f5",
+    "api_v1_hash_after": "ee634bf075871845999034bcbc6280693f8cae05896bda905676f9ae30070bac",
+    "encoding": "UTF-8 BOM + CRLF（与校验代码一致）",
+    "rule": "FREEZE-v1 第 1 节：修改默认值属「需要评审」类别；字段类型与可选性未变，不升版本"
+  },
+  "verification": {
+    "targeted": {
+      "command": ".venv/Scripts/python.exe -m pytest tests/backend/test_write_mode.py tests/backend/test_meta_options.py tests/backend/test_stack_mode.py tests/backend/test_stack_launch.py tests/backend/test_backup_restore.py tests/backend/test_dev_entry.py -q",
+      "output": "43 passed in 20.06s",
+      "passed": true
+    },
+    "full": {
+      "command": ".venv/Scripts/python.exe -m pytest -q",
+      "output": "871 passed, 4 skipped, 59 subtests passed in 256.63s",
+      "passed": true
+    },
+    "live_default_next": {
+      "what": "临时移除 .env.stack 后执行 cmd //c run_all.bat，验证仓库缺省",
+      "observed": {"write_mode": "next", "contract_version": "api-v1", "journal_available": true, "ports": {"8600": true, "5173": true, "8502": true}},
+      "log_lines": ["INFO astock.backend: write    next", "INFO astock.backend: worker   real"],
+      "log_path": "C:/Users/zhzsh/AppData/Local/Temp/astock-p6-10/default-next.log",
+      "log_sha256": "d090c245158c08edbcb7d9e3aa100c50d2c3b6b62e626fe6e656a48a39e49335",
+      "restore": ".env.stack 已还原为 ACTIVE_ANALYSIS_UI=next；8600/5173/8502 无监听",
+      "passed": true
+    },
+    "legacy_still_works": {
+      "tests": ["WM-03 legacy 新建 409 write_mode_legacy 且不写库", "WM-04 legacy 仍回放既有键", "WM-07 legacy 拒绝 retry", "WM-08 legacy 先报 active_conflict"],
+      "passed": true
+    }
+  },
+  "final_state": {
+    "services_running": false,
+    "env_stack": "ACTIVE_ANALYSIS_UI=next",
+    "repo_default": "next"
+  },
+  "files_changed": [
+    "README.md",
+    "backend/app/core/write_mode.py",
+    "docs/upgrade/contracts/FREEZE-v1.md",
+    "docs/upgrade/contracts/api-v1.md",
+    "e2e/e2e_p6.py",
+    "scripts/backup_restore.py",
+    "scripts/stack_mode.py",
+    "tests/backend/test_meta_options.py",
+    "tests/backend/test_stack_mode.py",
+    "tests/backend/test_write_mode.py",
+    "docs/upgrade/reviews/2026-11-09_P6-10缺省切next.json",
+    "docs/upgrade/reviews/2026-11-09_P6-10缺省切next评审.md"
+  ],
+  "leftovers": [
+    "旧报告 report.json 内嵌 meta 仍写 origin=legacy_import / chart_snapshot_status=none，数据库行正确（P6-09 观察）。",
+    "worker 失败路径不打异常栈（P6-08 遗留）。",
+    "601138 评级字段降级待查（11-08 主用观察）。",
+    "C4 外部 trade-journal 来源校验，仍未开工。",
+    "异步收尾：本票本地提交，未推送。"
+  ]
+}
