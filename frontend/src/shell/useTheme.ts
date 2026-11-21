@@ -22,8 +22,20 @@ function systemTheme(): Theme {
     : "light";
 }
 
+/** ?theme=dark wins once, so a specific theme can be reviewed or screenshotted. */
+function urlTheme(): Theme | null {
+  try {
+    const value = new URLSearchParams(window.location.search).get("theme");
+    return value === "light" || value === "dark" ? value : null;
+  } catch {
+    return null;
+  }
+}
+
 export function useTheme() {
-  const [theme, setTheme] = useState<Theme>(() => readStoredTheme() ?? systemTheme());
+  const [theme, setTheme] = useState<Theme>(
+    () => urlTheme() ?? readStoredTheme() ?? systemTheme(),
+  );
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;

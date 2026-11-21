@@ -1,0 +1,112 @@
+/* Boot plate. The overlay is the page's own paper — the same canvas colour and
+   the same ink — so the hand-off needs no interim colour step: the plate
+   dissolves, then the cover lifts, and the page's content rises out of the
+   paper it was always printed on. */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: var(--color-bg-canvas);
+  color: var(--color-text-primary);
+}
+
+/* QA readout (?splashDebug=1) that outlives the overlay, so the number for the
+   hand-off phase is still readable after the cover is gone. */
+.readout {
+  position: fixed;
+  right: 12px;
+  bottom: 12px;
+  z-index: 1000;
+  padding: 4px 8px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-surface);
+  color: var(--color-text-muted);
+  font-family: var(--font-family-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  pointer-events: none;
+}
+
+.stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.plot {
+  position: relative;
+  width: min(760px, 86vw);
+}
+
+.mark {
+  display: block;
+  width: 100%;
+  /* Height is set in the same place that sizes the backing store, so the canvas
+     always matches its CSS box exactly. */
+}
+
+/* Axis ticks: 01–07 under each candle, one per analyst. Small enough to read as
+   a scale, not as a caption. */
+.ticks {
+  position: relative;
+  height: 11px;
+  margin-top: 5px;
+}
+
+.tick {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  color: var(--color-text-muted);
+  font-family: var(--font-family-mono);
+  font-size: 8px;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.wordmark {
+  margin-top: 28px;
+  color: var(--color-text-primary);
+  font-family: var(--font-family-mono);
+  font-size: 30px;
+  font-weight: var(--font-weight-medium);
+  letter-spacing: 0.26em;
+  text-indent: 0.26em;
+  white-space: nowrap;
+}
+
+.subtitle {
+  margin-top: 10px;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  letter-spacing: 0.24em;
+  text-indent: 0.24em;
+  white-space: nowrap;
+}
+
+@media (max-width: 700px) {
+  .plot {
+    width: 92vw;
+  }
+
+  .wordmark {
+    margin-top: 24px;
+    font-size: 15px;
+    letter-spacing: 0.26em;
+    text-indent: 0.26em;
+  }
+
+  .subtitle {
+    margin-top: 8px;
+    letter-spacing: 0.18em;
+    text-indent: 0.18em;
+  }
+}

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 
 import { routes } from "./routes";
+import { Splash } from "./shell/Splash";
 
 const router = createBrowserRouter(routes);
 
@@ -22,6 +23,7 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />
+      <Splash />
     </QueryClientProvider>
   );
 }

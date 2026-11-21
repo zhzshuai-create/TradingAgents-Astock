@@ -5,6 +5,10 @@
  *
  * Breakpoints are mirrored in src/ui/breakpoints.ts because CSS variables
  * cannot be used inside media queries.
+ *
+ * Palette direction: printed-paper neutrals, warm-grey rather than blue-grey;
+ * the accent is ink itself, so chrome stays monochrome and the only saturated
+ * colours left in the interface are the red / green of A-share movement.
  */
 
 :root {
@@ -12,50 +16,50 @@
 
   /* Base palette — do not reference from components. */
   --gray-0: #ffffff;
-  --gray-25: #fbfcfe;
-  --gray-50: #f5f7fa;
-  --gray-100: #edf0f5;
-  --gray-200: #dfe4ec;
-  --gray-300: #cbd2de;
-  --gray-400: #9aa5b5;
-  --gray-500: #616c7d;
-  --gray-600: #4d5868;
-  --gray-700: #3a4453;
-  --gray-800: #2a323e;
-  --gray-850: #232a35;
-  --gray-900: #1b212a;
-  --gray-950: #141920;
-  --gray-1000: #0d1117;
+  --gray-25: #fbfbf8;
+  --gray-50: #f4f4f1;
+  --gray-100: #ecece5;
+  --gray-200: #e1e1d9;
+  --gray-300: #cfcfc5;
+  --gray-400: #a6a69c;
+  --gray-500: #6e6e65;
+  --gray-600: #54544c;
+  --gray-700: #3d3d37;
+  --gray-800: #2b2b27;
+  --gray-850: #232320;
+  --gray-900: #16171a;
+  --gray-950: #101113;
+  --gray-1000: #0b0c0e;
 
-  --blue-100: #e8effd;
-  --blue-400: #5b8ff5;
-  --blue-450: #3b78ee;
-  --blue-500: #2a64d5;
-  --blue-600: #2557c7;
-  --blue-900: #16223d;
+  --blue-100: #e8ecf1;
+  --blue-400: #8ea3ba;
+  --blue-450: #6f8aa6;
+  --blue-500: #2b3f57;
+  --blue-600: #1f2f43;
+  --blue-900: #202a36;
 
-  --green-100: #e4f6ec;
-  --green-400: #3fae76;
-  --green-500: #1c7c4d;
-  --green-900: #123527;
+  --green-100: #e5efe9;
+  --green-400: #4f9a74;
+  --green-500: #2c7a55;
+  --green-900: #182b22;
 
-  --amber-100: #fdf1dc;
-  --amber-400: #d98a1f;
-  --amber-500: #9e5e00;
-  --amber-900: #3a2a10;
+  --amber-100: #f7eeda;
+  --amber-400: #b98432;
+  --amber-500: #8a5a00;
+  --amber-900: #2f2512;
 
-  --red-100: #fbe7e5;
-  --red-400: #e26255;
-  --red-500: #c0392b;
-  --red-600: #a93226;
-  --red-900: #3a1714;
+  --red-100: #f6e7e4;
+  --red-400: #cc6a5c;
+  --red-500: #b3372b;
+  --red-600: #96291f;
+  --red-900: #2e1714;
 
   /* Semantic colors — light theme. */
   --color-bg-canvas: var(--gray-50);
   --color-bg-surface: var(--gray-0);
   --color-bg-raised: var(--gray-0);
   --color-bg-inset: var(--gray-100);
-  --color-bg-overlay: rgba(13, 17, 23, 0.55);
+  --color-bg-overlay: rgba(22, 23, 26, 0.52);
   --color-border-subtle: var(--gray-200);
   --color-border-default: var(--gray-300);
   --color-border-strong: var(--gray-400);
@@ -63,10 +67,10 @@
   --color-text-secondary: var(--gray-600);
   --color-text-muted: var(--gray-500);
   --color-text-inverse: var(--gray-0);
-  --color-accent: var(--blue-500);
-  --color-accent-hover: var(--blue-600);
-  --color-accent-soft: var(--blue-100);
-  --color-accent-contrast: var(--gray-0);
+  --color-accent: var(--gray-900);
+  --color-accent-hover: #000000;
+  --color-accent-soft: #e8e8e0;
+  --color-accent-contrast: #f7f7f3;
   --color-success: var(--green-500);
   --color-success-soft: var(--green-100);
   --color-warning: var(--amber-500);
@@ -74,7 +78,7 @@
   --color-danger: var(--red-500);
   --color-danger-hover: var(--red-600);
   --color-danger-soft: var(--red-100);
-  --color-focus-ring: var(--blue-500);
+  --color-focus-ring: var(--gray-900);
   --color-skeleton: var(--gray-100);
   --color-skeleton-highlight: var(--gray-50);
 
@@ -124,10 +128,10 @@
   --radius-xl: 16px;
   --radius-full: 999px;
 
-  /* Shadows. */
-  --shadow-sm: 0 1px 2px rgba(13, 17, 23, 0.08);
-  --shadow-md: 0 4px 12px rgba(13, 17, 23, 0.12);
-  --shadow-lg: 0 12px 32px rgba(13, 17, 23, 0.18);
+  /* Shadows — kept low, paper reads better with a hairline than a drop. */
+  --shadow-sm: 0 1px 2px rgba(22, 23, 26, 0.06);
+  --shadow-md: 0 2px 10px rgba(22, 23, 26, 0.08);
+  --shadow-lg: 0 12px 32px rgba(22, 23, 26, 0.12);
 
   /* Motion. */
   --duration-fast: 120ms;
@@ -135,6 +139,10 @@
   --duration-slow: 280ms;
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --ease-emphasized: cubic-bezier(0.3, 0, 0, 1.2);
+
+  /* Boot plate. The overlay is printed on the page's own paper — it reuses
+     --color-bg-canvas and --color-text-primary rather than carrying splash-only
+     colours, so there is no colour to change hands mid-transition. */
 
   /* Layering. */
   --z-base: 0;
@@ -177,13 +185,13 @@
   --color-border-subtle: var(--gray-800);
   --color-border-default: var(--gray-700);
   --color-border-strong: var(--gray-600);
-  --color-text-primary: var(--gray-50);
-  --color-text-secondary: var(--gray-300);
-  --color-text-muted: var(--gray-400);
+  --color-text-primary: #edede6;
+  --color-text-secondary: #bdbdb2;
+  --color-text-muted: #8c8c81;
   --color-text-inverse: var(--gray-1000);
-  --color-accent: var(--blue-400);
-  --color-accent-hover: var(--blue-450);
-  --color-accent-soft: var(--blue-900);
+  --color-accent: #edede6;
+  --color-accent-hover: #ffffff;
+  --color-accent-soft: #262621;
   --color-accent-contrast: var(--gray-1000);
   --color-success: var(--green-400);
   --color-success-soft: var(--green-900);
@@ -192,7 +200,7 @@
   --color-danger: var(--red-400);
   --color-danger-hover: var(--red-500);
   --color-danger-soft: var(--red-900);
-  --color-focus-ring: var(--blue-400);
+  --color-focus-ring: #edede6;
   --color-skeleton: var(--gray-900);
   --color-skeleton-highlight: var(--gray-850);
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
@@ -209,13 +217,13 @@
     --color-border-subtle: var(--gray-800);
     --color-border-default: var(--gray-700);
     --color-border-strong: var(--gray-600);
-    --color-text-primary: var(--gray-50);
-    --color-text-secondary: var(--gray-300);
-    --color-text-muted: var(--gray-400);
+    --color-text-primary: #edede6;
+    --color-text-secondary: #bdbdb2;
+    --color-text-muted: #8c8c81;
     --color-text-inverse: var(--gray-1000);
-    --color-accent: var(--blue-400);
-    --color-accent-hover: var(--blue-450);
-    --color-accent-soft: var(--blue-900);
+    --color-accent: #edede6;
+    --color-accent-hover: #ffffff;
+    --color-accent-soft: #262621;
     --color-accent-contrast: var(--gray-1000);
     --color-success: var(--green-400);
     --color-success-soft: var(--green-900);
@@ -224,7 +232,7 @@
     --color-danger: var(--red-400);
     --color-danger-hover: var(--red-500);
     --color-danger-soft: var(--red-900);
-    --color-focus-ring: var(--blue-400);
+    --color-focus-ring: #edede6;
     --color-skeleton: var(--gray-900);
     --color-skeleton-highlight: var(--gray-850);
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
