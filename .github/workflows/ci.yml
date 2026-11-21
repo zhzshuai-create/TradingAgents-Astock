@@ -19,11 +19,11 @@ jobs:
         run: ruff check .
 
   audit:
-    # 依赖漏洞扫描：先观察模式（不阻塞 CI）。已知通告：soupsieve/torch/urllib3
-    # 传递依赖旧版被钉。复评期限 2026-12：评估升级路径后对 Critical/High
-    # 去掉 continue-on-error 转硬闸门。
+    # 依赖漏洞硬闸门（2026-11-21 转正）。此前观察期的 soupsieve/urllib3 通告
+    # 已升级消化；Pillow 需 streamlit>=1.67 才允许 pillow 13，故 constraints
+    # 同时锁 streamlit/pillow/soupsieve/opentelemetry-api 与 setuptools。
+    # 出现新通告时先评估升级路径；确属无法修复再显式加 --ignore-vuln 并记录原因。
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
