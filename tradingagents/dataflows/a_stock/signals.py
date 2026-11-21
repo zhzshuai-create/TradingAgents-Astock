@@ -728,16 +728,16 @@ def get_industry_comparison(
     trade_date: str,
     top_n: int = 20,
 ) -> str:
-    """Get industry sector performance comparison.
+    """Get industry sector performance comparison from Eastmoney.
 
     Args:
-        ticker: 6-digit A-share code (used to identify relevant sector)
+        ticker: 6-digit A-share code, echoed in the response header
         trade_date: YYYY-MM-DD
-        top_n: number of top/bottom industries to show (default 20)
+        top_n: rows shown at EACH end of the ranking (default 20)
 
     Returns:
-        Formatted text with sector performance ranking, highlighting
-        the sector the target stock belongs to.
+        Formatted text with the top_n gainers and the top_n losers, sorted by
+        change percent. The target stock's sector is not resolved here.
     """
     code = _common._normalize_ticker(ticker)
     lines = [
@@ -763,28 +763,33 @@ def get_industry_comparison(
         items = d.get("data", {}).get("diff", [])
 
         if items:
-            lines.append(
-                f"\n## 全行业表现 (东财 {len(items)} 个行业)"
-            )
-            lines.append(
-                "排名 | 行业 | 涨跌幅 | 上涨 | 下跌 | 领涨股"
-            )
-            for i, item in enumerate(items):
-                name = item.get("f14", "")
-                change_pct = item.get("f3", 0)
-                up_count = item.get("f104", 0)
-                down_count = item.get("f105", 0)
-                leader = item.get("f128", "")  # f128=领涨股名称（f140 是代码）
-                lines.append(
-                    f"  {i+1}. {name} "
-                    f"| {change_pct}% "
-                    f"| {up_count} "
-                    f"| {down_count} "
-                    f"| {leader}"
+            def _pct(item: dict) -> float:
+                try:
+                    return float(item.get("f3") or 0)
+                except (TypeError, ValueError):
+                    return 0.0
+
+            def _row(item: dict) -> str:
+                return (
+                    f"  {item.get('f14', '')} "
+                    f"| {item.get('f3', 0)}% "
+                    f"| 涨 {item.get('f104', 0)} "
+                    f"| 跌 {item.get('f105', 0)} "
+                    f"| 领涨 {item.get('f128', '')}"
                 )
-                if i >= top_n * 2 - 1:
-                    lines.append(f"  ... (showing top/bottom {top_n})")
-                    break
+
+            ranked = sorted(items, key=_pct, reverse=True)
+            lines.append(f"\n## 涨幅前 {min(top_n, len(ranked))}")
+            lines.append("行业 | 涨跌幅 | 上涨 | 下跌 | 领涨股")
+            for item in ranked[:top_n]:
+                lines.append(_row(item))
+
+            if len(ranked) > top_n:
+                losers = ranked[-top_n:]
+                lines.append(f"\n## 跌幅前 {len(losers)}")
+                lines.append("行业 | 涨跌幅 | 上涨 | 下跌 | 领涨股")
+                for item in reversed(losers):
+                    lines.append(_row(item))
         else:
             lines.append("行业数据获取为空。")
     except Exception as e:

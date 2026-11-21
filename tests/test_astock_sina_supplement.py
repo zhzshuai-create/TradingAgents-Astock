@@ -72,3 +72,34 @@ def test_load_ohlcv_astock_supplements_fresh_cache_with_sina(tmp_path, monkeypat
 
     assert result["Date"].max() == pd.Timestamp("2026-06-11")
     assert result.loc[result["Date"] == pd.Timestamp("2026-06-11"), "Close"].item() == 57.47
+
+
+class _FakeSinaDailyResponse:
+    """2026-11-20 000001: 213,498,890 shares, the raw Sina unit (L15)."""
+
+    text = (
+        '[{"day":"2026-11-20","open":"11.990","high":"12.250",'
+        '"low":"11.910","close":"12.220","volume":"213498890"}]'
+    )
+
+    def raise_for_status(self):
+        return None
+
+
+def test_sina_volume_is_not_rescaled(monkeypatch):
+    """Sina volume is shares, same magnitude as the mootdx cache.
+
+    Measured 2026-11-21: Sina 213,498,890 for 000001 on 2026-11-20 vs
+    132,311,308 in the mootdx-built CSV for 2026-10-28. Tencent's realtime
+    2,134,989 is lots (x100) and belongs to a different path; rescaling here
+    would make the 万手 bars 100x too small.
+    """
+    from tradingagents.dataflows.a_stock import _common
+
+    monkeypatch.setattr(
+        _common._requests, "get", lambda *args, **kwargs: _FakeSinaDailyResponse()
+    )
+
+    df = _common._sina_kline_fallback("000001")
+
+    assert df.loc[0, "Volume"] == 213498890

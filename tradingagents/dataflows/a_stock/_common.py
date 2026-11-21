@@ -351,21 +351,6 @@ class _TTLCache:
 _data_cache = _TTLCache(max_entries=512)
 
 
-def cached_call(key: tuple, ttl: float, fetcher):
-    """Return cached result or call fetcher() and cache it.
-
-    Usage:
-        result = cached_call(("tencent", code), 60, lambda: _tencent_quote_raw([code]))
-    """
-    val = _data_cache.get(key, ttl)
-    if val is not None:
-        return val
-    result = fetcher()
-    if result is not None:
-        _data_cache.set(key, result)
-    return result
-
-
 # ---------------------------------------------------------------------------
 # Tencent Finance API
 # ---------------------------------------------------------------------------
@@ -647,8 +632,14 @@ def _sina_kline_fallback(code: str, start_date: str = None, end_date: str = None
     """Fetch daily K-line from Sina HTTP API as mootdx fallback.
 
     Returns DataFrame with columns: Date, Open, High, Low, Close, Volume.
+    Volume is returned in shares, the unit the rest of the pipeline uses:
+    measured 2026-11-21 on 000001, Sina returned 213,498,890 for 2026-11-20
+    while the mootdx-built cache stores 132,311,308 for 2026-10-28 (same
+    magnitude), and Tencent's realtime field is 2,134,989 lots (x100, a
+    separate quote path). Do not rescale here; a lot-based value would make
+    the volume bars 100x too small.
     """
-    prefix = "sh" if code.startswith("6") else "sz"
+    prefix = _get_prefix(code)
     url = (
         "http://money.finance.sina.com.cn/quotes_service/api/json_v2.php/"
         "CN_MarketData.getKLineData"

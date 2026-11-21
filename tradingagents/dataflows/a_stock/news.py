@@ -15,6 +15,20 @@ from . import _common
 from ._common import logger
 
 
+def _news_date(value: object) -> datetime | None:
+    """Parse the leading YYYY-MM-DD of a source timestamp; None if unknown.
+
+    Sources use ``YYYY-MM-DD HH:MM`` (CLS/EM) and ``YYYY-MM-DD`` (Sina); ISO
+    timestamps also work because only the first ten characters are read.
+    """
+    if not isinstance(value, str) or len(value) < 10:
+        return None
+    try:
+        return datetime.strptime(value[:10], "%Y-%m-%d")
+    except ValueError:
+        return None
+
+
 # ---- 7. get_news ----
 
 
@@ -72,7 +86,7 @@ def _fetch_news_eastmoney(code: str, page_size: int = 20) -> list[dict]:
 
 def _fetch_news_sina(code: str, page_size: int = 20) -> list[dict]:
     """Sina Finance stock news API (backup source)."""
-    prefix = "sh" if code.startswith(("6", "9")) else "sz"
+    prefix = _common._get_prefix(code)
     url = (
         f"https://vip.stock.finance.sina.com.cn/corp/view/"
         f"vCB_AllNewsStock.php?symbol={prefix}{code}&Page=1"
@@ -140,13 +154,11 @@ def get_news(
     news_str = ""
     count = 0
     for art in articles:
-        pub_time = art.get("time", "")
-        try:
-            pub_dt = datetime.strptime(pub_time[:10], "%Y-%m-%d")
-            if pub_dt < start_dt or pub_dt > end_dt:
-                continue
-        except (ValueError, IndexError):
-            pass
+        # Undated rows cannot be bounded by the requested window; keeping them
+        # would make the header range a lie.
+        pub_dt = _news_date(art.get("time", ""))
+        if pub_dt is None or pub_dt < start_dt or pub_dt > end_dt:
+            continue
 
         title = art["title"]
         content = art.get("content", "")
@@ -247,10 +259,20 @@ def get_global_news(
     if not all_news:
         return f"No global news found for {curr_date}"
 
+    end_dt = datetime.strptime(curr_date, "%Y-%m-%d")
+    windowed: list[dict] = []
+    for n in all_news:
+        pub_dt = _news_date(n.get("time", ""))
+        if pub_dt is None or pub_dt < start_dt or pub_dt > end_dt:
+            continue
+        windowed.append(n)
+    if not windowed:
+        return f"No global news found for {curr_date}"
+
     # Deduplicate by title
     seen: set[str] = set()
     unique: list[dict] = []
-    for n in all_news:
+    for n in windowed:
         if n["title"] not in seen:
             seen.add(n["title"])
             unique.append(n)
