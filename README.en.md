@@ -7,7 +7,7 @@
   <img src="https://img.shields.io/badge/version-0.2.19-green" alt="Version 0.2.19">
   <img src="https://img.shields.io/badge/license-Apache%202.0-orange?logo=apache" alt="Apache 2.0">
   <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey" alt="Platform">
-  <a href="https://github.com/zhzshuai-create/TradingAgents-Astock/actions/workflows/ci.yml"><img src="https://img.shields.io/badge/CI-passing-brightgreen?logo=github" alt="CI"></a>
+  <a href="https://github.com/zhzshuai-create/TradingAgents-Astock/actions/workflows/ci.yml"><img src="https://github.com/zhzshuai-create/TradingAgents-Astock/actions/workflows/ci.yml/badge.svg?branch=master" alt="CI"></a>
   <img src="https://img.shields.io/badge/tests-174%20passed-brightgreen" alt="Tests">
 </p>
 
